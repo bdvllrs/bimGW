@@ -1,0 +1,26 @@
+gpus: 1
+distributed_backend: ddp
+seed: 0
+max_epochs: 10
+
+image_net_path: ???
+img_size: 32
+batch_size: 32
+
+kernel_num: 128
+z_size: 512
+
+
+dataloader:
+  num_workers: 0
+
+optim:
+  lr: 5e-3
+  weight_decay: 1e-3
+
+neptune:
+  project_name: ???
+  api_token: ???
+
+checkpoints_dir: ???
+resume_from_checkpoint: null
