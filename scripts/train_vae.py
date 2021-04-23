@@ -33,7 +33,7 @@ def main(args):
                                  '../requirements.txt', '../**/*.yaml']
         )
 
-    model_checkpoints = ModelCheckpoint(args.checkpoints_dir, save_top_k=-1, mode="min", monitor="val_lpips")
+    model_checkpoints = ModelCheckpoint(args.checkpoints_dir, save_top_k=-1, mode="min", monitor="val_total_loss")
     trainer = Trainer(
         fast_dev_run=True,
         gpus=args.gpus, logger=logger,
