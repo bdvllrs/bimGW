@@ -9,6 +9,8 @@ from pytorch_lightning import LightningModule
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None:
         # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
+        sample_imgs = sample_imgs - sample_imgs.min()
+        sample_imgs = sample_imgs / sample_imgs.max()
         img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
         img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
         logger.log_image(name, img_grid, step)
@@ -187,7 +189,7 @@ class VAE(LightningModule):
         self.log("val_total_loss", total_loss, on_epoch=True)
 
         if batch_idx == 0:
-            log_image(self.logger, x_reconstructed, "val_reconstruction", self.current_epoch)
+            log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction", self.current_epoch)
             z_projected = self.project(self.validation_sampling_z).view(
                 -1, self.kernel_num,
                 self.feature_size,
