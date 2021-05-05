@@ -9,7 +9,7 @@ from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None:
-        sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
+        # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
         img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
         if type(logger) == NeptuneLogger:
             img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
@@ -19,7 +19,11 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
 
 
 class VAE(LightningModule):
+    """
+    Adapted from https://github.com/SashaMalysheva/Pytorch-VAE
+    """
     def __init__(self, image_size, channel_num, kernel_num, z_size,
+                 n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5):
         # configurations
         super().__init__()
@@ -31,7 +35,7 @@ class VAE(LightningModule):
         self.z_size = z_size
 
         # val sampling
-        self.register_buffer("validation_sampling_z", torch.randn(size, self.z_size))
+        self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
 
 
         # encoder
@@ -97,11 +101,11 @@ class VAE(LightningModule):
         return eps.mul(std).add_(mean)
 
     def reconstruction_loss(self, x_reconstructed, x):
-        return F.mse_loss(x_reconstructed, x, reduction='none') / x.size(0)
+        return F.mse_loss(x_reconstructed, x, reduction='sum')
         # return nn.BCELoss(size_average=False)(x_reconstructed, x) / x.size(0)
 
     def kl_divergence_loss(self, mean, logvar):
-        return ((mean**2 + logvar.exp() - 1 - logvar) / 2).mean()
+        return -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
 
     # =====
     # Utils
@@ -165,8 +169,8 @@ class VAE(LightningModule):
     def training_step(self, batch, batch_idx):
         x, _ = batch
         (mean, logvar), x_reconstructed = self(x)
-        reconstruction_loss = model.reconstruction_loss(x_reconstructed, x)
-        kl_divergence_loss = model.kl_divergence_loss(mean, logvar)
+        reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
+        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + kl_divergence_loss
 
         self.log("train_reconstruction_loss", reconstruction_loss)
@@ -178,8 +182,8 @@ class VAE(LightningModule):
     def validation_step(self, batch, batch_idx):
         x, _ = batch
         (mean, logvar), x_reconstructed = self(x)
-        reconstruction_loss = model.reconstruction_loss(x_reconstructed, x)
-        kl_divergence_loss = model.kl_divergence_loss(mean, logvar)
+        reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
+        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + kl_divergence_loss
 
         self.log("val_reconstruction_loss", reconstruction_loss, on_epoch=True)

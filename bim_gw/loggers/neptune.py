@@ -189,6 +189,7 @@ class NeptuneLogger(LightningLoggerBase):
             experiment_name: Optional[str] = None,
             experiment_id: Optional[str] = None,
             prefix: str = '',
+            params=None,
             **kwargs
     ):
         if neptune is None:
@@ -203,6 +204,7 @@ class NeptuneLogger(LightningLoggerBase):
         self.close_after_fit = close_after_fit
         self.experiment_name = experiment_name
         self._prefix = prefix
+        self.params = params
         self._kwargs = kwargs
         self.experiment_id = experiment_id
         self._experiment = None
@@ -245,7 +247,7 @@ class NeptuneLogger(LightningLoggerBase):
         params = self._convert_params(params)
         params = self._flatten_dict(params)
         for key, val in params.items():
-            self.experiment.set_property(f'param__{key}', val)
+            self.experiment[f'hyperparams/{key}'] = val
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, Union[torch.Tensor, float]], step: Optional[int] = None) -> None:
@@ -277,17 +279,11 @@ class NeptuneLogger(LightningLoggerBase):
 
     @property
     def name(self) -> str:
-        if self.offline_mode:
-            return 'offline-name'
-        else:
-            return self.experiment.name
+        return self.experiment["sys/name"].fetch()
 
     @property
     def version(self) -> str:
-        if self.offline_mode:
-            return 'offline-id-1234'
-        else:
-            return self.experiment.id
+        return self.experiment["sys/id"].fetch()
 
     @rank_zero_only
     def log_metric(
@@ -304,10 +300,7 @@ class NeptuneLogger(LightningLoggerBase):
         if is_tensor(metric_value):
             metric_value = metric_value.cpu().detach()
 
-        if step is None:
-            self.experiment.log_metric(metric_name, metric_value)
-        else:
-            self.experiment.log_metric(metric_name, x=step, y=metric_value)
+        self.experiment[metric_name].log(metric_value, step=step)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: str, step: Optional[int] = None) -> None:
@@ -319,7 +312,7 @@ class NeptuneLogger(LightningLoggerBase):
             text: The value of the log (data-point).
             step: Step number at which the metrics should be recorded, must be strictly increasing
         """
-        self.experiment.log_text(log_name, text, step=step)
+        self.experiment[log_name].log(text, step=step)
 
     @rank_zero_only
     def log_image(self, log_name: str, image: Union[str, Any], step: Optional[int] = None) -> None:
@@ -333,10 +326,7 @@ class NeptuneLogger(LightningLoggerBase):
                 path to image file (str)
             step: Step number at which the metrics should be recorded, must be strictly increasing
         """
-        if step is None:
-            self.experiment.log_image(log_name, image)
-        else:
-            self.experiment.log_image(log_name, x=step, y=image)
+        self.experiment[log_name].log(image, step=step)
 
     @rank_zero_only
     def log_artifact(self, artifact: str, destination: Optional[str] = None) -> None:
@@ -347,7 +337,7 @@ class NeptuneLogger(LightningLoggerBase):
             destination: Optional. Default is ``None``. A destination path.
                 If ``None`` is passed, an artifact file name will be used.
         """
-        self.experiment.log_artifact(artifact, destination)
+        self.experiment[artifact].upload(destination)
 
     @rank_zero_only
     def set_property(self, key: str, value: Any) -> None:
@@ -358,7 +348,7 @@ class NeptuneLogger(LightningLoggerBase):
             key: Property key.
             value: New value of a property.
         """
-        self.experiment.set_property(key, value)
+        self.experiment[key] = value
 
     @rank_zero_only
     def append_tags(self, tags: Union[str, Iterable[str]]) -> None:
@@ -372,17 +362,19 @@ class NeptuneLogger(LightningLoggerBase):
         """
         if str(tags) == tags:
             tags = [tags]  # make it as an iterable is if it is not yet
-        self.experiment.append_tags(*tags)
+        self.experiment["sys/tags"].add(tags)
 
     def _create_or_get_experiment(self):
-        run = neptune.init(project=self.project_name, api_token=self.api_key, model=self.mode, run=self.experiment_id)
+        run = neptune.init(project=self.project_name, api_token=self.api_key, mode=self.mode, run=self.experiment_id, **self._kwargs)
 
         if self.experiment_id is None:
-            self.experiment_id = run.id
+            self.experiment_id = run["sys/id"].fetch()
+            if self.params is not None:
+                for key, val in self.params.items():
+                    run[f"parameters/{key}"] = val
         else:
-            self.experiment_name = run.get_system_properties()['name']
-            self.params = run.get_parameters()
-            self.properties = run.get_properties()
-            self.tags = run.get_tags()
+            self.experiment_name = run["sys/name"].fetch()
+            self.params = run["parameters"].fetch()
+            self.tags = run["sys/tags"].fetch()
 
         return run

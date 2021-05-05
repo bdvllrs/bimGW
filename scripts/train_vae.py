@@ -1,11 +1,10 @@
 import os
 
-import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-from bim_gw.loggers.neptune import NeptuneLogger
 
 from bim_gw.datasets import ImageNetData
+from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
@@ -18,6 +17,7 @@ def main(args):
 
     vae = VAE(
         data.img_size, data.num_channels, args.kernel_num, args.z_size,
+        args.n_validation_examples,
         args.optim.lr, args.optim.weight_decay
     )
 
@@ -28,14 +28,14 @@ def main(args):
             project_name=args.neptune.project_name,
             experiment_name="train_vae",
             params=dict(args),
-            upload_source_files=['../bim_gw/**/*.py', '../scripts/**/.py',
-                                 '../*.py', '../readme.md',
-                                 '../requirements.txt', '../**/*.yaml']
+            source_files=['../bim_gw/**/*.py', '../scripts/**/.py',
+                          '../*.py', '../readme.md',
+                          '../requirements.txt', '../**/*.yaml']
         )
 
     model_checkpoints = ModelCheckpoint(args.checkpoints_dir, save_top_k=-1, mode="min", monitor="val_total_loss")
     trainer = Trainer(
-        fast_dev_run=True,
+        # fast_dev_run=True,
         gpus=args.gpus, logger=logger,
         checkpoint_callback=model_checkpoints,
         resume_from_checkpoint=args.resume_from_checkpoint,
