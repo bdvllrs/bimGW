@@ -4,18 +4,14 @@ from torch.autograd import Variable
 from torch import nn
 from torch.nn import functional as F
 from pytorch_lightning import LightningModule
-from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None:
         # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
         img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
-        if type(logger) == NeptuneLogger:
-            img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
-            logger.experiment.log_image(name, img_grid)
-        elif type(logger) == TensorBoardLogger:
-            logger.experiment.add_image(name, img_grid.cpu(), step)
+        img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
+        logger.log_image(name, img_grid, step)
 
 
 class VAE(LightningModule):
