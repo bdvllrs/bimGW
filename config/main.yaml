@@ -1,7 +1,7 @@
 gpus: 1
 distributed_backend: ddp
 seed: 0
-max_epochs: 10
+max_epochs: 100
 
 image_net_path: ???
 img_size: 32
@@ -18,6 +18,10 @@ dataloader:
 optim:
   lr: 5e-3
   weight_decay: 1e-3
+
+scheduler:
+  step: 20
+  gamma: 0.5
 
 neptune:
   project_name: ???

@@ -95,6 +95,7 @@ class VAE(LightningModule):
     def __init__(self, image_size, channel_num, kernel_num, z_size,
                  n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5,
+                 scheduler_step=20, scheduler_gamma=0.5,
                  validation_reconstruction_images=None):
         # configurations
         super().__init__()
@@ -170,13 +171,13 @@ class VAE(LightningModule):
     def validation_epoch_end(self, outputs):
         x = self.validation_reconstruction_images
         _, x_reconstructed = self(x)
-        log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images", self.current_epoch)
-        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples],
-                  "val_reconstruction", self.current_epoch)
+        log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
         sampled_images = self.decoder(self.validation_sampling_z)
-        log_image(self.logger, sampled_images, "val_sampling", self.current_epoch)
+        log_image(self.logger, sampled_images, "val_sampling")
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
                                      weight_decay=self.hparams.optim_weight_decay)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step, self.hparams.scheduler_gamma)
+        return optimizer, scheduler
