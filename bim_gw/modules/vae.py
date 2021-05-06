@@ -180,4 +180,4 @@ class VAE(LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
                                      weight_decay=self.hparams.optim_weight_decay)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step, self.hparams.scheduler_gamma)
-        return optimizer, scheduler
+        return [optimizer], [scheduler]
