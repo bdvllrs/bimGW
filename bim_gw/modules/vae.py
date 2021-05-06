@@ -1,10 +1,9 @@
 import torch
 import torchvision
-from torch.autograd import Variable
+from neptune.new.types import File
+from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
-from pytorch_lightning import LightningModule
-from neptune.new.types import File
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
@@ -17,10 +16,82 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
         logger.log_image(name, File.as_image(img_grid), step)
 
 
+class DeconvResNetBlock(nn.Module):
+    def __init__(self, inplanes, planes, kernel_size, stride, padding, upsample=False):
+        super(DeconvResNetBlock, self).__init__()
+
+        # self.block1 = nn.Sequential(
+        #     nn.ConvTranspose2d(inplanes, inplanes, kernel_size, 1, 1, bias=False),
+        #     nn.BatchNorm2d(inplanes),
+        #     nn.ReLU(inplace=True),
+        # )
+        self.block2 = nn.Sequential(
+            nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
+            nn.BatchNorm2d(planes),
+            nn.ReLU(inplace=True),
+        )
+
+        # self.relu = nn.ReLU(inplace=True)
+        #
+        # self.upsample = nn.Identity()
+        # if upsample:
+        #     self.upsample = nn.Sequential(
+        #         nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
+        #         nn.BatchNorm2d(planes),
+        #     )
+
+    def forward(self, x):
+        # out = self.block1(x)
+        out = self.block2(x)
+        # out = out + self.upsample(x)
+        # out = self.relu(out)
+        return out
+
+
+class ResNetDecoder(nn.Module):
+    def __init__(self, z_dim):
+        super().__init__()
+        self.z_dim = z_dim
+
+        self.layer1 = DeconvResNetBlock(512, 256, 3, 2, 1, True)
+        self.layer2 = DeconvResNetBlock(256, 128, 3, 2, True)
+        self.layer3 = DeconvResNetBlock(128, 64, 3, 2, True)
+        self.layer4 = DeconvResNetBlock(64, 64, 3, 1, False)
+
+        self.unpool = nn.Sequential(
+            nn.ConvTranspose2d(64, 64, 3, 2, 1, output_padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+        )
+
+        self.conv = nn.ConvTranspose2d(64, 3, 7, 2, 3, output_padding=1, bias=False)
+        self.bn = nn.BatchNorm2d(3)
+        self.linear = nn.Linear(self.z_dim, 512, bias=False)
+
+    def forward(self, x):
+        x = self.linear(x)
+        x = x.reshape(x.size(0), 512, 1, 1)
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = self.unpool(out)
+        out = self.conv(out)
+        out = self.bn(out)
+        return out
+
+
+def reparameterize(mean, logvar):
+    std = logvar.mul(0.5).exp_()
+    eps = torch.randn(std.size()).to(mean.device)
+    return eps.mul(std).add_(mean)
+
+
 class VAE(LightningModule):
     """
     Adapted from https://github.com/SashaMalysheva/Pytorch-VAE
     """
+
     def __init__(self, image_size, channel_num, kernel_num, z_size,
                  n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5,
@@ -38,67 +109,27 @@ class VAE(LightningModule):
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
 
-        # encoder
-        self.encoder = nn.Sequential(
-            self._conv(self.channel_num, self.kernel_num // 4),
-            self._conv(self.kernel_num // 4, self.kernel_num // 2),
-            self._conv(self.kernel_num // 2, self.kernel_num),
-        )
-
-        # encoded feature's size and volume
-        self.feature_size = self.image_size // 8
-        self.feature_volume = self.kernel_num * (self.feature_size ** 2)
+        self.encoder = torchvision.models.resnet18(False)
+        self.encoder.fc = nn.Identity()
 
         # q
-        self.q_mean = self._linear(self.feature_volume, self.z_size, relu=False)
-        self.q_logvar = self._linear(self.feature_volume, self.z_size, relu=False)
-
-        # projection
-        self.project = self._linear(self.z_size, self.feature_volume, relu=False)
+        self.q_mean = nn.Linear(512, self.z_size)
+        self.q_logvar = nn.Linear(512, self.z_size)
 
         # decoder
-        self.decoder = nn.Sequential(
-            self._deconv(self.kernel_num, self.kernel_num // 2),
-            self._deconv(self.kernel_num // 2, self.kernel_num // 4),
-            self._deconv(self.kernel_num // 4, self.channel_num),
-            nn.Sigmoid()
-        )
+        self.decoder = ResNetDecoder(z_size)
 
     def forward(self, x):
-        # encode x
-        encoded = self.encoder(x)
+        out = self.encoder(x)
+        mean = self.q_mean(out)
+        logvar = self.q_logvar(out)
 
-        # sample latent code z from q given x.
-        mean, logvar = self.q(encoded)
-        z = self.z(mean, logvar)
-        z_projected = self.project(z).view(
-            -1, self.kernel_num,
-            self.feature_size,
-            self.feature_size,
-        )
+        z = reparameterize(mean, logvar)
 
         # reconstruct x from z
-        x_reconstructed = self.decoder(z_projected)
+        x_reconstructed = self.decoder(z)
 
-        # return the parameters of distribution of q given x and the
-        # reconstructed image.
         return (mean, logvar), x_reconstructed
-
-    # ==============
-    # VAE components
-    # ==============
-
-    def q(self, encoded):
-        unrolled = encoded.view(-1, self.feature_volume)
-        return self.q_mean(unrolled), self.q_logvar(unrolled)
-
-    def z(self, mean, logvar):
-        std = logvar.mul(0.5).exp_()
-        eps = (
-            Variable(torch.randn(std.size())).cuda() if self._is_on_cuda else
-            Variable(torch.randn(std.size()))
-        )
-        return eps.mul(std).add_(mean)
 
     def reconstruction_loss(self, x_reconstructed, x):
         return F.mse_loss(x_reconstructed, x, reduction='sum')
@@ -107,63 +138,9 @@ class VAE(LightningModule):
     def kl_divergence_loss(self, mean, logvar):
         return -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
 
-    # =====
-    # Utils
-    # =====
-
-    @property
-    def name(self):
-        return (
-            'VAE'
-            '-{kernel_num}k'
-            '-{channel_num}x{image_size}x{image_size}'
-        ).format(
-            kernel_num=self.kernel_num,
-            image_size=self.image_size,
-            channel_num=self.channel_num,
-        )
-
     def sample(self, size):
         z = torch.randn(size, self.z_size).to(self.device)
-        z_projected = self.project(z).view(
-            -1, self.kernel_num,
-            self.feature_size,
-            self.feature_size,
-        )
-        return self.decoder(z_projected)
-
-    def _is_on_cuda(self):
-        return next(self.parameters()).is_cuda
-
-    # ======
-    # Layers
-    # ======
-
-    def _conv(self, channel_size, kernel_num):
-        return nn.Sequential(
-            nn.Conv2d(
-                channel_size, kernel_num,
-                kernel_size=4, stride=2, padding=1,
-            ),
-            nn.BatchNorm2d(kernel_num),
-            nn.ReLU(),
-        )
-
-    def _deconv(self, channel_num, kernel_num):
-        return nn.Sequential(
-            nn.ConvTranspose2d(
-                channel_num, kernel_num,
-                kernel_size=4, stride=2, padding=1,
-            ),
-            nn.BatchNorm2d(kernel_num),
-            nn.ReLU(),
-        )
-
-    def _linear(self, in_size, out_size, relu=True):
-        return nn.Sequential(
-            nn.Linear(in_size, out_size),
-            nn.ReLU(),
-        ) if relu else nn.Linear(in_size, out_size)
+        return self.decoder(z)
 
     # Lightning
     def training_step(self, batch, batch_idx):
@@ -196,16 +173,10 @@ class VAE(LightningModule):
         log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images", self.current_epoch)
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples],
                   "val_reconstruction", self.current_epoch)
-        z_projected = self.project(self.validation_sampling_z).view(
-            -1, self.kernel_num,
-            self.feature_size,
-            self.feature_size,
-        )
-        sampled_images = self.decoder(z_projected)
+        sampled_images = self.decoder(self.validation_sampling_z)
         log_image(self.logger, sampled_images, "val_sampling", self.current_epoch)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
                                      weight_decay=self.hparams.optim_weight_decay)
         return optimizer
-
