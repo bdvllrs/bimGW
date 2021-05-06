@@ -26,6 +26,9 @@ class ImageNetData(LightningDataModule):
         self.image_net_train = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size))
         self.image_net_val = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size), split="val")
 
+        validation_reconstruction_indices = torch.randint(len(self.image_net_val), size=(batch_size,))
+        self.validation_reconstructed_images = torch.stack([self.image_net_val[k][0] for k in validation_reconstruction_indices], dim=0)
+
     def train_dataloader(self):
         dataloader_train = torch.utils.data.DataLoader(self.image_net_train,
                                                        batch_size=self.batch_size, shuffle=True,

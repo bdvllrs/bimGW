@@ -18,7 +18,8 @@ def main(args):
     vae = VAE(
         data.img_size, data.num_channels, args.kernel_num, args.z_size,
         args.n_validation_examples,
-        args.optim.lr, args.optim.weight_decay
+        args.optim.lr, args.optim.weight_decay,
+        data.validation_reconstructed_images
     )
 
     logger = None

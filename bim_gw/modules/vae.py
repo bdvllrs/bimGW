@@ -4,6 +4,7 @@ from torch.autograd import Variable
 from torch import nn
 from torch.nn import functional as F
 from pytorch_lightning import LightningModule
+from neptune.new.types import File
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
@@ -13,7 +14,7 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
         sample_imgs = sample_imgs / sample_imgs.max()
         img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
         img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
-        logger.log_image(name, img_grid, step)
+        logger.log_image(name, File.as_image(img_grid), step)
 
 
 class VAE(LightningModule):
@@ -22,7 +23,8 @@ class VAE(LightningModule):
     """
     def __init__(self, image_size, channel_num, kernel_num, z_size,
                  n_validation_examples=32,
-                 optim_lr=3e-4, optim_weight_decay=1e-5):
+                 optim_lr=3e-4, optim_weight_decay=1e-5,
+                 validation_reconstruction_images=None):
         # configurations
         super().__init__()
         self.save_hyperparameters()
@@ -34,7 +36,7 @@ class VAE(LightningModule):
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
-
+        self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
 
         # encoder
         self.encoder = nn.Sequential(
@@ -188,15 +190,19 @@ class VAE(LightningModule):
         self.log("val_kl_divergence_loss", kl_divergence_loss, on_epoch=True)
         self.log("val_total_loss", total_loss, on_epoch=True)
 
-        if batch_idx == 0:
-            log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction", self.current_epoch)
-            z_projected = self.project(self.validation_sampling_z).view(
-                -1, self.kernel_num,
-                self.feature_size,
-                self.feature_size,
-            )
-            sampled_images = self.decoder(z_projected)
-            log_image(self.logger, sampled_images, "val_sampling", self.current_epoch)
+    def validation_epoch_end(self, outputs):
+        x = self.validation_reconstruction_images
+        _, x_reconstructed = self(x)
+        log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images", self.current_epoch)
+        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples],
+                  "val_reconstruction", self.current_epoch)
+        z_projected = self.project(self.validation_sampling_z).view(
+            -1, self.kernel_num,
+            self.feature_size,
+            self.feature_size,
+        )
+        sampled_images = self.decoder(z_projected)
+        log_image(self.logger, sampled_images, "val_sampling", self.current_epoch)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,

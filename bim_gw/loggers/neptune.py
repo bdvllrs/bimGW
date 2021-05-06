@@ -21,7 +21,6 @@ from typing import Any, Dict, Iterable, Optional, Union
 
 import torch
 from torch import is_tensor
-from neptune.new.types import File
 
 from pytorch_lightning.loggers.base import LightningLoggerBase, rank_zero_experiment
 from pytorch_lightning.utilities import _module_available, rank_zero_only
@@ -327,7 +326,7 @@ class NeptuneLogger(LightningLoggerBase):
                 path to image file (str)
             step: Step number at which the metrics should be recorded, must be strictly increasing
         """
-        self.experiment[log_name].upload(image)
+        self.experiment[log_name].log(image, step=step)
 
     @rank_zero_only
     def log_artifact(self, artifact: str, destination: Optional[str] = None) -> None:
