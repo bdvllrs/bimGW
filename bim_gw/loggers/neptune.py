@@ -279,11 +279,16 @@ class NeptuneLogger(LightningLoggerBase):
 
     @property
     def name(self) -> str:
-        return self.experiment["sys/name"].fetch()
+        if not self.offline_mode:
+            return self.experiment["sys/name"].fetch()
+        return "offline-exp_" + self.experiment._uuid
 
     @property
     def version(self) -> str:
-        return self.experiment["sys/id"].fetch()
+        if not self.offline_mode:
+            return self.experiment["sys/id"].fetch()
+        else:
+            return "offline-exp_" + self.experiment._uuid
 
     @rank_zero_only
     def log_metric(
@@ -368,7 +373,10 @@ class NeptuneLogger(LightningLoggerBase):
         run = neptune.init(project=self.project_name, api_token=self.api_key, mode=self.mode, run=self.experiment_id, **self._kwargs)
 
         if self.experiment_id is None:
-            self.experiment_id = run["sys/id"].fetch()
+            if not self.offline_mode:
+                self.experiment_id = run["sys/id"].fetch()
+            else:
+                self.experiment_id = "offline-exp_" + run._uuid
             if self.params is not None:
                 for key, val in self.params.items():
                     run[f"parameters/{key}"] = val

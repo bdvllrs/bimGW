@@ -28,14 +28,16 @@ def main(args):
             api_key=args.neptune.api_token,
             project_name=args.neptune.project_name,
             experiment_name="train_vae",
+            mode=args.neptune.mode,
             params=dict(args),
             source_files=['../bim_gw/**/*.py', '../scripts/**/.py',
                           '../*.py', '../readme.md',
                           '../requirements.txt', '../**/*.yaml']
         )
 
-    model_checkpoints = ModelCheckpoint(args.checkpoints_dir, save_top_k=-1, mode="min", monitor="val_total_loss")
+    model_checkpoints = ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")
     trainer = Trainer(
+        default_root_dir=args.checkpoints_dir,
         # fast_dev_run=True,
         gpus=args.gpus, logger=logger,
         checkpoint_callback=model_checkpoints,

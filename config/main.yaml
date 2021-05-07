@@ -26,6 +26,7 @@ scheduler:
 neptune:
   project_name: ???
   api_token: ???
+  mode: async
 
 checkpoints_dir: ???
 resume_from_checkpoint: null
