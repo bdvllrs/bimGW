@@ -23,7 +23,7 @@ def main(args):
     )
 
     logger = None
-    if not debug_mode:
+    if args.neptune.project_name is not None:
         logger = NeptuneLogger(
             api_key=args.neptune.api_token,
             project_name=args.neptune.project_name,

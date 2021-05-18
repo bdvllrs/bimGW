@@ -24,8 +24,8 @@ scheduler:
   gamma: 0.5
 
 neptune:
-  project_name: ???
-  api_token: ???
+  project_name: null
+  api_token: null
   mode: async
 
 checkpoints_dir: ???
