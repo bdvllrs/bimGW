@@ -29,8 +29,8 @@ def train_vae(args):
             experiment_name="train_vae",
             mode=args.neptune.mode,
             params=dict(args),
-            source_files=['../**/*.py', '../../*.py', '../../readme.md',
-                          '../../requirements.txt', '../../**/*.yaml']
+            source_files=['../**/*.py', '../readme.md',
+                          '../requirements.txt', '../**/*.yaml']
         )
 
     model_checkpoints = ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")
