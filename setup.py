@@ -16,4 +16,5 @@ if __name__ == '__main__':
     setup(name='bim_gw',
           version=get_version(),
           install_requires=get_requirements(),
-          packages=find_packages())
+          packages=find_packages(),
+          )
