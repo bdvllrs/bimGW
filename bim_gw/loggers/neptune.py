@@ -378,7 +378,9 @@ class NeptuneLogger(LightningLoggerBase):
             else:
                 self.experiment_id = "offline-exp_" + run._uuid
             if self.params is not None:
-                for key, val in self.params.items():
+                params = self._convert_params(self.params)
+                params = self._flatten_dict(params)
+                for key, val in params.items():
                     run[f"parameters/{key}"] = val
         else:
             self.experiment_name = run["sys/name"].fetch()

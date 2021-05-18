@@ -84,9 +84,9 @@ class ResNetDecoder(nn.Module):
 
 
 def reparameterize(mean, logvar):
-    std = logvar.mul(0.5).exp_()
+    std = logvar.mul(0.5).exp()
     eps = torch.randn(std.size()).to(mean.device)
-    return eps.mul(std).add_(mean)
+    return eps.mul(std).add(mean)
 
 
 class VAE(LightningModule):
