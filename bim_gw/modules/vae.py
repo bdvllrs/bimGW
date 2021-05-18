@@ -20,31 +20,31 @@ class DeconvResNetBlock(nn.Module):
     def __init__(self, inplanes, planes, kernel_size, stride, padding, upsample=False):
         super(DeconvResNetBlock, self).__init__()
 
-        # self.block1 = nn.Sequential(
-        #     nn.ConvTranspose2d(inplanes, inplanes, kernel_size, 1, 1, bias=False),
-        #     nn.BatchNorm2d(inplanes),
-        #     nn.ReLU(inplace=True),
-        # )
+        self.block1 = nn.Sequential(
+            nn.ConvTranspose2d(inplanes, inplanes, kernel_size, 1, 1, bias=False),
+            nn.BatchNorm2d(inplanes),
+            nn.ReLU(inplace=True),
+        )
         self.block2 = nn.Sequential(
             nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
             nn.BatchNorm2d(planes),
             nn.ReLU(inplace=True),
         )
 
-        # self.relu = nn.ReLU(inplace=True)
-        #
-        # self.upsample = nn.Identity()
-        # if upsample:
-        #     self.upsample = nn.Sequential(
-        #         nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
-        #         nn.BatchNorm2d(planes),
-        #     )
+        self.relu = nn.ReLU(inplace=True)
+
+        self.upsample = nn.Identity()
+        if upsample:
+            self.upsample = nn.Sequential(
+                nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
+                nn.BatchNorm2d(planes),
+            )
 
     def forward(self, x):
-        # out = self.block1(x)
-        out = self.block2(x)
-        # out = out + self.upsample(x)
-        # out = self.relu(out)
+        out = self.block1(x)  # (B, C, W, H)
+        out = self.block2(out)  # (B, C, W, H)
+        out = out + self.upsample(x)  # (B, C/2, W*2, H*2)
+        out = self.relu(out)
         return out
 
 
@@ -54,9 +54,9 @@ class ResNetDecoder(nn.Module):
         self.z_dim = z_dim
 
         self.layer1 = DeconvResNetBlock(512, 256, 3, 2, 1, True)
-        self.layer2 = DeconvResNetBlock(256, 128, 3, 2, True)
-        self.layer3 = DeconvResNetBlock(128, 64, 3, 2, True)
-        self.layer4 = DeconvResNetBlock(64, 64, 3, 1, False)
+        self.layer2 = DeconvResNetBlock(256, 128, 3, 2, 1, True)
+        self.layer3 = DeconvResNetBlock(128, 64, 3, 2, 1, True)
+        self.layer4 = DeconvResNetBlock(64, 64, 3, 1, 0, False)
 
         self.unpool = nn.Sequential(
             nn.ConvTranspose2d(64, 64, 3, 2, 1, output_padding=1, bias=False),
@@ -69,9 +69,9 @@ class ResNetDecoder(nn.Module):
         self.linear = nn.Linear(self.z_dim, 512, bias=False)
 
     def forward(self, x):
-        x = self.linear(x)
-        x = x.reshape(x.size(0), 512, 1, 1)
-        out = self.layer1(x)
+        x = self.linear(x)  # (B, 512)
+        x = x.reshape(x.size(0), 512, 1, 1)  # (B, 512, 1, 1)
+        out = self.layer1(x)  #
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)

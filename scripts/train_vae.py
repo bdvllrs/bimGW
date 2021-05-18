@@ -10,7 +10,6 @@ from bim_gw.utils import get_args
 
 
 def main(args):
-    debug_mode = int(os.getenv("DEBUG", 0))
     seed_everything(args.seed)
 
     data = ImageNetData(args.image_net_path, args.batch_size, args.img_size, args.dataloader.num_workers)
