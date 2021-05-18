@@ -94,7 +94,7 @@ class VAE(LightningModule):
     Adapted from https://github.com/SashaMalysheva/Pytorch-VAE
     """
 
-    def __init__(self, image_size, channel_num, kernel_num, z_size, beta=1,
+    def __init__(self, image_size, channel_num, z_size, beta=1,
                  n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5,
                  scheduler_step=20, scheduler_gamma=0.5,
@@ -105,7 +105,6 @@ class VAE(LightningModule):
 
         self.image_size = image_size
         self.channel_num = channel_num
-        self.kernel_num = kernel_num
         self.z_size = z_size
         self.beta = beta
 
@@ -141,7 +140,7 @@ class VAE(LightningModule):
 
     def kl_divergence_loss(self, mean, logvar):
         kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        kl = kl / (mean.size(0) * 3 * self.image_size * self.image_size)
+        kl = kl / (mean.size(0) * self.channel_num * self.image_size * self.image_size)
         return kl
 
     def sample(self, size):

@@ -9,8 +9,7 @@ batch_size: 32
 n_validation_examples: 32
 beta: 1
 
-kernel_num: 128
-z_size: 512
+z_size: 128
 
 
 dataloader:
