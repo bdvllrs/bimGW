@@ -133,11 +133,13 @@ class VAE(LightningModule):
         return (mean, logvar), x_reconstructed
 
     def reconstruction_loss(self, x_reconstructed, x):
-        return F.mse_loss(x_reconstructed, x, reduction='sum')
+        return F.mse_loss(x_reconstructed, x)
         # return nn.BCELoss(size_average=False)(x_reconstructed, x) / x.size(0)
 
     def kl_divergence_loss(self, mean, logvar):
-        return -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        kl = kl / (mean.size(0) * 3 * 32 * 32)
+        return kl
 
     def sample(self, size):
         z = torch.randn(size, self.z_size).to(self.device)
@@ -151,8 +153,8 @@ class VAE(LightningModule):
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + kl_divergence_loss
 
-        self.log("train_reconstruction_loss", reconstruction_loss)
-        self.log("train_kl_divergence_loss", kl_divergence_loss)
+        self.log("train_reconstruction_loss", reconstruction_loss, logger=True)
+        self.log("train_kl_divergence_loss", kl_divergence_loss, logger=True)
         self.log("train_total_loss", total_loss)
 
         return total_loss

@@ -1,5 +1,6 @@
 # Created by .ignore support plugin (hsz.mobi)
 config/local.yaml
+config/debug.yaml
 checkoints/
 
 ### Python template

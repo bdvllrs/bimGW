@@ -50,4 +50,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main(get_args())
+    main(get_args(debug=int(os.getenv("DEBUG", 0))))
