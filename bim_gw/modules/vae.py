@@ -138,7 +138,7 @@ class VAE(LightningModule):
 
     def kl_divergence_loss(self, mean, logvar):
         kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        kl = kl / (mean.size(0) * 3 * 32 * 32)
+        kl = kl / (mean.size(0) * 3 * self.image_size * self.image_size)
         return kl
 
     def sample(self, size):
