@@ -5,6 +5,8 @@ from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
 
+from bim_gw.utils.losses import grad_norm
+
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None:
@@ -92,7 +94,7 @@ class VAE(LightningModule):
     Adapted from https://github.com/SashaMalysheva/Pytorch-VAE
     """
 
-    def __init__(self, image_size, channel_num, kernel_num, z_size,
+    def __init__(self, image_size, channel_num, kernel_num, z_size, beta=1,
                  n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5,
                  scheduler_step=20, scheduler_gamma=0.5,
@@ -105,6 +107,7 @@ class VAE(LightningModule):
         self.channel_num = channel_num
         self.kernel_num = kernel_num
         self.z_size = z_size
+        self.beta = beta
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
@@ -151,7 +154,10 @@ class VAE(LightningModule):
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
-        total_loss = reconstruction_loss + kl_divergence_loss
+        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
+
+        # self.log("train_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
+        # self.log("train_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), retain_graph=True, allow_unused=True))
 
         self.log("train_reconstruction_loss", reconstruction_loss, logger=True)
         self.log("train_kl_divergence_loss", kl_divergence_loss, logger=True)
@@ -166,6 +172,9 @@ class VAE(LightningModule):
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + kl_divergence_loss
 
+            # self.log("val_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
+            # self.log("val_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), allow_unused=True))
+
         self.log("val_reconstruction_loss", reconstruction_loss, on_epoch=True)
         self.log("val_kl_divergence_loss", kl_divergence_loss, on_epoch=True)
         self.log("val_total_loss", total_loss, on_epoch=True)
@@ -173,7 +182,10 @@ class VAE(LightningModule):
     def validation_epoch_end(self, outputs):
         x = self.validation_reconstruction_images
         _, x_reconstructed = self(x)
-        log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+
+        if self.current_epoch == 0:
+            log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
         sampled_images = self.decoder(self.validation_sampling_z)
         log_image(self.logger, sampled_images, "val_sampling")
