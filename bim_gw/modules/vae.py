@@ -79,19 +79,19 @@ class ResNetDecoder(nn.Module):
         )
 
         self.conv = nn.ConvTranspose2d(64, 3, 7, 2, 3, output_padding=1, bias=False)
-        self.bn = nn.BatchNorm2d(3)
         self.linear = nn.Linear(self.z_dim, 512, bias=False)
+        self.bn = nn.BatchNorm2d(512)
 
     def forward(self, x):
         x = self.linear(x)  # (B, 512)
         x = x.reshape(x.size(0), 512, 1, 1)  # (B, 512, 1, 1)
-        out = self.layer1(x)
+        out = self.bn(x)
+        out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
         out = self.unpool(out)
         out = self.conv(out)
-        out = self.bn(out)
         return out
 
 
