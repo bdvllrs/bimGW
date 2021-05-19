@@ -55,10 +55,22 @@ class ResNetDecoder(nn.Module):
         super().__init__()
         self.z_dim = z_dim
 
-        self.layer1 = DeconvResNetBlock(512, 256, 3, 2, 1, True)
-        self.layer2 = DeconvResNetBlock(256, 128, 3, 2, 1, True)
-        self.layer3 = DeconvResNetBlock(128, 64, 3, 2, 1, True)
-        self.layer4 = DeconvResNetBlock(64, 64, 3, 1, 0, False)
+        self.layer1 = nn.Sequential(
+            DeconvResNetBlock(512, 512, 3, 1, 0, True),
+            DeconvResNetBlock(512, 256, 3, 2, 1, True),
+        )
+        self.layer2 = nn.Sequential(
+            DeconvResNetBlock(256, 256, 3, 1, 0, True),
+            DeconvResNetBlock(256, 128, 3, 2, 1, True),
+        )
+        self.layer3 = nn.Sequential(
+            DeconvResNetBlock(128, 128, 3, 1, 0, True),
+            DeconvResNetBlock(128, 64, 3, 2, 1, True),
+        )
+        self.layer4 = nn.Sequential(
+            DeconvResNetBlock(64, 64, 3, 1, 0, False),
+            DeconvResNetBlock(64, 64, 3, 1, 0, False),
+        )
 
         self.unpool = nn.Sequential(
             nn.ConvTranspose2d(64, 64, 3, 2, 1, output_padding=1, bias=False),
