@@ -73,7 +73,7 @@ class ResNetDecoder(nn.Module):
     def forward(self, x):
         x = self.linear(x)  # (B, 512)
         x = x.reshape(x.size(0), 512, 1, 1)  # (B, 512, 1, 1)
-        out = self.layer1(x)  #
+        out = self.layer1(x)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
@@ -85,15 +85,11 @@ class ResNetDecoder(nn.Module):
 
 def reparameterize(mean, logvar):
     std = logvar.mul(0.5).exp()
-    eps = torch.randn(std.size()).to(mean.device)
+    eps = torch.randn_like(std)
     return eps.mul(std).add(mean)
 
 
 class VAE(LightningModule):
-    """
-    Adapted from https://github.com/SashaMalysheva/Pytorch-VAE
-    """
-
     def __init__(self, image_size, channel_num, z_size, beta=1,
                  n_validation_examples=32,
                  optim_lr=3e-4, optim_weight_decay=1e-5,

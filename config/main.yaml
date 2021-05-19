@@ -16,8 +16,8 @@ dataloader:
   num_workers: 0
 
 optim:
-  lr: 5e-3
-  weight_decay: 1e-3
+  lr: 1e-3
+  weight_decay: 5e-4
 
 scheduler:
   step: 20

@@ -1,7 +1,7 @@
 import os
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
 from bim_gw.datasets import ImageNetData
 from bim_gw.loggers.neptune import NeptuneLogger
@@ -33,12 +33,15 @@ def train_vae(args):
                           '../requirements.txt', '../**/*.yaml']
         )
 
+    # Callbacks
     model_checkpoints = ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
+
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
         # fast_dev_run=True,
         gpus=args.gpus, logger=logger,
-        checkpoint_callback=model_checkpoints,
+        callbacks=[model_checkpoints, lr_monitor],
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs
