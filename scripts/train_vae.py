@@ -12,7 +12,8 @@ from bim_gw.utils import get_args
 def train_vae(args):
     seed_everything(args.seed)
 
-    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size, args.dataloader.num_workers)
+    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size, args.dataloader.num_workers,
+                        args.data_augmentation)
 
     vae = VAE(
         data.img_size, data.num_channels, args.z_size, args.beta,

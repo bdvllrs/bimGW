@@ -5,12 +5,14 @@ max_epochs: 100
 
 image_net_path: ???
 img_size: 32
-batch_size: 32
+batch_size: 128
+data_augmentation: false
 n_validation_examples: 32
 beta: 1
 
-z_size: 128
+z_size: 512
 
+gensim_model_path: ???
 
 dataloader:
   num_workers: 0
