@@ -8,7 +8,7 @@ img_size: 32
 batch_size: 128
 data_augmentation: false
 n_validation_examples: 32
-beta: 1
+beta: 0.2
 
 z_size: 512
 

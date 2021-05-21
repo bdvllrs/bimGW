@@ -1,9 +1,7 @@
 import torch
-from PIL.Image import Image
 from pytorch_lightning import LightningDataModule
 from torchvision import transforms
 from torchvision.datasets import ImageNet
-from torchvision.transforms import RandomResizedCrop
 
 norm_mean, norm_std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 
@@ -14,8 +12,10 @@ def get_preprocess(img_size, augmentation=False):
     ]
 
     if augmentation:
-        transformations.append(RandomResizedCrop(img_size, interpolation=Image.BICUBIC))
+        transformations.append(transforms.RandomResizedCrop(img_size))
         transformations.append(transforms.RandomHorizontalFlip())
+    else:
+        transformations.append(transforms.CenterCrop(img_size))
 
     transformations.extend([
         transforms.ToTensor(),
