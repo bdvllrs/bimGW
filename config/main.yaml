@@ -8,9 +8,10 @@ img_size: 32
 batch_size: 128
 data_augmentation: false
 n_validation_examples: 32
-beta: 0.2
+beta: 0.05
 
-z_size: 512
+z_size: 128
+ae_size: 1024
 
 gensim_model_path: ???
 
@@ -29,6 +30,7 @@ neptune:
   project_name: null
   api_token: null
   mode: async
+  resume: null
 
 checkpoints_dir: ???
 resume_from_checkpoint: null

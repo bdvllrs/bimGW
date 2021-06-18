@@ -16,7 +16,7 @@ def train_vae(args):
                         args.data_augmentation)
 
     vae = VAE(
-        data.img_size, data.num_channels, args.z_size, args.beta,
+        data.img_size, data.num_channels, args.ae_size, args.z_size, args.beta,
         args.n_validation_examples,
         args.optim.lr, args.optim.weight_decay, args.scheduler.step, args.scheduler.gamma,
         data.validation_reconstructed_images
@@ -26,23 +26,25 @@ def train_vae(args):
     if args.neptune.project_name is not None:
         logger = NeptuneLogger(
             api_key=args.neptune.api_token,
-            project_name=args.neptune.project_name,
-            experiment_name="train_vae",
+            project=args.neptune.project_name,
+            name="train_vae",
+            run=args.neptune.resume,
             mode=args.neptune.mode,
-            params=dict(args),
             source_files=['../**/*.py', '../readme.md',
                           '../requirements.txt', '../**/*.yaml']
         )
 
+        logger.experiment["parameters"] = dict(args)
+
     # Callbacks
-    model_checkpoints = ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
+    callbacks = [ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")]
+    if logger is not None:
+        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
         # fast_dev_run=True,
-        gpus=args.gpus, logger=logger,
-        callbacks=[model_checkpoints, lr_monitor],
+        gpus=args.gpus, logger=logger, callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs
