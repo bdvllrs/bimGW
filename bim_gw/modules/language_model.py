@@ -1,43 +1,58 @@
+import numpy as np
 import torch
-from torch import nn
-from pytorch_lightning import LightningModule
-import gensim.models
+from gensim.models import KeyedVectors
+
+from bim_gw.modules.workspace_module import WorkspaceModule
 
 
-class LanguageModel(LightningModule):
-    def __init__(self, gensim_model_path, vocab_size, latent_dim, hidden_dim,
-                 optim_lr=3e-4, optim_weight_decay=1e-5,
-                 scheduler_step=20, scheduler_gamma=0.5):
-        super().__init__()
-        self.save_hyperparameters()
+class LanguageModel(WorkspaceModule):
+    def __init__(self, path, classnames, load_embeddings=None):
+        super(LanguageModel, self).__init__()
 
-        self.vocab_size = vocab_size
-        self.latent_dim = latent_dim
-        self.hidden_dim = hidden_dim
+        if load_embeddings is None:
+            self.gensim_model = KeyedVectors.load_word2vec_format(path)
 
-        print("Loading word2vec model.")
-        self.encoder = gensim.models.KeyedVectors.load_word2vec_format(gensim_model_path, binary=False)
-        print("Loaded.")
+            unavailable_classes = []
+            embeddings = []
+            for classname in classnames:
+                unavailable = True
+                for cls in classname:
+                    embs = []
+                    try:
+                        emb = self.gensim_model.get_vector(cls.lower().replace(" ", "_"))
+                        embs.append(emb)
+                    except KeyError:
+                        try:
+                            emb = self.gensim_model.get_vector(cls.lower().replace("-", "_"))
+                            embs.append(emb)
+                        except KeyError:
+                            cls = cls.replace("-", " ")
+                            for word in cls.split(" "):
+                                try:
+                                    embs.append(self.gensim_model.get_vector(word.lower()))
+                                except KeyError:
+                                    print(f"{word} does not have an embedding, in {classname}.")
+                    if len(embs):
+                        embeddings.append(np.vstack(embs).mean(axis=0))
+                        unavailable = False
+                        break
+                if unavailable:
+                    unavailable_classes.append(classname)
 
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, hidden_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(hidden_dim, self.vocab_size)
-        )
+            word_vectors = torch.from_numpy(np.vstack(embeddings))
+        else:
+            word_vectors = torch.from_numpy(np.load(load_embeddings, allow_pickle=True))
 
-    def forward(self, x):
-        pass
+        self.z_size = word_vectors.size(1)
 
-    def training_step(self, batch, batch_idx):
-        pass
+        self.register_buffer("word_vectors", word_vectors)
 
-    def validation_step(self, batch, batch_idx):
-        pass
+    def encode(self, targets):
+        return self(targets)
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
-                                     weight_decay=self.hparams.optim_weight_decay)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step, self.hparams.scheduler_gamma)
-        return [optimizer], [scheduler]
+    def decode(self, z):
+        return z @ self.word_vectors.t()
+
+    def forward(self, targets):
+        embeddings = self.word_vectors.gather(0, targets[:, None].expand(-1, self.z_size))
+        return embeddings,

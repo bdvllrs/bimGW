@@ -8,12 +8,13 @@ img_size: 32
 batch_size: 128
 data_augmentation: false
 n_validation_examples: 32
-beta: 0.05
+beta: 5
 
 z_size: 128
 ae_size: 1024
 
 gensim_model_path: ???
+word_embeddings: null
 
 dataloader:
   num_workers: 0

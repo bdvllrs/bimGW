@@ -1,7 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
 config/local.yaml
 config/debug.yaml
-checkoints/
+checkoint/
+data/
 
 ### Python template
 # Byte-compiled / optimized / DLL files

@@ -3,18 +3,32 @@ import os
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
+from bim_gw.datasets import ImageNetData
 from bim_gw.loggers.neptune import NeptuneLogger
+from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.language_model import LanguageModel
+from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
 
 def train_lm(args):
     seed_everything(args.seed)
 
-    lm = LanguageModel(
-        args.gensim_model_path, 1000, 300, 128,
+    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size, args.dataloader.num_workers,
+                        args.data_augmentation)
+
+    vae = VAE(
+        data.img_size, data.num_channels, args.ae_size, args.z_size, args.beta,
+        args.n_validation_examples,
         args.optim.lr, args.optim.weight_decay, args.scheduler.step, args.scheduler.gamma,
+        data.validation_reconstructed_images
     )
+    lm = LanguageModel(args.gensim_model_path, data.image_net_val.classes, args.word_embeddings)
+
+    global_workspace = GlobalWorkspace({
+        "v": vae,
+        "t": lm
+    })
 
     logger = None
     if args.neptune.project_name is not None:
@@ -42,7 +56,7 @@ def train_lm(args):
         max_epochs=args.max_epochs
     )
 
-    trainer.fit(lm)
+    trainer.fit(global_workspace, data)
 
 
 if __name__ == "__main__":

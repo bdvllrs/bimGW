@@ -7,6 +7,8 @@ from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
 
+from bim_gw.modules.workspace_module import WorkspaceModule
+
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None:
@@ -101,7 +103,7 @@ def reparameterize(mean, logvar):
     return eps.mul(std).add(mean)
 
 
-class VAE(LightningModule):
+class VAE(WorkspaceModule):
     def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
                  n_validation_examples: int = 32,
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
@@ -158,7 +160,7 @@ class VAE(LightningModule):
         # reconstruct x from z
         x_reconstructed = self.decoder(z)
 
-        return (mean, logvar), x_reconstructed
+        return z, (mean, logvar), x_reconstructed
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
@@ -177,7 +179,7 @@ class VAE(LightningModule):
     # Lightning
     def training_step(self, batch, batch_idx):
         x, _ = batch
-        (mean, logvar), x_reconstructed = self(x)
+        _, (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
@@ -193,7 +195,7 @@ class VAE(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, _ = batch
-        (mean, logvar), x_reconstructed = self(x)
+        _, (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
@@ -207,7 +209,7 @@ class VAE(LightningModule):
 
     def validation_epoch_end(self, outputs):
         x = self.validation_reconstruction_images
-        _, x_reconstructed = self(x)
+        _, _, x_reconstructed = self(x)
 
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
