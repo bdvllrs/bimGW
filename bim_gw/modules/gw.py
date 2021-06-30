@@ -13,7 +13,15 @@ class DomainEncoder(torch.nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
 
-        self.encoder = nn.Linear(self.in_dim, self.out_dim)
+        self.encoder = nn.Sequential(
+            nn.Linear(self.in_dim, self.out_dim),
+            nn.BatchNorm1d(self.out_dim),
+            nn.ReLU(),
+            nn.Linear(self.out_dim, self.out_dim),
+            nn.BatchNorm1d(self.out_dim),
+            nn.ReLU(),
+            nn.Linear(self.out_dim, self.out_dim),
+        )
 
     def forward(self, x):
         return self.encoder(x)
