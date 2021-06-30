@@ -11,7 +11,7 @@ n_validation_examples: 32
 
 global_workspace:
   z_size: 128
-  prop_labelled_images: 0.2  # of the allowed classes to be labelled.
+  prop_labelled_images: 1  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
 
