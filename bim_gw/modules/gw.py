@@ -40,8 +40,9 @@ class GlobalWorkspace(LightningModule):
         self.decoders = nn.ModuleDict({item: DomainEncoder(self.z_size, mod.z_size)
                                        for item, mod in domain_mods.items()})
 
-        self.cycle_loss_fn = torch.nn.functional.cosine_similarity
-        self.supervision_loss_fn = torch.nn.functional.cosine_similarity
+        # cosine distance.
+        self.cycle_loss_fn = lambda x, y: 1 - torch.nn.functional.cosine_similarity(x, y)
+        self.supervision_loss_fn = self.cycle_loss_fn
 
     def project(self, domains):
         """
