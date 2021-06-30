@@ -27,11 +27,15 @@ def check_domains_eq(domains_ori, domains_comp):
 class GlobalWorkspace(LightningModule):
     def __init__(self, domain_mods, z_size,
                  loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
+                 cycle_loss_fn="cosine", supervision_loss_fn="cosine",
                  optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
                  n_validation_examples: int = 32,
                  validation_reconstruction_images=None):
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters()
+
+        assert cycle_loss_fn in ["cosine", "mse"], "cycle_loss_fn must be in ['cosine', 'mse']."
+        assert supervision_loss_fn in ["cosine", "mse"], "cycle_loss_fn must be in ['cosine', 'mse']."
 
         self.z_size = z_size
 
@@ -46,9 +50,12 @@ class GlobalWorkspace(LightningModule):
         self.decoders = nn.ModuleDict({item: DomainEncoder(self.z_size, mod.z_size)
                                        for item, mod in domain_mods.items()})
 
-        # cosine distance.
-        self.cycle_loss_fn = lambda x, y: 1 - torch.nn.functional.cosine_similarity(x, y)
-        self.supervision_loss_fn = self.cycle_loss_fn
+        cosine_loss = lambda x, y: 1 - torch.nn.functional.cosine_similarity(x, y)
+        mse_loss = torch.nn.functional.mse_loss
+
+        # cosine distance
+        self.cycle_loss_fn = cosine_loss if cycle_loss_fn == "cosine" else mse_loss
+        self.supervision_loss_fn = cosine_loss if supervision_loss_fn == "cosine" else mse_loss
 
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
