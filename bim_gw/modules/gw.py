@@ -1,6 +1,9 @@
 import torch
+import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
+
+from bim_gw.utils.losses import vis_to_text_accuracy
 
 
 class DomainEncoder(torch.nn.Module):
@@ -43,6 +46,9 @@ class GlobalWorkspace(LightningModule):
         # cosine distance.
         self.cycle_loss_fn = lambda x, y: 1 - torch.nn.functional.cosine_similarity(x, y)
         self.supervision_loss_fn = self.cycle_loss_fn
+
+        self.train_acc = torchmetrics.Accuracy()
+        self.valid_acc = torchmetrics.Accuracy()
 
     def project(self, domains):
         """
@@ -123,6 +129,9 @@ class GlobalWorkspace(LightningModule):
         self.log("train_supervision_loss", supervision_loss, logger=True)
         self.log("train_total_loss", total_loss, logger=True)
 
+        accuracy = vis_to_text_accuracy(self, self.train_acc, sync_latents["v"], sync_supervision["t"])
+        self.log("train_vis_to_text_acc", accuracy, on_step=True, on_epoch=False)
+
         return total_loss
 
     def validation_step(self, domains, batch_idx):
@@ -142,6 +151,9 @@ class GlobalWorkspace(LightningModule):
         self.log("val_supervision_loss", supervision_loss, logger=True)
         self.log("val_total_loss", total_loss, logger=True)
 
+        accuracy = vis_to_text_accuracy(self, self.valid_acc, latents["v"], domains["t"])
+        self.log("val_vis_to_text_acc", accuracy, on_step=True, on_epoch=True)
+
         return total_loss
 
     def on_train_epoch_start(self):
@@ -153,4 +165,3 @@ class GlobalWorkspace(LightningModule):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
                                                     self.hparams.scheduler_gamma)
         return [optimizer], [scheduler]
-

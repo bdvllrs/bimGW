@@ -6,3 +6,4 @@ numpy
 gensim>=4.0.1
 tqdm
 matplotlib
+torchmetrics>=0.4.0
