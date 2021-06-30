@@ -14,21 +14,21 @@ from bim_gw.utils import get_args
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size, args.dataloader.num_workers,
-                        args.data_augmentation)
+    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size,
+                        args.dataloader.num_workers, args.data_augmentation,
+                        args.global_workspace.prop_labelled_images, args.global_workspace.classes_labelled_images, True)
 
-    vae = VAE(
-        data.img_size, data.num_channels, args.ae_size, args.z_size, args.beta,
-        args.n_validation_examples,
-        args.optim.lr, args.optim.weight_decay, args.scheduler.step, args.scheduler.gamma,
-        data.validation_reconstructed_images
-    )
-    lm = LanguageModel(args.gensim_model_path, data.image_net_val.classes, args.word_embeddings)
+    vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
+    vae.freeze()
+
+    lm = LanguageModel(args.gensim_model_path, data.image_net_val.classes, args.word_embeddings).eval()
+    lm.freeze()
 
     global_workspace = GlobalWorkspace({
         "v": vae,
         "t": lm
-    })
+    }, args.global_workspace.z_size, args.losses.coefs.demi_cycles,
+        args.losses.coefs.cycles, args.losses.coefs.supervision)
 
     logger = None
     if args.neptune.project_name is not None:
@@ -43,17 +43,19 @@ def train_lm(args):
         )
 
     # Callbacks
-    model_checkpoints = ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
+    callbacks = [ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")]
+    if logger is not None:
+        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
-        # fast_dev_run=True,
+        fast_dev_run=True,
         gpus=args.gpus, logger=logger,
-        callbacks=[model_checkpoints, lr_monitor],
+        callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
-        max_epochs=args.max_epochs
+        max_epochs=args.max_epochs,
+        multiple_trainloader_mode="max_size_cycle"
     )
 
     trainer.fit(global_workspace, data)

@@ -8,10 +8,23 @@ img_size: 32
 batch_size: 128
 data_augmentation: false
 n_validation_examples: 32
-beta: 5
 
-z_size: 128
-ae_size: 1024
+global_workspace:
+  z_size: 128
+  prop_labelled_images: 0.2  # of the allowed classes to be labelled.
+  classes_labelled_images: null  # null is all classes
+  vae_checkpoint: ???
+
+vae:
+  beta: 5
+  z_size: 256
+  ae_size: 1024
+
+losses:
+  coefs:
+    demi_cycles: 1.
+    cycles: 1.
+    supervision: 1.
 
 gensim_model_path: ???
 word_embeddings: null
