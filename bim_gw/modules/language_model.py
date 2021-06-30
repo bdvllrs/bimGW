@@ -55,4 +55,4 @@ class LanguageModel(WorkspaceModule):
 
     def forward(self, targets):
         embeddings = self.word_vectors.gather(0, targets[:, None].expand(-1, self.z_size))
-        return embeddings,
+        return embeddings

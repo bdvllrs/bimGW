@@ -18,7 +18,7 @@ def train_vae(args):
     vae = VAE(
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta,
         args.n_validation_examples,
-        args.optim.lr, args.optim.weight_decay, args.scheduler.step, args.scheduler.gamma,
+        args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
         data.validation_reconstructed_images
     )
 

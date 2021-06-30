@@ -1,5 +1,8 @@
 import sys
 
+import torchvision
+from neptune.new.types import File
+
 from omegaconf import OmegaConf
 
 from bim_gw.utils import PROJECT_DIR
@@ -38,3 +41,13 @@ def get_args(debug=False):
     print("Complete args")
     print(OmegaConf.to_yaml(args))
     return args
+
+
+def log_image(logger, sample_imgs, name, step=None, **kwargs):
+    if logger is not None:
+        # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
+        sample_imgs = sample_imgs - sample_imgs.min()
+        sample_imgs = sample_imgs / sample_imgs.max()
+        img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
+        img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
+        logger.experiment[name].log(File.as_image(img_grid), step=step)

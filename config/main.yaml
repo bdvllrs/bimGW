@@ -15,10 +15,27 @@ global_workspace:
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
 
+  optim:
+    lr: 1e-4
+    weight_decay: 3e-5
+
+  scheduler:
+    step: 20
+    gamma: 0.5
+
 vae:
   beta: 5
   z_size: 256
   ae_size: 1024
+
+  optim:
+    lr: 1e-4
+    weight_decay: 3e-5
+
+  scheduler:
+    step: 20
+    gamma: 0.5
+
 
 losses:
   coefs:
@@ -31,14 +48,6 @@ word_embeddings: null
 
 dataloader:
   num_workers: 0
-
-optim:
-  lr: 1e-4
-  weight_decay: 3e-5
-
-scheduler:
-  step: 20
-  gamma: 0.5
 
 neptune:
   project_name: null

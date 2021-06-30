@@ -1,23 +1,11 @@
 from typing import Optional, Tuple
 
 import torch
-import torchvision
-from neptune.new.types import File
-from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
-
-
-def log_image(logger, sample_imgs, name, step=None, **kwargs):
-    if logger is not None:
-        # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
-        sample_imgs = sample_imgs - sample_imgs.min()
-        sample_imgs = sample_imgs / sample_imgs.max()
-        img_grid = torchvision.utils.make_grid(sample_imgs, **kwargs)
-        img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
-        logger.experiment[name].log(File.as_image(img_grid), step=step)
+from bim_gw.utils.utils import log_image
 
 
 class DeconvResNetBlock(nn.Module):
@@ -141,7 +129,7 @@ class VAE(WorkspaceModule):
 
         self.decoder = CDecoderV2(channel_num, image_size, ae_size=ae_size, z_size=self.z_size, batchnorm=True)
 
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode_stats(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         out = self.encoder(x)
         out = out.view(out.size(0), -1)
 
@@ -149,18 +137,23 @@ class VAE(WorkspaceModule):
         var_z = self.q_logvar(out)
         return mean_z, var_z
 
+    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        mean_z, var_z = self.encode_stats(x)
+
+        z = reparameterize(mean_z, var_z)
+        return z
+
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         return self.decoder(z)
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-        mean, logvar = self.encode(x)
-
+        mean, logvar = self.encode_stats(x)
         z = reparameterize(mean, logvar)
 
         # reconstruct x from z
         x_reconstructed = self.decoder(z)
 
-        return z, (mean, logvar), x_reconstructed
+        return (mean, logvar), x_reconstructed
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
@@ -179,7 +172,7 @@ class VAE(WorkspaceModule):
     # Lightning
     def training_step(self, batch, batch_idx):
         x, _ = batch
-        _, (mean, logvar), x_reconstructed = self(x)
+        (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
@@ -195,7 +188,7 @@ class VAE(WorkspaceModule):
 
     def validation_step(self, batch, batch_idx):
         x, _ = batch
-        _, (mean, logvar), x_reconstructed = self(x)
+        (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
@@ -209,7 +202,7 @@ class VAE(WorkspaceModule):
 
     def validation_epoch_end(self, outputs):
         x = self.validation_reconstruction_images
-        _, _, x_reconstructed = self(x)
+        _, x_reconstructed = self(x)
 
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")

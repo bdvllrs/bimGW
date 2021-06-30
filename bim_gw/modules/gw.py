@@ -4,6 +4,7 @@ from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.utils.losses import vis_to_text_accuracy
+from bim_gw.utils.utils import log_image
 
 
 class DomainEncoder(torch.nn.Module):
@@ -26,7 +27,9 @@ def check_domains_eq(domains_ori, domains_comp):
 class GlobalWorkspace(LightningModule):
     def __init__(self, domain_mods, z_size,
                  loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-                 optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5):
+                 optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
+                 n_validation_examples: int = 32,
+                 validation_reconstruction_images=None):
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters()
 
@@ -50,16 +53,17 @@ class GlobalWorkspace(LightningModule):
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
 
+        # val sampling
+        self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
+        self.register_buffer("validation_class_translation", torch.randint(0, 1000, (n_validation_examples,)).to(torch.int64))
+
     def project(self, domains):
         """
         Projects unimodal domains to global workspace
         """
         out = dict()
         for domain_name, x in domains.items():
-            # returns a tuple of data. The first element is always the latent vector.
-            domain_output = self.domain_mods[domain_name](x)
-            assert type(domain_output) == tuple, "The forward method of modules should return tuples."
-            out[domain_name] = domain_output[0]
+            out[domain_name] = self.domain_mods[domain_name].encode(x)
         return out
 
     def forward(self, domains):
@@ -155,6 +159,30 @@ class GlobalWorkspace(LightningModule):
         self.log("val_vis_to_text_acc", accuracy, on_step=True, on_epoch=True)
 
         return total_loss
+
+    def validation_epoch_end(self, outputs):
+        x = self.validation_reconstruction_images
+
+        if self.current_epoch == 0:
+            log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+
+        # demi cycle
+        latent_x = self.domain_mods["v"].encode(x)
+        latent_reconstructed = self.demi_cycle(latent_x, "v")
+        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
+        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction_demi")
+
+        # full cycle to text and back
+        latent_x = self.domain_mods["v"].encode(x)
+        latent_reconstructed = self.cycle(latent_x, "v", "t")
+        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
+        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction_full")
+
+        # Generation from class
+        latent_t = self.domain_mods["t"].encode(self.validation_class_translation)
+        latent_v = self.translate(latent_t, "t", "v")
+        v_gen = self.domain_mods["v"].decode(latent_v)
+        log_image(self.logger, v_gen[:self.hparams.n_validation_examples], "val_generation")
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()

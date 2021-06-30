@@ -28,7 +28,12 @@ def train_lm(args):
         "v": vae,
         "t": lm
     }, args.global_workspace.z_size, args.losses.coefs.demi_cycles,
-        args.losses.coefs.cycles, args.losses.coefs.supervision)
+        args.losses.coefs.cycles, args.losses.coefs.supervision,
+        args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
+        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
+        args.n_validation_examples,
+        data.validation_reconstructed_images
+    )
 
     logger = None
     if args.neptune.project_name is not None:
