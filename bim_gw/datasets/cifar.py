@@ -15,7 +15,7 @@ def get_preprocess(augmentation=False):
 
     transformations.extend([
         transforms.ToTensor(),
-        transforms.Normalize(norm_mean, norm_std)
+        # transforms.Normalize(norm_mean, norm_std)
     ])
 
     return transforms.Compose(transformations)

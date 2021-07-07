@@ -218,7 +218,7 @@ class VAE(WorkspaceModule):
         log_image(self.logger, sampled_images, "val_sampling")
 
         # FID
-        fid, mse = compute_FID(self.trainer.datamodule.inception_stats_path_val,
+        fid, mse = compute_FID(self.trainer.datamodule.inception_stats_path_train,
                     self.trainer.datamodule.val_dataloader(),
                     self,
                     self.z_size,
@@ -226,7 +226,7 @@ class VAE(WorkspaceModule):
                     self.device,
                     self.n_FID_samples)
         self.log("val_fid", fid)
-        self.print("FID: ", fid)
+        # self.print("FID: ", fid)
         self.log("val_mse", mse)
 
     def configure_optimizers(self):

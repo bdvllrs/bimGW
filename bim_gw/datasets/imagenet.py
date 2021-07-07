@@ -10,9 +10,7 @@ norm_mean, norm_std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 
 
 def get_preprocess(img_size, augmentation=False):
-    transformations = [
-        transforms.Resize(img_size * 2 if augmentation else img_size),
-    ]
+    transformations = []
 
     if augmentation:
         transformations.append(transforms.RandomResizedCrop(img_size))
@@ -20,9 +18,13 @@ def get_preprocess(img_size, augmentation=False):
     else:
         transformations.append(transforms.CenterCrop(img_size))
 
+    transformations.append(
+        transforms.Resize(img_size),
+    )
+
     transformations.extend([
         transforms.ToTensor(),
-        transforms.Normalize(norm_mean, norm_std)
+        # transforms.Normalize(norm_mean, norm_std)
     ])
 
     return transforms.Compose(transformations)
