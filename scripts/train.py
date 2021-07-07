@@ -15,12 +15,11 @@ from bim_gw.utils import get_args
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size,
-                        args.dataloader.num_workers, args.data_augmentation,
+    data = ImageNetData(args.image_net_path, args.global_workspace.batch_size, args.img_size,
+                        args.dataloader.num_workers, args.global_workspace.data_augmentation,
                         args.global_workspace.prop_labelled_images, args.global_workspace.classes_labelled_images, True)
     data.prepare_data()
     data.setup(stage="fit")
-    data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))
 
     vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
     vae.freeze()

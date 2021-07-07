@@ -4,7 +4,7 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from bim_gw.datasets import ImageNetData
+from bim_gw.datasets import load_vae_dataset
 from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
@@ -13,8 +13,8 @@ from bim_gw.utils import get_args
 def train_vae(args):
     seed_everything(args.seed)
 
-    data = ImageNetData(args.image_net_path, args.batch_size, args.img_size,
-                        args.dataloader.num_workers, args.data_augmentation)
+    data = load_vae_dataset(args)
+
     data.prepare_data()
     data.setup(stage="fit")
     data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))

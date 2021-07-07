@@ -4,12 +4,16 @@ seed: 0
 max_epochs: 30
 
 image_net_path: ???
+cifar10_path: ???
+
 img_size: 32
-batch_size: 128
-data_augmentation: false
+
 n_validation_examples: 32
 
 global_workspace:
+  batch_size: 1024
+  data_augmentation: false
+
   z_size: 256
   prop_labelled_images: 1  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
@@ -26,6 +30,11 @@ global_workspace:
     gamma: 0.5
 
 vae:
+  visual_dataset: "imagenet"
+
+  batch_size: 1024
+  data_augmentation: false
+
   beta: 5
   z_size: 256
   ae_size: 1024

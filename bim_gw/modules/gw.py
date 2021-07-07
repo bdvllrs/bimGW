@@ -70,7 +70,7 @@ class GlobalWorkspace(LightningModule):
             cycle_loss_fn="cosine", supervision_loss_fn="cosine",
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             n_validation_examples: int = 32,
-            validation_reconstructed_images=0
+            validation_reconstructed_images=None
     ):
 
         super(GlobalWorkspace, self).__init__()
