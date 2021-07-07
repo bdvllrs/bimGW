@@ -1,5 +1,6 @@
 import os
 
+import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
@@ -14,12 +15,15 @@ def train_vae(args):
 
     data = ImageNetData(args.image_net_path, args.batch_size, args.img_size,
                         args.dataloader.num_workers, args.data_augmentation)
+    data.prepare_data()
+    data.setup(stage="fit")
+    data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))
 
     vae = VAE(
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.validation_reconstructed_images
+        data.validation_reconstructed_images, args.vae.n_FID_samples
     )
 
     logger = None
@@ -51,6 +55,9 @@ def train_vae(args):
     )
 
     trainer.fit(vae, data)
+
+    vae.n_FID_samples = data.val_dataset_size  # all the dataset
+    trainer.validate()
 
 
 if __name__ == "__main__":

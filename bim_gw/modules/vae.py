@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
+from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.utils import log_image
 
 
@@ -96,7 +97,8 @@ class VAE(WorkspaceModule):
                  n_validation_examples: int = 32,
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
                  scheduler_step: int = 20, scheduler_gamma: float = 0.5,
-                 validation_reconstruction_images: Optional[torch.Tensor] = None):
+                 validation_reconstruction_images: Optional[torch.Tensor] = None,
+                 n_FID_samples=1000):
         # configurations
         super().__init__()
         self.save_hyperparameters()
@@ -108,6 +110,7 @@ class VAE(WorkspaceModule):
         self.ae_size = ae_size
         self.z_size = z_size
         self.beta = beta
+        self.n_FID_samples = n_FID_samples
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
@@ -169,6 +172,9 @@ class VAE(WorkspaceModule):
         z = torch.randn(size, self.z_size).to(self.device)
         return self.decoder(z)
 
+    def generate(self, samples):
+        return self.decode(samples)
+
     # Lightning
     def training_step(self, batch, batch_idx):
         x, _ = batch
@@ -210,6 +216,18 @@ class VAE(WorkspaceModule):
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
         sampled_images = self.decoder(self.validation_sampling_z)
         log_image(self.logger, sampled_images, "val_sampling")
+
+        # FID
+        fid, mse = compute_FID(self.trainer.datamodule.inception_stats_path_val,
+                    self.trainer.datamodule.val_dataloader(),
+                    self,
+                    self.z_size,
+                    [self.image_size, self.image_size],
+                    self.device,
+                    self.n_FID_samples)
+        self.log("val_fid", fid)
+        self.print("FID: ", fid)
+        self.log("val_mse", mse)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,

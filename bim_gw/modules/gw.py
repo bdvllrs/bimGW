@@ -4,27 +4,58 @@ from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.utils.losses import vis_to_text_accuracy
+from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.utils import log_image
 
 
-class DomainEncoder(torch.nn.Module):
+class EncoderBlock(torch.nn.Sequential):
     def __init__(self, in_dim, out_dim):
-        super(DomainEncoder, self).__init__()
+        super(EncoderBlock, self).__init__(
+            nn.Linear(in_dim, out_dim),
+            nn.BatchNorm1d(out_dim),
+            nn.ReLU(),
+            # nn.Linear(out_dim, out_dim),
+            # nn.BatchNorm1d(out_dim),
+            # nn.ReLU()
+        )
+
+
+class DomainDecoder(torch.nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
 
-        self.encoder = nn.Sequential(
-            nn.Linear(self.in_dim, self.out_dim),
-            nn.BatchNorm1d(self.out_dim),
-            nn.ReLU(),
-            nn.Linear(self.out_dim, self.out_dim),
-            nn.BatchNorm1d(self.out_dim),
-            nn.ReLU(),
+        self.encoder_block1 = EncoderBlock(self.in_dim, self.out_dim)
+        self.encoder_block2 = EncoderBlock(self.out_dim, self.out_dim)
+        self.encoder_block3 = nn.Sequential(
             nn.Linear(self.out_dim, self.out_dim),
         )
 
     def forward(self, x):
-        return self.encoder(x)
+        out = self.encoder_block1(x)
+        out = self.encoder_block2(out)
+        out = self.encoder_block3(out)
+        return out
+
+
+class DomainEncoder(DomainDecoder):
+    def __init__(self, in_dim, out_dim):
+        super(DomainDecoder, self).__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+        self.encoder_block1 = EncoderBlock(self.in_dim, self.in_dim)
+        self.encoder_block2 = EncoderBlock(self.in_dim, self.in_dim)
+        self.encoder_block3 = nn.Sequential(
+            nn.Linear(self.in_dim, self.out_dim),
+        )
+
+    def forward(self, x):
+        out = self.encoder_block1(x)
+        out = self.encoder_block2(out)
+        out = self.encoder_block3(out)
+        return torch.tanh(out)
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -33,12 +64,15 @@ def check_domains_eq(domains_ori, domains_comp):
 
 
 class GlobalWorkspace(LightningModule):
-    def __init__(self, domain_mods, z_size,
-                 loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-                 cycle_loss_fn="cosine", supervision_loss_fn="cosine",
-                 optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-                 n_validation_examples: int = 32,
-                 validation_reconstruction_images=None):
+    def __init__(
+            self, domain_mods, z_size,
+            loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
+            cycle_loss_fn="cosine", supervision_loss_fn="cosine",
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
+            n_validation_examples: int = 32,
+            validation_reconstructed_images=0
+    ):
+
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters()
 
@@ -55,7 +89,7 @@ class GlobalWorkspace(LightningModule):
         # Define encoders for translation
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.z_size, self.z_size)
                                        for item, mod in domain_mods.items()})
-        self.decoders = nn.ModuleDict({item: DomainEncoder(self.z_size, mod.z_size)
+        self.decoders = nn.ModuleDict({item: DomainDecoder(self.z_size, mod.z_size)
                                        for item, mod in domain_mods.items()})
 
         cosine_loss = lambda x, y: 1 - torch.nn.functional.cosine_similarity(x, y)
@@ -69,8 +103,9 @@ class GlobalWorkspace(LightningModule):
         self.valid_acc = torchmetrics.Accuracy()
 
         # val sampling
-        self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
-        self.register_buffer("validation_class_translation", torch.randint(0, 1000, (n_validation_examples,)).to(torch.int64))
+        self.register_buffer("validation_reconstruction_images", validation_reconstructed_images)
+        self.register_buffer("validation_class_translation",
+                             torch.randint(0, 1000, (n_validation_examples,)).to(torch.int64))
 
     def project(self, domains):
         """

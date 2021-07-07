@@ -1,5 +1,6 @@
 import os
 
+import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
@@ -17,11 +18,14 @@ def train_lm(args):
     data = ImageNetData(args.image_net_path, args.batch_size, args.img_size,
                         args.dataloader.num_workers, args.data_augmentation,
                         args.global_workspace.prop_labelled_images, args.global_workspace.classes_labelled_images, True)
+    data.prepare_data()
+    data.setup(stage="fit")
+    data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))
 
     vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
     vae.freeze()
 
-    lm = LanguageModel(args.gensim_model_path, data.image_net_val.classes, args.word_embeddings).eval()
+    lm = LanguageModel(args.gensim_model_path, data.classes, args.word_embeddings).eval()
     lm.freeze()
 
     global_workspace = GlobalWorkspace({

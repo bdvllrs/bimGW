@@ -4,6 +4,8 @@ from pytorch_lightning import LightningDataModule
 from torchvision import transforms
 from torchvision.datasets import ImageNet
 
+from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
+
 norm_mean, norm_std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 
 
@@ -98,38 +100,46 @@ class ImageNetData(LightningDataModule):
         self.prop_labelled_images = prop_labelled_images
         self.classes_labelled_images = classes_labelled_images
         self.num_channels = 3
+        self.use_data_augmentation = use_data_augmentation
 
-        if bimodal:
-            synchronized_imagenet = SyncImageNet(self.image_net_folder,
-                                                 transform=get_preprocess(self.img_size, use_data_augmentation))
+        ds = ImageNet(self.image_net_folder, split="val")
+        self.classes = ds.classes
+        self.val_dataset_size = len(ds)
 
-            if self.classes_labelled_images is None:
-                self.classes_labelled_images = np.arange(len(synchronized_imagenet.classes))
+    def setup(self, stage=None):
+        if stage == "fit" or stage is None:
+            if self.bimodal:
+                synchronized_imagenet = SyncImageNet(self.image_net_folder,
+                                                     transform=get_preprocess(self.img_size,
+                                                                              self.use_data_augmentation))
 
-            if self.prop_labelled_images < 1:
-                # Unlabel some classes
-                targets = np.array(synchronized_imagenet.targets)
-                labelled_elems = np.isin(targets, self.classes_labelled_images)
+                if self.classes_labelled_images is None:
+                    self.classes_labelled_images = np.arange(len(synchronized_imagenet.classes))
 
-                # Unlabel randomly some elements
-                labelled_elems = np.where(labelled_elems)[0]
-                n_targets = len(labelled_elems)
-                target_indices = np.arange(n_targets)
-                np.random.shuffle(target_indices)
-                num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
-                labelled_elems = labelled_elems[target_indices[num_unlabelled:]]
-                synchronized_imagenet = torch.utils.data.Subset(synchronized_imagenet, labelled_elems)
+                if self.prop_labelled_images < 1:
+                    # Unlabel some classes
+                    targets = np.array(synchronized_imagenet.targets)
+                    labelled_elems = np.isin(targets, self.classes_labelled_images)
 
-            self.train_datasets = {
-                "v": UnimodalImageNet(self.image_net_folder, "v",
-                                      transform=get_preprocess(self.img_size, use_data_augmentation)),
-                "t": UnimodalImageNet(self.image_net_folder, "t",
-                                      transform=get_preprocess(self.img_size, use_data_augmentation)),
-                "sync_": synchronized_imagenet
-            }
-        else:
-            self.image_net_train = ImageNet(self.image_net_folder,
-                                            transform=get_preprocess(self.img_size, use_data_augmentation))
+                    # Unlabel randomly some elements
+                    labelled_elems = np.where(labelled_elems)[0]
+                    n_targets = len(labelled_elems)
+                    target_indices = np.arange(n_targets)
+                    np.random.shuffle(target_indices)
+                    num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
+                    labelled_elems = labelled_elems[target_indices[num_unlabelled:]]
+                    synchronized_imagenet = torch.utils.data.Subset(synchronized_imagenet, labelled_elems)
+
+                self.train_datasets = {
+                    "v": UnimodalImageNet(self.image_net_folder, "v",
+                                          transform=get_preprocess(self.img_size, self.use_data_augmentation)),
+                    "t": UnimodalImageNet(self.image_net_folder, "t",
+                                          transform=get_preprocess(self.img_size, self.use_data_augmentation)),
+                    "sync_": synchronized_imagenet
+                }
+            else:
+                self.image_net_train = ImageNet(self.image_net_folder,
+                                                transform=get_preprocess(self.img_size, self.use_data_augmentation))
 
         if self.bimodal:
             self.image_net_val = SyncImageNet(self.image_net_folder, transform=get_preprocess(self.img_size),
@@ -140,9 +150,17 @@ class ImageNetData(LightningDataModule):
                                           split="val")
             visual_index = 0
 
-        validation_reconstruction_indices = torch.randint(len(self.image_net_val), size=(batch_size,))
+        validation_reconstruction_indices = torch.randint(len(self.image_net_val), size=(self.batch_size,))
         self.validation_reconstructed_images = torch.stack([self.image_net_val[k][visual_index]
                                                             for k in validation_reconstruction_indices], dim=0)
+        if stage == "test" or stage is None:
+            raise NotImplementedError
+
+    def compute_inception_statistics(self, batch_size, device):
+        train_ds = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size), split="train")
+        val_ds = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size), split="val")
+        self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.image_net_folder, "imagenet_train", batch_size, device)
+        self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.image_net_folder, "imagenet_val", batch_size, device)
 
     def train_dataloader(self):
         if self.bimodal:
