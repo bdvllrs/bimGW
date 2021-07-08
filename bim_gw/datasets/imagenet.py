@@ -10,17 +10,15 @@ norm_mean, norm_std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 
 
 def get_preprocess(img_size, augmentation=False):
-    transformations = []
+    transformations = [
+        transforms.Resize(img_size)
+    ]
 
     if augmentation:
         transformations.append(transforms.RandomResizedCrop(img_size))
         transformations.append(transforms.RandomHorizontalFlip())
     else:
         transformations.append(transforms.CenterCrop(img_size))
-
-    transformations.append(
-        transforms.Resize(img_size),
-    )
 
     transformations.extend([
         transforms.ToTensor(),
@@ -161,8 +159,10 @@ class ImageNetData(LightningDataModule):
     def compute_inception_statistics(self, batch_size, device):
         train_ds = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size), split="train")
         val_ds = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size), split="val")
-        self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.image_net_folder, "imagenet_train", batch_size, device)
-        self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.image_net_folder, "imagenet_val", batch_size, device)
+        self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.image_net_folder, "imagenet_train",
+                                                                     batch_size, device)
+        self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.image_net_folder, "imagenet_val",
+                                                                   batch_size, device)
 
     def train_dataloader(self):
         if self.bimodal:

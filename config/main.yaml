@@ -1,7 +1,7 @@
 gpus: 1
 distributed_backend: ddp
 seed: 0
-max_epochs: 30
+max_epochs: 100
 
 image_net_path: ???
 cifar10_path: ???
@@ -35,7 +35,7 @@ vae:
   batch_size: 1024
   data_augmentation: false
 
-  beta: 5
+  beta: 0.5
   z_size: 256
   ae_size: 1024
 
@@ -46,7 +46,7 @@ vae:
     weight_decay: 3e-5
 
   scheduler:
-    step: 10
+    step: 20
     gamma: 0.5
 
 
