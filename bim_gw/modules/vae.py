@@ -1,11 +1,13 @@
 from typing import Optional, Tuple
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.compute_fid import compute_FID
+from bim_gw.utils.losses.fid import calculate_frechet_distance
 from bim_gw.utils.utils import log_image
 
 
@@ -229,6 +231,18 @@ class VAE(WorkspaceModule):
         # self.print("FID: ", fid)
         self.log("val_mse", mse)
 
+        #
+        # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
+        # mu_dataset_train = stat_train['mu']
+        # sigma_dataset_train = stat_train['sigma']
+        #
+        # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
+        # mu_dataset_test = stat_test['mu']
+        # sigma_dataset_test = stat_test['sigma']
+        #
+        # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
+        # self.print("FID test: ", fid_value)
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
                                      weight_decay=self.hparams.optim_weight_decay)
@@ -349,6 +363,7 @@ class CDecoderV2(nn.Module):
         self.out_layer = nn.Sequential(
             out_padding_layer,
             nn.Conv2d(sizes[0], num_channels, kernel_size=kernel_size, stride=1, padding=padding),
+            nn.Sigmoid()
         )
 
         self.output_fun = self.out_layer
