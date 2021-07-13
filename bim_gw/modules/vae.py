@@ -1,13 +1,11 @@
 from typing import Optional, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.compute_fid import compute_FID
-from bim_gw.utils.losses.fid import calculate_frechet_distance
 from bim_gw.utils.utils import log_image
 
 
@@ -220,13 +218,12 @@ class VAE(WorkspaceModule):
         log_image(self.logger, sampled_images, "val_sampling")
 
         # FID
-        fid, mse = compute_FID(self.trainer.datamodule.inception_stats_path_train,
-                    self.trainer.datamodule.val_dataloader(),
-                    self,
-                    self.z_size,
-                    [self.image_size, self.image_size],
-                    self.device,
-                    self.n_FID_samples)
+        fid, mse = compute_FID(
+            self.trainer.datamodule.inception_stats_path_train,
+            self.trainer.datamodule.val_dataloader(),
+            self, self.z_size, [self.image_size, self.image_size],
+            self.device, self.n_FID_samples
+        )
         self.log("val_fid", fid)
         # self.print("FID: ", fid)
         self.log("val_mse", mse)
@@ -358,7 +355,6 @@ class CDecoderV2(nn.Module):
             # final_padding = 2
 
             out_size = sizes[0]
-
 
         self.out_layer = nn.Sequential(
             out_padding_layer,

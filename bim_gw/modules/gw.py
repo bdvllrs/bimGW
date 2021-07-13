@@ -174,7 +174,7 @@ class GlobalWorkspace(LightningModule):
         cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
         check_domains_eq(ori_latents, latents)
         sync_latents = self.project(sync_supervision)
-        supervision_loss = self.hparams.loss_coef_cycles * self.supervision_loss(sync_latents)
+        supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(sync_latents)
 
         total_loss = demi_cycle_loss + cycle_loss + supervision_loss
 
@@ -196,7 +196,7 @@ class GlobalWorkspace(LightningModule):
         check_domains_eq(ori_latents, latents)
         cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
         check_domains_eq(ori_latents, latents)
-        supervision_loss = self.hparams.loss_coef_cycles * self.supervision_loss(latents)
+        supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(latents)
 
         total_loss = demi_cycle_loss + cycle_loss + supervision_loss
 

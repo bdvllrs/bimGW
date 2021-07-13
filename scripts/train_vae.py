@@ -26,6 +26,9 @@ def train_vae(args):
         data.validation_reconstructed_images, args.vae.n_FID_samples
     )
 
+    # checkpoint = torch.load(args.resume_from_checkpoint)
+    # import matplotlib.pyplot as plt
+
     logger = None
     if args.neptune.project_name is not None:
         logger = NeptuneLogger(
