@@ -215,6 +215,16 @@ class GlobalWorkspace(LightningModule):
 
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+            classes = [self.trainer.datamodule.classes[k] for k in self.validation_class_translation]
+            self.log("original_texts", ", ".join(classes[:self.hparams.n_validation_examples]))
+
+            # translation of images
+        latent_v = self.domain_mods["v"].encode(x)
+        latent_t = self.translate(latent_v, "v", "t")
+        t_gen = self.domain_mods["t"].decode(latent_t)
+        predicted_classes = torch.argmax(t_gen, dim=-1).detach().cpu().numpy()
+        classes = [self.trainer.datamodule.classes[k] for k in predicted_classes]
+        self.log("val_image_to_text_translation", ", ".join(classes[:self.hparams.n_validation_examples]))
 
         # demi cycle
         latent_x = self.domain_mods["v"].encode(x)
