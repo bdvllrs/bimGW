@@ -155,10 +155,9 @@ class GlobalWorkspace(LightningModule):
         for domain_name_1, domain_1 in sync_domains.items():
             for domain_name_2, domain_2 in sync_domains.items():
                 if domain_name_1 != domain_name_2:
-                    # project domains into the same multi modal workspace
-                    latent_domain_1 = self.encoders[domain_name_1](domain_1)
-                    latent_domain_2 = self.encoders[domain_name_2](domain_2)
-                    loss += self.supervision_loss_fn(latent_domain_1, latent_domain_2).mean()
+                    # project domains into one another
+                    pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
+                    loss += self.supervision_loss_fn(domain_2, pred_domain_2).mean()
         n = len(sync_domains)
         return loss / (n * (n - 1))
 
@@ -218,7 +217,7 @@ class GlobalWorkspace(LightningModule):
             classes = [self.trainer.datamodule.classes[k] for k in self.validation_class_translation]
             self.log("original_texts", ", ".join(classes[:self.hparams.n_validation_examples]))
 
-            # translation of images
+        # translation of images
         latent_v = self.domain_mods["v"].encode(x)
         latent_t = self.translate(latent_v, "v", "t")
         t_gen = self.domain_mods["t"].decode(latent_t)
