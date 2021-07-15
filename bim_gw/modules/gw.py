@@ -4,7 +4,6 @@ from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.utils.losses import vis_to_text_accuracy
-from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.utils import log_image
 
 
