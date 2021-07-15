@@ -145,13 +145,17 @@ class ImageNetData(LightningDataModule):
             self.image_net_val = SyncImageNet(self.image_net_folder, transform=get_preprocess(self.img_size),
                                               split="val")
             visual_index = "v"
+            text_index = "t"
         else:
             self.image_net_val = ImageNet(self.image_net_folder, transform=get_preprocess(self.img_size),
                                           split="val")
             visual_index = 0
+            text_index = 1
 
         validation_reconstruction_indices = torch.randint(len(self.image_net_val), size=(self.batch_size,))
         self.validation_reconstructed_images = torch.stack([self.image_net_val[k][visual_index]
+                                                            for k in validation_reconstruction_indices], dim=0)
+        self.validation_reconstructed_targets = torch.stack([self.image_net_val[k][text_index]
                                                             for k in validation_reconstruction_indices], dim=0)
         if stage == "test" or stage is None:
             raise NotImplementedError

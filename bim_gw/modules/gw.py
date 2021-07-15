@@ -70,7 +70,8 @@ class GlobalWorkspace(LightningModule):
             cycle_loss_fn="cosine", supervision_loss_fn="cosine",
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             n_validation_examples: int = 32,
-            validation_reconstructed_images=None
+            validation_reconstructed_images=None,
+            validation_reconstructed_targets=None
     ):
 
         super(GlobalWorkspace, self).__init__()
@@ -104,6 +105,7 @@ class GlobalWorkspace(LightningModule):
 
         # val sampling
         self.register_buffer("validation_reconstruction_images", validation_reconstructed_images)
+        self.register_buffer("validation_reconstruction_targets", validation_reconstructed_targets)
         self.register_buffer("validation_class_translation",
                              torch.randint(0, 1000, (n_validation_examples,)).to(torch.int64))
 
@@ -215,7 +217,9 @@ class GlobalWorkspace(LightningModule):
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
             classes = [self.trainer.datamodule.classes[k][0] for k in self.validation_class_translation]
-            self.log("original_texts", ", ".join(classes[:self.hparams.n_validation_examples]))
+            self.log("val_generated_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
+            classes = [self.trainer.datamodule.classes[k][0] for k in self.validation_reconstructed_targets]
+            self.log("val_original_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
 
         # translation of images
         latent_v = self.domain_mods["v"].encode(x)
