@@ -52,9 +52,9 @@ vae:
 
 losses:
   coefs:
-    demi_cycles: 0
-    cycles: 1.
-    supervision: 0
+    demi_cycles: 0.
+    cycles: 0.
+    supervision: 1.
 
 gensim_model_path: ???
 word_embeddings: null
