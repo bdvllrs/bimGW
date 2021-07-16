@@ -268,7 +268,7 @@ class GlobalWorkspace(LightningModule):
                     count += 1
         return loss / count
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
         if optimizer_idx == 0:
             # remove the sync batch
             domains = {key: val for key, val in batch.items() if key != "sync_"}

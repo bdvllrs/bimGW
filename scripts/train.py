@@ -35,6 +35,7 @@ def train_lm(args):
         args.losses.coefs.generator, args.losses.coefs.discriminator,
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
+        args.global_workspace.optim.discriminator_lr,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
         args.global_workspace.domains_with_discriminator,
         args.global_workspace.pose_noise_dim,
