@@ -21,6 +21,10 @@ global_workspace:
   cycle_loss_fn: "mse"
   supervision_loss_fn: "mse"
 
+  domains_with_discriminator: ["v"]
+  pose_noise_dim:
+    t: 128
+
   optim:
     lr: 1e-4
     weight_decay: 3e-5
