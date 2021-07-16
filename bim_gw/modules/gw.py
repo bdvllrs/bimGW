@@ -14,9 +14,9 @@ class EncoderBlock(torch.nn.Sequential):
             nn.Linear(in_dim, out_dim),
             nn.BatchNorm1d(out_dim),
             nn.ReLU(),
-            # nn.Linear(out_dim, out_dim),
-            # nn.BatchNorm1d(out_dim),
-            # nn.ReLU()
+            nn.Linear(out_dim, out_dim),
+            nn.BatchNorm1d(out_dim),
+            nn.ReLU()
         )
 
 
