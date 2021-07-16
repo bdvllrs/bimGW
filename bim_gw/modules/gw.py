@@ -113,9 +113,9 @@ def check_domains_eq(domains_ori, domains_comp):
 class GlobalWorkspace(LightningModule):
     def __init__(
             self, domain_mods, z_size,
-            loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-            cycle_loss_fn="cosine", supervision_loss_fn="cosine",
-            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
+            loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1, loss_coef_generator=1,
+            loss_coef_discriminator=1, cycle_loss_fn="cosine", supervision_loss_fn="cosine",
+            optim_lr=3e-4, optim_weight_decay=1e-5, optim_lr_discriminator=1e-4, scheduler_step=20, scheduler_gamma=0.5,
             domains_with_discriminator=None,
             pose_noise_dim=None,
             n_validation_examples: int = 32,
@@ -284,10 +284,9 @@ class GlobalWorkspace(LightningModule):
 
             sync_latents = self.project(sync_supervision)
             supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(sync_latents)
-            generator_loss = self.generator_loss(sync_latents)
+            generator_loss = self.hparams.loss_coef_generator * self.generator_loss(sync_latents)
 
-            total_loss = (demi_cycle_loss + cycle_loss + supervision_loss +
-                          self.hparams.loss_coef_supervision * generator_loss)
+            total_loss = demi_cycle_loss + cycle_loss + supervision_loss + generator_loss
 
             self.log("train_demi_cycle_loss", demi_cycle_loss, logger=True)
             self.log("train_cycle_loss", cycle_loss, logger=True)
@@ -302,7 +301,7 @@ class GlobalWorkspace(LightningModule):
             # remove the sync batch
             sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
             sync_latents = self.project(sync_supervision)
-            discriminator_loss = self.discriminator_loss(sync_latents)
+            discriminator_loss = self.hparams.loss_coef_discriminator * self.discriminator_loss(sync_latents)
 
             self.log("train_discriminator_loss", discriminator_loss, logger=True)
 
@@ -317,10 +316,9 @@ class GlobalWorkspace(LightningModule):
         cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
         check_domains_eq(ori_latents, latents)
         supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(latents)
-        generator_loss = self.generator_loss(latents)
+        generator_loss = self.hparams.loss_coef_generator * self.generator_loss(latents)
 
-        total_loss = (demi_cycle_loss + cycle_loss + supervision_loss +
-                      self.hparams.loss_coef_supervision * generator_loss)
+        total_loss = demi_cycle_loss + cycle_loss + supervision_loss + generator_loss
 
         self.log("val_demi_cycle_loss", demi_cycle_loss, logger=True)
         self.log("val_cycle_loss", cycle_loss, logger=True)
@@ -380,7 +378,7 @@ class GlobalWorkspace(LightningModule):
                                                     self.hparams.scheduler_gamma)
         discriminator_params = [param for name, param in self.named_parameters() if 'discriminator' in name]
         if len(discriminator_params):
-            discriminator_optimizer = torch.optim.Adam(discriminator_params, lr=self.hparams.optim_lr,
+            discriminator_optimizer = torch.optim.Adam(discriminator_params, lr=self.hparams.optim_lr_discriminator,
                                                        weight_decay=self.hparams.optim_weight_decay)
             discriminator_scheduler = torch.optim.lr_scheduler.StepLR(discriminator_optimizer,
                                                                       self.hparams.scheduler_step,

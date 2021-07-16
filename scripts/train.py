@@ -32,6 +32,7 @@ def train_lm(args):
         "t": lm
     }, args.global_workspace.z_size, args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
+        args.losses.coefs.generator, args.losses.coefs.discriminator,
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
