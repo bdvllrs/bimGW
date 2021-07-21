@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import torch
 import torchvision
 from matplotlib import pyplot as plt
@@ -20,11 +21,12 @@ def explore_vae(args):
     print("Z size", vae.z_size)
 
     n = 12
-    dim_i = 15
-    dim_j = 20
+    dim_i = 1
+    dim_j = 7
 
-    start = -4
-    end = 4
+    start = -2
+    end = 2
+    imsize = vae.image_size + 2
 
     z = torch.zeros(1, 1, vae.z_size).to(device).repeat(n, n, 1)
     for i in range(n):
@@ -43,6 +45,10 @@ def explore_vae(args):
     plt.imshow(img_grid)
     plt.xlabel(f"dim {dim_j}")
     plt.ylabel(f"dim {dim_i}")
+    plt.gca().set_xticks(imsize * np.arange(n) + imsize // 2)
+    plt.gca().set_xticklabels(list(map(lambda x: f"{x:.1f}", np.linspace(start, end, n))))
+    plt.gca().set_yticks(imsize * np.arange(n) + imsize // 2)
+    plt.gca().set_yticklabels(list(map(lambda x: f"{x:.1f}", np.linspace(start, end, n))))
     plt.show()
 
 if __name__ == "__main__":
