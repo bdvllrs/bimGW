@@ -20,8 +20,8 @@ def explore_vae(args):
     print("Z size", vae.z_size)
 
     n = 12
-    dim_i = 7
-    dim_j = 3
+    dim_i = 15
+    dim_j = 20
 
     start = -4
     end = 4
