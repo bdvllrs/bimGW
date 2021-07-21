@@ -5,6 +5,7 @@ max_epochs: 100
 
 image_net_path: ???
 cifar10_path: ???
+simple_shapes_path: ???
 
 img_size: 32
 

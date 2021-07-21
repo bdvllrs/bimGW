@@ -30,20 +30,14 @@ class SimpleShapesDataset:
         self.transforms = transforms
         self.split = split
 
+        self.classes = ["square", "circle", "triangle"]
         self.labels = []
-
-        self.categories = OrderedDict()
-
-        with open(self.root_path / f"labels.csv", "r") as f:
-            reader = csv.reader(f)
-            for k, line in enumerate(reader):
-                self.categories[line[0]] = line[1:]
 
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
             reader = csv.reader(f)
             for k, line in enumerate(reader):
                 if k > 0:
-                    self.labels.append(list(map(int, line)))
+                    self.labels.append(list(map(float, line)))
 
     def __len__(self):
         return len(self.labels)
@@ -51,11 +45,16 @@ class SimpleShapesDataset:
     def __getitem__(self, item):
         with open(self.root_path / self.split / f"{item}.png", 'rb') as f:
             img = Image.open(f)
-        img.convert('RGB')
+            img = img.convert('RGB')
         if self.transforms is not None:
             img = self.transforms(img)
         label = self.labels[item]
-        return img, label
+        cls = int(label[0])
+        x, y = label[1] / 32, label[2] / 32
+        radius = label[3] / 32
+        rotation = label[4] / 360
+        r, g, b = label[5], label[6], label[7]
+        return img, torch.tensor([cls, x, y, radius, rotation, r, g, b])
 
 
 class SimpleShapesData(LightningDataModule):
@@ -72,8 +71,8 @@ class SimpleShapesData(LightningDataModule):
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
-        # self.classes = ds.classes
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
+        self.classes = ds.classes
         self.val_dataset_size = len(ds)
 
     def setup(self, stage=None):
