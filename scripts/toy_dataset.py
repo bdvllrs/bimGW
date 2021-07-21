@@ -143,9 +143,9 @@ def main():
     (dataset_location / "test").mkdir(exist_ok=True)
     save_dataset(dataset_location / "test", test_labels, image_size)
 
-    save_labels(dataset_location / "train_labels.txt", train_labels)
-    save_labels(dataset_location / "val_labels.txt", val_labels)
-    save_labels(dataset_location / "test_labels.txt", test_labels)
+    save_labels(dataset_location / "train_labels.csv", train_labels)
+    save_labels(dataset_location / "val_labels.csv", val_labels)
+    save_labels(dataset_location / "test_labels.csv", test_labels)
 
     print('done!')
 
