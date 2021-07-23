@@ -21,44 +21,48 @@ class EncoderBlock(torch.nn.Sequential):
 
 
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, out_dim, pose_dim=None):
+    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=None, loss_fn=None):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.hidden_size = hidden_size
         self.pose_dim = pose_dim
+        self.loss_fn = loss_fn
 
-        self.encoder_block1 = EncoderBlock(self.in_dim, self.out_dim)
-        self.encoder_block2 = EncoderBlock(self.out_dim, self.out_dim)
+        self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
+        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
         self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.out_dim, self.out_dim),
+            nn.Linear(self.hidden_size, self.out_dim),
         )
         if self.pose_dim is not None:
             self.encoder_block_pose = nn.Sequential(
-                nn.Linear(self.out_dim, self.pose_dim),
+                nn.Linear(self.hidden_size, self.pose_dim),
             )
 
     def forward(self, x):
         out = self.encoder_block1(x)
         out = self.encoder_block2(out)
+        z = None
         if self.pose_dim is not None:
             z = self.encoder_block_pose(out)
-            out = self.encoder_block3(out)
-            return out, z
         out = self.encoder_block3(out)
-        return out, None
+        if self.loss_fn is not None:
+            out = self.loss_fn(out)
+        return out, z
 
 
 class DomainEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, pose_dim=0):
+    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=0):
         super(DomainEncoder, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.hidden_size = hidden_size
         self.pose_dim = pose_dim
 
-        self.encoder_block1 = EncoderBlock(self.in_dim + self.pose_dim, self.in_dim)
-        self.encoder_block2 = EncoderBlock(self.in_dim, self.in_dim)
+        self.encoder_block1 = EncoderBlock(self.in_dim + self.pose_dim, self.hidden_size)
+        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
         self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.in_dim, self.out_dim),
+            nn.Linear(self.hidden_size, self.out_dim),
         )
 
     def forward(self, x, z=None):
@@ -73,14 +77,15 @@ class DomainEncoder(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_dim):
+    def __init__(self, in_dim, hidden_size):
         super(Discriminator, self).__init__()
         self.in_dim = in_dim
+        self.hidden_size = hidden_size
 
-        self.encoder_block1 = EncoderBlock(self.in_dim, self.in_dim)
-        self.encoder_block2 = EncoderBlock(self.in_dim, self.in_dim)
+        self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
+        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
         self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.in_dim, 1),
+            nn.Linear(self.hidden_size, 1),
         )
 
     def forward(self, x):
@@ -91,13 +96,14 @@ class Discriminator(nn.Module):
 
 
 class DiscriminatorDecoder(nn.Module):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, hidden_size, out_dim):
         super(DiscriminatorDecoder, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.hidden_size = hidden_size
 
-        self.decoder = DomainDecoder(in_dim, out_dim)
-        self.discriminator = Discriminator(out_dim)
+        self.decoder = DomainDecoder(in_dim, self.hidden_size, out_dim)
+        self.discriminator = Discriminator(out_dim, self.hidden_size)
 
     def forward(self, x):
         return self.decoder(x)
@@ -112,7 +118,8 @@ def check_domains_eq(domains_ori, domains_comp):
 
 class GlobalWorkspace(LightningModule):
     def __init__(
-            self, domain_mods, z_size,
+            self, domain_mods, z_size, hidden_size,
+            n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1, loss_coef_generator=1,
             loss_coef_discriminator=1, cycle_loss_fn="cosine", supervision_loss_fn="cosine",
             optim_lr=3e-4, optim_weight_decay=1e-5, optim_lr_discriminator=1e-4, scheduler_step=20, scheduler_gamma=0.5,
@@ -130,6 +137,7 @@ class GlobalWorkspace(LightningModule):
         assert supervision_loss_fn in ["cosine", "mse"], "cycle_loss_fn must be in ['cosine', 'mse']."
 
         self.z_size = z_size
+        self.hidden_size = hidden_size
 
         for mod in domain_mods.values():
             assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
@@ -141,13 +149,16 @@ class GlobalWorkspace(LightningModule):
         self.pose_noise_dim = pose_noise_dim if pose_noise_dim is not None else dict()
 
         # Define encoders for translation
-        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.z_size, self.z_size, (pose_noise_dim[item]
-                                                                                     if item in pose_noise_dim else 0))
+        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.z_size, self.hidden_size, self.z_size,
+                                                           (pose_noise_dim[item]
+                                                            if item in pose_noise_dim else 0))
                                        for item, mod in domain_mods.items()})
-        self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, mod.z_size, (pose_noise_dim[item]
-                                                                                      if item in pose_noise_dim else 0))
+        self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
+                                                            mod.z_size, (pose_noise_dim[item]
+                                                                         if item in pose_noise_dim else 0),
+                                                            None if item != "t" else torch.sigmoid)
                                               if item not in self.domains_with_discriminator
-                                              else DiscriminatorDecoder(self.z_size, mod.z_size))
+                                              else DiscriminatorDecoder(self.z_size, self.hidden_size, mod.z_size))
                                        for item, mod in domain_mods.items()})
 
         cosine_loss = lambda x, y: 1 - F.cosine_similarity(x, y)
@@ -164,7 +175,9 @@ class GlobalWorkspace(LightningModule):
         self.register_buffer("validation_reconstruction_images", validation_reconstructed_images)
         self.register_buffer("validation_reconstruction_targets", validation_reconstructed_targets)
         self.register_buffer("validation_class_translation",
-                             torch.randint(0, 1000, (n_validation_examples,)).to(torch.int64))
+                             torch.randint(0, n_classes, (n_validation_examples,)).to(torch.int64))
+        self.register_buffer("validation_pose_translation",
+                             domain_mods['t'].get_random_vector(self.validation_class_translation))
         self.register_buffer("validation_pose_t",
                              torch.randn(n_validation_examples, self.pose_noise_dim["t"]))
 
@@ -232,7 +245,7 @@ class GlobalWorkspace(LightningModule):
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
                     loss += self.supervision_loss_fn(domain_2[0], pred_domain_2[0]).mean()
                     count += 1
-        return loss / count
+        return loss / count if count > 0 else loss
 
     def generator_loss(self, sync_domains):
         loss = torch.tensor(0.).to(self.device)
@@ -246,7 +259,7 @@ class GlobalWorkspace(LightningModule):
                     d_output = self.discriminate(pred_domain_2[0], domain_name_2)
                     loss += F.binary_cross_entropy(d_output, y)
                     count += 1
-        return loss / count
+        return loss / count if count > 0 else loss
 
     def discriminator_loss(self, sync_domains):
         loss = torch.tensor(0.).to(self.device)
@@ -266,7 +279,7 @@ class GlobalWorkspace(LightningModule):
                     loss += F.binary_cross_entropy(d_output_fake, y_fake)
 
                     count += 1
-        return loss / count
+        return loss / count if count > 0 else loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if optimizer_idx == 0:
@@ -336,9 +349,9 @@ class GlobalWorkspace(LightningModule):
 
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
-            classes = [self.trainer.datamodule.classes[k][0] for k in self.validation_class_translation]
+            classes = [self.trainer.datamodule.classes[k] for k in self.validation_class_translation]
             self.log("val_generated_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
-            classes = [self.trainer.datamodule.classes[k][0] for k in self.validation_reconstruction_targets]
+            classes = [self.trainer.datamodule.classes[k] for k in self.validation_reconstruction_targets]
             self.log("val_original_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
 
         # translation of images
@@ -346,7 +359,7 @@ class GlobalWorkspace(LightningModule):
         latent_t = self.translate(latent_v, "v", "t")
         t_gen = self.domain_mods["t"].decode(latent_t[0])
         predicted_classes = torch.argmax(t_gen, dim=-1).detach().cpu().numpy()
-        classes = [self.trainer.datamodule.classes[k][0] for k in predicted_classes]
+        classes = [self.trainer.datamodule.classes[k] for k in predicted_classes]
         self.log("val_image_to_text_translation", ", ".join(classes[:self.hparams.n_validation_examples]))
 
         # demi cycle
@@ -362,7 +375,7 @@ class GlobalWorkspace(LightningModule):
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction_full")
 
         # Generation from class
-        latent_t = self.domain_mods["t"].encode(self.validation_class_translation)
+        latent_t = self.domain_mods["t"].encode(self.validation_pose_translation)
         latent_v = self.translate((latent_t, self.validation_pose_t), "t", "v")
         v_gen = self.domain_mods["v"].decode(latent_v[0])
         log_image(self.logger, v_gen[:self.hparams.n_validation_examples], "val_generation")

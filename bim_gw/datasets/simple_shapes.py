@@ -1,7 +1,7 @@
 import csv
-from collections import OrderedDict
 from pathlib import Path
 
+import numpy as np
 import torch
 from PIL import Image
 from pytorch_lightning import LightningDataModule
@@ -24,13 +24,14 @@ def get_preprocess(augmentation=False):
 
 
 class SimpleShapesDataset:
-    def __init__(self, path, split="train", transforms=None):
+    def __init__(self, path, split="train", transform=None, output_transform=None):
         assert split in ["train", "val", "test"]
         self.root_path = Path(path)
-        self.transforms = transforms
+        self.transforms = transform
+        self.output_transform = output_transform
         self.split = split
 
-        self.classes = ["square", "circle", "triangle"]
+        self.classes = np.array(["circle", "square", "triangle"])
         self.labels = []
 
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
@@ -50,23 +51,34 @@ class SimpleShapesDataset:
             img = self.transforms(img)
         label = self.labels[item]
         cls = int(label[0])
+        if cls == 1:
+            cls = 0
+        elif cls == 0:
+            cls = 1
         x, y = label[1] / 32, label[2] / 32
         radius = label[3] / 32
         rotation = label[4] / 360
         r, g, b = label[5], label[6], label[7]
+        if self.output_transform is not None:
+            return self.output_transform(img, torch.tensor([cls, x, y, radius, rotation, r, g, b]))
         return img, torch.tensor([cls, x, y, radius, rotation, r, g, b])
 
 
 class SimpleShapesData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, use_data_augmentation=False,
+            num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
+            bimodal=False
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.img_size = 32
+        self.bimodal = bimodal
+
+        assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
+        self.prop_labelled_images = prop_labelled_images
 
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
@@ -77,24 +89,67 @@ class SimpleShapesData(LightningDataModule):
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train", get_preprocess(self.use_data_augmentation))
-            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+            if self.bimodal:
+                sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                               get_preprocess(self.use_data_augmentation),
+                                               lambda v, t: {"v": v, "t": t}),
+
+                if self.prop_labelled_images < 1:
+                    # Unlabel randomly some elements
+                    n_targets = len(sync_set)
+                    target_indices = np.arange(n_targets)
+                    np.random.shuffle(target_indices)
+                    num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
+                    labelled_elems = target_indices[num_unlabelled:]
+                    sync_set = torch.utils.data.Subset(sync_set, labelled_elems)
+
+                self.train_datasets = {
+                    "v": SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                             get_preprocess(self.use_data_augmentation),
+                                             lambda v, t: v),
+                    "t": SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                             get_preprocess(self.use_data_augmentation),
+                                             lambda v, t: t),
+                    "sync_": sync_set
+                }
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
+                                                      lambda v, t: {"v": v, "t": t})
+
+                visual_index = "v"
+                text_index = "t"
+            else:
+                self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                        get_preprocess(self.use_data_augmentation))
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+                visual_index = 0
+                text_index = 1
+
         validation_reconstruction_indices = torch.randint(len(self.shapes_val), size=(self.batch_size,))
-        self.validation_reconstructed_images = torch.stack([self.shapes_val[k][0]
+        self.validation_reconstructed_images = torch.stack([self.shapes_val[k][visual_index]
                                                             for k in validation_reconstruction_indices], dim=0)
+        self.validation_reconstructed_targets = torch.tensor([int(self.shapes_val[k][text_index][0])
+                                                              for k in validation_reconstruction_indices])
         if stage == "test" or stage is None:
             raise NotImplementedError
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                get_preprocess(self.use_data_augmentation))
+                                       get_preprocess(self.use_data_augmentation))
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
-        self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder, "shapes_train",
+        self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
+                                                                     "shapes_train",
                                                                      batch_size, device)
         self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.simple_shapes_folder, "shapes_val",
                                                                    batch_size, device)
 
     def train_dataloader(self):
+        if self.bimodal:
+            dataloaders = {}
+            for key, dataset in self.train_datasets.items():
+                dataloaders[key] = torch.utils.data.DataLoader(dataset,
+                                                               batch_size=self.batch_size, shuffle=True,
+                                                               num_workers=self.num_workers, pin_memory=True)
+            return dataloaders
         return torch.utils.data.DataLoader(self.shapes_train,
                                            batch_size=self.batch_size, shuffle=True,
                                            num_workers=self.num_workers, pin_memory=True)

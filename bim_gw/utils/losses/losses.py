@@ -19,4 +19,4 @@ def vis_to_text_accuracy(gw, acc_fn, vis_domain, targets):
     predicted_t = gw.translate(vis_domain, "v", "t")[0]
     # get the word prediction from the predicted
     logits = gw.domain_mods["t"].decode(predicted_t).softmax(dim=-1)
-    return acc_fn(logits, targets)
+    return acc_fn(logits, gw.domain_mods["t"].get_targets(targets))

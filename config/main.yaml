@@ -7,6 +7,8 @@ image_net_path: ???
 cifar10_path: ???
 simple_shapes_path: ???
 
+visual_dataset: "imagenet"
+
 img_size: 32
 
 n_validation_examples: 32
@@ -16,6 +18,7 @@ global_workspace:
   data_augmentation: true
 
   z_size: 512
+  hidden_size: 512
   prop_labelled_images: 1  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
@@ -36,8 +39,6 @@ global_workspace:
     gamma: 0.5
 
 vae:
-  visual_dataset: "imagenet"
-
   batch_size: 1024
   data_augmentation: false
 
@@ -58,11 +59,11 @@ vae:
 
 losses:
   coefs:
-    demi_cycles: 0.
-    cycles: 0.
+    demi_cycles: 1.
+    cycles: 1.
     supervision: 1.
-    generator: 1.
-    discriminator: 1.
+    generator: 0
+    discriminator: 0
 
 gensim_model_path: ???
 word_embeddings: null

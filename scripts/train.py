@@ -4,10 +4,11 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from bim_gw.datasets import ImageNetData
+from bim_gw.datasets import ImageNetData, load_dataset
+from bim_gw.datasets.utils import get_lm
 from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.gw import GlobalWorkspace
-from bim_gw.modules.language_model import LanguageModel
+from bim_gw.modules.language_model import SkipGramLM
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
@@ -15,22 +16,20 @@ from bim_gw.utils import get_args
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = ImageNetData(args.image_net_path, args.global_workspace.batch_size, args.img_size,
-                        args.dataloader.num_workers, args.global_workspace.data_augmentation,
-                        args.global_workspace.prop_labelled_images, args.global_workspace.classes_labelled_images, True)
+    data = load_dataset(args, bimodal=True)
     data.prepare_data()
     data.setup(stage="fit")
 
     vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
     vae.freeze()
 
-    lm = LanguageModel(args.gensim_model_path, data.classes, args.word_embeddings).eval()
+    lm = get_lm(args, data)
     lm.freeze()
 
     global_workspace = GlobalWorkspace({
         "v": vae,
         "t": lm
-    }, args.global_workspace.z_size, args.losses.coefs.demi_cycles,
+    }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes), args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
         args.losses.coefs.generator, args.losses.coefs.discriminator,
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,

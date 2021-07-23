@@ -4,7 +4,7 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from bim_gw.datasets import load_vae_dataset
+from bim_gw.datasets import load_dataset
 from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
@@ -13,7 +13,7 @@ from bim_gw.utils import get_args
 def train_vae(args):
     seed_everything(args.seed)
 
-    data = load_vae_dataset(args)
+    data = load_dataset(args)
 
     data.prepare_data()
     data.setup(stage="fit")

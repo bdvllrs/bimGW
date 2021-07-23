@@ -96,14 +96,14 @@ class ImageNetData(LightningDataModule):
         self.img_size = img_size
         self.bimodal = bimodal
 
-        assert prop_labelled_images >= 0, "The proportion of labelled images cannot be negative."
+        assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
         self.classes_labelled_images = classes_labelled_images
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
         ds = ImageNet(self.image_net_folder, split="val")
-        self.classes = ds.classes
+        self.classes = [cls[0] for cls in ds.classes]
         self.val_dataset_size = len(ds)
 
     def setup(self, stage=None):
