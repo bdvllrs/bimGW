@@ -30,7 +30,7 @@ def load_dataset(args, **kwargs):
 
 def get_lm(args, data):
     if args.visual_dataset == "shapes":
-        lm = ShapesLM(len(data.classes))
+        lm = ShapesLM(len(data.classes), data.img_size)
     else:
         lm = SkipGramLM(args.gensim_model_path, data.classes, args.word_embeddings).eval()
     return lm

@@ -3,6 +3,7 @@ import torch
 from gensim.models import KeyedVectors
 
 from bim_gw.modules.workspace_module import WorkspaceModule
+from bim_gw.utils.shapes import generate_dataset
 
 
 class SkipGramLM(WorkspaceModule):
@@ -65,17 +66,23 @@ class SkipGramLM(WorkspaceModule):
 
 
 class ShapesLM(WorkspaceModule):
-    def __init__(self, n_classes):
+    def __init__(self, n_classes, imsize):
         super(ShapesLM, self).__init__()
         self.n_classes = n_classes
         self.z_size = 3
+        self.imsize = imsize
 
     def encode(self, x):
         return self(x)
 
     def decode(self, x):
-        logits, _ = x
-        return torch.softmax(logits, dim=-1)
+        logits, latent = x
+        latent = torch.clip(latent, 0, 1)
+        latent[:, 0] = latent[:, 0] * self.imsize
+        latent[:, 1] = latent[:, 1] * self.imsize
+        latent[:, 2] = latent[:, 2] * self.imsize
+        latent[:, 3] = latent[:, 3] * 360
+        return torch.argmax(torch.softmax(logits, dim=-1), dim=-1), latent
 
     def forward(self, x):
         cls, latents = x
@@ -85,7 +92,11 @@ class ShapesLM(WorkspaceModule):
         return targets[0].to(torch.int16)
 
     def get_random_vector(self, classes):
-        z = torch.rand(classes.size(0), 7).to(classes.device)
+        # Set classes to [""] as we don't generate random classes here...
+        d = generate_dataset(classes.size(0), [""], 5, 11, 210, self.imsize)
+        z = np.concatenate((d["locations"] / self.imsize, d["sizes"][:, None] / self.imsize,
+                            d["rotations"][:, None] / 360, d['colors']), axis=1)
+        z = torch.from_numpy(z).to(classes.device, torch.float)
         return z
 
 

@@ -1,14 +1,12 @@
-from typing import Sequence
-
 import torch
 import torchmetrics
-from neptune.new.types import File
 from omegaconf import ListConfig
 from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.utils.losses import vis_to_text_accuracy
+from bim_gw.utils.shapes import log_shape_fig
 from bim_gw.utils.utils import log_image
 
 
@@ -52,6 +50,7 @@ class DomainDecoder(torch.nn.Module):
         out = self.encoder_block3(out)
         if self.loss_fn is not None:
             out = self.loss_fn(out)
+            z = self.loss_fn(z)
         return out, z
 
 
@@ -124,6 +123,7 @@ def cross_entropy(x, y):
     y = torch.argmax(y, 1)
     return F.cross_entropy(x, y)
 
+
 loss_functions = {
     "cosine": lambda x, y: 1 - F.cosine_similarity(x, y),
     "mse": F.mse_loss,
@@ -180,7 +180,8 @@ class GlobalWorkspace(LightningModule):
             if not isinstance(domain_supervision_loss_fn, ListConfig):
                 domain_supervision_loss_fn = (domain_supervision_loss_fn,)
             for k in range(len(domain_supervision_loss_fn)):
-                assert domain_supervision_loss_fn[k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
+                assert domain_supervision_loss_fn[
+                           k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
                 self.supervision_loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
 
         self.train_acc = torchmetrics.Accuracy()
@@ -265,7 +266,6 @@ class GlobalWorkspace(LightningModule):
                             count += 1
         return loss / count if count > 0 else loss
 
-
     def training_step(self, batch, batch_idx):
         # remove the sync batch
         domains = {key: val for key, val in batch.items() if key != "sync_"}
@@ -325,6 +325,14 @@ class GlobalWorkspace(LightningModule):
             classes = [self.trainer.datamodule.classes[k] for k in self.validation_reconstruction_targets]
             self.log("val_original_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
 
+            # Generate the image with the original (exact) algorithm
+
+            t_gen = self.domain_mods["t"].decode(
+                self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
+            )
+            log_shape_fig(self.logger, t_gen[0].detach().cpu().numpy(),
+                          t_gen[1].detach().cpu().numpy(), "val_generation_target")
+
             # generation_target = self.domain_mods["v"].decode(self.validation_pose_translation)
             # log_image(self.logger, generation_target[:self.hparams.n_validation_examples], "val_reconstruction_demi")
             # self.logger.experiment["val_generated_target"].log(File.as_image(img_grid), step=step)
@@ -333,9 +341,18 @@ class GlobalWorkspace(LightningModule):
         latent_v = self.domain_mods["v"].encode(x), None
         latent_t = self.translate(latent_v, "v", "t")
         t_gen = self.domain_mods["t"].decode(latent_t)
-        predicted_classes = torch.argmax(t_gen, dim=-1).detach().cpu().numpy()
+        # Get class
+        predicted_classes = t_gen[0].detach().cpu().numpy()
         classes = [self.trainer.datamodule.classes[k] for k in predicted_classes]
         self.log("val_image_to_text_translation", ", ".join(classes[:self.hparams.n_validation_examples]))
+
+        # Generate the image with the original (exact) algorithm
+        log_shape_fig(
+            self.logger,
+            t_gen[0][:self.hparams.n_validation_examples].detach().cpu().numpy(),
+            t_gen[1][:self.hparams.n_validation_examples].detach().cpu().numpy(),
+            "val_image_generation_from_text_prediction"
+        )
 
         # demi cycle
         latent_x = self.domain_mods["v"].encode(x), None

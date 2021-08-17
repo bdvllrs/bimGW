@@ -1,47 +1,10 @@
 import csv
 from pathlib import Path
 
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-from bim_gw.utils.shapes import generate_image
-
-
-def generate_radius(n_samples, min, max):
-    assert max > min
-    return np.random.randint(min, max, n_samples)
-
-
-def generate_color(n_samples, max_lightness=256):
-    assert 0 <= max_lightness <= 256
-    hls = np.random.randint([0, 0, 0], [181, max_lightness, 256], size=(1, n_samples, 3), dtype=np.uint8)
-    rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0].astype(np.float) / 255
-    return rgb
-
-
-def generate_rotation(n_samples):
-    return np.random.rand(n_samples) * 360
-
-
-def generate_location(n_samples, radius, imsize):
-    assert (radius <= imsize / (2 * np.sqrt(2))).all()
-    radii = np.sqrt(2) * np.stack((radius, radius), axis=1)
-    locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
-    return locations
-
-
-def generate_class(n_samples, classes):
-    return np.random.randint(len(classes), size=n_samples)
-
-
-def generate_dataset(n_samples, class_names, min_radius, max_radius, max_lightness, imsize):
-    classes = generate_class(n_samples, class_names)
-    sizes = generate_radius(n_samples, min_radius, max_radius)
-    locations = generate_location(n_samples, sizes, imsize)
-    rotation = generate_rotation(n_samples)
-    colors = generate_color(n_samples, max_lightness)
-    return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors)
+from bim_gw.utils.shapes import generate_image, generate_dataset
 
 
 def save_dataset(path_root, dataset, imsize):
