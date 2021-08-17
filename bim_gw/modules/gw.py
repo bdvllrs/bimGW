@@ -1,5 +1,9 @@
+from typing import Sequence
+
 import torch
 import torchmetrics
+from neptune.new.types import File
+from omegaconf import ListConfig
 from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
@@ -21,7 +25,7 @@ class EncoderBlock(torch.nn.Sequential):
 
 
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=None, loss_fn=None):
+    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=0, loss_fn=None):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -34,7 +38,7 @@ class DomainDecoder(torch.nn.Module):
         self.encoder_block3 = nn.Sequential(
             nn.Linear(self.hidden_size, self.out_dim),
         )
-        if self.pose_dim is not None:
+        if self.pose_dim > 0:
             self.encoder_block_pose = nn.Sequential(
                 nn.Linear(self.hidden_size, self.pose_dim),
             )
@@ -43,7 +47,7 @@ class DomainDecoder(torch.nn.Module):
         out = self.encoder_block1(x)
         out = self.encoder_block2(out)
         z = None
-        if self.pose_dim is not None:
+        if self.pose_dim > 0:
             z = self.encoder_block_pose(out)
         out = self.encoder_block3(out)
         if self.loss_fn is not None:
@@ -116,12 +120,23 @@ def check_domains_eq(domains_ori, domains_comp):
             assert torch.eq(o[1], r[1]).all()
 
 
+def cross_entropy(x, y):
+    y = torch.argmax(y, 1)
+    return F.cross_entropy(x, y)
+
+loss_functions = {
+    "cosine": lambda x, y: 1 - F.cosine_similarity(x, y),
+    "mse": F.mse_loss,
+    "cross_entropy": cross_entropy
+}
+
+
 class GlobalWorkspace(LightningModule):
     def __init__(
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1, loss_coef_generator=1,
-            loss_coef_discriminator=1, cycle_loss_fn="cosine", supervision_loss_fn="cosine",
+            loss_coef_discriminator=1, cycle_loss_fn="cosine", supervision_loss_fn=None,
             optim_lr=3e-4, optim_weight_decay=1e-5, optim_lr_discriminator=1e-4, scheduler_step=20, scheduler_gamma=0.5,
             domains_with_discriminator=None,
             pose_noise_dim=None,
@@ -133,9 +148,6 @@ class GlobalWorkspace(LightningModule):
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters()
 
-        assert cycle_loss_fn in ["cosine", "mse"], "cycle_loss_fn must be in ['cosine', 'mse']."
-        assert supervision_loss_fn in ["cosine", "mse"], "cycle_loss_fn must be in ['cosine', 'mse']."
-
         self.z_size = z_size
         self.hidden_size = hidden_size
 
@@ -144,8 +156,6 @@ class GlobalWorkspace(LightningModule):
 
         self.domain_mods = nn.ModuleDict(domain_mods)
 
-        # size of the pose for domains using a discriminator
-        self.domains_with_discriminator = domains_with_discriminator if domains_with_discriminator is not None else []
         self.pose_noise_dim = pose_noise_dim if pose_noise_dim is not None else dict()
 
         # Define encoders for translation
@@ -156,17 +166,22 @@ class GlobalWorkspace(LightningModule):
         self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
                                                             mod.z_size, (pose_noise_dim[item]
                                                                          if item in pose_noise_dim else 0),
-                                                            None if item != "t" else torch.sigmoid)
-                                              if item not in self.domains_with_discriminator
-                                              else DiscriminatorDecoder(self.z_size, self.hidden_size, mod.z_size))
+                                                            None if item != "t" else torch.sigmoid))
                                        for item, mod in domain_mods.items()})
 
-        cosine_loss = lambda x, y: 1 - F.cosine_similarity(x, y)
-        mse_loss = F.mse_loss
+        # Define losses
+        assert cycle_loss_fn in loss_functions, f"Cycle loss function {cycle_loss_fn} must be in {loss_functions.keys()}."
+        self.cycle_loss_fn = loss_functions[cycle_loss_fn]
 
-        # cosine distance
-        self.cycle_loss_fn = cosine_loss if cycle_loss_fn == "cosine" else mse_loss
-        self.supervision_loss_fn = cosine_loss if supervision_loss_fn == "cosine" else mse_loss
+        self.supervision_loss_fn = {}
+        for domain in self.domain_mods.keys():
+            domain_supervision_loss_fn = "cosine" if supervision_loss_fn is None else supervision_loss_fn[domain]
+            # Iterate over class and latent (they could have different loss fn)
+            if not isinstance(domain_supervision_loss_fn, ListConfig):
+                domain_supervision_loss_fn = (domain_supervision_loss_fn,)
+            for k in range(len(domain_supervision_loss_fn)):
+                assert domain_supervision_loss_fn[k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
+                self.supervision_loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
 
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
@@ -178,11 +193,11 @@ class GlobalWorkspace(LightningModule):
                              torch.randint(0, n_classes, (n_validation_examples,)).to(torch.int64))
         self.register_buffer("validation_pose_translation",
                              domain_mods['t'].get_random_vector(self.validation_class_translation))
-        self.register_buffer("validation_pose_t",
-                             torch.randn(n_validation_examples, self.pose_noise_dim["t"]))
-
-    def has_discriminator(self, domain):
-        return domain in self.domains_with_discriminator
+        if "t" in self.pose_noise_dim:
+            self.register_buffer("validation_pose_t",
+                                 torch.randn(n_validation_examples, self.pose_noise_dim["t"]))
+        else:
+            self.register_buffer("validation_pose_t", None)
 
     def project(self, domains):
         """
@@ -192,7 +207,11 @@ class GlobalWorkspace(LightningModule):
         for domain_name, x in domains.items():
             c = self.domain_mods[domain_name].encode(x)
             z = None
-            if domain_name in self.pose_noise_dim:
+            # if the domain module returns a tuple, first one is the class, second is an additional latent vector.
+            if isinstance(c, tuple) and len(c) == 2:
+                c, z = c[0], c[1]
+            # If nothing is returned but the domain still requires a latent vector, one is selected at random.
+            if z is None and domain_name in self.pose_noise_dim:
                 z = torch.randn(c.size(0), self.pose_noise_dim[domain_name]).type_as(c)
             out[domain_name] = (c, z)
         return out
@@ -206,10 +225,6 @@ class GlobalWorkspace(LightningModule):
         """
         z = self.encoders[domain_name_start](*x)
         return self.decoders[domain_name_target](z)
-
-    def discriminate(self, x, domain_name):
-        assert hasattr(self.decoders[domain_name], "discriminator"), f"{domain_name} does not have a discriminator."
-        return self.decoders[domain_name].discriminator(x)
 
     def demi_cycle(self, x, domain_inter):
         return self.translate(x, domain_inter, domain_inter)
@@ -240,85 +255,43 @@ class GlobalWorkspace(LightningModule):
         count = 0
         for domain_name_1, domain_1 in sync_domains.items():
             for domain_name_2, domain_2 in sync_domains.items():
-                if domain_name_1 != domain_name_2 and not self.has_discriminator(domain_2):
+                if domain_name_1 != domain_name_2:
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
-                    loss += self.supervision_loss_fn(domain_2[0], pred_domain_2[0]).mean()
-                    count += 1
+                    for k in range(len(domain_2)):
+                        if domain_2[k] is not None:
+                            loss_fn = self.supervision_loss_fn[f"{domain_name_2}_{k}"]
+                            loss += loss_fn(pred_domain_2[k], domain_2[k]).mean()
+                            count += 1
         return loss / count if count > 0 else loss
 
-    def generator_loss(self, sync_domains):
-        loss = torch.tensor(0.).to(self.device)
-        count = 0
-        for domain_name_1, domain_1 in sync_domains.items():
-            for domain_name_2, domain_2 in sync_domains.items():
-                if domain_name_1 != domain_name_2 and self.has_discriminator(domain_name_2):
-                    y = torch.ones(domain_1[0].size(0), 1, device=self.device)
-                    # project domains into one another
-                    pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
-                    d_output = self.discriminate(pred_domain_2[0], domain_name_2)
-                    loss += F.binary_cross_entropy(d_output, y)
-                    count += 1
-        return loss / count if count > 0 else loss
 
-    def discriminator_loss(self, sync_domains):
-        loss = torch.tensor(0.).to(self.device)
-        count = 0
-        for domain_name_1, domain_1 in sync_domains.items():
-            for domain_name_2, domain_2 in sync_domains.items():
-                if domain_name_1 != domain_name_2 and self.has_discriminator(domain_name_2):
-                    # Real examples
-                    y_real = torch.ones(domain_1[0].size(0), 1, device=self.device)
-                    d_output_real = self.discriminate(domain_2[0], domain_name_2)
-                    loss += F.binary_cross_entropy(d_output_real, y_real)
+    def training_step(self, batch, batch_idx):
+        # remove the sync batch
+        domains = {key: val for key, val in batch.items() if key != "sync_"}
+        sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
+        latents = self.project(domains)
+        ori_latents = latents.copy()
 
-                    # Generated examples
-                    y_fake = torch.zeros(domain_1[0].size(0), 1, device=self.device)
-                    pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
-                    d_output_fake = self.discriminate(pred_domain_2[0], domain_name_2)
-                    loss += F.binary_cross_entropy(d_output_fake, y_fake)
+        demi_cycle_loss = self.hparams.loss_coef_demi_cycles * self.demi_cycle_loss(latents)
+        check_domains_eq(ori_latents, latents)
 
-                    count += 1
-        return loss / count if count > 0 else loss
+        cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
+        check_domains_eq(ori_latents, latents)
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
-        if optimizer_idx == 0:
-            # remove the sync batch
-            domains = {key: val for key, val in batch.items() if key != "sync_"}
-            sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
-            latents = self.project(domains)
-            ori_latents = latents.copy()
+        sync_latents = self.project(sync_supervision)
+        supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(sync_latents)
 
-            demi_cycle_loss = self.hparams.loss_coef_demi_cycles * self.demi_cycle_loss(latents)
-            check_domains_eq(ori_latents, latents)
+        total_loss = demi_cycle_loss + cycle_loss + supervision_loss
 
-            cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
-            check_domains_eq(ori_latents, latents)
+        self.log("train_demi_cycle_loss", demi_cycle_loss, logger=True)
+        self.log("train_cycle_loss", cycle_loss, logger=True)
+        self.log("train_supervision_loss", supervision_loss, logger=True)
+        self.log("train_total_loss", total_loss, logger=True)
 
-            sync_latents = self.project(sync_supervision)
-            supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(sync_latents)
-            generator_loss = self.hparams.loss_coef_generator * self.generator_loss(sync_latents)
-
-            total_loss = demi_cycle_loss + cycle_loss + supervision_loss + generator_loss
-
-            self.log("train_demi_cycle_loss", demi_cycle_loss, logger=True)
-            self.log("train_cycle_loss", cycle_loss, logger=True)
-            self.log("train_supervision_loss", supervision_loss, logger=True)
-            self.log("train_generator_loss", generator_loss, logger=True)
-            self.log("train_total_loss", total_loss, logger=True)
-
-            accuracy = vis_to_text_accuracy(self, self.train_acc, sync_latents["v"], sync_supervision["t"])
-            self.log("train_vis_to_text_acc", accuracy, on_step=True, on_epoch=False)
-            return total_loss
-        else:
-            # remove the sync batch
-            sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
-            sync_latents = self.project(sync_supervision)
-            discriminator_loss = self.hparams.loss_coef_discriminator * self.discriminator_loss(sync_latents)
-
-            self.log("train_discriminator_loss", discriminator_loss, logger=True)
-
-            return discriminator_loss
+        accuracy = vis_to_text_accuracy(self, self.train_acc, sync_latents["v"], sync_supervision["t"])
+        self.log("train_vis_to_text_acc", accuracy, on_step=True, on_epoch=False)
+        return total_loss
 
     def validation_step(self, domains, batch_idx):
         latents = self.project(domains)
@@ -329,14 +302,12 @@ class GlobalWorkspace(LightningModule):
         cycle_loss = self.hparams.loss_coef_cycles * self.cycle_loss(latents)
         check_domains_eq(ori_latents, latents)
         supervision_loss = self.hparams.loss_coef_supervision * self.supervision_loss(latents)
-        generator_loss = self.hparams.loss_coef_generator * self.generator_loss(latents)
 
-        total_loss = demi_cycle_loss + cycle_loss + supervision_loss + generator_loss
+        total_loss = demi_cycle_loss + cycle_loss + supervision_loss
 
         self.log("val_demi_cycle_loss", demi_cycle_loss, logger=True)
         self.log("val_cycle_loss", cycle_loss, logger=True)
         self.log("val_supervision_loss", supervision_loss, logger=True)
-        self.log("val_generator_loss", generator_loss, logger=True)
         self.log("val_total_loss", total_loss, logger=True)
 
         accuracy = vis_to_text_accuracy(self, self.valid_acc, latents["v"], domains["t"])
@@ -354,10 +325,14 @@ class GlobalWorkspace(LightningModule):
             classes = [self.trainer.datamodule.classes[k] for k in self.validation_reconstruction_targets]
             self.log("val_original_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
 
+            # generation_target = self.domain_mods["v"].decode(self.validation_pose_translation)
+            # log_image(self.logger, generation_target[:self.hparams.n_validation_examples], "val_reconstruction_demi")
+            # self.logger.experiment["val_generated_target"].log(File.as_image(img_grid), step=step)
+
         # translation of images
         latent_v = self.domain_mods["v"].encode(x), None
         latent_t = self.translate(latent_v, "v", "t")
-        t_gen = self.domain_mods["t"].decode(latent_t[0])
+        t_gen = self.domain_mods["t"].decode(latent_t)
         predicted_classes = torch.argmax(t_gen, dim=-1).detach().cpu().numpy()
         classes = [self.trainer.datamodule.classes[k] for k in predicted_classes]
         self.log("val_image_to_text_translation", ", ".join(classes[:self.hparams.n_validation_examples]))
@@ -375,8 +350,8 @@ class GlobalWorkspace(LightningModule):
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction_full")
 
         # Generation from class
-        latent_t = self.domain_mods["t"].encode(self.validation_pose_translation)
-        latent_v = self.translate((latent_t, self.validation_pose_t), "t", "v")
+        latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
+        latent_v = self.translate(latent_t, "t", "v")
         v_gen = self.domain_mods["v"].decode(latent_v[0])
         log_image(self.logger, v_gen[:self.hparams.n_validation_examples], "val_generation")
 
@@ -384,17 +359,8 @@ class GlobalWorkspace(LightningModule):
         self.domain_mods.eval()
 
     def configure_optimizers(self):
-        params = [param for name, param in self.named_parameters() if 'discriminator' not in name]
-        optimizer = torch.optim.Adam(params, lr=self.hparams.optim_lr,
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
                                      weight_decay=self.hparams.optim_weight_decay)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
                                                     self.hparams.scheduler_gamma)
-        discriminator_params = [param for name, param in self.named_parameters() if 'discriminator' in name]
-        if len(discriminator_params):
-            discriminator_optimizer = torch.optim.Adam(discriminator_params, lr=self.hparams.optim_lr_discriminator,
-                                                       weight_decay=self.hparams.optim_weight_decay)
-            discriminator_scheduler = torch.optim.lr_scheduler.StepLR(discriminator_optimizer,
-                                                                      self.hparams.scheduler_step,
-                                                                      self.hparams.scheduler_gamma)
-            return [optimizer, discriminator_optimizer], [discriminator_scheduler, scheduler]
         return [optimizer], [scheduler]

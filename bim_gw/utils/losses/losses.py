@@ -16,7 +16,7 @@ def grad_norm(output, parameters, *params, **kwargs):
 
 def vis_to_text_accuracy(gw, acc_fn, vis_domain, targets):
     # translate the visual domain to text domain
-    predicted_t = gw.translate(vis_domain, "v", "t")[0]
+    predicted_t = gw.translate(vis_domain, "v", "t")
     # get the word prediction from the predicted
-    logits = gw.domain_mods["t"].decode(predicted_t).softmax(dim=-1)
+    logits = gw.domain_mods["t"].decode(predicted_t)
     return acc_fn(logits, gw.domain_mods["t"].get_targets(targets))

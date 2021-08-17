@@ -30,8 +30,9 @@ class SimpleShapesDataset:
         self.transforms = transform
         self.output_transform = output_transform
         self.split = split
+        self.img_size = 32
 
-        self.classes = np.array(["circle", "square", "triangle"])
+        self.classes = np.array(["square", "circle", "triangle"])
         self.labels = []
 
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
@@ -51,17 +52,13 @@ class SimpleShapesDataset:
             img = self.transforms(img)
         label = self.labels[item]
         cls = int(label[0])
-        if cls == 1:
-            cls = 0
-        elif cls == 0:
-            cls = 1
-        x, y = label[1] / 32, label[2] / 32
-        radius = label[3] / 32
-        rotation = label[4] / 360
+        x, y = label[1] / self.img_size, label[2] / self.img_size
+        radius = label[3] / self.img_size
+        rotation = label[4] / 360.
         r, g, b = label[5], label[6], label[7]
         if self.output_transform is not None:
-            return self.output_transform(img, torch.tensor([cls, x, y, radius, rotation, r, g, b]))
-        return img, torch.tensor([cls, x, y, radius, rotation, r, g, b])
+            return self.output_transform(img, (cls, torch.tensor([x, y, radius, rotation, r, g, b])))
+        return img, (cls, torch.tensor([x, y, radius, rotation, r, g, b]))
 
 
 class SimpleShapesData(LightningDataModule):
@@ -92,9 +89,9 @@ class SimpleShapesData(LightningDataModule):
             if self.bimodal:
                 sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                get_preprocess(self.use_data_augmentation),
-                                               lambda v, t: {"v": v, "t": t}),
+                                               lambda v, t: {"v": v, "t": t})
 
-                if self.prop_labelled_images < 1:
+                if self.prop_labelled_images < 1.:
                     # Unlabel randomly some elements
                     n_targets = len(sync_set)
                     target_indices = np.arange(n_targets)

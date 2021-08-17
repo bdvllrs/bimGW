@@ -19,15 +19,17 @@ global_workspace:
 
   z_size: 512
   hidden_size: 512
-  prop_labelled_images: 1  # of the allowed classes to be labelled.
+  prop_labelled_images: 1.  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
   cycle_loss_fn: "mse"
-  supervision_loss_fn: "mse"
+  supervision_loss_fn: {
+    "v": "mse",
+    "t": ["cross_entropy", "mse"]
+  }
 
-  domains_with_discriminator: ["v"]
-  pose_noise_dim:
-    t: 128
+  domains_with_discriminator: []
+  pose_noise_dim: {}
 
   optim:
     lr: 1e-4
@@ -62,8 +64,8 @@ losses:
     demi_cycles: 1.
     cycles: 1.
     supervision: 1.
-    generator: 0
-    discriminator: 0
+    generator: 0.
+    discriminator: 0.
 
 gensim_model_path: ???
 word_embeddings: null

@@ -68,27 +68,24 @@ class ShapesLM(WorkspaceModule):
     def __init__(self, n_classes):
         super(ShapesLM, self).__init__()
         self.n_classes = n_classes
-        self.z_size = 8
+        self.z_size = 3
 
-    def encode(self, targets):
-        return self(targets)
+    def encode(self, x):
+        return self(x)
 
-    def decode(self, z):
-        steps = torch.linspace(0., 1., steps=self.n_classes).to(z)
-        logits = torch.square(z[:, 0].reshape(-1, 1).repeat(1, self.n_classes) - steps)
+    def decode(self, x):
+        logits, _ = x
         return torch.softmax(logits, dim=-1)
 
-    def forward(self, targets):
-        # set shape (class) between 0 and 1
-        targets[:, 0] = targets[:, 0] / (self.n_classes - 1)
-        return targets
+    def forward(self, x):
+        cls, latents = x
+        return torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), latents
 
     def get_targets(self, targets):
-        return targets[:, 0].to(torch.int16)
+        return targets[0].to(torch.int16)
 
     def get_random_vector(self, classes):
-        z = torch.rand(classes.size(0), 8).to(classes.device)
-        z[:, 0] = classes.type_as(z)
+        z = torch.rand(classes.size(0), 7).to(classes.device)
         return z
 
 

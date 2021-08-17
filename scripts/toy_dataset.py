@@ -1,64 +1,11 @@
-import cv2
 import csv
 from pathlib import Path
 
-import matplotlib.patches as patches
+import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-
-def get_square_patch(location, radius, rotation, color):
-    x, y = location[0], location[1]
-    coordinates = np.array([[-radius, radius],
-                            [radius, radius],
-                            [radius, -radius],
-                            [-radius, -radius]])
-    origin = np.array([[x, y], [x, y], [x, y], [x, y]])
-    rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
-    patch = patches.Polygon(origin + coordinates @ rotation_m, facecolor=color)
-    return patch
-
-
-def get_triangle_patch(location, radius, rotation, color):
-    x, y = location[0], location[1]
-    coordinates = np.array([[-radius, 0],
-                            [radius, 0],
-                            [radius, -radius]])
-    origin = np.array([[x, y], [x, y], [x, y]])
-    rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
-    patch = patches.Polygon(origin + coordinates @ rotation_m, facecolor=color)
-    return patch
-
-
-def get_circle_patch(location, radius, rotation, color):
-    x, y = location[0], location[1]
-    patch = patches.Circle((x, y), radius, facecolor=color)
-    return patch
-
-
-def generate_image(path, cls, location, radius, rotation, color, imsize=32):
-    if cls == 0:
-        patch = get_square_patch(location, radius, rotation, color)
-    elif cls == 1:
-        patch = get_circle_patch(location, radius, rotation, color)
-    elif cls == 2:
-        patch = get_triangle_patch(location, radius, rotation, color)
-    else:
-        raise ValueError("Class does not exist.")
-
-    fig, ax = plt.subplots(figsize=(imsize, imsize), dpi=1)
-
-    ax.add_patch(patch)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.grid(False)
-    ax.axis('off')
-    ax.set_xlim(0, imsize)
-    ax.set_ylim(0, imsize)
-    plt.tight_layout(pad=0)
-    plt.savefig(path, format="png")
-    # plt.show()
-    plt.close(fig)
+from bim_gw.utils.shapes import generate_image
 
 
 def generate_radius(n_samples, min, max):
@@ -102,7 +49,13 @@ def save_dataset(path_root, dataset, imsize):
     rotations, colors = dataset["rotations"], dataset["colors"]
     for k, (cls, location, radius, rotation, color) in enumerate(zip(classes, locations, radii, rotations, colors)):
         path_file = path_root / f"{k}.png"
-        generate_image(path_file, cls, location, radius, rotation, color, imsize)
+
+        fig, ax = plt.subplots(figsize=(imsize, imsize), dpi=1)
+        generate_image(ax, cls, location, radius, rotation, color, imsize)
+        plt.tight_layout(pad=0)
+        plt.savefig(path_file, format="png")
+        # plt.show()
+        plt.close(fig)
 
 
 def save_labels(path_root, dataset):
