@@ -237,6 +237,7 @@ class GlobalWorkspace(LightningModule):
     def demi_cycle_loss(self, domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        total = len(domains)
         for name, domain in domains.items():
             token = f"demi_cycle_{name}"
             coef = 1.
@@ -246,7 +247,7 @@ class GlobalWorkspace(LightningModule):
                 coef = coefficients
 
             out = self.demi_cycle(domain, name)
-            l = coef * self.cycle_loss_fn(domain[0], out[0]).mean()
+            l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
             losses[f"loss_{token}"] = l
             loss += l
         losses["demi_cycle_loss"] = loss
@@ -255,6 +256,8 @@ class GlobalWorkspace(LightningModule):
     def cycle_loss(self, domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        n = len(domains)
+        total = n * (n - 1)
         for domain_name_start, domain in domains.items():
             for domain_name_inter in domains.keys():
                 if domain_name_start != domain_name_inter:
@@ -266,7 +269,7 @@ class GlobalWorkspace(LightningModule):
                         coef = coefficients
 
                     out = self.cycle(domain, domain_name_start, domain_name_inter)
-                    l = coef * self.cycle_loss_fn(domain[0], out[0]).mean()
+                    l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
                     losses[f"loss_{token}"] = l
                     loss += l
         losses["cycle_loss"] = loss
@@ -275,6 +278,7 @@ class GlobalWorkspace(LightningModule):
     def supervision_loss(self, sync_domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        total = 0
         for domain_name_1, domain_1 in sync_domains.items():
             for domain_name_2, domain_2 in sync_domains.items():
                 if domain_name_1 != domain_name_2:
@@ -293,7 +297,12 @@ class GlobalWorkspace(LightningModule):
                             l = coef * loss_fn(pred_domain_2[k], domain_2[k]).mean()
                             losses[f"loss_{token}"] = l
                             loss += l
+                            total += 1
         losses["supervision_loss"] = loss
+        if total > 0:
+            for name in losses.keys():
+                losses[name] = losses[name] / total
+            losses["supervision_loss"] = loss / total
         return losses["supervision_loss"], losses
 
     def training_step(self, batch, batch_idx):

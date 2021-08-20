@@ -96,7 +96,7 @@ def get_image_specs_from_latents(cls, latents):
 def log_shape_fig(logger, classes, latents, name):
     spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
-    plt.tight_layout(pad=0)
+    # plt.tight_layout(pad=0)
 
     if logger is not None:
         logger.experiment[name].log(File.as_image(fig))
