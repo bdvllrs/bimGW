@@ -1,19 +1,17 @@
 import os
 
-import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from bim_gw.datasets import ImageNetData, load_dataset
+from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
 from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.gw import GlobalWorkspace
-from bim_gw.modules.language_model import SkipGramLM
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
 
-def train_lm(args):
+def train_gw(args):
     seed_everything(args.seed)
 
     data = load_dataset(args, bimodal=True)
@@ -29,7 +27,8 @@ def train_lm(args):
     global_workspace = GlobalWorkspace({
         "v": vae,
         "t": lm
-    }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes), args.losses.coefs.demi_cycles,
+    }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
+        args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
@@ -74,4 +73,4 @@ def train_lm(args):
 
 
 if __name__ == "__main__":
-    train_lm(get_args(debug=int(os.getenv("DEBUG", 0))))
+    train_gw(get_args(debug=int(os.getenv("DEBUG", 0))))

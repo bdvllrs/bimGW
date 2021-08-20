@@ -352,7 +352,7 @@ class GlobalWorkspace(LightningModule):
                     for modality in model.keys():
                         param_group = f"{model_name}_{modality}"
 
-                        grad_norms[f"{name}_{param_group}"] = sum([
+                        grad_norms[f"{name}_{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
                             # remove the already saved gradient that have already been counted in.
                             (p.grad.detach() - val_or_default(last_grads, f"{param_group}_{param_name}", 0)).norm()
                             for param_name, p in model[modality].named_parameters()

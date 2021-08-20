@@ -23,7 +23,7 @@ global_workspace:
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
   cycle_loss_fn: "mse"
-  supervision_loss_fn: {
+  supervision_loss_fn: {  # available: "mse", "cosine", "cross_entropy"
     "v": "mse",
     "t": "mse"
   }
