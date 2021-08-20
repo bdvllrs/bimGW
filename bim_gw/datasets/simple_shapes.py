@@ -52,9 +52,9 @@ class SimpleShapesDataset:
             img = self.transforms(img)
         label = self.labels[item]
         cls = int(label[0])
-        x, y = label[1] / self.img_size, label[2] / self.img_size
-        radius = label[3] / self.img_size
-        rotation = label[4] / 360.
+        x, y = label[1], label[2]
+        radius = label[3]
+        rotation = label[4]
         r, g, b = label[5], label[6], label[7]
         if self.output_transform is not None:
             return self.output_transform(img, (cls, torch.tensor([x, y, radius, rotation, r, g, b])))
@@ -68,6 +68,8 @@ class SimpleShapesData(LightningDataModule):
             bimodal=False
     ):
         super().__init__()
+        if bimodal and use_data_augmentation:
+            raise ValueError("bimodal mode and data augmentation is not possible for now...")
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -109,17 +111,19 @@ class SimpleShapesData(LightningDataModule):
                                              lambda v, t: t),
                     "sync_": sync_set
                 }
-                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
-                                                      lambda v, t: {"v": v, "t": t})
-
-                visual_index = "v"
-                text_index = "t"
             else:
                 self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                         get_preprocess(self.use_data_augmentation))
-                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
-                visual_index = 0
-                text_index = 1
+
+        if self.bimodal:
+            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
+                                                  lambda v, t: {"v": v, "t": t})
+            visual_index = "v"
+            text_index = "t"
+        else:
+            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+            visual_index = 0
+            text_index = 1
 
         validation_reconstruction_indices = torch.randint(len(self.shapes_val), size=(self.batch_size,))
         self.validation_reconstructed_images = torch.stack([self.shapes_val[k][visual_index]

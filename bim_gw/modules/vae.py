@@ -140,14 +140,18 @@ class VAE(WorkspaceModule):
         var_z = self.q_logvar(out)
         return mean_z, var_z
 
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode(self, x: torch.Tensor):
+        if isinstance(x, tuple):
+            x = x[0]
         mean_z, var_z = self.encode_stats(x)
 
         z = reparameterize(mean_z, var_z)
-        return z
+        return z, None
 
-    def decode(self, z: torch.Tensor) -> torch.Tensor:
-        return self.decoder(z)
+    def decode(self, z: torch.Tensor):
+        if isinstance(z, tuple):
+            z = z[0]
+        return self.decoder(z), None
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)

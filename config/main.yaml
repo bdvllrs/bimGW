@@ -25,7 +25,7 @@ global_workspace:
   cycle_loss_fn: "mse"
   supervision_loss_fn: {
     "v": "mse",
-    "t": ["cross_entropy", "mse"]
+    "t": "mse"
   }
 
   domains_with_discriminator: []
@@ -64,8 +64,6 @@ losses:
     demi_cycles: 1.
     cycles: 1.
     supervision: 1.
-    generator: 0.
-    discriminator: 0.
 
 gensim_model_path: ???
 word_embeddings: null

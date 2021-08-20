@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
@@ -47,23 +48,38 @@ def generate_image(ax, cls, location, radius, rotation, color, imsize=32):
     ax.set_xticks([])
     ax.set_yticks([])
     ax.grid(False)
-    ax.axis('off')
+    # ax.axis('off')
     ax.set_xlim(0, imsize)
     ax.set_ylim(0, imsize)
 
 
 def get_fig_from_specs(cls, locations, radii, rotations, colors, imsize=32, ncols=8):
+    dpi = 100.
     nrows = len(cls) // ncols
-    fig = plt.figure(figsize=(ncols * imsize, nrows * imsize), dpi=1)
 
-    gs = gridspec.GridSpec(nrows, ncols)
+    width = ncols * (imsize + 1) + 1
+    height = nrows * (imsize + 1) + 1
+
+    fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
+
+    gs = gridspec.GridSpec(
+        nrows, ncols,
+        wspace=0,
+        hspace=0,
+        # hspace=1 / (imsize + 3),
+        left=0,
+        # right=(1 - 1 / imsize),
+        right=1,
+        bottom=0,
+        top=1
+        # bottom=1 / imsize,
+        # top=(1 - 1 / imsize)
+    )
     for i in range(nrows):
         for j in range(ncols):
             k = i * ncols + j
             ax = plt.subplot(gs[i, j])
-            ax.set_aspect(1)
             generate_image(ax, cls[k], locations[k], radii[k], rotations[k], colors[k], imsize)
-
     return fig
 
 
@@ -80,10 +96,7 @@ def get_image_specs_from_latents(cls, latents):
 def log_shape_fig(logger, classes, latents, name):
     spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
-    # add borders around axis
-    for ax in fig.get_axes():
-        ax.patch.set_edgecolor('black')
-        ax.patch.set_linewidth('1')
+    plt.tight_layout(pad=0)
 
     if logger is not None:
         logger.experiment[name].log(File.as_image(fig))

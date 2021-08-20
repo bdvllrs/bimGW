@@ -77,16 +77,22 @@ class ShapesLM(WorkspaceModule):
 
     def decode(self, x):
         logits, latent = x
-        latent = torch.clip(latent, 0, 1)
-        latent[:, 0] = latent[:, 0] * self.imsize
-        latent[:, 1] = latent[:, 1] * self.imsize
-        latent[:, 2] = latent[:, 2] * self.imsize
-        latent[:, 3] = latent[:, 3] * 360
-        return torch.argmax(torch.softmax(logits, dim=-1), dim=-1), latent
+        out_latents = latent.clone()
+        out_latents = torch.clip(out_latents, 0, 1)
+        out_latents[:, 0] = latent[:, 0] * self.imsize
+        out_latents[:, 1] = latent[:, 1] * self.imsize
+        out_latents[:, 2] = latent[:, 2] * self.imsize
+        out_latents[:, 3] = latent[:, 3] * 360.
+        return torch.argmax(torch.softmax(logits, dim=-1), dim=-1), out_latents
 
     def forward(self, x):
         cls, latents = x
-        return torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), latents
+        out_latents = latents.clone()
+        out_latents[:, 0] = latents[:, 0] / self.imsize
+        out_latents[:, 1] = latents[:, 1] / self.imsize
+        out_latents[:, 2] = latents[:, 2] / self.imsize
+        out_latents[:, 3] = latents[:, 3] / 360.
+        return torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), out_latents
 
     def get_targets(self, targets):
         return targets[0].to(torch.int16)
@@ -94,8 +100,8 @@ class ShapesLM(WorkspaceModule):
     def get_random_vector(self, classes):
         # Set classes to [""] as we don't generate random classes here...
         d = generate_dataset(classes.size(0), [""], 5, 11, 210, self.imsize)
-        z = np.concatenate((d["locations"] / self.imsize, d["sizes"][:, None] / self.imsize,
-                            d["rotations"][:, None] / 360, d['colors']), axis=1)
+        z = np.concatenate((d["locations"], d["sizes"][:, None],
+                            d["rotations"][:, None], d['colors']), axis=1)
         z = torch.from_numpy(z).to(classes.device, torch.float)
         return z
 

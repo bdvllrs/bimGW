@@ -31,12 +31,9 @@ def train_lm(args):
         "t": lm
     }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes), args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
-        args.losses.coefs.generator, args.losses.coefs.discriminator,
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
-        args.global_workspace.optim.discriminator_lr,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        args.global_workspace.domains_with_discriminator,
         args.global_workspace.pose_noise_dim,
         args.n_validation_examples,
         data.validation_reconstructed_images,
@@ -58,7 +55,7 @@ def train_lm(args):
         logger.experiment["parameters"] = dict(args)
 
     # Callbacks
-    callbacks = [ModelCheckpoint(save_top_k=3, mode="min", monitor="val_total_loss")]
+    callbacks = [ModelCheckpoint(save_top_k=1, mode="min", monitor="val_total_loss")]
     if logger is not None:
         callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 
@@ -70,7 +67,7 @@ def train_lm(args):
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs,
-        multiple_trainloader_mode="max_size_cycle"
+        multiple_trainloader_mode="max_size_cycle",
     )
 
     trainer.fit(global_workspace, data)
