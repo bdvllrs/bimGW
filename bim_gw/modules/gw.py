@@ -125,7 +125,7 @@ def cross_entropy(x, y):
 
 
 loss_functions = {
-    "cosine": lambda x, y: 1 - F.cosine_similarity(x, y),
+    "cosine": lambda x, y: -F.cosine_similarity(x, y),
     "mse": F.mse_loss,
     "cross_entropy": cross_entropy
 }
@@ -230,8 +230,6 @@ class GlobalWorkspace(LightningModule):
 
     def cycle(self, x, domain_name_start, domain_name_inter):
         z = self.translate(x, domain_name_start, domain_name_inter)
-        z = self.domain_mods[domain_name_inter].decode(z)
-        z = self.domain_mods[domain_name_inter].encode(z)
         return self.translate(z, domain_name_inter, domain_name_start)
 
     def demi_cycle_loss(self, domains, coefficients=1.):
@@ -239,16 +237,16 @@ class GlobalWorkspace(LightningModule):
         losses = {}
         total = len(domains)
         for name, domain in domains.items():
-            token = f"demi_cycle_{name}"
+            token = name
             coef = 1.
-            if isinstance(coefficients, dict) and token in coefficients:
-                coef = coefficients[token]
-            elif isinstance(coefficients, (int, float)):
+            if isinstance(coefficients, (int, float)):
                 coef = coefficients
+            elif token in coefficients:
+                coef = coefficients[name]
 
             out = self.demi_cycle(domain, name)
             l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
-            losses[f"loss_{token}"] = l
+            losses[f"loss_demi_cycle_{token}"] = l
             loss += l
         losses["demi_cycle_loss"] = loss
         return losses["demi_cycle_loss"], losses
@@ -261,16 +259,16 @@ class GlobalWorkspace(LightningModule):
         for domain_name_start, domain in domains.items():
             for domain_name_inter in domains.keys():
                 if domain_name_start != domain_name_inter:
-                    token = f"cycle_{domain_name_start}_through_{domain_name_inter}"
+                    token = f"{domain_name_start}_through_{domain_name_inter}"
                     coef = 1.
-                    if isinstance(coefficients, dict) and token in coefficients:
-                        coef = coefficients[token]
-                    elif isinstance(coefficients, (int, float)):
+                    if isinstance(coefficients, (int, float)):
                         coef = coefficients
+                    elif token in coefficients:
+                        coef = coefficients[token]
 
                     out = self.cycle(domain, domain_name_start, domain_name_inter)
                     l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
-                    losses[f"loss_{token}"] = l
+                    losses[f"loss_cycle_{token}"] = l
                     loss += l
         losses["cycle_loss"] = loss
         return losses["cycle_loss"], losses
@@ -286,16 +284,16 @@ class GlobalWorkspace(LightningModule):
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
-                            token = f"supervision_{domain_name_1}_to_{domain_name_2}_{k}"
+                            token = f"{domain_name_1}_to_{domain_name_2}_{k}"
                             coef = 1.
-                            if isinstance(coefficients, dict) and token in coefficients:
-                                coef = coefficients[token]
-                            elif isinstance(coefficients, (int, float)):
+                            if isinstance(coefficients, (int, float)):
                                 coef = coefficients
+                            elif token in coefficients:
+                                coef = coefficients[token]
 
                             loss_fn = self.supervision_loss_fn[f"{domain_name_2}_{k}"]
                             l = coef * loss_fn(pred_domain_2[k], domain_2[k]).mean()
-                            losses[f"loss_{token}"] = l
+                            losses[f"loss_supervision_{token}"] = l
                             loss += l
                             total += 1
         losses["supervision_loss"] = loss
@@ -326,7 +324,7 @@ class GlobalWorkspace(LightningModule):
         check_domains_eq(ori_latents, latents)
 
         sync_latents = self.project(sync_supervision)
-        supervision_loss, l = self.supervision_loss(latents, self.hparams.loss_coef_supervision)
+        supervision_loss, l = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
         losses.update(l)
 
         total_loss = demi_cycle_loss + cycle_loss + supervision_loss
