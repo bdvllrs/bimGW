@@ -141,7 +141,8 @@ class GlobalWorkspace(LightningModule):
             pose_noise_dim=None,
             n_validation_examples: int = 32,
             validation_reconstructed_images=None,
-            validation_reconstructed_targets=None
+            validation_reconstructed_targets=None,
+            monitor_grad_norms=False
     ):
 
         super(GlobalWorkspace, self).__init__()
@@ -150,6 +151,7 @@ class GlobalWorkspace(LightningModule):
 
         self.z_size = z_size
         self.hidden_size = hidden_size
+        self.monitor_grad_norms = monitor_grad_norms
 
         for mod in domain_mods.values():
             assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
@@ -327,10 +329,12 @@ class GlobalWorkspace(LightningModule):
         accuracy = vis_to_text_accuracy(self, self.train_acc, sync_latents["v"], sync_supervision["t"])
         self.log("train_vis_to_text_acc", accuracy, on_step=True, on_epoch=False)
 
-        grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
-
-        for name, grad_norm in grad_norms.items():
-            self.log(f"grad_norm_{name}", grad_norm, logger=True)
+        if self.monitor_grad_norms:
+            grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
+            for name, grad_norm in grad_norms.items():
+                self.log(f"grad_norm_{name}", grad_norm, logger=True)
+        else:
+            self.manual_backward(total_loss)
 
         opt.step()
         return total_loss

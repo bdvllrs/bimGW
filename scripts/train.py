@@ -37,6 +37,7 @@ def train_gw(args):
         args.n_validation_examples,
         data.validation_reconstructed_images,
         data.validation_reconstructed_targets,
+        args.global_workspace.monitor_grad_norms
     )
 
     logger = None

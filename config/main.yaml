@@ -14,6 +14,7 @@ img_size: 32
 n_validation_examples: 32
 
 global_workspace:
+  monitor_grad_norms: false  # if true, training is a bit slower.
   batch_size: 1024
   data_augmentation: true
 
