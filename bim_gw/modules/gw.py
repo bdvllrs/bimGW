@@ -237,16 +237,15 @@ class GlobalWorkspace(LightningModule):
         losses = {}
         total = len(domains)
         for name, domain in domains.items():
-            token = name
             coef = 1.
             if isinstance(coefficients, (int, float)):
                 coef = coefficients
-            elif token in coefficients:
+            elif name in coefficients:
                 coef = coefficients[name]
 
             out = self.demi_cycle(domain, name)
             l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
-            losses[f"loss_demi_cycle_{token}"] = l
+            losses[f"loss_demi_cycle_{name}"] = l
             loss += l
         losses["demi_cycle_loss"] = loss
         return losses["demi_cycle_loss"], losses
