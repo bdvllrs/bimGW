@@ -71,6 +71,9 @@ class ShapesLM(WorkspaceModule):
         self.n_classes = n_classes
         self.z_size = 3
         self.imsize = imsize
+        self.output_dims = [self.z_size, 7]
+        self.decoder_loss_fn = [lambda x: torch.nn.functional.gumbel_softmax(x, hard=True),
+                                torch.sigmoid]
 
     def encode(self, x):
         return self(x)
@@ -85,7 +88,7 @@ class ShapesLM(WorkspaceModule):
         out_latents[:, 3] = latent[:, 3] * 360.
         return torch.argmax(torch.softmax(logits, dim=-1), dim=-1), out_latents
 
-    def forward(self, x):
+    def forward(self, x: list):
         cls, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = latents[:, 0] / self.imsize
@@ -104,5 +107,3 @@ class ShapesLM(WorkspaceModule):
                             d["rotations"][:, None], d['colors']), axis=1)
         z = torch.from_numpy(z).to(classes.device, torch.float)
         return z
-
-

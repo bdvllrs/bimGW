@@ -23,93 +23,70 @@ class EncoderBlock(torch.nn.Sequential):
 
 
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=0, loss_fn=None):
+    def __init__(self, in_dim, hidden_size, out_dims=0, loss_fn=None):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
-        self.out_dim = out_dim
         self.hidden_size = hidden_size
-        self.pose_dim = pose_dim
+
+        if isinstance(out_dims, int):
+            out_dims = [out_dims]
+        if not isinstance(loss_fn, (list, tuple)):
+            loss_fn = [loss_fn]
+
+        assert len(out_dims) == len(loss_fn), "The model is missing some loss_functions for the outputs."
+
+        self.out_dims = out_dims
         self.loss_fn = loss_fn
 
         self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
         self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
-        self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.hidden_size, self.out_dim),
-        )
-        if self.pose_dim > 0:
-            self.encoder_block_pose = nn.Sequential(
-                nn.Linear(self.hidden_size, self.pose_dim),
+        self.encoder_block3 = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.hidden_size, pose_dim),
             )
+            for pose_dim in self.out_dims
+        ])
 
     def forward(self, x):
         out = self.encoder_block1(x)
         out = self.encoder_block2(out)
-        z = None
-        if self.pose_dim > 0:
-            z = self.encoder_block_pose(out)
-        out = self.encoder_block3(out)
-        if self.loss_fn is not None:
-            out = self.loss_fn(out)
-            z = self.loss_fn(z)
-        return out, z
+        outputs = []
+        for block, loss_fn in zip(self.encoder_block3, self.loss_fn):
+            z = block(out)
+            if loss_fn is not None:
+                z = loss_fn(z)
+            outputs.append(z)
+        if len(outputs) == 1:
+            return outputs[0]
+        return outputs
 
 
 class DomainEncoder(nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dim, pose_dim=0):
+    def __init__(self, in_dims, hidden_size, out_dim):
         super(DomainEncoder, self).__init__()
-        self.in_dim = in_dim
+        if isinstance(in_dims, int):
+            in_dims = [in_dims]
+        self.in_dims = in_dims
         self.out_dim = out_dim
         self.hidden_size = hidden_size
-        self.pose_dim = pose_dim
 
-        self.encoder_block1 = EncoderBlock(self.in_dim + self.pose_dim, self.hidden_size)
+        self.encoder_block1 = EncoderBlock(sum(self.in_dims), self.hidden_size)
         self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
         self.encoder_block3 = nn.Sequential(
             nn.Linear(self.hidden_size, self.out_dim),
         )
 
-    def forward(self, x, z=None):
-        if self.pose_dim != 0 and z is None:
-            raise ValueError("z should be provided.")
-        if z is not None:
-            x = torch.cat((x, z), dim=-1)
+    def forward(self, x):
+        if len(self.in_dims) > 1:
+            assert len(x) == len(self.in_dims), "Not enough values as input."
+        if isinstance(x, (list, tuple)) and len(x) == 1:
+            x = x[0]
+        elif isinstance(x, (list, tuple)):
+            x = torch.cat(x, dim=-1)
         out = self.encoder_block1(x)
         out = self.encoder_block2(out)
         out = self.encoder_block3(out)
         return torch.tanh(out)
-
-
-class Discriminator(nn.Module):
-    def __init__(self, in_dim, hidden_size):
-        super(Discriminator, self).__init__()
-        self.in_dim = in_dim
-        self.hidden_size = hidden_size
-
-        self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
-        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
-        self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.hidden_size, 1),
-        )
-
-    def forward(self, x):
-        out = self.encoder_block1(x)
-        out = self.encoder_block2(out)
-        out = self.encoder_block3(out)
-        return torch.sigmoid(out)
-
-
-class DiscriminatorDecoder(nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dim):
-        super(DiscriminatorDecoder, self).__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.hidden_size = hidden_size
-
-        self.decoder = DomainDecoder(in_dim, self.hidden_size, out_dim)
-        self.discriminator = Discriminator(out_dim, self.hidden_size)
-
-    def forward(self, x):
-        return self.decoder(x)
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -161,14 +138,10 @@ class GlobalWorkspace(LightningModule):
         self.pose_noise_dim = pose_noise_dim if pose_noise_dim is not None else dict()
 
         # Define encoders for translation
-        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.z_size, self.hidden_size, self.z_size,
-                                                           (pose_noise_dim[item]
-                                                            if item in pose_noise_dim else 0))
+        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
                                        for item, mod in domain_mods.items()})
         self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
-                                                            mod.z_size, (pose_noise_dim[item]
-                                                                         if item in pose_noise_dim else 0),
-                                                            None if item != "t" else torch.sigmoid))
+                                                            mod.output_dims, mod.decoder_loss_fn))
                                        for item, mod in domain_mods.items()})
 
         # Define losses
@@ -208,11 +181,8 @@ class GlobalWorkspace(LightningModule):
         """
         out = dict()
         for domain_name, x in domains.items():
-            c, z = self.domain_mods[domain_name].encode(x)
-            # If nothing is returned but the domain still requires a latent vector, one is selected at random.
-            if z is None and domain_name in self.pose_noise_dim:
-                z = torch.randn(c.size(0), self.pose_noise_dim[domain_name]).type_as(c)
-            out[domain_name] = (c, z)
+            z = self.domain_mods[domain_name].encode(x)
+            out[domain_name] = z
         return out
 
     def forward(self, domains):
@@ -222,7 +192,7 @@ class GlobalWorkspace(LightningModule):
         """
         Translates x from domain1 to domain2
         """
-        z = self.encoders[domain_name_start](*x)
+        z = self.encoders[domain_name_start](x)
         return self.decoders[domain_name_target](z)
 
     def demi_cycle(self, x, domain_inter):
@@ -281,6 +251,8 @@ class GlobalWorkspace(LightningModule):
                 if domain_name_1 != domain_name_2:
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
+                    if not isinstance(domain_2, (list, tuple)):
+                        domain_2 = [domain_2]
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
                             token = f"{domain_name_1}_to_{domain_name_2}_{k}"
@@ -345,40 +317,6 @@ class GlobalWorkspace(LightningModule):
         opt.step()
         return total_loss
 
-    def manual_backward_with_grad_norm_monitoring(self, losses):
-        """
-        Args:
-            losses: Different losses to monitor separately.
-
-        Returns: Gradient norms for each loss / sub-model couple.
-        """
-        grad_norms = {}
-        last_grads = {}  # we need them to infer grad norm of each loss (and not accumulated gradients)
-        for name, loss in losses.items():
-            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"]:
-                self.manual_backward(loss, retain_graph=True)
-                for model_name in ["encoders", "decoders"]:
-                    model = getattr(self, model_name)
-                    for modality in model.keys():
-                        param_group = f"{model_name}_{modality}"
-
-                        grad_norms[f"{name}_{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
-                            # remove the already saved gradient that have already been counted in.
-                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}_{param_name}", 0)).norm()
-                            for param_name, p in model[modality].named_parameters()
-                            if p.grad is not None
-                        ])
-                        assert grad_norms[f"{name}_{param_group}"] >= 0
-
-                        # Keep track of the value of the gradients to avoid counting
-                        # them multiple times because of accumulation.
-                        for param_name, p in model[modality].named_parameters():
-                            if param_name not in last_grads:
-                                last_grads[f"{param_group}_{param_name}"] = 0
-                            if p.grad is not None:
-                                last_grads[f"{param_group}_{param_name}"] += p.grad.detach()
-        return grad_norms
-
     def validation_step(self, domains, batch_idx):
         latents = self.project(domains)
         ori_latents = latents.copy()
@@ -420,7 +358,7 @@ class GlobalWorkspace(LightningModule):
                           t_gen[1].detach().cpu().numpy(), "val_generated_labels_vis")
 
         # translation v -> t
-        latent_v = self.domain_mods["v"].encode((x, None))
+        latent_v = self.domain_mods["v"].encode(x)
         latent_t = self.translate(latent_v, "v", "t")
         # print(latent_v[0][0])
         # z = self.encoders["v"](*latent_v)
@@ -443,13 +381,13 @@ class GlobalWorkspace(LightningModule):
         # Translation t -> v
         latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
         latent_v = self.translate(latent_t, "t", "v")
-        v_gen = self.domain_mods["v"].decode(latent_v)[0]
+        v_gen = self.domain_mods["v"].decode(latent_v)
         log_image(self.logger, v_gen[:self.hparams.n_validation_examples], "val_translation_t_to_v")
 
         # demi cycle v
-        latent_x = self.domain_mods["v"].encode((x, None))
+        latent_x = self.domain_mods["v"].encode(x)
         latent_reconstructed = self.demi_cycle(latent_x, "v")
-        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)[0]
+        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_demi_cycle_v")
 
         # demi cycle t
@@ -464,9 +402,9 @@ class GlobalWorkspace(LightningModule):
         )
 
         # full cycle v
-        latent_x = self.domain_mods["v"].encode((x, None))
+        latent_x = self.domain_mods["v"].encode(x)
         latent_reconstructed = self.cycle(latent_x, "v", "t")
-        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)[0]
+        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_cycle_v")
 
         # full cycle t
@@ -499,3 +437,37 @@ class GlobalWorkspace(LightningModule):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
                                                     self.hparams.scheduler_gamma)
         return [optimizer], [scheduler]
+
+    def manual_backward_with_grad_norm_monitoring(self, losses):
+        """
+        Args:
+            losses: Different losses to monitor separately.
+
+        Returns: Gradient norms for each loss / sub-model couple.
+        """
+        grad_norms = {}
+        last_grads = {}  # we need them to infer grad norm of each loss (and not accumulated gradients)
+        for name, loss in losses.items():
+            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"]:
+                self.manual_backward(loss, retain_graph=True)
+                for model_name in ["encoders", "decoders"]:
+                    model = getattr(self, model_name)
+                    for modality in model.keys():
+                        param_group = f"{model_name}_{modality}"
+
+                        grad_norms[f"{name}_{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
+                            # remove the already saved gradient that have already been counted in.
+                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}_{param_name}", 0)).norm()
+                            for param_name, p in model[modality].named_parameters()
+                            if p.grad is not None
+                        ])
+                        assert grad_norms[f"{name}_{param_group}"] >= 0
+
+                        # Keep track of the value of the gradients to avoid counting
+                        # them multiple times because of accumulation.
+                        for param_name, p in model[modality].named_parameters():
+                            if param_name not in last_grads:
+                                last_grads[f"{param_group}_{param_name}"] = 0
+                            if p.grad is not None:
+                                last_grads[f"{param_group}_{param_name}"] += p.grad.detach()
+        return grad_norms

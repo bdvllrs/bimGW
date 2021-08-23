@@ -56,9 +56,11 @@ class SimpleShapesDataset:
         radius = label[3]
         rotation = label[4]
         r, g, b = label[5], label[6], label[7]
+
+        labels = [cls, torch.tensor([x, y, radius, rotation, r, g, b])]
         if self.output_transform is not None:
-            return self.output_transform(img, (cls, torch.tensor([x, y, radius, rotation, r, g, b])))
-        return img, (cls, torch.tensor([x, y, radius, rotation, r, g, b]))
+            return self.output_transform(img, labels)
+        return img, labels
 
 
 class SimpleShapesData(LightningDataModule):

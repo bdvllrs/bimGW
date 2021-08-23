@@ -112,6 +112,9 @@ class VAE(WorkspaceModule):
         self.beta = beta
         self.n_FID_samples = n_FID_samples
 
+        self.output_dims = self.z_size
+        self.decoder_loss_fn = None
+
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
@@ -141,17 +144,13 @@ class VAE(WorkspaceModule):
         return mean_z, var_z
 
     def encode(self, x: torch.Tensor):
-        if isinstance(x, tuple):
-            x = x[0]
         mean_z, var_z = self.encode_stats(x)
 
         z = reparameterize(mean_z, var_z)
-        return z, None
+        return z
 
     def decode(self, z: torch.Tensor):
-        if isinstance(z, tuple):
-            z = z[0]
-        return self.decoder(z), None
+        return self.decoder(z)
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)
