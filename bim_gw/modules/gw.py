@@ -252,7 +252,9 @@ class GlobalWorkspace(LightningModule):
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
                     if not isinstance(domain_2, (list, tuple)):
+                        assert not isinstance(domain_2, (list, tuple))
                         domain_2 = [domain_2]
+                        pred_domain_2 = [pred_domain_2]
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
                             token = f"{domain_name_1}_to_{domain_name_2}_{k}"
