@@ -101,10 +101,16 @@ def cross_entropy(x, y):
     return F.cross_entropy(x, y)
 
 
+def nll_loss(x, y):
+    y = torch.argmax(y, 1)
+    return F.nll_loss(x, y)
+
+
 loss_functions = {
     "cosine": lambda x, y: -F.cosine_similarity(x, y),
     "mse": F.mse_loss,
-    "cross_entropy": cross_entropy
+    "cross_entropy": cross_entropy,
+    "nll": nll_loss
 }
 
 
@@ -115,7 +121,6 @@ class GlobalWorkspace(LightningModule):
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
             cycle_loss_fn="cosine", supervision_loss_fn=None,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-            pose_noise_dim=None,
             n_validation_examples: int = 32,
             validation_reconstructed_images=None,
             validation_reconstructed_targets=None,
@@ -134,8 +139,6 @@ class GlobalWorkspace(LightningModule):
             assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
 
         self.domain_mods = nn.ModuleDict(domain_mods)
-
-        self.pose_noise_dim = pose_noise_dim if pose_noise_dim is not None else dict()
 
         # Define encoders for translation
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
@@ -169,11 +172,6 @@ class GlobalWorkspace(LightningModule):
                              torch.randint(0, n_classes, (n_validation_examples,)).to(torch.int64))
         self.register_buffer("validation_pose_translation",
                              domain_mods['t'].get_random_vector(self.validation_class_translation))
-        if "t" in self.pose_noise_dim:
-            self.register_buffer("validation_pose_t",
-                                 torch.randn(n_validation_examples, self.pose_noise_dim["t"]))
-        else:
-            self.register_buffer("validation_pose_t", None)
 
     def project(self, domains):
         """

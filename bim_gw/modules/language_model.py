@@ -86,7 +86,7 @@ class ShapesLM(WorkspaceModule):
         out_latents[:, 1] = latent[:, 1] * self.imsize
         out_latents[:, 2] = latent[:, 2] * self.imsize
         out_latents[:, 3] = latent[:, 3] * 360.
-        return torch.argmax(torch.softmax(logits, dim=-1), dim=-1), out_latents
+        return torch.argmax(logits, dim=-1), out_latents
 
     def forward(self, x: list):
         cls, latents = x

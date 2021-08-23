@@ -29,9 +29,6 @@ global_workspace:
     "t": "mse"
   }
 
-  domains_with_discriminator: []
-  pose_noise_dim: {}
-
   optim:
     lr: 1e-4
     discriminator_lr: 5e-5

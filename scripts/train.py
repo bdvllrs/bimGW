@@ -33,7 +33,6 @@ def train_gw(args):
         args.global_workspace.cycle_loss_fn, args.global_workspace.supervision_loss_fn,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        args.global_workspace.pose_noise_dim,
         args.n_validation_examples,
         data.validation_reconstructed_images,
         data.validation_reconstructed_targets,
