@@ -72,7 +72,7 @@ class ShapesLM(WorkspaceModule):
         self.z_size = 3
         self.imsize = imsize
         self.output_dims = [self.z_size, 7]
-        self.decoder_loss_fn = [lambda x: torch.nn.functional.gumbel_softmax(x, hard=True),
+        self.decoder_loss_fn = [torch.sigmoid,
                                 torch.sigmoid]
 
     def encode(self, x):

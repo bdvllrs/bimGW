@@ -205,6 +205,7 @@ class GlobalWorkspace(LightningModule):
         losses = {}
         total = len(domains)
         for name, domain in domains.items():
+
             coef = 1.
             if isinstance(coefficients, (int, float)):
                 coef = coefficients
@@ -212,7 +213,15 @@ class GlobalWorkspace(LightningModule):
                 coef = coefficients[name]
 
             out = self.demi_cycle(domain, name)
-            l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
+
+            if not isinstance(domain, (list, tuple)):
+                assert not isinstance(domain, (list, tuple))
+                domain = [domain]
+                out = [out]
+
+            l = torch.tensor(0.).to(self.device)
+            for k in range(len(domain)):
+                l += coef * self.cycle_loss_fn(out[k], domain[k]).mean() / total
             losses[f"loss_demi_cycle_{name}"] = l
             loss += l
         losses["demi_cycle_loss"] = loss
@@ -234,7 +243,15 @@ class GlobalWorkspace(LightningModule):
                         coef = coefficients[token]
 
                     out = self.cycle(domain, domain_name_start, domain_name_inter)
-                    l = coef * self.cycle_loss_fn(domain[0], out[0]).mean() / total
+
+                    if not isinstance(domain, (list, tuple)):
+                        assert not isinstance(domain, (list, tuple))
+                        domain = [domain]
+                        out = [out]
+
+                    l = torch.tensor(0.).to(self.device)
+                    for k in range(len(domain)):
+                        l += coef * self.cycle_loss_fn(out[k], domain[k]).mean() / total
                     losses[f"loss_cycle_{token}"] = l
                     loss += l
         losses["cycle_loss"] = loss
@@ -356,6 +373,9 @@ class GlobalWorkspace(LightningModule):
             t_gen = (self.validation_class_translation, self.validation_pose_translation)
             log_shape_fig(self.logger, t_gen[0].detach().cpu().numpy(),
                           t_gen[1].detach().cpu().numpy(), "val_generated_labels_vis")
+            self.log("val_t_latents", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
+            self.log("val_t_latents_gt", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
+
 
         # translation v -> t
         latent_v = self.domain_mods["v"].encode(x)
@@ -394,6 +414,7 @@ class GlobalWorkspace(LightningModule):
         latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
         latent_reconstructed = self.demi_cycle(latent_t, "t")
         t_reconstructed = self.domain_mods["t"].decode(latent_reconstructed)
+        self.log("val_t_latents", ", ".join(map(str, t_reconstructed[1][0].tolist())))
         log_shape_fig(
             self.logger,
             t_reconstructed[0][:self.hparams.n_validation_examples].detach().cpu().numpy(),
