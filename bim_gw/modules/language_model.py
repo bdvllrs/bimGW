@@ -72,8 +72,8 @@ class ShapesLM(WorkspaceModule):
         self.z_size = 3
         self.imsize = imsize
         self.output_dims = [self.z_size, 7]
-        self.decoder_loss_fn = [torch.sigmoid,
-                                torch.sigmoid]
+        self.decoder_activation_fn = [torch.sigmoid,
+                                      torch.sigmoid]
 
     def encode(self, x):
         return self(x)

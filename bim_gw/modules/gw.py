@@ -25,20 +25,20 @@ class EncoderBlock(torch.nn.Sequential):
 
 
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dims=0, loss_fn=None):
+    def __init__(self, in_dim, hidden_size, out_dims=0, activation_fn=None):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.hidden_size = hidden_size
 
         if isinstance(out_dims, int):
             out_dims = [out_dims]
-        if not isinstance(loss_fn, (list, tuple)):
-            loss_fn = [loss_fn]
+        if not isinstance(activation_fn, (list, tuple)):
+            activation_fn = [activation_fn]
 
-        assert len(out_dims) == len(loss_fn), "The model is missing some loss_functions for the outputs."
+        assert len(out_dims) == len(activation_fn), "The model is missing some loss_functions for the outputs."
 
         self.out_dims = out_dims
-        self.loss_fn = loss_fn
+        self.activation_fn = activation_fn
 
         self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
         self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
@@ -53,10 +53,10 @@ class DomainDecoder(torch.nn.Module):
         out = self.encoder_block1(x)
         out = self.encoder_block2(out)
         outputs = []
-        for block, loss_fn in zip(self.encoder_block3, self.loss_fn):
+        for block, activation_fn in zip(self.encoder_block3, self.activation_fn):
             z = block(out)
-            if loss_fn is not None:
-                z = loss_fn(z)
+            if activation_fn is not None:
+                z = activation_fn(z)
             outputs.append(z)
         if len(outputs) == 1:
             return outputs[0]
@@ -146,7 +146,7 @@ class GlobalWorkspace(LightningModule):
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
                                        for item, mod in domain_mods.items()})
         self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
-                                                            mod.output_dims, mod.decoder_loss_fn))
+                                                            mod.output_dims, mod.decoder_activation_fn))
                                        for item, mod in domain_mods.items()})
 
         # Define losses
@@ -381,7 +381,6 @@ class GlobalWorkspace(LightningModule):
                           t_gen[1].detach().cpu().numpy(), "val_generated_labels_vis")
             self.log("val_t_latents", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
             self.log("val_t_latents_gt", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
-
 
         # translation v -> t
         latent_v = self.domain_mods["v"].encode(x)

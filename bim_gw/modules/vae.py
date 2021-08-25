@@ -113,7 +113,7 @@ class VAE(WorkspaceModule):
         self.n_FID_samples = n_FID_samples
 
         self.output_dims = self.z_size
-        self.decoder_loss_fn = None
+        self.decoder_activation_fn = None
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
