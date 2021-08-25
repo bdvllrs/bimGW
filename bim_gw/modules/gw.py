@@ -1,10 +1,12 @@
 import torch
 import torchmetrics
+from neptune.new.types import File
 from omegaconf import ListConfig
 from pytorch_lightning import LightningModule
 from torch import nn
 from torch.nn import functional as F
 
+from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.losses import vis_to_text_accuracy
 from bim_gw.utils.shapes import log_shape_fig
 from bim_gw.utils.utils import log_image, val_or_default
@@ -164,6 +166,7 @@ class GlobalWorkspace(LightningModule):
 
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
+        self.grad_norms_bin = GradNormLogger()
 
         # val sampling
         self.register_buffer("validation_reconstruction_images", validation_reconstructed_images)
@@ -326,8 +329,9 @@ class GlobalWorkspace(LightningModule):
 
         if self.monitor_grad_norms:
             grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
+            self.grad_norms_bin.log(grad_norms)
             for name, grad_norm in grad_norms.items():
-                self.log(f"grad_norm_{name}", grad_norm, logger=True)
+                self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
         else:
             self.manual_backward(total_loss)
 
@@ -362,6 +366,8 @@ class GlobalWorkspace(LightningModule):
     def validation_epoch_end(self, outputs):
         x = self.validation_reconstruction_images
 
+        if self.logger is not None:
+            self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
         if self.current_epoch == 0:
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
             classes = [self.trainer.datamodule.classes[k] for k in self.validation_class_translation]
@@ -476,19 +482,19 @@ class GlobalWorkspace(LightningModule):
                     for modality in model.keys():
                         param_group = f"{model_name}_{modality}"
 
-                        grad_norms[f"{name}_{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
+                        grad_norms[f"{name}@{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
                             # remove the already saved gradient that have already been counted in.
-                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}_{param_name}", 0)).norm()
+                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}@{param_name}", 0)).norm()
                             for param_name, p in model[modality].named_parameters()
                             if p.grad is not None
                         ])
-                        assert grad_norms[f"{name}_{param_group}"] >= 0
+                        assert grad_norms[f"{name}@{param_group}"] >= 0
 
                         # Keep track of the value of the gradients to avoid counting
                         # them multiple times because of accumulation.
                         for param_name, p in model[modality].named_parameters():
                             if param_name not in last_grads:
-                                last_grads[f"{param_group}_{param_name}"] = 0
+                                last_grads[f"{param_group}@{param_name}"] = 0
                             if p.grad is not None:
-                                last_grads[f"{param_group}_{param_name}"] += p.grad.detach()
+                                last_grads[f"{param_group}@{param_name}"] += p.grad.detach()
         return grad_norms
