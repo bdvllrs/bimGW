@@ -44,7 +44,7 @@ def train_vae(args):
         logger.experiment["parameters"] = dict(args)
 
     # Callbacks
-    callbacks = [ModelCheckpoint(save_top_k=-1, mode="min", monitor="val_total_loss")]
+    callbacks = [ModelCheckpoint(save_top_k=2, mode="min", monitor="val_total_loss")]
     if logger is not None:
         callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 

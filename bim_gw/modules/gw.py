@@ -12,18 +12,6 @@ from bim_gw.utils.shapes import log_shape_fig
 from bim_gw.utils.utils import log_image, val_or_default
 
 
-class EncoderBlock(torch.nn.Sequential):
-    def __init__(self, in_dim, out_dim):
-        super(EncoderBlock, self).__init__(
-            nn.Linear(in_dim, out_dim),
-            nn.BatchNorm1d(out_dim),
-            nn.ReLU(),
-            nn.Linear(out_dim, out_dim),
-            nn.BatchNorm1d(out_dim),
-            nn.ReLU()
-        )
-
-
 class DomainDecoder(torch.nn.Module):
     def __init__(self, in_dim, hidden_size, out_dims=0, activation_fn=None):
         super(DomainDecoder, self).__init__()
@@ -40,20 +28,32 @@ class DomainDecoder(torch.nn.Module):
         self.out_dims = out_dims
         self.activation_fn = activation_fn
 
-        self.encoder_block1 = EncoderBlock(self.in_dim, self.hidden_size)
-        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
-        self.encoder_block3 = nn.ModuleList([
+        self.encoder = nn.Sequential(
+            nn.Linear(self.in_dim, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU()
+        )
+
+        self.encoder_head = nn.ModuleList([
             nn.Sequential(
+                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.BatchNorm1d(self.hidden_size),
+                nn.ReLU(),
+                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.BatchNorm1d(self.hidden_size),
+                nn.ReLU(),
                 nn.Linear(self.hidden_size, pose_dim),
             )
             for pose_dim in self.out_dims
         ])
 
     def forward(self, x):
-        out = self.encoder_block1(x)
-        out = self.encoder_block2(out)
+        out = self.encoder(x)
         outputs = []
-        for block, activation_fn in zip(self.encoder_block3, self.activation_fn):
+        for block, activation_fn in zip(self.encoder_head, self.activation_fn):
             z = block(out)
             if activation_fn is not None:
                 z = activation_fn(z)
@@ -72,10 +72,20 @@ class DomainEncoder(nn.Module):
         self.out_dim = out_dim
         self.hidden_size = hidden_size
 
-        self.encoder_block1 = EncoderBlock(sum(self.in_dims), self.hidden_size)
-        self.encoder_block2 = EncoderBlock(self.hidden_size, self.hidden_size)
-        self.encoder_block3 = nn.Sequential(
-            nn.Linear(self.hidden_size, self.out_dim),
+        self.encoder = nn.Sequential(
+            nn.Linear(sum(self.in_dims), self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.out_dim)
         )
 
     def forward(self, x):
@@ -85,9 +95,7 @@ class DomainEncoder(nn.Module):
             x = x[0]
         elif isinstance(x, (list, tuple)):
             x = torch.cat(x, dim=-1)
-        out = self.encoder_block1(x)
-        out = self.encoder_block2(out)
-        out = self.encoder_block3(out)
+        out = self.encoder(x)
         return torch.tanh(out)
 
 
