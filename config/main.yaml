@@ -30,8 +30,9 @@ global_workspace:
   }
 
   optim:
-    lr: 1e-4
-    discriminator_lr: 5e-5
+    lr:
+      encoders: 1e-4
+      decoders: 1e-4
     weight_decay: 3e-5
 
   scheduler:

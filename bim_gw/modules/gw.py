@@ -458,12 +458,12 @@ class GlobalWorkspace(LightningModule):
         params = []
         for domain_name, encoder in self.encoders.items():
             params.append({
-                'params': encoder.parameters(), "lr": self.hparams.optim_lr,
+                'params': encoder.parameters(), "lr": self.hparams.optim_lr.encoders,
                 "weight_decay": self.hparams.optim_weight_decay
             })
         for domain_name, decoder in self.decoders.items():
             params.append({
-                'params': decoder.parameters(), "lr": self.hparams.optim_lr,
+                'params': decoder.parameters(), "lr": self.hparams.optim_lr.decoders,
                 "weight_decay": self.hparams.optim_weight_decay
             })
         optimizer = torch.optim.Adam(params)
