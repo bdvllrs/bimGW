@@ -76,8 +76,8 @@ class ShapesLM(WorkspaceModule):
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
-            torch.cos,  # rotation x
-            torch.sin,  # rotation y
+            torch.tanh,  # rotation x
+            torch.tanh,  # rotation y
             torch.sigmoid,  # rest
         ]
 
@@ -87,7 +87,6 @@ class ShapesLM(WorkspaceModule):
     def decode(self, x):
         logits, rotation_x, rotation_y, latent = x
         out_latents = latent.clone()
-        out_latents = torch.clip(out_latents, 0, 1)
         out_latents[:, 0] = latent[:, 0] * self.imsize
         out_latents[:, 1] = latent[:, 1] * self.imsize
         out_latents[:, 2] = latent[:, 2] * self.imsize
