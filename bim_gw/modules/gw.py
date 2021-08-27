@@ -181,7 +181,6 @@ class GlobalWorkspace(LightningModule):
             if mod.requires_acc_computation:
                 for domain_name_start, mod_start in self.domain_mods.items():
                     if domain_name_start != domain_name:
-                        # start, end, train metric, val metric
                         train_accuracy_metrics.append(torchmetrics.Accuracy())
                         val_accuracy_metrics.append(torchmetrics.Accuracy())
                         self.accuracy_metrics_order.append((domain_name_start, domain_name))
