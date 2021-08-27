@@ -13,7 +13,7 @@ from bim_gw.utils import get_args
 def train_vae(args):
     seed_everything(args.seed)
 
-    data = load_dataset(args)
+    data = load_dataset(args, args.vae)
 
     data.prepare_data()
     data.setup(stage="fit")

@@ -5,23 +5,23 @@ from bim_gw.modules import SkipGramLM
 from bim_gw.modules.language_model import ShapesLM
 
 
-def load_dataset(args, **kwargs):
+def load_dataset(args, local_args, **kwargs):
     if args.visual_dataset == "imagenet":
         print("Loading ImageNet.")
-        return ImageNetData(args.image_net_path, args.vae.batch_size, args.img_size,
-                            args.dataloader.num_workers, args.vae.data_augmentation,
+        return ImageNetData(args.image_net_path, local_args.batch_size, args.img_size,
+                            args.dataloader.num_workers, local_args.data_augmentation,
                             args.global_workspace.prop_labelled_images,
                             args.global_workspace.classes_labelled_images, **kwargs)
     elif args.visual_dataset == "cifar10":
         print("Loading CIFAR10.")
         if "bimodal" in kwargs:
             raise ValueError("CIFAR is not yet ready for GW training...")
-        return CIFARData(args.cifar10_path, args.vae.batch_size,
-                         args.dataloader.num_workers, args.vae.data_augmentation)
+        return CIFARData(args.cifar10_path, local_args.batch_size,
+                         args.dataloader.num_workers, local_args.data_augmentation)
     elif args.visual_dataset == "shapes":
         print("Loading Shapes.")
-        return SimpleShapesData(args.simple_shapes_path, args.vae.batch_size,
-                                args.dataloader.num_workers, args.vae.data_augmentation,
+        return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
+                                args.dataloader.num_workers, local_args.data_augmentation,
                                 args.global_workspace.prop_labelled_images,
                                 args.n_validation_examples,
                                 **kwargs)
