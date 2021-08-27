@@ -54,10 +54,16 @@ class SimpleShapesDataset:
         cls = int(label[0])
         x, y = label[1], label[2]
         radius = label[3]
-        rotation = label[4]
+        rotation = label[4] * 2 * np.pi / 360  # put in radians
         r, g, b = label[5], label[6], label[7]
 
-        labels = [cls, torch.tensor([x, y, radius, rotation, r, g, b])]
+        labels = [
+            cls,
+            torch.tensor([np.cos(rotation)], dtype=torch.float),
+            torch.tensor([np.sin(rotation)], dtype=torch.float),
+            torch.tensor([x, y, radius, r, g, b]),
+        ]
+
         if self.output_transform is not None:
             return self.output_transform(img, labels)
         return img, labels
@@ -67,7 +73,8 @@ class SimpleShapesData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
-            bimodal=False
+            n_validation_domain_examples=None,
+            bimodal=False,
     ):
         super().__init__()
         if bimodal and use_data_augmentation:
@@ -77,6 +84,7 @@ class SimpleShapesData(LightningDataModule):
         self.num_workers = num_workers
         self.img_size = 32
         self.bimodal = bimodal
+        self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -127,11 +135,24 @@ class SimpleShapesData(LightningDataModule):
             visual_index = 0
             text_index = 1
 
-        validation_reconstruction_indices = torch.randint(len(self.shapes_val), size=(self.batch_size,))
-        self.validation_reconstructed_images = torch.stack([self.shapes_val[k][visual_index]
-                                                            for k in validation_reconstruction_indices], dim=0)
-        self.validation_reconstructed_targets = torch.tensor([int(self.shapes_val[k][text_index][0])
-                                                              for k in validation_reconstruction_indices])
+        validation_reconstruction_indices = torch.randint(len(self.shapes_val), size=(self.validation_domain_examples,))
+
+        self.validation_domain_examples = {
+            "v": torch.stack([self.shapes_val[k][visual_index] for k in validation_reconstruction_indices], dim=0),
+            "t": []
+        }
+
+        # add t examples
+        for k in range(len(self.shapes_val[0][text_index])):
+            if isinstance(self.shapes_val[0][text_index][k], (int, float)):
+                self.validation_domain_examples["t"].append(
+                    torch.tensor([self.shapes_val[i][text_index][k] for i in validation_reconstruction_indices])
+                )
+            else:
+                self.validation_domain_examples["t"].append(
+                    torch.stack([self.shapes_val[i][text_index][k] for i in validation_reconstruction_indices], dim=0)
+                )
+
         if stage == "test" or stage is None:
             raise NotImplementedError
 

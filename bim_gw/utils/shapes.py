@@ -83,18 +83,18 @@ def get_fig_from_specs(cls, locations, radii, rotations, colors, imsize=32, ncol
     return fig
 
 
-def get_image_specs_from_latents(cls, latents):
+def get_image_specs_from_latents(cls, rotations, latents):
     output = dict()
     output['cls'] = cls
     output['locations'] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
     output['radii'] = latents[:, 2]
-    output['rotations'] = latents[:, 3]
-    output['colors'] = np.stack((latents[:, 4], latents[:, 5], latents[:, 6]), axis=1)
+    output['rotations'] = rotations[:, 0]
+    output['colors'] = np.stack((latents[:, 3], latents[:, 4], latents[:, 5]), axis=1)
     return output
 
 
-def log_shape_fig(logger, classes, latents, name):
-    spec = get_image_specs_from_latents(classes, latents)
+def log_shape_fig(logger, classes, rotations, latents, name):
+    spec = get_image_specs_from_latents(classes, rotations, latents)
     fig = get_fig_from_specs(**spec)
     # plt.tight_layout(pad=0)
 
@@ -117,8 +117,11 @@ def generate_color(n_samples, max_lightness=256):
     return rgb
 
 
-def generate_rotation(n_samples):
-    return np.random.rand(n_samples) * 360
+def generate_rotation(n_samples, classes):
+    rotations = np.random.rand(n_samples) * 360
+    rotations[classes == 1] = 0  # circles don't have rotations
+    rotations[classes == 0] = rotations[classes == 0] % 90
+    return rotations
 
 
 def generate_location(n_samples, radius, imsize):
@@ -132,10 +135,11 @@ def generate_class(n_samples, classes):
     return np.random.randint(len(classes), size=n_samples)
 
 
-def generate_dataset(n_samples, class_names, min_radius, max_radius, max_lightness, imsize):
-    classes = generate_class(n_samples, class_names)
+def generate_dataset(n_samples, class_names, min_radius, max_radius, max_lightness, imsize, classes=None):
+    if classes is None:
+        classes = generate_class(n_samples, class_names)
     sizes = generate_radius(n_samples, min_radius, max_radius)
     locations = generate_location(n_samples, sizes, imsize)
-    rotation = generate_rotation(n_samples)
+    rotation = generate_rotation(n_samples, classes)
     colors = generate_color(n_samples, max_lightness)
     return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors)

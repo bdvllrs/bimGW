@@ -23,6 +23,7 @@ def load_dataset(args, **kwargs):
         return SimpleShapesData(args.simple_shapes_path, args.vae.batch_size,
                                 args.dataloader.num_workers, args.vae.data_augmentation,
                                 args.global_workspace.prop_labelled_images,
+                                args.n_validation_examples,
                                 **kwargs)
     else:
         raise ValueError("The requested dataset is not implemented.")

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import torchmetrics
 from neptune.new.types import File
@@ -7,9 +9,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.utils.grad_norms import GradNormLogger
-from bim_gw.utils.losses import vis_to_text_accuracy
-from bim_gw.utils.shapes import log_shape_fig
-from bim_gw.utils.utils import log_image, val_or_default
+from bim_gw.utils.utils import val_or_default
 
 
 class DomainDecoder(torch.nn.Module):
@@ -23,7 +23,8 @@ class DomainDecoder(torch.nn.Module):
         if not isinstance(activation_fn, (list, tuple)):
             activation_fn = [activation_fn]
 
-        assert len(out_dims) == len(activation_fn), "The model is missing some loss_functions for the outputs."
+        assert len(out_dims) == len(
+            activation_fn), "The model is missing some loss_functions or output_dimensions for the outputs."
 
         self.out_dims = out_dims
         self.activation_fn = activation_fn
@@ -131,10 +132,8 @@ class GlobalWorkspace(LightningModule):
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
             cycle_loss_fn="cosine", supervision_loss_fn=None,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-            n_validation_examples: int = 32,
-            validation_reconstructed_images=None,
-            validation_reconstructed_targets=None,
-            monitor_grad_norms=False
+            validation_domain_examples: Optional[dict] = None,
+            monitor_grad_norms: bool = False
     ):
 
         super(GlobalWorkspace, self).__init__()
@@ -149,6 +148,8 @@ class GlobalWorkspace(LightningModule):
             assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
 
         self.domain_mods = nn.ModuleDict(domain_mods)
+        self.domain_names = list(domain_mods.keys())
+        self.validation_example_list = None
 
         # Define encoders for translation
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
@@ -172,17 +173,36 @@ class GlobalWorkspace(LightningModule):
                            k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
                 self.supervision_loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
 
-        self.train_acc = torchmetrics.Accuracy()
-        self.valid_acc = torchmetrics.Accuracy()
+        # Accuracies
+        train_accuracy_metrics = []
+        val_accuracy_metrics = []
+        self.accuracy_metrics_order = []
+        for domain_name, mod in self.domain_mods.items():
+            if mod.requires_acc_computation:
+                for domain_name_start, mod_start in self.domain_mods.items():
+                    if domain_name_start != domain_name:
+                        # start, end, train metric, val metric
+                        train_accuracy_metrics.append(torchmetrics.Accuracy())
+                        val_accuracy_metrics.append(torchmetrics.Accuracy())
+                        self.accuracy_metrics_order.append((domain_name_start, domain_name))
+
+        self.train_accuracy_metrics = nn.ModuleList(train_accuracy_metrics)
+        self.val_accuracy_metrics = nn.ModuleList(val_accuracy_metrics)
+
         self.grad_norms_bin = GradNormLogger()
 
         # val sampling
-        self.register_buffer("validation_reconstruction_images", validation_reconstructed_images)
-        self.register_buffer("validation_reconstruction_targets", validation_reconstructed_targets)
-        self.register_buffer("validation_class_translation",
-                             torch.randint(0, n_classes, (n_validation_examples,)).to(torch.int64))
-        self.register_buffer("validation_pose_translation",
-                             domain_mods['t'].get_random_vector(self.validation_class_translation))
+        if validation_domain_examples is not None:
+            self.validation_example_list = dict()
+            for key, example_vecs in validation_domain_examples.items():
+                assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                if not isinstance(example_vecs, (tuple, list)):
+                    example_vecs = [example_vecs]
+
+                self.validation_example_list[key] = len(example_vecs)
+                for k, example_vec in enumerate(example_vecs):
+                    self.register_buffer(f"validation_examples_domain_{key}_{k}", example_vec)
+        print("done!")
 
     def project(self, domains):
         """
@@ -332,8 +352,14 @@ class GlobalWorkspace(LightningModule):
             self.log(f"train_{name}", loss, logger=True)
         self.log(f"train_total_loss", total_loss, logger=True)
 
-        accuracy = vis_to_text_accuracy(self, self.train_acc, sync_latents["v"], sync_supervision["t"])
-        self.log("train_vis_to_text_acc", accuracy, on_step=True, on_epoch=False)
+        # compute accuracies
+        for train_acc_fn, (domain_name_start, domain_name) in zip(self.train_accuracy_metrics,
+                                                                  self.accuracy_metrics_order):
+            predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
+            prediction = self.domain_mods[domain_name].decode(predicted_t)
+            accuracy = self.domain_mods[domain_name].compute_acc(train_acc_fn, prediction,
+                                                                 sync_supervision[domain_name])
+            self.log(f"train_acc_{domain_name_start}_to_{domain_name}", accuracy, on_step=True, on_epoch=False)
 
         if self.monitor_grad_norms:
             grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
@@ -366,91 +392,65 @@ class GlobalWorkspace(LightningModule):
             self.log(f"val_{name}", loss, logger=True)
         self.log(f"val_total_loss", total_loss, logger=True)
 
-        accuracy = vis_to_text_accuracy(self, self.valid_acc, latents["v"], domains["t"])
-        self.log("val_vis_to_text_acc", accuracy, on_step=True, on_epoch=True)
+        # compute accuracies
+        for val_acc_fn, (domain_name_start, domain_name) in zip(self.val_accuracy_metrics,
+                                                                self.accuracy_metrics_order):
+            predicted_t = self.translate(latents[domain_name_start], domain_name_start, domain_name)
+            prediction = self.domain_mods[domain_name].decode(predicted_t)
+            accuracy = self.domain_mods[domain_name].compute_acc(val_acc_fn, prediction, domains[domain_name])
+            self.log(f"val_acc_{domain_name_start}_to_{domain_name}", accuracy, on_step=True, on_epoch=True)
 
         return total_loss
 
+    def get_validation_examples(self):
+        domain_examples = {}
+        for domain_name, n_items in self.validation_example_list.items():
+            domain_example = [
+                getattr(self, f"validation_examples_domain_{domain_name}_{k}") for k in range(n_items)
+            ]
+            if len(domain_example) == 1:
+                domain_example = domain_example[0]
+            domain_examples[domain_name] = domain_example
+        return domain_examples
+
     def validation_epoch_end(self, outputs):
-        x = self.validation_reconstruction_images
-
         if self.logger is not None:
+            validation_examples = self.get_validation_examples()
+
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
-        if self.current_epoch == 0:
-            log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
-            classes = [self.trainer.datamodule.classes[k] for k in self.validation_class_translation]
-            self.log("val_generated_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
-            classes = [self.trainer.datamodule.classes[k] for k in self.validation_reconstruction_targets]
-            self.log("val_original_labels", ", ".join(classes[:self.hparams.n_validation_examples]))
 
-            # Generate the image with the original (exact) algorithm
-            t_gen = (self.validation_class_translation, self.validation_pose_translation)
-            log_shape_fig(self.logger, t_gen[0].detach().cpu().numpy(),
-                          t_gen[1].detach().cpu().numpy(), "val_generated_labels_vis")
-            self.log("val_t_latents", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
-            self.log("val_t_latents_gt", ", ".join(map(str, self.validation_pose_translation[0].tolist())))
+            if self.validation_example_list is not None:
+                if self.current_epoch == 0:
 
-        # translation v -> t
-        latent_v = self.domain_mods["v"].encode(x)
-        latent_t = self.translate(latent_v, "v", "t")
-        # print(latent_v[0][0])
-        # z = self.encoders["v"](*latent_v)
-        # print(z[0])
-        # latent_t = self.decoders["t"](z)
-        t_gen = self.domain_mods["t"].decode(latent_t)
-        # Get class
-        predicted_classes = t_gen[0].detach().cpu().numpy()
-        classes = [self.trainer.datamodule.classes[k] for k in predicted_classes]
-        self.log("val_translation_v_to_t_text", ", ".join(classes[:self.hparams.n_validation_examples]))
+                    for domain_name, domain_example in validation_examples.items():
+                        self.domain_mods[domain_name].log_domain(self.logger, domain_example,
+                                                                 f"val_original_domain_{domain_name}")
 
-        # Use the exact algo to generate the visualisation.
-        log_shape_fig(
-            self.logger,
-            t_gen[0][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            t_gen[1][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            "val_translation_v_to_t_vis"
-        )
+                for domain_name, domain_example in validation_examples.items():
+                    # Demi cycles
+                    latent_x = self.domain_mods[domain_name].encode(domain_example)
+                    latent_reconstructed = self.demi_cycle(latent_x, domain_name)
+                    x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                    self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+                                                             f"val_demi_cycle_{domain_name}")
 
-        # Translation t -> v
-        latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
-        latent_v = self.translate(latent_t, "t", "v")
-        v_gen = self.domain_mods["v"].decode(latent_v)
-        log_image(self.logger, v_gen[:self.hparams.n_validation_examples], "val_translation_t_to_v")
+                    for domain_name_2, domain_example_2 in validation_examples.items():
+                        if domain_name_2 != domain_name:
+                            # Full cycles
+                            latent_x = self.domain_mods[domain_name].encode(domain_example)
+                            latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
+                            x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                            self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+                                                                     f"val_cycle_{domain_name}_through_{domain_name_2}")
 
-        # demi cycle v
-        latent_x = self.domain_mods["v"].encode(x)
-        latent_reconstructed = self.demi_cycle(latent_x, "v")
-        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
-        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_demi_cycle_v")
-
-        # demi cycle t
-        latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
-        latent_reconstructed = self.demi_cycle(latent_t, "t")
-        t_reconstructed = self.domain_mods["t"].decode(latent_reconstructed)
-        self.log("val_t_latents", ", ".join(map(str, t_reconstructed[1][0].tolist())))
-        log_shape_fig(
-            self.logger,
-            t_reconstructed[0][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            t_reconstructed[1][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            "val_demi_cycle_t"
-        )
-
-        # full cycle v
-        latent_x = self.domain_mods["v"].encode(x)
-        latent_reconstructed = self.cycle(latent_x, "v", "t")
-        x_reconstructed = self.domain_mods["v"].decode(latent_reconstructed)
-        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_cycle_v")
-
-        # full cycle t
-        latent_t = self.domain_mods["t"].encode((self.validation_class_translation, self.validation_pose_translation))
-        latent_reconstructed = self.cycle(latent_t, "t", "v")
-        t_reconstructed = self.domain_mods["t"].decode(latent_reconstructed)
-        log_shape_fig(
-            self.logger,
-            t_reconstructed[0][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            t_reconstructed[1][:self.hparams.n_validation_examples].detach().cpu().numpy(),
-            "val_cycle_t"
-        )
+                            # Translations
+                            latent_start = self.domain_mods[domain_name].encode(domain_example)
+                            latent_end = self.translate(latent_start, domain_name, domain_name_2)
+                            domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
+                            self.domain_mods[domain_name_2].log_domain(
+                                self.logger, domain_end_pred,
+                                f"val_translation_{domain_name}_to_{domain_name_2}"
+                            )
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()
@@ -471,6 +471,12 @@ class GlobalWorkspace(LightningModule):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
                                                     self.hparams.scheduler_gamma)
         return [optimizer], [scheduler]
+
+    def vis_to_text_accuracy(self, domain_start, domain_end, acc_fn, domain_start_data, targets):
+        # translate the visual domain to text domain
+        predicted_t = self.translate(domain_start_data, domain_start, domain_end)
+        prediction = self.domain_mods[domain_end].decode(predicted_t)
+        return self.domain_mods[domain_end].compute_acc(acc_fn, prediction, targets)
 
     def manual_backward_with_grad_norm_monitoring(self, losses):
         """
