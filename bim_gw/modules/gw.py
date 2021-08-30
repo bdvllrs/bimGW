@@ -130,7 +130,7 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-            cycle_loss_fn="cosine", supervision_loss_fn=None,
+            loss_fn=None,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             validation_domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
@@ -159,19 +159,16 @@ class GlobalWorkspace(LightningModule):
                                        for item, mod in domain_mods.items()})
 
         # Define losses
-        assert cycle_loss_fn in loss_functions, f"Cycle loss function {cycle_loss_fn} must be in {loss_functions.keys()}."
-        self.cycle_loss_fn = loss_functions[cycle_loss_fn]
-
-        self.supervision_loss_fn = {}
+        self.loss_fn = {}
         for domain in self.domain_mods.keys():
-            domain_supervision_loss_fn = "cosine" if supervision_loss_fn is None else supervision_loss_fn[domain]
+            domain_supervision_loss_fn = "cosine" if loss_fn is None else loss_fn[domain]
             # Iterate over class and latent (they could have different loss fn)
             if not isinstance(domain_supervision_loss_fn, ListConfig):
                 domain_supervision_loss_fn = (domain_supervision_loss_fn,)
             for k in range(len(domain_supervision_loss_fn)):
                 assert domain_supervision_loss_fn[
                            k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
-                self.supervision_loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
+                self.loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
 
         # Accuracies
         train_accuracy_metrics = []
@@ -251,7 +248,8 @@ class GlobalWorkspace(LightningModule):
 
             l = torch.tensor(0.).to(self.device)
             for k in range(len(domain)):
-                l += coef * self.cycle_loss_fn(out[k], domain[k]).mean() / total
+                loss_fn = self.loss_fn[f"{name}_{k}"]
+                l += coef * loss_fn(out[k], domain[k]).mean() / total
             losses[f"loss_demi_cycle_{name}"] = l
             loss += l
         losses["demi_cycle_loss"] = loss
@@ -281,7 +279,8 @@ class GlobalWorkspace(LightningModule):
 
                     l = torch.tensor(0.).to(self.device)
                     for k in range(len(domain)):
-                        l += coef * self.cycle_loss_fn(out[k], domain[k]).mean() / total
+                        loss_fn = self.loss_fn[f"{domain_name_start}_{k}"]
+                        l += coef * loss_fn(out[k], domain[k]).mean() / total
                     losses[f"loss_cycle_{token}"] = l
                     loss += l
         losses["cycle_loss"] = loss
@@ -309,7 +308,7 @@ class GlobalWorkspace(LightningModule):
                             elif token in coefficients:
                                 coef = coefficients[token]
 
-                            loss_fn = self.supervision_loss_fn[f"{domain_name_2}_{k}"]
+                            loss_fn = self.loss_fn[f"{domain_name_2}_{k}"]
                             l = coef * loss_fn(pred_domain_2[k], domain_2[k]).mean()
                             losses[f"loss_supervision_{token}"] = l
                             loss += l

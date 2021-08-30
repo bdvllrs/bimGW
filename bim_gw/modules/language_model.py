@@ -72,12 +72,11 @@ class ShapesLM(WorkspaceModule):
         self.z_size = 3
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 1, 1, 6]
+        self.output_dims = [self.z_size, 2, 6]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
-            torch.tanh,  # rotation x
-            torch.tanh,  # rotation y
+            torch.tanh,  # rotations
             torch.sigmoid,  # rest
         ]
 
@@ -85,25 +84,23 @@ class ShapesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, x):
-        logits, rotation_x, rotation_y, latent = x
+        logits, rotations, latent = x
         out_latents = latent.clone()
         out_latents[:, 0] = latent[:, 0] * self.imsize
         out_latents[:, 1] = latent[:, 1] * self.imsize
         out_latents[:, 2] = latent[:, 2] * self.imsize
         return (torch.argmax(logits, dim=-1),
-                rotation_x,
-                rotation_y,
+                rotations,
                 out_latents)
 
     def forward(self, x: list):
-        cls, rotation_x, rotation_y, latents = x
+        cls, rotations, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = latents[:, 0] / self.imsize
         out_latents[:, 1] = latents[:, 1] / self.imsize
         out_latents[:, 2] = latents[:, 2] / self.imsize
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                rotation_x,
-                rotation_y,
+                rotations,
                 out_latents)
 
     def compute_acc(self, acc_metric, predictions, targets):
@@ -111,9 +108,10 @@ class ShapesLM(WorkspaceModule):
 
     def log_domain(self, logger, x, name):
         classes = x[0].detach().cpu().numpy()
-        rotation_x = x[1].detach().cpu().numpy()
-        rotation_y = x[2].detach().cpu().numpy()
-        latents = x[3].detach().cpu().numpy()
+        rotations = x[1].detach().cpu().numpy()
+        rotation_x = rotations[0]
+        rotation_y = rotations[1]
+        latents = x[2].detach().cpu().numpy()
 
         # from cos / sin coordinates to angle in degrees
         rotations = (360 + np.arctan2(rotation_y, rotation_x) / np.pi * 180) % 360

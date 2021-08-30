@@ -59,8 +59,7 @@ class SimpleShapesDataset:
 
         labels = [
             cls,
-            torch.tensor([np.cos(rotation)], dtype=torch.float),
-            torch.tensor([np.sin(rotation)], dtype=torch.float),
+            torch.tensor([np.cos(rotation), np.sin(rotation)], dtype=torch.float),
             torch.tensor([x, y, radius, r, g, b]),
         ]
 
