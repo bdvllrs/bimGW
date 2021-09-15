@@ -1,11 +1,12 @@
 import os
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
 from bim_gw.loggers.neptune import NeptuneLogger
+from bim_gw.modules.ae import AE
 from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
@@ -18,7 +19,7 @@ def train_gw(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
+    vae = AE.load_from_checkpoint(args.global_workspace.vae_checkpoint).eval()
     vae.freeze()
 
     lm = get_lm(args, data)
@@ -53,7 +54,7 @@ def train_gw(args):
 
     # Callbacks
     # callbacks = [ModelCheckpoint(save_top_k=1, mode="min", monitor="val_total_loss")]
-    callbacks = []
+    callbacks = [EarlyStopping("val_total_loss", patience=3)]
     if logger is not None:
         callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 

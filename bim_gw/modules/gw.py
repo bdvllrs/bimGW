@@ -43,9 +43,6 @@ class DomainDecoder(torch.nn.Module):
                 nn.Linear(self.hidden_size, self.hidden_size),
                 nn.BatchNorm1d(self.hidden_size),
                 nn.ReLU(),
-                nn.Linear(self.hidden_size, self.hidden_size),
-                nn.BatchNorm1d(self.hidden_size),
-                nn.ReLU(),
                 nn.Linear(self.hidden_size, pose_dim),
             )
             for pose_dim in self.out_dims
@@ -83,10 +80,7 @@ class DomainEncoder(nn.Module):
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.out_dim)
+            nn.Linear(self.hidden_size, self.out_dim),
         )
 
     def forward(self, x):

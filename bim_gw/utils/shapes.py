@@ -80,6 +80,7 @@ def get_fig_from_specs(cls, locations, radii, rotations, colors, imsize=32, ncol
             k = i * ncols + j
             ax = plt.subplot(gs[i, j])
             generate_image(ax, cls[k], locations[k], radii[k], rotations[k], colors[k], imsize)
+            ax.set_facecolor("black")
     return fig
 
 
@@ -88,7 +89,7 @@ def get_image_specs_from_latents(cls, rotations, latents):
     output['cls'] = cls
     output['locations'] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
     output['radii'] = latents[:, 2]
-    output['rotations'] = rotations[:, 0]
+    output['rotations'] = rotations
     output['colors'] = np.stack((latents[:, 3], latents[:, 4], latents[:, 5]), axis=1)
     return output
 
@@ -110,17 +111,17 @@ def generate_radius(n_samples, min, max):
     return np.random.randint(min, max, n_samples)
 
 
-def generate_color(n_samples, max_lightness=256):
+def generate_color(n_samples, min_lightness=0, max_lightness=256):
     assert 0 <= max_lightness <= 256
-    hls = np.random.randint([0, 0, 0], [181, max_lightness, 256], size=(1, n_samples, 3), dtype=np.uint8)
+    hls = np.random.randint([0, min_lightness, 0], [181, max_lightness, 256], size=(1, n_samples, 3), dtype=np.uint8)
     rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0].astype(np.float) / 255
     return rgb
 
 
 def generate_rotation(n_samples, classes):
     rotations = np.random.rand(n_samples) * 360
-    rotations[classes == 1] = 0  # circles don't have rotations
-    rotations[classes == 0] = rotations[classes == 0] % 90
+    # rotations[classes == 1] = 0  # circles don't have rotations
+    # rotations[classes == 0] = rotations[classes == 0] % 90
     return rotations
 
 
@@ -135,11 +136,11 @@ def generate_class(n_samples, classes):
     return np.random.randint(len(classes), size=n_samples)
 
 
-def generate_dataset(n_samples, class_names, min_radius, max_radius, max_lightness, imsize, classes=None):
+def generate_dataset(n_samples, class_names, min_radius, max_radius, min_lightness, max_lightness, imsize, classes=None):
     if classes is None:
         classes = generate_class(n_samples, class_names)
     sizes = generate_radius(n_samples, min_radius, max_radius)
     locations = generate_location(n_samples, sizes, imsize)
     rotation = generate_rotation(n_samples, classes)
-    colors = generate_color(n_samples, max_lightness)
+    colors = generate_color(n_samples, min_lightness, max_lightness)
     return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors)

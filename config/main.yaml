@@ -23,14 +23,12 @@ global_workspace:
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
-  cycle_loss_fn: "mse"
 
-  supervision_loss_fn: {
+  loss_fn: {
     "v": "mse",
     "t": [
         "nll",  # shapes
-        "mse",  # rotation cos
-        "mse",  # rotation sin
+        "mse",  # rotations
         "mse"  # rest
     ]
   }
@@ -66,18 +64,9 @@ vae:
 
 losses:
   coefs:
-    demi_cycles:
-      v: 1.
-      t: 1.
-    cycles:
-      v: 1.
-      t: 1.
-    supervision:
-      v_to_t_0: 1.
-      v_to_t_1: 1.
-      v_to_t_2: 1.
-      v_to_t_3: 1.
-      t_to_v_0: 1.
+    demi_cycles: 1.
+    cycles: 1.
+    supervision: 1.
 
 gensim_model_path: ???
 word_embeddings: null

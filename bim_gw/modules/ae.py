@@ -1,12 +1,10 @@
 from typing import Optional, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
-from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.utils import log_image
 
 
@@ -87,51 +85,28 @@ class ResNetDecoder(nn.Module):
         return out
 
 
-def reparameterize(mean, logvar):
-    std = logvar.mul(0.5).exp()
-    eps = torch.randn_like(std)
-    return eps.mul(std).add(mean)
-
-def gaussian_nll(mu, log_sigma, x):
-    # D = mu.size(0) * mu.size(1) * mu.size(2) * mu.size(3)
-    r = 0.5 * torch.pow((x - mu) / log_sigma.exp(), 2) + log_sigma + 0.5 * np.log(2 * np.pi)
-    # r = D * log_sigma
-    return r
-
-def softclip(tensor, min):
-    """ Clips the tensor values at the minimum value min in a softway. Taken from Handful of Trials """
-    result_tensor = min + F.softplus(tensor - min)
-
-    return result_tensor
-
-class VAE(WorkspaceModule):
-    def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
+class AE(WorkspaceModule):
+    def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int,
                  n_validation_examples: int = 32,
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
                  scheduler_step: int = 20, scheduler_gamma: float = 0.5,
-                 validation_reconstruction_images: Optional[torch.Tensor] = None,
-                 n_FID_samples=1000):
+                 validation_reconstruction_images: Optional[torch.Tensor] = None):
         # configurations
         super().__init__()
         self.save_hyperparameters()
 
         self.image_size = image_size
         assert channel_num in [1, 3]
-        assert beta >= 0. and optim_lr >= 0 and optim_weight_decay >= 0 and scheduler_step >= 0
         self.channel_num = channel_num
         self.ae_size = ae_size
         self.z_size = z_size
-        self.beta = beta
-        self.n_FID_samples = n_FID_samples
 
         self.output_dims = self.z_size
         self.decoder_activation_fn = None
 
         # val sampling
-        self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
-        # self.register_buffer("log_sigma", torch.tensor([[[[0.]]]]))
-        self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        # self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
 
         # self.encoder = torchvision.models.resnet18(False)
         # self.encoder.fc = nn.Identity()
@@ -145,85 +120,52 @@ class VAE(WorkspaceModule):
         self.encoder = CEncoderV2(channel_num, image_size, ae_size=ae_size, batchnorm=True)
 
         self.q_mean = nn.Linear(self.encoder.out_size, self.z_size)
-        self.q_logvar = nn.Linear(self.encoder.out_size, self.z_size)
 
         self.decoder = CDecoderV2(channel_num, image_size, ae_size=ae_size, z_size=self.z_size, batchnorm=True)
 
-    def encode_stats(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        out = self.encoder(x)
-        out = out.view(out.size(0), -1)
-
-        mean_z = self.q_mean(out)
-        var_z = self.q_logvar(out)
-        return mean_z, var_z
-
     def encode(self, x: torch.Tensor):
-        mean_z, var_z = self.encode_stats(x)
-
-        z = reparameterize(mean_z, var_z)
-        return z
+        return self.q_mean(self.encoder(x))
 
     def decode(self, z: torch.Tensor):
         return self.decoder(z)
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-        mean, logvar = self.encode_stats(x)
-        z = reparameterize(mean, logvar)
+        z = self.encode(x)
 
         # reconstruct x from z
         x_reconstructed = self.decoder(z)
 
-        return (mean, logvar), x_reconstructed
+        return z, x_reconstructed
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
-        # log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
-        # log_sigma = softclip(log_sigma, -6)
-        # self.log_sigma = log_sigma
-        loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
-        return loss
-
-    def kl_divergence_loss(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-        kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        return kl
-
-    def sample(self, size: int) -> torch.Tensor:
-        z = torch.randn(size, self.z_size).to(self.device)
-        return self.decoder(z)
-
-    def generate(self, samples):
-        return self.decode(samples)
+        return F.mse_loss(x_reconstructed, x)
 
     # Lightning
     def training_step(self, batch, batch_idx):
         x, _ = batch
-        (mean, logvar), x_reconstructed = self(x)
+        z, x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
-        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
-        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
+        total_loss = reconstruction_loss
 
         # self.log("train_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
         # self.log("train_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), retain_graph=True, allow_unused=True))
 
         self.log("train_reconstruction_loss", reconstruction_loss, logger=True)
-        self.log("log_sigma", self.log_sigma, logger=True)
-        self.log("train_kl_divergence_loss", kl_divergence_loss, logger=True)
         self.log("train_total_loss", total_loss)
 
         return total_loss
 
     def validation_step(self, batch, batch_idx):
         x, _ = batch
-        (mean, logvar), x_reconstructed = self(x)
+        z, x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
-        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
-        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
+        total_loss = reconstruction_loss
 
         # self.log("val_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
         # self.log("val_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), allow_unused=True))
 
         self.log("val_reconstruction_loss", reconstruction_loss, on_epoch=True)
-        self.log("val_kl_divergence_loss", kl_divergence_loss, on_epoch=True)
         self.log("val_total_loss", total_loss, on_epoch=True)
 
     def validation_epoch_end(self, outputs):
@@ -234,19 +176,6 @@ class VAE(WorkspaceModule):
             log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
 
         log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
-        sampled_images = self.decoder(self.validation_sampling_z)
-        log_image(self.logger, sampled_images, "val_sampling")
-
-        # FID
-        fid, mse = compute_FID(
-            self.trainer.datamodule.inception_stats_path_train,
-            self.trainer.datamodule.val_dataloader(),
-            self, self.z_size, [self.image_size, self.image_size],
-            self.device, self.n_FID_samples
-        )
-        self.log("val_fid", fid)
-        # self.print("FID: ", fid)
-        self.log("val_mse", mse)
 
         #
         # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()

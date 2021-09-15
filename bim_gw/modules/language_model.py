@@ -109,8 +109,8 @@ class ShapesLM(WorkspaceModule):
     def log_domain(self, logger, x, name):
         classes = x[0].detach().cpu().numpy()
         rotations = x[1].detach().cpu().numpy()
-        rotation_x = rotations[0]
-        rotation_y = rotations[1]
+        rotation_x = rotations[:, 0]
+        rotation_y = rotations[:, 1]
         latents = x[2].detach().cpu().numpy()
 
         # from cos / sin coordinates to angle in degrees
@@ -126,5 +126,5 @@ class ShapesLM(WorkspaceModule):
         )
 
         # text
-        text = ", ".join(map(str, [classes[0].item()] + rotations[0].tolist() + latents[0].tolist()))
+        text = ", ".join(map(str, [classes[0].item()] + [rotations[0].item()] + latents[0].tolist()))
         logger.experiment[name + "_text"].log(text)
