@@ -13,6 +13,20 @@
           </excludedPaths>
         </serverdata>
       </paths>
+      <paths name="Anita (1)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="Anita (2)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="BigGanEncoder">
         <serverdata>
           <mappings>
@@ -28,6 +42,13 @@
         </serverdata>
       </paths>
       <paths name="aireps">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="grounding-embeddings">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />

@@ -126,12 +126,13 @@ class VAE(WorkspaceModule):
 
         self.output_dims = self.z_size
         self.decoder_activation_fn = None
+        self.losses = [F.mse_loss]
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
-        # self.register_buffer("log_sigma", torch.tensor([[[[0.]]]]))
-        self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        self.register_buffer("log_sigma", torch.tensor([[[[0.]]]]))
+        # self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
 
         # self.encoder = torchvision.models.resnet18(False)
         # self.encoder.fc = nn.Identity()
@@ -177,9 +178,9 @@ class VAE(WorkspaceModule):
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
-        # log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
-        # log_sigma = softclip(log_sigma, -6)
-        # self.log_sigma = log_sigma
+        log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
+        log_sigma = softclip(log_sigma, -6)
+        self.log_sigma = log_sigma
         loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
         return loss
 

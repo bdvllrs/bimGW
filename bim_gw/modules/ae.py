@@ -103,6 +103,7 @@ class AE(WorkspaceModule):
 
         self.output_dims = self.z_size
         self.decoder_activation_fn = None
+        self.losses = [F.mse_loss]
 
         # val sampling
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)

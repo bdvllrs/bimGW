@@ -3,10 +3,8 @@ from typing import Optional
 import torch
 import torchmetrics
 from neptune.new.types import File
-from omegaconf import ListConfig
 from pytorch_lightning import LightningModule
 from torch import nn
-from torch.nn import functional as F
 
 from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.utils import val_or_default
@@ -101,30 +99,11 @@ def check_domains_eq(domains_ori, domains_comp):
             assert torch.eq(o[1], r[1]).all()
 
 
-def cross_entropy(x, y):
-    y = torch.argmax(y, 1)
-    return F.cross_entropy(x, y)
-
-
-def nll_loss(x, y):
-    y = torch.argmax(y, 1)
-    return F.nll_loss(x, y)
-
-
-loss_functions = {
-    "cosine": lambda x, y: -F.cosine_similarity(x, y),
-    "mse": F.mse_loss,
-    "cross_entropy": cross_entropy,
-    "nll": nll_loss
-}
-
-
 class GlobalWorkspace(LightningModule):
     def __init__(
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-            loss_fn=None,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             validation_domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
@@ -154,15 +133,9 @@ class GlobalWorkspace(LightningModule):
 
         # Define losses
         self.loss_fn = {}
-        for domain in self.domain_mods.keys():
-            domain_supervision_loss_fn = "cosine" if loss_fn is None else loss_fn[domain]
-            # Iterate over class and latent (they could have different loss fn)
-            if not isinstance(domain_supervision_loss_fn, ListConfig):
-                domain_supervision_loss_fn = (domain_supervision_loss_fn,)
-            for k in range(len(domain_supervision_loss_fn)):
-                assert domain_supervision_loss_fn[
-                           k] in loss_functions, f"Supervision loss function {domain_supervision_loss_fn[k]} must be in {loss_functions.keys()}."
-                self.loss_fn[f"{domain}_{k}"] = loss_functions[domain_supervision_loss_fn[k]]
+        for domain_name, domain in self.domain_mods.items():
+            for k in range(len(domain.losses)):
+                self.loss_fn[f"{domain_name}_{k}"] = domain.losses[k]
 
         # Accuracies
         train_accuracy_metrics = []

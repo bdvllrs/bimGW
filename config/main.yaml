@@ -24,15 +24,6 @@ global_workspace:
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
 
-  loss_fn: {
-    "v": "mse",
-    "t": [
-        "nll",  # shapes
-        "mse",  # rotations
-        "mse"  # rest
-    ]
-  }
-
   optim:
     lr:
       encoders: 1e-4

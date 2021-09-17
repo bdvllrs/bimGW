@@ -3,8 +3,10 @@ import torch
 from gensim.models import KeyedVectors
 
 from bim_gw.modules.workspace_module import WorkspaceModule
+from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
+from torch.nn import functional as F
 
 class SkipGramLM(WorkspaceModule):
     def __init__(self, path, classnames, load_embeddings=None):
@@ -78,6 +80,12 @@ class ShapesLM(WorkspaceModule):
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rotations
             torch.sigmoid,  # rest
+        ]
+
+        self.losses = [
+            nll_loss,  # shapes
+            F.mse_loss,  # rotations
+            F.mse_loss  # rest
         ]
 
     def encode(self, x):

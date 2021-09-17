@@ -20,16 +20,16 @@ def explore_vae(args):
 
     print("Z size", vae.z_size)
 
-    n = 12
+    n = 8
     dim_i = 0
-    dim_j = 6
+    dim_j = 7
 
     start = -1.5
     end = 1.5
     imsize = vae.image_size + 2
 
     z = torch.zeros(1, 1, vae.z_size).to(device).repeat(n, n, 1)
-    z[:, :, 1] = 1.5
+    z[:, :, 6] = -1.5
     for i in range(n):
         step = start + (end - start) * float(i) / float(n)
         z[i, :, dim_i] = step
