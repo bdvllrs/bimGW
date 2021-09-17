@@ -1,5 +1,3 @@
-
-import cv2
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
 from neptune.new.types import File
@@ -112,6 +110,8 @@ def generate_radius(n_samples, min, max):
 
 
 def generate_color(n_samples, min_lightness=0, max_lightness=256):
+    import cv2
+
     assert 0 <= max_lightness <= 256
     hls = np.random.randint([0, min_lightness, 0], [181, max_lightness, 256], size=(1, n_samples, 3), dtype=np.uint8)
     rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0].astype(np.float) / 255
@@ -136,7 +136,8 @@ def generate_class(n_samples, classes):
     return np.random.randint(len(classes), size=n_samples)
 
 
-def generate_dataset(n_samples, class_names, min_radius, max_radius, min_lightness, max_lightness, imsize, classes=None):
+def generate_dataset(n_samples, class_names, min_radius, max_radius, min_lightness, max_lightness, imsize,
+                     classes=None):
     if classes is None:
         classes = generate_class(n_samples, class_names)
     sizes = generate_radius(n_samples, min_radius, max_radius)
