@@ -20,7 +20,7 @@ def train_vae(args):
     data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))
 
     vae = VAE(
-        data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae_type,
+        data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
         data.validation_domain_examples["v"], args.vae.n_FID_samples
