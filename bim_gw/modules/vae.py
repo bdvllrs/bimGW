@@ -106,6 +106,7 @@ def softclip(tensor, min):
 
 class VAE(WorkspaceModule):
     def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
+                 vae_type="beta",
                  n_validation_examples: int = 32,
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
                  scheduler_step: int = 20, scheduler_gamma: float = 0.5,
@@ -122,6 +123,8 @@ class VAE(WorkspaceModule):
         self.ae_size = ae_size
         self.z_size = z_size
         self.beta = beta
+        assert vae_type in ["beta", "sigma", "optimal_sigma"]
+        self.vae_type = vae_type
         self.n_FID_samples = n_FID_samples
 
         self.output_dims = self.z_size
@@ -131,8 +134,10 @@ class VAE(WorkspaceModule):
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
         self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
-        self.register_buffer("log_sigma", torch.tensor([[[[0.]]]]))
-        # self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        if self.vae_type == "sigma":
+            self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
+        else:
+            self.register_buffer("log_sigma", torch.tensor(0.))
 
         # self.encoder = torchvision.models.resnet18(False)
         # self.encoder.fc = nn.Identity()
@@ -178,9 +183,10 @@ class VAE(WorkspaceModule):
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
-        log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
-        log_sigma = softclip(log_sigma, -6)
-        self.log_sigma = log_sigma
+        if self.vae_type == "optimal_sigma":
+            log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
+            log_sigma = softclip(log_sigma, -6)
+            self.log_sigma = log_sigma.squeeze()
         loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
         return loss
 

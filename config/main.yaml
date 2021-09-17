@@ -41,6 +41,7 @@ vae:
   beta: 0.5
   z_size: 12
   ae_size: 512
+  vae_type: "optimal_sigma"
 
   n_FID_samples: 1000
 
