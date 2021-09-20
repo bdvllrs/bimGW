@@ -29,12 +29,18 @@ def train_ae(args):
 
     logger = None
     if args.neptune.project_name is not None:
+        slurm_job_id = os.getenv("SLURM_JOBID", None)
+        tags = None
+        if slurm_job_id is not None:
+            tags = ["calmip", slurm_job_id]
+
         logger = NeptuneLogger(
             api_key=args.neptune.api_token,
             project=args.neptune.project_name,
             name="train_ae",
             run=args.neptune.resume,
             mode=args.neptune.mode,
+            tags=tags,
             source_files=['../**/*.py', '../readme.md',
                           '../requirements.txt', '../**/*.yaml']
         )
