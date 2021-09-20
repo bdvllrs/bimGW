@@ -71,6 +71,7 @@ def train_gw(args):
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs,
+        val_check_interval=0.25,
         multiple_trainloader_mode="max_size_cycle",
     )
 
