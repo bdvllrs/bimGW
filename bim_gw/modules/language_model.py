@@ -114,12 +114,12 @@ class ShapesLM(WorkspaceModule):
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
 
-    def log_domain(self, logger, x, name):
-        classes = x[0].detach().cpu().numpy()
-        rotations = x[1].detach().cpu().numpy()
+    def log_domain(self, logger, x, name, max_examples=None):
+        classes = x[0][:max_examples].detach().cpu().numpy()
+        rotations = x[1][:max_examples].detach().cpu().numpy()
         rotation_x = rotations[:, 0]
         rotation_y = rotations[:, 1]
-        latents = x[2].detach().cpu().numpy()
+        latents = x[2][:max_examples].detach().cpu().numpy()
 
         # from cos / sin coordinates to angle in degrees
         rotations = (360 + np.arctan2(rotation_y, rotation_x) / np.pi * 180) % 360

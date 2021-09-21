@@ -38,6 +38,9 @@ class DomainDecoder(torch.nn.Module):
 
         self.encoder_head = nn.ModuleList([
             nn.Sequential(
+                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.BatchNorm1d(self.hidden_size),
+                nn.ReLU(),
                 nn.Linear(self.hidden_size, pose_dim),
             )
             for pose_dim in self.out_dims
@@ -69,7 +72,10 @@ class DomainEncoder(nn.Module):
             nn.Linear(sum(self.in_dims), self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.out_dim),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
             nn.Linear(self.hidden_size, self.out_dim),
@@ -149,6 +155,7 @@ class GlobalWorkspace(LightningModule):
         self.grad_norms_bin = GradNormLogger()
 
         # val sampling
+        self.train_domain_examples = None
         if validation_domain_examples is not None:
             self.validation_example_list = dict()
             for key, example_vecs in validation_domain_examples.items():
@@ -191,9 +198,9 @@ class GlobalWorkspace(LightningModule):
     def demi_cycle_loss(self, domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        losses_no_coefs = {}
         total = len(domains)
         for name, domain in domains.items():
-
             coef = 1.
             if isinstance(coefficients, (int, float)):
                 coef = coefficients
@@ -210,15 +217,18 @@ class GlobalWorkspace(LightningModule):
             l = torch.tensor(0.).to(self.device)
             for k in range(len(domain)):
                 loss_fn = self.loss_fn[f"{name}_{k}"]
-                l += coef * loss_fn(out[k], domain[k]).mean() / total
-            losses[f"loss_demi_cycle_{name}"] = l
-            loss += l
+                l += loss_fn(out[k], domain[k]).mean() / total
+            losses[f"loss_demi_cycle_{name}"] = coef * l
+            losses_no_coefs[f"loss_demi_cycle_{name}"] = l
+            loss += losses[f"loss_demi_cycle_{name}"]
         losses["demi_cycle_loss"] = loss
-        return losses["demi_cycle_loss"], losses
+        losses_no_coefs["demi_cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        return losses["demi_cycle_loss"], losses, losses_no_coefs
 
     def cycle_loss(self, domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        losses_no_coefs = {}
         n = len(domains)
         total = n * (n - 1)
         for domain_name_start, domain in domains.items():
@@ -241,15 +251,18 @@ class GlobalWorkspace(LightningModule):
                     l = torch.tensor(0.).to(self.device)
                     for k in range(len(domain)):
                         loss_fn = self.loss_fn[f"{domain_name_start}_{k}"]
-                        l += coef * loss_fn(out[k], domain[k]).mean() / total
-                    losses[f"loss_cycle_{token}"] = l
-                    loss += l
+                        l += loss_fn(out[k], domain[k]).mean() / total
+                    losses[f"loss_cycle_{token}"] = coef * l
+                    losses_no_coefs[f"loss_cycle_{token}"] = l
+                    loss += losses[f"loss_cycle_{token}"]
         losses["cycle_loss"] = loss
-        return losses["cycle_loss"], losses
+        losses_no_coefs["cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        return losses["cycle_loss"], losses, losses_no_coefs
 
     def supervision_loss(self, sync_domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
+        losses_no_coefs = {}
         total = 0
         for domain_name_1, domain_1 in sync_domains.items():
             for domain_name_2, domain_2 in sync_domains.items():
@@ -270,18 +283,60 @@ class GlobalWorkspace(LightningModule):
                                 coef = coefficients[token]
 
                             loss_fn = self.loss_fn[f"{domain_name_2}_{k}"]
-                            l = coef * loss_fn(pred_domain_2[k], domain_2[k]).mean()
-                            losses[f"loss_supervision_{token}"] = l
-                            loss += l
+                            l = loss_fn(pred_domain_2[k], domain_2[k]).mean()
+                            losses[f"loss_supervision_{token}"] = coef * l
+                            losses_no_coefs[f"loss_supervision_{token}"] = l
+                            loss += losses[f"loss_supervision_{token}"]
                             total += 1
-        losses["supervision_loss"] = loss
         if total > 0:
             for name in losses.keys():
                 losses[name] = losses[name] / total
+                losses_no_coefs[name] = losses_no_coefs[name] / total
             losses["supervision_loss"] = loss / total
-        return losses["supervision_loss"], losses
+            losses_no_coefs["supervision_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        else:
+            losses["supervision_loss"] = loss
+        return losses["supervision_loss"], losses, losses_no_coefs
+
+    def step(self, latents, sync_latents, sync_supervision, mode="val"):
+        losses = dict()
+        loss_no_coef = dict()
+
+        demi_cycle_loss, l, l_no_coefs = self.demi_cycle_loss(latents, self.hparams.loss_coef_demi_cycles)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
+        cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
+        supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
+        total_loss = demi_cycle_loss + cycle_loss + supervision_loss
+        total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
+            "supervision_loss"]
+
+        for name, loss in loss_no_coef.items():
+            self.log(f"{mode}_{name}", loss, logger=True)
+        self.log(f"{mode}_total_loss", total_loss_no_coef, logger=True)
+
+        # compute accuracies
+        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}_accuracy_metrics"),
+                                                            self.accuracy_metrics_order):
+            predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
+            prediction = self.domain_mods[domain_name].decode(predicted_t)
+            accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
+                                                                 sync_supervision[domain_name])
+            self.log(f"{mode}_acc_{domain_name_start}_to_{domain_name}", accuracy,
+                     on_step=True, on_epoch=(mode == "val"))
+        return total_loss, losses
 
     def training_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.train_domain_examples = batch['sync_']
+
         opt = self.optimizers()
         opt.zero_grad()
 
@@ -289,36 +344,9 @@ class GlobalWorkspace(LightningModule):
         domains = {key: val for key, val in batch.items() if key != "sync_"}
         sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
         latents = self.project(domains)
-        ori_latents = latents.copy()
-
-        losses = dict()
-
-        demi_cycle_loss, l = self.demi_cycle_loss(latents, self.hparams.loss_coef_demi_cycles)
-        losses.update(l)
-        check_domains_eq(ori_latents, latents)
-
-        cycle_loss, l = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
-        losses.update(l)
-        check_domains_eq(ori_latents, latents)
-
         sync_latents = self.project(sync_supervision)
-        supervision_loss, l = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
-        losses.update(l)
 
-        total_loss = demi_cycle_loss + cycle_loss + supervision_loss
-
-        for name, loss in losses.items():
-            self.log(f"train_{name}", loss, logger=True)
-        self.log(f"train_total_loss", total_loss, logger=True)
-
-        # compute accuracies
-        for train_acc_fn, (domain_name_start, domain_name) in zip(self.train_accuracy_metrics,
-                                                                  self.accuracy_metrics_order):
-            predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
-            prediction = self.domain_mods[domain_name].decode(predicted_t)
-            accuracy = self.domain_mods[domain_name].compute_acc(train_acc_fn, prediction,
-                                                                 sync_supervision[domain_name])
-            self.log(f"train_acc_{domain_name_start}_to_{domain_name}", accuracy, on_step=True, on_epoch=False)
+        total_loss, losses = self.step(latents, sync_latents, sync_supervision, mode="train")
 
         if self.monitor_grad_norms:
             grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
@@ -333,32 +361,7 @@ class GlobalWorkspace(LightningModule):
 
     def validation_step(self, domains, batch_idx):
         latents = self.project(domains)
-        ori_latents = latents.copy()
-        losses = dict()
-        demi_cycle_loss, l = self.demi_cycle_loss(latents, self.hparams.loss_coef_demi_cycles)
-        losses.update(l)
-
-        check_domains_eq(ori_latents, latents)
-        cycle_loss, l = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
-        losses.update(l)
-        check_domains_eq(ori_latents, latents)
-        supervision_loss, l = self.supervision_loss(latents, self.hparams.loss_coef_supervision)
-        losses.update(l)
-
-        total_loss = demi_cycle_loss + cycle_loss + supervision_loss
-
-        for name, loss in losses.items():
-            self.log(f"val_{name}", loss, logger=True)
-        self.log(f"val_total_loss", total_loss, logger=True)
-
-        # compute accuracies
-        for val_acc_fn, (domain_name_start, domain_name) in zip(self.val_accuracy_metrics,
-                                                                self.accuracy_metrics_order):
-            predicted_t = self.translate(latents[domain_name_start], domain_name_start, domain_name)
-            prediction = self.domain_mods[domain_name].decode(predicted_t)
-            accuracy = self.domain_mods[domain_name].compute_acc(val_acc_fn, prediction, domains[domain_name])
-            self.log(f"val_acc_{domain_name_start}_to_{domain_name}", accuracy, on_step=True, on_epoch=True)
-
+        total_loss, losses = self.step(latents, latents, domains, mode="val")
         return total_loss
 
     def get_validation_examples(self):
@@ -372,6 +375,40 @@ class GlobalWorkspace(LightningModule):
             domain_examples[domain_name] = domain_example
         return domain_examples
 
+    def log_images(self, examples, slug="val", max_examples=None):
+        if self.logger is not None:
+            if self.current_epoch == 0:
+                for domain_name, domain_example in examples.items():
+                    self.domain_mods[domain_name].log_domain(self.logger, domain_example,
+                                                             f"{slug}_original_domain_{domain_name}", max_examples)
+
+            for domain_name, domain_example in examples.items():
+                # Demi cycles
+                latent_x = self.domain_mods[domain_name].encode(domain_example)
+                latent_reconstructed = self.demi_cycle(latent_x, domain_name)
+                x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+                                                         f"{slug}_demi_cycle_{domain_name}", max_examples)
+
+                for domain_name_2, domain_example_2 in examples.items():
+                    if domain_name_2 != domain_name:
+                        # Full cycles
+                        latent_x = self.domain_mods[domain_name].encode(domain_example)
+                        latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
+                        x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                        self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+                                                                 f"{slug}_cycle_{domain_name}_through_{domain_name_2}", max_examples)
+
+                        # Translations
+                        latent_start = self.domain_mods[domain_name].encode(domain_example)
+                        latent_end = self.translate(latent_start, domain_name, domain_name_2)
+                        domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
+                        self.domain_mods[domain_name_2].log_domain(
+                            self.logger, domain_end_pred,
+                            f"{slug}_translation_{domain_name}_to_{domain_name_2}",
+                            max_examples
+                        )
+
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
             validation_examples = self.get_validation_examples()
@@ -379,37 +416,10 @@ class GlobalWorkspace(LightningModule):
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
 
             if self.validation_example_list is not None:
-                if self.current_epoch == 0:
+                self.log_images(validation_examples, "val")
 
-                    for domain_name, domain_example in validation_examples.items():
-                        self.domain_mods[domain_name].log_domain(self.logger, domain_example,
-                                                                 f"val_original_domain_{domain_name}")
-
-                for domain_name, domain_example in validation_examples.items():
-                    # Demi cycles
-                    latent_x = self.domain_mods[domain_name].encode(domain_example)
-                    latent_reconstructed = self.demi_cycle(latent_x, domain_name)
-                    x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
-                    self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                             f"val_demi_cycle_{domain_name}")
-
-                    for domain_name_2, domain_example_2 in validation_examples.items():
-                        if domain_name_2 != domain_name:
-                            # Full cycles
-                            latent_x = self.domain_mods[domain_name].encode(domain_example)
-                            latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
-                            x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
-                            self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                                     f"val_cycle_{domain_name}_through_{domain_name_2}")
-
-                            # Translations
-                            latent_start = self.domain_mods[domain_name].encode(domain_example)
-                            latent_end = self.translate(latent_start, domain_name, domain_name_2)
-                            domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
-                            self.domain_mods[domain_name_2].log_domain(
-                                self.logger, domain_end_pred,
-                                f"val_translation_{domain_name}_to_{domain_name_2}"
-                            )
+            if self.train_domain_examples is not None:
+                self.log_images(self.train_domain_examples, "train", 32)
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()

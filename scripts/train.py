@@ -59,7 +59,9 @@ def train_gw(args):
 
     # Callbacks
     # callbacks = [ModelCheckpoint(save_top_k=1, mode="min", monitor="val_total_loss")]
-    callbacks = [EarlyStopping("val_total_loss", patience=3)]
+    callbacks = [
+        # EarlyStopping("val_total_loss", patience=6),
+    ]
     if logger is not None:
         callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 

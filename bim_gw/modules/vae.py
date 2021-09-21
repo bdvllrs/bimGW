@@ -274,8 +274,8 @@ class VAE(WorkspaceModule):
                                                     self.hparams.scheduler_gamma)
         return [optimizer], [scheduler]
 
-    def log_domain(self, logger, x, title):
-        log_image(logger, x, title)
+    def log_domain(self, logger, x, title, max_examples=None):
+        log_image(logger, x[:max_examples], title)
 
 
 class CEncoderV2(nn.Module):
