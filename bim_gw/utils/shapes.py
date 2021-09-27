@@ -1,6 +1,19 @@
+import matplotlib.path as mpath
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
 from neptune.new.types import File
+
+
+def get_diamond_patch(location, radius, rotation, color):
+    x, y = location[0], location[1]
+    coordinates = np.array([[0, 1.3 * radius],
+                            [-0.75 * radius, 0],
+                            [0, -0.7 * radius],
+                            [0.75 * radius, 0]])
+    origin = np.array([[x, y]])
+    rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
+    patch = patches.Polygon(origin + coordinates @ rotation_m.T, facecolor=color)
+    return patch
 
 
 def get_square_patch(location, radius, rotation, color):
@@ -9,9 +22,9 @@ def get_square_patch(location, radius, rotation, color):
                             [radius, radius],
                             [radius, -radius],
                             [-radius, -radius]])
-    origin = np.array([[x, y], [x, y], [x, y], [x, y]])
+    origin = np.array([[x, y]])
     rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
-    patch = patches.Polygon(origin + coordinates @ rotation_m, facecolor=color)
+    patch = patches.Polygon(origin + coordinates @ rotation_m.T, facecolor=color)
     return patch
 
 
@@ -20,9 +33,10 @@ def get_triangle_patch(location, radius, rotation, color):
     coordinates = np.array([[-radius, 0],
                             [radius, 0],
                             [radius, -radius]])
-    origin = np.array([[x, y], [x, y], [x, y]])
+    center = np.mean(coordinates, axis=0)
+    origin = np.array([[x, y]])
     rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
-    patch = patches.Polygon(origin + coordinates @ rotation_m, facecolor=color)
+    patch = patches.Polygon(origin + center + (coordinates - center) @ rotation_m.T, facecolor=color)
     return patch
 
 
@@ -32,11 +46,31 @@ def get_circle_patch(location, radius, rotation, color):
     return patch
 
 
+def get_egg_patch(location, radius, rotation, color):
+    x, y = location[0], location[1]
+    coordinates = np.array([[0, -0.5],
+                            [0.8, -0.5],
+                            [0.3, 0.5],
+                            [0, 0.5],
+                            [-0.3, 0.5],
+                            [-0.8, -0.5],
+                            [0, -0.5]])
+    scale = radius * 1.4
+    center = np.array([[0.5, 0.5]])
+    origin = np.array([[x, y]])
+    rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
+    codes = [mpath.Path.MOVETO, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
+             mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4]
+    path = mpath.Path(origin + (center + coordinates @ rotation_m.T) * scale, codes)
+    patch = patches.PathPatch(path, facecolor=color)
+    return patch
+
+
 def generate_image(ax, cls, location, radius, rotation, color, imsize=32):
     if cls == 0:
-        patch = get_square_patch(location, radius, rotation, color)
+        patch = get_diamond_patch(location, radius, rotation, color)
     elif cls == 1:
-        patch = get_circle_patch(location, radius, rotation, color)
+        patch = get_egg_patch(location, radius, rotation, color)
     elif cls == 2:
         patch = get_triangle_patch(location, radius, rotation, color)
     else:

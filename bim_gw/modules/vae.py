@@ -1,6 +1,5 @@
 from typing import Optional, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -8,6 +7,7 @@ from torch.nn import functional as F
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.utils import log_image
+from bim_gw.utils.vae import reparameterize, gaussian_nll, softclip
 
 
 class DeconvResNetBlock(nn.Module):
@@ -86,23 +86,6 @@ class ResNetDecoder(nn.Module):
         out = self.conv(out)
         return out
 
-
-def reparameterize(mean, logvar):
-    std = logvar.mul(0.5).exp()
-    eps = torch.randn_like(std)
-    return eps.mul(std).add(mean)
-
-def gaussian_nll(mu, log_sigma, x):
-    # D = mu.size(0) * mu.size(1) * mu.size(2) * mu.size(3)
-    r = 0.5 * torch.pow((x - mu) / log_sigma.exp(), 2) + log_sigma + 0.5 * np.log(2 * np.pi)
-    # r = D * log_sigma
-    return r
-
-def softclip(tensor, min):
-    """ Clips the tensor values at the minimum value min in a softway. Taken from Handful of Trials """
-    result_tensor = min + F.softplus(tensor - min)
-
-    return result_tensor
 
 class VAE(WorkspaceModule):
     def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,

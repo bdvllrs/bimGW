@@ -28,20 +28,20 @@ class DomainDecoder(torch.nn.Module):
         self.activation_fn = activation_fn
 
         self.encoder = nn.Sequential(
-            nn.Linear(self.in_dim, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
+            nn.Linear(self.in_dim, self.hidden_size // 2),
+            nn.BatchNorm1d(self.hidden_size // 2),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Linear(self.hidden_size // 2, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
         )
 
         self.encoder_head = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(self.hidden_size, self.hidden_size),
-                nn.BatchNorm1d(self.hidden_size),
+                nn.Linear(self.hidden_size, self.hidden_size // 2),
+                nn.BatchNorm1d(self.hidden_size // 2),
                 nn.ReLU(),
-                nn.Linear(self.hidden_size, pose_dim),
+                nn.Linear(self.hidden_size // 2, pose_dim),
             )
             for pose_dim in self.out_dims
         ])
@@ -69,16 +69,16 @@ class DomainEncoder(nn.Module):
         self.hidden_size = hidden_size
 
         self.encoder = nn.Sequential(
-            nn.Linear(sum(self.in_dims), self.hidden_size),
+            nn.Linear(sum(self.in_dims), self.hidden_size // 2),
+            nn.BatchNorm1d(self.hidden_size // 2),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size // 2, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
+            nn.Linear(self.hidden_size, self.hidden_size // 2),
+            nn.BatchNorm1d(self.hidden_size // 2),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.out_dim),
+            nn.Linear(self.hidden_size // 2, self.out_dim),
         )
 
     def forward(self, x):
@@ -90,6 +90,7 @@ class DomainEncoder(nn.Module):
             x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)
+        # return out
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -334,7 +335,7 @@ class GlobalWorkspace(LightningModule):
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
-        if batch_idx == 0:
+        if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = batch['sync_']
 
         opt = self.optimizers()
