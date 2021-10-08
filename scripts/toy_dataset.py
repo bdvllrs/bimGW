@@ -37,7 +37,7 @@ def save_labels(path_root, dataset):
 def main():
     seed = 0
     image_size = 32
-    dataset_location = Path("/mnt/SSD/datasets/shapes_v4")
+    dataset_location = Path("/mnt/SSD/datasets/shapes_v5")
     size_train_set = 500_000
     size_val_set = 50_000
     size_test_set = 50_000

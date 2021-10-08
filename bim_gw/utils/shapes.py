@@ -116,18 +116,18 @@ def get_fig_from_specs(cls, locations, radii, rotations, colors, imsize=32, ncol
     return fig
 
 
-def get_image_specs_from_latents(cls, rotations, latents):
+def get_image_specs_from_latents(cls, latents):
     output = dict()
     output['cls'] = cls
     output['locations'] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
     output['radii'] = latents[:, 2]
-    output['rotations'] = rotations
-    output['colors'] = np.stack((latents[:, 3], latents[:, 4], latents[:, 5]), axis=1)
+    output['rotations'] = latents[:, 3] * 360
+    output['colors'] = np.stack((latents[:, 4], latents[:, 5], latents[:, 6]), axis=1)
     return output
 
 
-def log_shape_fig(logger, classes, rotations, latents, name):
-    spec = get_image_specs_from_latents(classes, rotations, latents)
+def log_shape_fig(logger, classes, latents, name):
+    spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
     # plt.tight_layout(pad=0)
 

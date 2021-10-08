@@ -31,7 +31,7 @@ def explore_vae(args):
             # dim_j = 2
 
             z = torch.zeros(n, n, vae.z_size).to(device)
-            # z[:, :, 4] = -1.5
+            z[:, :, 1] = 3
             for i in range(n):
                 step = start + (end - start) * float(i) / float(n-1)
                 z[i, :, dim_i] = step

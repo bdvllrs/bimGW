@@ -74,17 +74,17 @@ class ShapesLM(WorkspaceModule):
         self.z_size = 3
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 2, 6]
+        self.output_dims = [self.z_size, 7]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
-            torch.tanh,  # rotations
+            # torch.tanh,  # rotations
             torch.sigmoid,  # rest
         ]
 
         self.losses = [
             nll_loss,  # shapes
-            F.mse_loss,  # rotations
+            # F.mse_loss,  # rotations
             F.mse_loss  # rest
         ]
 
@@ -92,23 +92,22 @@ class ShapesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, x):
-        logits, rotations, latent = x
+        logits, latent = x
         out_latents = latent.clone()
         out_latents[:, 0] = latent[:, 0] * self.imsize
         out_latents[:, 1] = latent[:, 1] * self.imsize
-        out_latents[:, 2] = latent[:, 2] * self.imsize
+        # out_latents[:, 2] = latent[:, 2] * self.imsize
         return (torch.argmax(logits, dim=-1),
-                rotations,
                 out_latents)
 
     def forward(self, x: list):
-        cls, rotations, latents = x
+        cls, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = latents[:, 0] / self.imsize
         out_latents[:, 1] = latents[:, 1] / self.imsize
-        out_latents[:, 2] = latents[:, 2] / self.imsize
+        # out_latents[:, 2] = latents[:, 2] / self.imsize
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                rotations,
+                # rotations,
                 out_latents)
 
     def compute_acc(self, acc_metric, predictions, targets):
@@ -116,23 +115,23 @@ class ShapesLM(WorkspaceModule):
 
     def log_domain(self, logger, x, name, max_examples=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
-        rotations = x[1][:max_examples].detach().cpu().numpy()
-        rotation_x = rotations[:, 0]
-        rotation_y = rotations[:, 1]
-        latents = x[2][:max_examples].detach().cpu().numpy()
+        # rotations = x[1][:max_examples].detach().cpu().numpy()
+        # rotation_x = rotations[:, 0]
+        # rotation_y = rotations[:, 1]
+        latents = x[1][:max_examples].detach().cpu().numpy()
 
         # from cos / sin coordinates to angle in degrees
-        rotations = (360 + np.arctan2(rotation_y, rotation_x) / np.pi * 180) % 360
+        # rotations = (360 + np.arctan2(rotation_y, rotation_x) / np.pi * 180) % 360
 
         # visualization
         log_shape_fig(
             logger,
             classes,
-            rotations,
+            # rotations,
             latents,
             name + "_vis"
         )
 
         # text
-        text = ", ".join(map(str, [classes[0].item()] + [rotations[0].item()] + latents[0].tolist()))
+        text = ", ".join(map(str, [classes[0].item()] + latents[0].tolist()))
         logger.experiment[name + "_text"].log(text)

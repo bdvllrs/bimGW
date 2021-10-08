@@ -54,19 +54,19 @@ class SimpleShapesDataset:
         cls = int(label[0])
         x, y = label[1], label[2]
         radius = label[3]
-        if cls == 0:  # square
-            rotation = label[4] % 90
-        elif cls == 1:  # circle
-            rotation = 0
-        else:
-            rotation = label[4]
-        rotation = rotation * 2 * np.pi / 360  # put in radians
+        # if cls == 0:  # square
+        #     rotation = label[4] % 90
+        # elif cls == 1:  # circle
+        #     rotation = 0
+        # else:
+        rotation = label[4] / 360
+        # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = label[5], label[6], label[7]
 
         labels = [
             cls,
-            torch.tensor([np.cos(rotation), np.sin(rotation)], dtype=torch.float),
-            torch.tensor([x, y, radius, r, g, b]),
+            # torch.tensor([np.cos(rotation), np.sin(rotation)], dtype=torch.float),
+            torch.tensor([x, y, radius, rotation, r, g, b]),
         ]
 
         if self.output_transform is not None:
