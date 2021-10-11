@@ -6,6 +6,7 @@ from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.compute_fid import compute_FID
+from bim_gw.utils.losses.mmd import mmd_loss
 from bim_gw.utils.utils import log_image
 from bim_gw.utils.vae import reparameterize, gaussian_nll, softclip
 
@@ -112,7 +113,7 @@ class VAE(WorkspaceModule):
 
         self.output_dims = self.z_size
         self.decoder_activation_fn = None
-        self.losses = [F.mse_loss]
+        self.losses = [lambda x, y: F.mse_loss(x, y) + mmd_loss(x, y)]
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
