@@ -37,14 +37,14 @@ def save_labels(path_root, dataset):
 def main():
     seed = 0
     image_size = 32
-    dataset_location = Path("/mnt/SSD/datasets/shapes_v5")
-    size_train_set = 500_000
-    size_val_set = 50_000
-    size_test_set = 50_000
+    dataset_location = Path("/mnt/SSD/datasets/shapes_v6")
+    size_train_set = 50_000
+    size_val_set = 5_000
+    size_test_set = 5_000
 
     # in pixels
     min_radius = 5
-    max_radius = 11
+    max_radius = 10
     min_lightness = 46  # of the HSL format. Higher value generates lighter images. Max is 256
     max_lightness = 256  # of the HSL format. Higher value generates lighter images. Max is 256
     class_names = np.array(["square", "circle", "triangle"])

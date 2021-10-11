@@ -30,11 +30,13 @@ def get_square_patch(location, radius, rotation, color):
 
 def get_triangle_patch(location, radius, rotation, color):
     x, y = location[0], location[1]
-    coordinates = np.array([[-radius, 0],
-                            [radius, 0],
-                            [radius, -radius]])
+    coordinates = np.array([[-radius / 2, -radius / 2],
+                            [radius / 2, -radius / 2],
+                            [radius / 2, radius]])
     center = np.mean(coordinates, axis=0)
+    # center = np.array([[0, 0]])
     origin = np.array([[x, y]])
+    # rotation = rotation - np.pi / 2
     rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
     patch = patches.Polygon(origin + center + (coordinates - center) @ rotation_m.T, facecolor=color)
     return patch
@@ -56,7 +58,7 @@ def get_egg_patch(location, radius, rotation, color):
                             [-0.8, -0.5],
                             [0, -0.5]])
     scale = radius * 1.4
-    center = np.array([[0.5, 0.5]])
+    center = np.array([[0, 0]])
     origin = np.array([[x, y]])
     rotation_m = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
     codes = [mpath.Path.MOVETO, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
@@ -138,9 +140,10 @@ def log_shape_fig(logger, classes, latents, name):
     plt.close(fig)
 
 
-def generate_radius(n_samples, min, max):
-    assert max > min
-    return np.random.randint(min, max, n_samples)
+def generate_radius(n_samples, min_val, max_val):
+    assert max_val > min_val
+    # return np.random.randint(min_val, max_val, n_samples)
+    return np.full(n_samples, max_val)
 
 
 def generate_color(n_samples, min_lightness=0, max_lightness=256):
@@ -153,7 +156,8 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
 
 
 def generate_rotation(n_samples, classes):
-    rotations = np.random.rand(n_samples) * 360
+    # rotations = np.random.rand(n_samples) * 2 * np.pi
+    rotations = np.full(n_samples, 0)
     # rotations[classes == 1] = 0  # circles don't have rotations
     # rotations[classes == 0] = rotations[classes == 0] % 90
     return rotations
@@ -163,6 +167,7 @@ def generate_location(n_samples, radius, imsize):
     assert (radius <= imsize / (2 * np.sqrt(2))).all()
     radii = np.sqrt(2) * np.stack((radius, radius), axis=1)
     locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
+    # locations = np.full((n_samples, 2), imsize // 2)
     return locations
 
 

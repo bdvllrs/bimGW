@@ -34,9 +34,6 @@ class DomainDecoder(torch.nn.Module):
             nn.Linear(self.in_dim, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
         )
 
         self.encoder_head = nn.ModuleList([
@@ -70,9 +67,6 @@ class DomainEncoder(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims), self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
             nn.Linear(self.hidden_size, self.out_dim),
@@ -379,6 +373,17 @@ class GlobalWorkspace(LightningModule):
                 for domain_name, domain_example in examples.items():
                     self.domain_mods[domain_name].log_domain(self.logger, domain_example,
                                                              f"{slug}_original_domain_{domain_name}", max_examples)
+
+                    if domain_name == "v":
+                        latent = self.domain_mods[domain_name].encode(domain_example)
+                        fig, axes = plt.subplots(1, latent.size(1))
+                        for k in range(latent.size(1)):
+                            l = latent.detach().cpu().numpy()[:, k]
+                            x = np.linspace(-0.8, 0.8, 100)
+                            axes[k].hist(l, 50, density=True)
+                            axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                        self.logger.experiment["original_v_hist"].log(File.as_image(fig))
+                        plt.close(fig)
 
             for domain_name, domain_example in examples.items():
                 # Demi cycles
