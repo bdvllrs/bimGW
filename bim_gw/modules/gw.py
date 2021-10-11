@@ -1,7 +1,10 @@
 from typing import Optional
 
+import numpy as np
+import scipy
 import torch
 import torchmetrics
+from matplotlib import pyplot as plt
 from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
@@ -403,6 +406,16 @@ class GlobalWorkspace(LightningModule):
                             f"{slug}_translation_{domain_name}_to_{domain_name_2}",
                             max_examples
                         )
+                        if domain_name == "t" and domain_name_2 == "v":
+                            fig, axes = plt.subplots(1, latent_end.size(1))
+                            for k in range(latent_end.size(1)):
+                                l = latent_end.detach().cpu().numpy()[:, k]
+                                x = np.linspace(-0.8, 0.8, 100)
+                                axes[k].hist(l, 50, density=True)
+                                axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                            self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
+                            plt.close(fig)
+
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:

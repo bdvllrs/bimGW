@@ -147,10 +147,10 @@ class VAE(WorkspaceModule):
         return mean_z, var_z
 
     def encode(self, x: torch.Tensor):
-        mean_z, var_z = self.encode_stats(x)
+        mean_z, _ = self.encode_stats(x)
 
-        z = reparameterize(mean_z, var_z)
-        return z
+        # z = reparameterize(mean_z, var_z)
+        return mean_z
 
     def decode(self, z: torch.Tensor):
         return self.decoder(z)
