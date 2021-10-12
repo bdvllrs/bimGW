@@ -65,8 +65,8 @@ def train_vae(args):
 
     trainer.fit(vae, data)
 
-    vae.n_FID_samples = data.val_dataset_size  # all the dataset
-    trainer.validate()
+    # vae.n_FID_samples = data.val_dataset_size  # all the dataset
+    # trainer.validate()
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ global_workspace:
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
+  vae_mmd_loss_coef: 0.
 
   optim:
     lr:

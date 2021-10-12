@@ -111,6 +111,7 @@ class GlobalWorkspace(LightningModule):
 
         for mod in domain_mods.values():
             assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
+            mod.freeze()  # insures that all modules are frozen
 
         self.domain_mods = nn.ModuleDict(domain_mods)
         self.domain_names = list(domain_mods.keys())
@@ -162,7 +163,7 @@ class GlobalWorkspace(LightningModule):
 
     def project(self, domains):
         """
-        Projects unimodal domains to global workspace
+        Encodes unimodal inputs to their unimodal latent version
         """
         out = dict()
         for domain_name, x in domains.items():
@@ -171,7 +172,13 @@ class GlobalWorkspace(LightningModule):
         return out
 
     def forward(self, domains):
-        pass
+        """
+        Projects from latent version of unimodal vectors to the global workspace.
+        """
+        out = dict()
+        for domain_name, x in domains.items():
+            out[domain_name] = self.encoders[domain_name](x)
+        return out
 
     def translate(self, x, domain_name_start, domain_name_target):
         """
@@ -198,11 +205,11 @@ class GlobalWorkspace(LightningModule):
                 coef = coefficients
             elif name in coefficients:
                 coef = coefficients[name]
+            assert coef >= 0, "coefs must be positive."
 
             out = self.demi_cycle(domain, name)
 
             if not isinstance(domain, (list, tuple)):
-                assert not isinstance(domain, (list, tuple))
                 domain = [domain]
                 out = [out]
 
@@ -400,7 +407,8 @@ class GlobalWorkspace(LightningModule):
                         latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
                         x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
                         self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                                 f"{slug}_cycle_{domain_name}_through_{domain_name_2}", max_examples)
+                                                                 f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
+                                                                 max_examples)
 
                         # Translations
                         latent_start = self.domain_mods[domain_name].encode(domain_example)
@@ -420,7 +428,6 @@ class GlobalWorkspace(LightningModule):
                                 axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
                             self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
                             plt.close(fig)
-
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:

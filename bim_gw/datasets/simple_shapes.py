@@ -59,7 +59,7 @@ class SimpleShapesDataset:
         # elif cls == 1:  # circle
         #     rotation = 0
         # else:
-        rotation = label[4] / 360
+        rotation = label[4] / (2 * np.pi)
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = label[5], label[6], label[7]
 
