@@ -96,7 +96,8 @@ class VAE(WorkspaceModule):
                  scheduler_step: int = 20, scheduler_gamma: float = 0.5,
                  validation_reconstruction_images: Optional[torch.Tensor] = None,
                  n_FID_samples=1000,
-                 mmd_loss_coef=0.):
+                 mmd_loss_coef=0.,
+                 kl_loss_coef=0.):
         # configurations
         super().__init__()
         self.save_hyperparameters()
@@ -114,7 +115,10 @@ class VAE(WorkspaceModule):
 
         self.output_dims = self.z_size
         self.decoder_activation_fn = None
-        self.losses = [lambda x, y: F.mse_loss(x, y) + mmd_loss_coef * mmd_loss(x, y)]
+        self.losses = [lambda x, y: (F.mse_loss(x, y) +
+                                     mmd_loss_coef * mmd_loss(x, y) +
+                                     kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
+                                     )]
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))

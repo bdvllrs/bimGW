@@ -79,7 +79,7 @@ class ShapesLM(WorkspaceModule):
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             # torch.tanh,  # rotations
-            torch.sigmoid,  # rest
+            torch.tanh,  # rest
         ]
 
         self.losses = [
@@ -93,7 +93,7 @@ class ShapesLM(WorkspaceModule):
 
     def decode(self, x):
         logits, latent = x
-        out_latents = latent.clone()
+        out_latents = (latent.clone() + 1) / 2
         out_latents[:, 0] = latent[:, 0] * self.imsize
         out_latents[:, 1] = latent[:, 1] * self.imsize
         out_latents[:, 2] = latent[:, 2] * self.imsize
@@ -108,7 +108,7 @@ class ShapesLM(WorkspaceModule):
         out_latents[:, 2] = latents[:, 2] / self.imsize
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
-                out_latents)
+                out_latents * 2 - 1)
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))

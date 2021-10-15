@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 from pytorch_lightning import LightningDataModule
+from torch.utils.data import Subset
 from torchvision import transforms
 
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
@@ -60,6 +61,7 @@ class SimpleShapesDataset:
         #     rotation = 0
         # else:
         rotation = label[4] / (2 * np.pi)
+        assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = label[5], label[6], label[7]
 
@@ -175,7 +177,7 @@ class SimpleShapesData(LightningDataModule):
         if self.bimodal:
             dataloaders = {}
             for key, dataset in self.train_datasets.items():
-                dataloaders[key] = torch.utils.data.DataLoader(dataset,
+                dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 10 * self.batch_size)),
                                                                batch_size=self.batch_size, shuffle=True,
                                                                num_workers=self.num_workers, pin_memory=True)
             return dataloaders

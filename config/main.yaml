@@ -24,6 +24,7 @@ global_workspace:
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
   vae_mmd_loss_coef: 0.
+  vae_kl_loss_coef: 0.
 
   optim:
     lr:

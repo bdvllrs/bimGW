@@ -34,10 +34,19 @@ class DomainDecoder(torch.nn.Module):
             nn.Linear(self.in_dim, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
         )
 
         self.encoder_head = nn.ModuleList([
             nn.Sequential(
+                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.BatchNorm1d(self.hidden_size),
+                nn.ReLU(),
                 nn.Linear(self.hidden_size, pose_dim),
             )
             for pose_dim in self.out_dims
@@ -67,6 +76,15 @@ class DomainEncoder(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims), self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
             nn.Linear(self.hidden_size, self.out_dim),
