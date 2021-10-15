@@ -177,7 +177,7 @@ class SimpleShapesData(LightningDataModule):
         if self.bimodal:
             dataloaders = {}
             for key, dataset in self.train_datasets.items():
-                dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 10 * self.batch_size)),
+                dataloaders[key] = torch.utils.data.DataLoader(dataset,
                                                                batch_size=self.batch_size, shuffle=True,
                                                                num_workers=self.num_workers, pin_memory=True)
             return dataloaders
