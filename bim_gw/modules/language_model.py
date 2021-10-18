@@ -94,18 +94,18 @@ class ShapesLM(WorkspaceModule):
     def decode(self, x):
         logits, latent = x
         out_latents = (latent.clone() + 1) / 2
-        out_latents[:, 0] = latent[:, 0] * self.imsize
-        out_latents[:, 1] = latent[:, 1] * self.imsize
-        out_latents[:, 2] = latent[:, 2] * self.imsize
+        out_latents[:, 0] = out_latents[:, 0] * self.imsize
+        out_latents[:, 1] = out_latents[:, 1] * self.imsize
+        out_latents[:, 2] = out_latents[:, 2] * self.imsize
         return (torch.argmax(logits, dim=-1),
                 out_latents)
 
     def forward(self, x: list):
         cls, latents = x
         out_latents = latents.clone()
-        out_latents[:, 0] = latents[:, 0] / self.imsize
-        out_latents[:, 1] = latents[:, 1] / self.imsize
-        out_latents[:, 2] = latents[:, 2] / self.imsize
+        out_latents[:, 0] = out_latents[:, 0] / self.imsize
+        out_latents[:, 1] = out_latents[:, 1] / self.imsize
+        out_latents[:, 2] = out_latents[:, 2] / self.imsize
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
                 out_latents * 2 - 1)
