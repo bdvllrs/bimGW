@@ -81,12 +81,6 @@ class DomainEncoder(nn.Module):
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU(),
             nn.Linear(self.hidden_size, self.out_dim),
         )
 
