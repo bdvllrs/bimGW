@@ -171,9 +171,9 @@ def generate_rotation(n_samples, classes):
 
 def generate_location(n_samples, scale, imsize):
     assert (scale <= imsize).all()
-    radii = 1.2 * np.stack((scale / 2, scale / 2), axis=1)
-    locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
-    # locations = np.full((n_samples, 2), imsize // 2)
+    # radii = 1.2 * np.stack((scale / 2, scale / 2), axis=1)
+    # locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
+    locations = np.full((n_samples, 2), imsize // 2)
     return locations
 
 
