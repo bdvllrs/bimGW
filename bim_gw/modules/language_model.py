@@ -77,13 +77,13 @@ class ShapesLM(WorkspaceModule):
         self.output_dims = [self.z_size, 7]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
-            lambda x: torch.log_softmax(x, dim=1),  # shapes
+            lambda x: torch.softmax(x, dim=1),  # shapes
             # torch.tanh,  # rotations
             torch.tanh,  # rest
         ]
 
         self.losses = [
-            nll_loss,  # shapes
+            lambda x, y: nll_loss(x.log(), y),  # shapes
             # F.mse_loss,  # rotations
             F.mse_loss  # rest
         ]

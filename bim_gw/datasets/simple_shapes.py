@@ -135,43 +135,49 @@ class SimpleShapesData(LightningDataModule):
         if self.bimodal:
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
                                                   lambda v, t: {"v": v, "t": t})
+            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
+                                                   lambda v, t: {"v": v, "t": t})
             visual_index = "v"
             text_index = "t"
         else:
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
             visual_index = 0
             text_index = 1
 
-        validation_reconstruction_indices = torch.randint(len(self.shapes_val), size=(self.validation_domain_examples,))
+        test_set = self.shapes_val if stage == "fit" else self.shapes_test
+
+        validation_reconstruction_indices = torch.randint(len(test_set), size=(self.validation_domain_examples,))
 
         self.validation_domain_examples = {
-            "v": torch.stack([self.shapes_val[k][visual_index] for k in validation_reconstruction_indices], dim=0),
+            "v": torch.stack([test_set[k][visual_index] for k in validation_reconstruction_indices], dim=0),
             "t": []
         }
 
         # add t examples
-        for k in range(len(self.shapes_val[0][text_index])):
-            if isinstance(self.shapes_val[0][text_index][k], (int, float)):
+        for k in range(len(test_set[0][text_index])):
+            if isinstance(test_set[0][text_index][k], (int, float)):
                 self.validation_domain_examples["t"].append(
-                    torch.tensor([self.shapes_val[i][text_index][k] for i in validation_reconstruction_indices])
+                    torch.tensor([test_set[i][text_index][k] for i in validation_reconstruction_indices])
                 )
             else:
                 self.validation_domain_examples["t"].append(
-                    torch.stack([self.shapes_val[i][text_index][k] for i in validation_reconstruction_indices], dim=0)
+                    torch.stack([test_set[i][text_index][k] for i in validation_reconstruction_indices], dim=0)
                 )
-
-        if stage == "test" or stage is None:
-            raise NotImplementedError
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                        get_preprocess(self.use_data_augmentation))
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+        test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
                                                                      "shapes_train",
                                                                      batch_size, device)
         self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.simple_shapes_folder, "shapes_val",
                                                                    batch_size, device)
+
+        self.inception_stats_path_test = compute_dataset_statistics(test_ds, self.simple_shapes_folder, "shapes_test",
+                                                                    batch_size, device)
 
     def train_dataloader(self):
         if self.bimodal:
@@ -188,4 +194,8 @@ class SimpleShapesData(LightningDataModule):
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.shapes_val, self.batch_size,
+                                           num_workers=self.num_workers, pin_memory=True)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.shapes_test, self.batch_size,
                                            num_workers=self.num_workers, pin_memory=True)

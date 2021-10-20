@@ -11,7 +11,7 @@ from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
 
-def train_gw(args):
+def test_model(args):
     seed_everything(args.seed)
 
     data = load_dataset(args, args.global_workspace, bimodal=True)
@@ -28,17 +28,10 @@ def train_gw(args):
     lm = get_lm(args, data)
     lm.freeze()
 
-    global_workspace = GlobalWorkspace({
+    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods={
         "v": vae,
         "t": lm
-    }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
-        args.losses.coefs.demi_cycles,
-        args.losses.coefs.cycles, args.losses.coefs.supervision,
-        args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
-        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        data.validation_domain_examples,
-        args.global_workspace.monitor_grad_norms
-    )
+    })
 
     logger = None
     if args.neptune.project_name is not None:
@@ -82,8 +75,8 @@ def train_gw(args):
         multiple_trainloader_mode="max_size_cycle",
     )
 
-    trainer.fit(global_workspace, data)
+    trainer.test(global_workspace, data)
 
 
 if __name__ == "__main__":
-    train_gw(get_args(debug=int(os.getenv("DEBUG", 0))))
+    test_model(get_args(debug=int(os.getenv("DEBUG", 0))))
