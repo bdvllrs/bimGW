@@ -1,3 +1,4 @@
+import io
 import matplotlib.path as mpath
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
@@ -140,8 +141,15 @@ def log_shape_fig(logger, classes, latents, name):
     # plt.tight_layout(pad=0)
 
     if logger is not None:
+        # with io.BytesIO() as io_buf:
+        #     fig.savefig(io_buf, format='raw')
+        #     io_buf.seek(0)
+        #     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+        #                          newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+
         logger.experiment[name].log(File.as_image(fig))
     else:
+        # plt.title(name)
         plt.show()
     plt.close(fig)
 
@@ -171,9 +179,9 @@ def generate_rotation(n_samples, classes):
 
 def generate_location(n_samples, scale, imsize):
     assert (scale <= imsize).all()
-    # radii = 1.2 * np.stack((scale / 2, scale / 2), axis=1)
-    # locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
-    locations = np.full((n_samples, 2), imsize // 2)
+    radii = 1.2 * np.stack((scale / 2, scale / 2), axis=1)
+    locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
+    # locations = np.full((n_samples, 2), imsize // 2)
     return locations
 
 

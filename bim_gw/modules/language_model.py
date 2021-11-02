@@ -1,14 +1,20 @@
 import numpy as np
 import torch
 from gensim.models import KeyedVectors
+from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
-from torch.nn import functional as F
 
 class SkipGramLM(WorkspaceModule):
+    def log_domain(self, logger, x, title, max_examples=None):
+        pass
+
+    def compute_acc(self, acc_metric, predictions, targets):
+        pass
+
     def __init__(self, path, classnames, load_embeddings=None):
         super(SkipGramLM, self).__init__()
 
@@ -113,15 +119,25 @@ class ShapesLM(WorkspaceModule):
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
 
+    def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
+        samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
+        cls = samples["classes"]
+        x, y = samples["locations"][:, 0], samples["locations"][:, 1]
+        radius = samples["sizes"]
+        rotation = samples["rotations"] / (2 * np.pi)
+        # assert 0 <= rotation <= 1
+        # rotation = rotation * 2 * np.pi / 360  # put in radians
+        r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
+
+        labels = [
+            torch.from_numpy(cls),
+            torch.from_numpy(np.stack([x, y, radius, rotation, r, g, b], axis=1)).to(torch.float),
+        ]
+        return labels
+
     def log_domain(self, logger, x, name, max_examples=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
-        # rotations = x[1][:max_examples].detach().cpu().numpy()
-        # rotation_x = rotations[:, 0]
-        # rotation_y = rotations[:, 1]
         latents = x[1][:max_examples].detach().cpu().numpy()
-
-        # from cos / sin coordinates to angle in degrees
-        # rotations = (360 + np.arctan2(rotation_y, rotation_x) / np.pi * 180) % 360
 
         # visualization
         log_shape_fig(

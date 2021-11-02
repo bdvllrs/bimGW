@@ -1,7 +1,6 @@
 import os
 
-from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning import seed_everything, Trainer
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
@@ -11,7 +10,7 @@ from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args
 
 
-def test_model(args):
+def tests(args):
     seed_everything(args.seed)
 
     data = load_dataset(args, args.global_workspace, bimodal=True)
@@ -32,6 +31,7 @@ def test_model(args):
         "v": vae,
         "t": lm
     })
+    global_workspace.eval()
 
     logger = None
     if args.neptune.project_name is not None:
@@ -43,7 +43,7 @@ def test_model(args):
         logger = NeptuneLogger(
             api_key=args.neptune.api_token,
             project=args.neptune.project_name,
-            name="train_gw",
+            name="test",
             run=args.neptune.resume,
             mode=args.neptune.mode,
             tags=tags,
@@ -53,30 +53,16 @@ def test_model(args):
 
         logger.experiment["parameters"] = dict(args)
 
-    # Callbacks
-    callbacks = []
-    # callbacks = [
-    #     EarlyStopping("val_total_loss", patience=6),
-    # ]
-    if logger is not None:
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-        callbacks.append(ModelCheckpoint(save_top_k=1, mode="min", monitor="val_supervision_loss"))
-
-
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
-        # fast_dev_run=True,
         gpus=args.gpus, logger=logger,
-        callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
-        max_epochs=args.max_epochs,
-        # val_check_interval=0.25,
-        multiple_trainloader_mode="max_size_cycle",
+        max_epochs=args.max_epochs, log_every_n_steps=1
     )
 
-    trainer.test(global_workspace, data)
+    trainer.validate(global_workspace, data.val_dataloader())
 
 
 if __name__ == "__main__":
-    test_model(get_args(debug=int(os.getenv("DEBUG", 0))))
+    tests(get_args(debug=int(os.getenv("DEBUG", 0))))

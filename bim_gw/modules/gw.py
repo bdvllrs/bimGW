@@ -161,7 +161,15 @@ class GlobalWorkspace(LightningModule):
                 self.validation_example_list[key] = len(example_vecs)
                 for k, example_vec in enumerate(example_vecs):
                     self.register_buffer(f"validation_examples_domain_{key}_{k}", example_vec)
+
+        self.rotation_error_val = []
         print("done!")
+
+    def encode(self, x, domain_name):
+        return self.encoders[domain_name](x)
+
+    def decode(self, z, domain_name):
+        return self.decoders[domain_name](z)
 
     def project(self, domains):
         """
@@ -179,15 +187,15 @@ class GlobalWorkspace(LightningModule):
         """
         out = dict()
         for domain_name, x in domains.items():
-            out[domain_name] = self.encoders[domain_name](x)
+            out[domain_name] = self.encode(x, domain_name)
         return out
 
     def translate(self, x, domain_name_start, domain_name_target):
         """
         Translates x from domain1 to domain2
         """
-        z = self.encoders[domain_name_start](x)
-        return self.decoders[domain_name_target](z)
+        z = self.encode(x, domain_name_start)
+        return self.decode(z, domain_name_target)
 
     def demi_cycle(self, x, domain_inter):
         return self.translate(x, domain_inter, domain_inter)
@@ -363,6 +371,20 @@ class GlobalWorkspace(LightningModule):
     def validation_step(self, domains, batch_idx):
         latents = self.project(domains)
         total_loss, losses = self.step(latents, latents, domains, mode="val")
+
+        latent_start = self.domain_mods["v"].encode(domains["v"])
+        latent_end = self.translate(latent_start, "v", "t")
+        domain_end_pred = self.domain_mods["t"].decode(latent_end)
+        rotations_pred = domain_end_pred[1][:, 3].detach().cpu().numpy()
+        rotations_ori = domains["t"][1][:, 3].detach().cpu().numpy()
+        diff = rotations_pred - rotations_ori
+        diff = np.where(diff > np.pi, diff - 2 * np.pi, diff)
+        self.rotation_error_val.extend((diff * 180 / np.pi).tolist())
+        return total_loss
+
+    def test_step(self, domains, batch_idx):
+        latents = self.project(domains)
+        total_loss, losses = self.step(latents, latents, domains, mode="test")
         return total_loss
 
     def get_validation_examples(self):
@@ -393,6 +415,13 @@ class GlobalWorkspace(LightningModule):
                             axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
                         self.logger.experiment["original_v_hist"].log(File.as_image(fig))
                         plt.close(fig)
+
+            if len(self.rotation_error_val):
+                fig = plt.figure()
+                plt.hist(self.rotation_error_val, 50, density=True)
+                self.logger.experiment["rotation_error_val"].log(File.as_image(fig))
+                plt.close(fig)
+                self.rotation_error_val = []
 
             for domain_name, domain_example in examples.items():
                 # Demi cycles
@@ -492,7 +521,12 @@ class GlobalWorkspace(LightningModule):
                             for param_name, p in model[modality].named_parameters()
                             if p.grad is not None
                         ])
-                        assert grad_norms[f"{name}@{param_group}"] >= 0
+                        # assert grad_norms[f"{name}@{param_group}"] >= 0
+                        # if grad_norms[f"{name}@{param_group}"] < 0:
+                        #     print(grad_norms)
+                        #     print(grad_norms[f"{name}@{param_group}"])
+                        #     print(last_grads)
+                        #     breakpoint()
 
                         # Keep track of the value of the gradients to avoid counting
                         # them multiple times because of accumulation.
