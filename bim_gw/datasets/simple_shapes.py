@@ -25,7 +25,17 @@ def get_preprocess(augmentation=False):
 
 
 class SimpleShapesDataset:
-    def __init__(self, path, split="train", transform=None, output_transform=None):
+    def __init__(self, path, split="train", transform=None, output_transform=None,
+                 selected_indices=None, min_dataset_size=None):
+        """
+        Args:
+            path:
+            split:
+            transform:
+            output_transform:
+            selected_indices: To reduce the size of the dataset to given indices.
+            min_dataset_size: Copies the data so that the effective size is the one given.
+        """
         assert split in ["train", "val", "test"]
         self.root_path = Path(path)
         self.transforms = transform
@@ -35,18 +45,30 @@ class SimpleShapesDataset:
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.labels = []
+        self.ids = []
 
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
             reader = csv.reader(f)
             for k, line in enumerate(reader):
-                if k > 0:
+                if k > 0 and (selected_indices is None or k in selected_indices):
                     self.labels.append(list(map(float, line)))
+                    self.ids.append(k - 1)
+
+        self.ids = np.array(self.ids)
+        self.labels = np.array(self.labels, dtype=np.float32)
+
+        if min_dataset_size is not None:
+            original_size = len(self.labels)
+            n_repeats = min_dataset_size // original_size + 1 * int(min_dataset_size % original_size > 0)
+            self.ids = np.tile(self.ids, n_repeats)
+            self.labels = np.tile(self.labels, (n_repeats, 1))
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, item):
-        with open(self.root_path / self.split / f"{item}.png", 'rb') as f:
+        image_id = self.ids[item]
+        with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
         if self.transforms is not None:
@@ -68,7 +90,7 @@ class SimpleShapesDataset:
         labels = [
             cls,
             # torch.tensor([np.cos(rotation), np.sin(rotation)], dtype=torch.float),
-            torch.tensor([x, y, radius, rotation, r, g, b]),
+            torch.tensor([x, y, radius, rotation, r, g, b], dtype=torch.float),
         ]
 
         if self.output_transform is not None:
@@ -110,19 +132,24 @@ class SimpleShapesData(LightningDataModule):
                                                get_preprocess(self.use_data_augmentation),
                                                lambda v, t: {"v": v, "t": t})
 
+                v_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                  get_preprocess(self.use_data_augmentation),
+                                                  lambda v, t: v)
+
                 if self.prop_labelled_images < 1.:
                     # Unlabel randomly some elements
-                    n_targets = len(sync_set)
+                    n_targets = len(v_train_set)
                     target_indices = np.arange(n_targets)
                     np.random.shuffle(target_indices)
                     num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
                     labelled_elems = target_indices[num_unlabelled:]
-                    sync_set = torch.utils.data.Subset(sync_set, labelled_elems)
+                    sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                   get_preprocess(self.use_data_augmentation),
+                                                   lambda v, t: {"v": v, "t": t},
+                                                   labelled_elems, n_targets)
 
                 self.train_datasets = {
-                    "v": SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                             get_preprocess(self.use_data_augmentation),
-                                             lambda v, t: v),
+                    "v": v_train_set,
                     "t": SimpleShapesDataset(self.simple_shapes_folder, "train",
                                              get_preprocess(self.use_data_augmentation),
                                              lambda v, t: t),
