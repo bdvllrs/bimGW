@@ -30,6 +30,8 @@ global_workspace:
     lr:
       encoders: 1e-4
       decoders: 1e-4
+      supervised_multiplier: 1.
+      unsupervised_multiplier: 1.
     weight_decay: 3e-5
 
   scheduler:
