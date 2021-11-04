@@ -550,11 +550,10 @@ class GlobalWorkspace(LightningModule):
                             if p.grad is not None
                         ])
                         # assert grad_norms[f"{name}@{param_group}"] >= 0
-                        # if grad_norms[f"{name}@{param_group}"] < 0:
+                        # if torch.isnan(grad_norms[f"{name}@{param_group}"]):
                         #     print(grad_norms)
                         #     print(grad_norms[f"{name}@{param_group}"])
                         #     print(last_grads)
-                        #     breakpoint()
 
                         # Keep track of the value of the gradients to avoid counting
                         # them multiple times because of accumulation.
