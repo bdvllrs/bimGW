@@ -130,8 +130,10 @@ def get_image_specs_from_latents(cls, latents):
     output['cls'] = cls
     output['locations'] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
     output['radii'] = latents[:, 2]
-    output['rotations'] = latents[:, 3] * 2 * np.pi
-    output['colors'] = np.stack((latents[:, 4], latents[:, 5], latents[:, 6]), axis=1)
+    rotation_x = latents[:, 3] * 2 - 1
+    rotation_y = latents[:, 4] * 2 - 1
+    output['rotations'] = np.arctan2(rotation_y, rotation_x)
+    output['colors'] = np.stack((latents[:, 5], latents[:, 6], latents[:, 7]), axis=1)
     return output
 
 

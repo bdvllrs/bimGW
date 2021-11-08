@@ -80,7 +80,7 @@ class ShapesLM(WorkspaceModule):
         self.z_size = 3
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 7]
+        self.output_dims = [self.z_size, 8]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.softmax(x, dim=1),  # shapes
@@ -124,14 +124,16 @@ class ShapesLM(WorkspaceModule):
         cls = samples["classes"]
         x, y = samples["locations"][:, 0], samples["locations"][:, 1]
         radius = samples["sizes"]
-        rotation = samples["rotations"] / (2 * np.pi)
+        rotation = samples["rotations"]
+        rotation_x = (np.cos(rotation) + 1) / 2
+        rotation_y = (np.sin(rotation) + 1) / 2
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
 
         labels = [
             torch.from_numpy(cls),
-            torch.from_numpy(np.stack([x, y, radius, rotation, r, g, b], axis=1)).to(torch.float),
+            torch.from_numpy(np.stack([x, y, radius, rotation_x, rotation_y, r, g, b], axis=1)).to(torch.float),
         ]
         return labels
 

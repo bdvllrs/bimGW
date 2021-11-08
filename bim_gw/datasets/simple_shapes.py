@@ -82,15 +82,16 @@ class SimpleShapesDataset:
         # elif cls == 1:  # circle
         #     rotation = 0
         # else:
-        rotation = label[4] / (2 * np.pi)
+        rotation = label[4]
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = label[5], label[6], label[7]
+        rotation_x = (np.cos(rotation) + 1) / 2
+        rotation_y = (np.sin(rotation) + 1) / 2
 
         labels = [
             cls,
-            # torch.tensor([np.cos(rotation), np.sin(rotation)], dtype=torch.float),
-            torch.tensor([x, y, radius, rotation, r, g, b], dtype=torch.float),
+            torch.tensor([x, y, radius, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         ]
 
         if self.output_transform is not None:
