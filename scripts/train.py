@@ -67,7 +67,7 @@ def train_gw(args):
     # ]
     if logger is not None:
         callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-        callbacks.append(ModelCheckpoint(save_top_k=1, mode="min", monitor="val_all_total_loss"))
+        callbacks.append(ModelCheckpoint(save_top_k=1, mode="min", monitor="val_total_loss"))
 
 
     trainer = Trainer(

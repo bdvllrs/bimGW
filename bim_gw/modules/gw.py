@@ -133,22 +133,19 @@ class GlobalWorkspace(LightningModule):
                 self.loss_fn[f"{domain_name}_{k}"] = domain.losses[k]
 
         # Accuracies
-        train_supervised_accuracy_metrics = []
-        train_unsupervised_accuracy_metrics = []
-        val_all_accuracy_metrics = []
+        train_accuracy_metrics = []
+        val_accuracy_metrics = []
         self.accuracy_metrics_order = []
         for domain_name, mod in self.domain_mods.items():
             if mod.requires_acc_computation:
                 for domain_name_start, mod_start in self.domain_mods.items():
                     if domain_name_start != domain_name:
-                        train_supervised_accuracy_metrics.append(torchmetrics.Accuracy())
-                        train_unsupervised_accuracy_metrics.append(torchmetrics.Accuracy())
-                        val_all_accuracy_metrics.append(torchmetrics.Accuracy())
+                        train_accuracy_metrics.append(torchmetrics.Accuracy())
+                        val_accuracy_metrics.append(torchmetrics.Accuracy())
                         self.accuracy_metrics_order.append((domain_name_start, domain_name))
 
-        self.train_supervised_accuracy_metrics = nn.ModuleList(train_supervised_accuracy_metrics)
-        self.train_unsupervised_accuracy_metrics = nn.ModuleList(train_unsupervised_accuracy_metrics)
-        self.val_all_accuracy_metrics = nn.ModuleList(val_all_accuracy_metrics)
+        self.train_accuracy_metrics = nn.ModuleList(train_accuracy_metrics)
+        self.val_accuracy_metrics = nn.ModuleList(val_accuracy_metrics)
 
         self.grad_norms_bin = GradNormLogger()
 
@@ -310,10 +307,7 @@ class GlobalWorkspace(LightningModule):
             losses["supervision_loss"] = loss
         return losses["supervision_loss"], losses, losses_no_coefs
 
-    def step(self, latents, sync_latents, sync_supervision, step_mode="all", mode="val"):
-        assert step_mode in ["all", "supervised", "unsupervised"]
-        assert mode != "val" or step_mode == "all"  # val => all
-
+    def step(self, latents, sync_latents, sync_supervision, mode="val"):
         losses = dict()
         loss_no_coef = dict()
 
@@ -321,45 +315,30 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        if step_mode == "unsupervised":
-            cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
-            losses.update(l)
-            loss_no_coef.update(l_no_coefs)
+        cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
 
-            total_loss = demi_cycle_loss + cycle_loss
-            total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"]
-        elif step_mode == "supervised":
-            supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
-            losses.update(l)
-            loss_no_coef.update(l_no_coefs)
+        supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
 
-            total_loss = demi_cycle_loss + supervision_loss
-            total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["supervision_loss"]
-        elif step_mode == "all":
-            cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
-            losses.update(l)
-            loss_no_coef.update(l_no_coefs)
-            supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
-            losses.update(l)
-            loss_no_coef.update(l_no_coefs)
-
-            total_loss = demi_cycle_loss + cycle_loss + supervision_loss
-            total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef["supervision_loss"]
-        else:
-            raise ValueError(f"{step_mode} is not a valid step mode.")
+        total_loss = demi_cycle_loss + supervision_loss
+        total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
+            "supervision_loss"]
 
         for name, loss in loss_no_coef.items():
-            self.log(f"{mode}_{step_mode}_{name}", loss, logger=True)
-        self.log(f"{mode}_{step_mode}_total_loss", total_loss_no_coef, logger=True)
+            self.log(f"{mode}_{name}", loss, logger=True)
+        self.log(f"{mode}_total_loss", total_loss_no_coef, logger=True)
 
         # compute accuracies
-        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}_{step_mode}_accuracy_metrics"),
+        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}_accuracy_metrics"),
                                                             self.accuracy_metrics_order):
             predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
             prediction = self.domain_mods[domain_name].decode(predicted_t)
             accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
                                                                  sync_supervision[domain_name])
-            self.log(f"{mode}_{step_mode}_acc_{domain_name_start}_to_{domain_name}", accuracy,
+            self.log(f"{mode}_acc_{domain_name_start}_to_{domain_name}", accuracy,
                      on_step=True, on_epoch=(mode == "val"))
         return total_loss, losses
 
@@ -367,37 +346,33 @@ class GlobalWorkspace(LightningModule):
         if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = batch['sync_']
 
-        optimizers = self.optimizers()
+        opt = self.optimizers()
         # remove the sync batch
         domains = {key: val for key, val in batch.items() if key != "sync_"}
         sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
 
-        total_losses = 0
+        opt.zero_grad()
 
-        for step_mode, opt in zip(["unsupervised", "supervised"], optimizers):
-            opt.zero_grad()
+        latents = self.project(domains)
+        sync_latents = self.project(sync_supervision)
 
-            latents = self.project(domains)
-            sync_latents = self.project(sync_supervision)
+        total_loss, losses = self.step(latents, sync_latents, sync_supervision, mode="train")
 
-            total_loss, losses = self.step(latents, sync_latents, sync_supervision, step_mode=step_mode, mode="train")
+        if self.monitor_grad_norms:
+            grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
+            self.grad_norms_bin.log(grad_norms)
+            for name, grad_norm in grad_norms.items():
+                self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
+        else:
+            self.manual_backward(total_loss)
 
-            if self.monitor_grad_norms:
-                grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
-                self.grad_norms_bin.log(grad_norms)
-                for name, grad_norm in grad_norms.items():
-                    self.log(f"grad_norm_{step_mode}_{name.replace('@', '_')}", grad_norm, logger=True)
-            else:
-                self.manual_backward(total_loss)
+        opt.step()
 
-            opt.step()
-
-            total_losses += total_loss
-        return total_losses
+        return total_loss
 
     def validation_step(self, domains, batch_idx):
         latents = self.project(domains)
-        total_loss, losses = self.step(latents, latents, domains, step_mode="all", mode="val")
+        total_loss, losses = self.step(latents, latents, domains, mode="val")
 
         latent_start = self.domain_mods["v"].encode(domains["v"])
         latent_end = self.translate(latent_start, "v", "t")
@@ -503,22 +478,18 @@ class GlobalWorkspace(LightningModule):
         self.domain_mods.eval()
 
     def configure_optimizers(self):
-        params = {"unsupervised": [], "supervised": []}
+        params = []
         for model_type in ["encoders", "decoders"]:
             for domain_name, encoder in getattr(self, model_type).items():
-                for x in params.keys():
-                    params[x].append({
-                        "params": encoder.parameters(),
-                        "lr": self.hparams.optim_lr[model_type] * self.hparams.optim_lr[x + "_multiplier"],
-                        "weight_decay": self.hparams.optim_weight_decay
-                    })
-        optimizer_unsupervised = torch.optim.Adam(params["unsupervised"])
-        optimizer_supervised = torch.optim.Adam(params["supervised"])
-        scheduler_unsupervised = torch.optim.lr_scheduler.StepLR(optimizer_unsupervised, self.hparams.scheduler_step,
-                                                                 self.hparams.scheduler_gamma)
-        scheduler_supervised = torch.optim.lr_scheduler.StepLR(optimizer_supervised, self.hparams.scheduler_step,
-                                                               self.hparams.scheduler_gamma)
-        return [optimizer_unsupervised, optimizer_supervised], [scheduler_unsupervised, scheduler_supervised]
+                params.append({
+                    "params": encoder.parameters(),
+                    "lr": self.hparams.optim_lr[model_type],
+                    "weight_decay": self.hparams.optim_weight_decay
+                })
+        optimizer = torch.optim.Adam(params)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
+                                                    self.hparams.scheduler_gamma)
+        return [optimizer], [scheduler]
 
     def vis_to_text_accuracy(self, domain_start, domain_end, acc_fn, domain_start_data, targets):
         # translate the visual domain to text domain
