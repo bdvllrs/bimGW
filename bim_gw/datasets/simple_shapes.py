@@ -144,6 +144,7 @@ class SimpleShapesData(LightningDataModule):
                     np.random.shuffle(target_indices)
                     num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
                     labelled_elems = target_indices[num_unlabelled:]
+                    print(f"Training using {len(labelled_elems)} labelled examples.")
                     sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                    get_preprocess(self.use_data_augmentation),
                                                    lambda v, t: {"v": v, "t": t},
