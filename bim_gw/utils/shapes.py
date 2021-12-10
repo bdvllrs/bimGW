@@ -1,4 +1,5 @@
-import io
+import random
+
 import matplotlib.path as mpath
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
@@ -167,8 +168,8 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
 
     assert 0 <= max_lightness <= 256
     hls = np.random.randint([0, min_lightness, 0], [181, max_lightness, 256], size=(1, n_samples, 3), dtype=np.uint8)
-    rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0].astype(np.float) / 255
-    return rgb
+    rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
+    return rgb, hls[0]
 
 
 def generate_rotation(n_samples, classes):
@@ -198,5 +199,5 @@ def generate_dataset(n_samples, min_scale, max_scale, min_lightness, max_lightne
     sizes = generate_scale(n_samples, min_scale, max_scale)
     locations = generate_location(n_samples, sizes, imsize)
     rotation = generate_rotation(n_samples, classes)
-    colors = generate_color(n_samples, min_lightness, max_lightness)
-    return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors)
+    colors_rgb, colors_hls = generate_color(n_samples, min_lightness, max_lightness)
+    return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors_rgb, colors_hls=colors_hls)

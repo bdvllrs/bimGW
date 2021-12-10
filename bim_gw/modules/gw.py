@@ -160,7 +160,10 @@ class GlobalWorkspace(LightningModule):
 
                 self.validation_example_list[key] = len(example_vecs)
                 for k, example_vec in enumerate(example_vecs):
-                    self.register_buffer(f"validation_examples_domain_{key}_{k}", example_vec)
+                    if type(example_vec) is list:
+                        setattr(self, f"validation_examples_domain_{key}_{k}", example_vec)
+                    else:
+                        self.register_buffer(f"validation_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
         print("done!")

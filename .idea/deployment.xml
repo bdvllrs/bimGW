@@ -10,6 +10,7 @@
           <excludedPaths>
             <excludedPath path="/bimGW/bim_gw.egg-info" />
             <excludedPath path="/bimGW/checkpoints" />
+            <excludedPath path="/bimGW/.neptune" />
           </excludedPaths>
         </serverdata>
       </paths>
@@ -25,6 +26,18 @@
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
+        </serverdata>
+      </paths>
+      <paths name="Anita (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="bimGW" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath path="/bimGW/bim_gw.egg-info" />
+            <excludedPath path="/bimGW/checkpoints" />
+            <excludedPath path="/bimGW/.neptune" />
+          </excludedPaths>
         </serverdata>
       </paths>
       <paths name="BigGanEncoder">

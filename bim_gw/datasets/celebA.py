@@ -24,7 +24,7 @@ def get_preprocess(augmentation=False):
     return transforms.Compose(transformations)
 
 
-class SimpleShapesDataset:
+class CelebADetaset:
     def __init__(self, path, split="train", transform=None, output_transform=None,
                  selected_indices=None, min_dataset_size=None):
         """
@@ -36,32 +36,8 @@ class SimpleShapesDataset:
             selected_indices: To reduce the size of the dataset to given indices.
             min_dataset_size: Copies the data so that the effective size is the one given.
         """
-        assert split in ["train", "val", "test"]
-        self.root_path = Path(path)
-        self.transforms = transform
-        self.output_transform = output_transform
-        self.split = split
-        self.img_size = 32
+        pass
 
-        self.classes = np.array(["square", "circle", "triangle"])
-        self.labels = []
-        self.ids = []
-
-        with open(self.root_path / f"{split}_labels.csv", "r") as f:
-            reader = csv.reader(f)
-            for k, line in enumerate(reader):
-                if k > 0 and (selected_indices is None or k in selected_indices):
-                    self.labels.append(list(map(float, line)))
-                    self.ids.append(k - 1)
-
-        self.ids = np.array(self.ids)
-        self.labels = np.array(self.labels, dtype=np.float32)
-
-        if min_dataset_size is not None:
-            original_size = len(self.labels)
-            n_repeats = min_dataset_size // original_size + 1 * int(min_dataset_size % original_size > 0)
-            self.ids = np.tile(self.ids, n_repeats)
-            self.labels = np.tile(self.labels, (n_repeats, 1))
 
     def __len__(self):
         return len(self.labels)
@@ -85,8 +61,7 @@ class SimpleShapesDataset:
         rotation = label[4]
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
-        r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
-        h, l, s = label[8], label[9], label[10]
+        r, g, b = label[5], label[6], label[7]
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
 
@@ -100,7 +75,7 @@ class SimpleShapesDataset:
         return img, labels
 
 
-class SimpleShapesData(LightningDataModule):
+class CeleAData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
@@ -123,9 +98,9 @@ class SimpleShapesData(LightningDataModule):
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
-        ds = SimpleShapesDataset(simple_shapes_folder, "val")
-        self.classes = ds.classes
-        self.val_dataset_size = len(ds)
+        # ds = SimpleShapesDataset(simple_shapes_folder, "val")
+        # self.classes = ds.classes
+        # self.val_dataset_size = len(ds)
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
