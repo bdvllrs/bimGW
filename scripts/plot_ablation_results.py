@@ -47,24 +47,44 @@ def get_x_y(d, cond):
 
 if __name__ == '__main__':
     data = load_data()
-    alpha = 1
-    min_epoch = 90
+    alpha = 4
+    min_epoch = 1
     # z_size = 4
 
-    for z_size in [4, 8, 10]:
-        x, y, ids = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 1
-                                               and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
-                                               and row["z_size"] == z_size))
-        plt.semilogx(x, y, label=f"All 3 losses ($\\alpha={alpha}$, z={z_size})")
+    for alpha in [1, 2, 4, 10]:
+        for z_size in [12]:
+            x, y, ids = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 1
+                                                   and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
+                                                   and row["z_size"] == z_size))
+            line = plt.loglog(x, y, label=f"All 3 losses ($\\alpha={alpha}$, z={z_size})")
 
-        # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
-        #                                      and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch))
-        # plt.semilogx(x, y, label="Supervision only")
+            x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 1
+                                                   and row["cycle_coef"] == 1 and row["nepochs"] >= 80
+                                                   and row["z_size"] == z_size))
+            if z_size == 4:
+                plt.loglog(x, y, "x", c=line[0].get_color(), label="Trained with at least 80 epochs.")
+            else:
+                plt.loglog(x, y, "x", c=line[0].get_color())
 
-        x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
-                                             and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
-                                             and row["z_size"] == z_size))
-        plt.semilogx(x, y, label=f"Supervision + cycles ($\\alpha={alpha}$, z={z_size})")
+            # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
+            #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
+            #                                      and row["z_size"] == z_size))
+            # line = plt.loglog(x, y, label=f"Supervision + cycles ($\\alpha={alpha}$, z={z_size})")
+            #
+            # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
+            #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= 80
+            #                                      and row["z_size"] == z_size))
+            # plt.loglog(x, y, "x", c=line[0].get_color())
+
+        x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
+                                             and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch
+                                             and row["z_size"] == 12 ))
+        line = plt.loglog(x, y, label="Supervision only")
+        x, y, ids = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
+                                             and row["cycle_coef"] == 0 and row["nepochs"] >= 80
+                                             and row["z_size"] == 12 ))
+        plt.loglog(x, y, "x",  c=line[0].get_color())
+
 
     # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 1
     #                                      and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch))

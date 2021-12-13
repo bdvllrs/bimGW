@@ -1,4 +1,5 @@
 import csv
+import random
 from pathlib import Path
 
 import numpy as np
@@ -105,7 +106,7 @@ class SimpleShapesData(LightningDataModule):
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
             n_validation_domain_examples=None,
-            bimodal=False,
+            bimodal=False, split_ood=True
     ):
         super().__init__()
         if bimodal and use_data_augmentation:
@@ -115,6 +116,7 @@ class SimpleShapesData(LightningDataModule):
         self.num_workers = num_workers
         self.img_size = 32
         self.bimodal = bimodal
+        self.split_ood = split_ood
         self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
@@ -175,6 +177,12 @@ class SimpleShapesData(LightningDataModule):
             visual_index = 0
             text_index = 1
 
+        if self.split_ood:
+            id_ood_splits = create_ood_split([self.train_datasets['sync_'], self.shapes_val, self.shapes_test])
+            self.shapes_val = torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1])
+            self.shapes_test = torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1])
+            self.train_datasets["sync_"] = torch.utils.data.Subset(self.train_datasets["sync_"], id_ood_splits[0][0])
+
         test_set = self.shapes_val if stage == "fit" else self.shapes_test
 
         validation_reconstruction_indices = torch.randint(len(test_set), size=(self.validation_domain_examples,))
@@ -229,3 +237,85 @@ class SimpleShapesData(LightningDataModule):
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.shapes_test, self.batch_size,
                                            num_workers=self.num_workers, pin_memory=True)
+
+
+def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, size_boundaries,
+                      rotation_boundaries, x_boundaries, y_boundaries):
+    in_dist_items = []
+    out_dist_imates = []
+
+    for i, label in enumerate(dataset.labels):
+        cls = int(label[0])
+        x, y = label[1], label[2]
+        size = label[3]
+        rotation = label[4]
+        hue = label[8]
+        k = 0
+        n_cond_checked = 0
+        if "shape" in ood_attrs and shape_boundaries[k] == cls:
+            n_cond_checked += 1
+        if "position" in ood_attrs and x_boundaries[k] <= x <= x_boundaries[(k + 1) % 3]:
+            n_cond_checked += 1
+        if "position" in ood_attrs and y_boundaries[k] <= y <= y_boundaries[(k + 1) % 3]:
+            n_cond_checked += 1
+        if "color" in ood_attrs and color_boundaries[k] <= hue <= color_boundaries[(k + 1) % 3]:
+            n_cond_checked += 1
+        if "size" in ood_attrs and size_boundaries[k] <= size <= size_boundaries[(k + 1) % 3]:
+            n_cond_checked += 1
+        if "rotation" in ood_attrs and rotation_boundaries[k] <= rotation <= rotation_boundaries[(k + 1) % 3]:
+            n_cond_checked += 1
+        if n_cond_checked < len(ood_attrs):
+            in_dist_items.append(i)
+        else:
+            out_dist_imates.append(i)
+    return in_dist_items, out_dist_imates
+
+
+def create_ood_split(datasets):
+    """
+    Splits the space of each attribute in 3 and hold one ood part
+    Args:
+        datasets:
+    Returns:
+    """
+    shape_boundary = random.randint(0, 2)
+    shape_boundaries = shape_boundary, (shape_boundary + 1) % 3, (shape_boundary + 2) % 3
+
+    color_boundary = random.randint(0, 255)
+    color_boundaries = color_boundary, (color_boundary + 85) % 256, (color_boundary + 170) % 256
+
+    size_boundary = random.randint(10, 25)
+    size_boundaries = size_boundary, 10 + (size_boundary - 5) % 16, 10 + size_boundary % 16
+
+    rotation_boundary = random.random() * 2 * np.pi
+    rotation_boundaries = rotation_boundary, (rotation_boundary + 2 * np.pi / 3) % (2 * np.pi), (
+            rotation_boundary + 4 * np.pi / 3) % (2 * np.pi)
+
+    x_boundary = random.random() * 32
+    x_boundaries = x_boundary, (x_boundary + 11.6) % 32, (x_boundary + 23.2) % 32
+
+    y_boundary = random.random() * 32
+    y_boundaries = y_boundary, (y_boundary + 11.6) % 32, (y_boundary + 23.2) % 32
+
+    holes = []
+    choices = ["position", "rotation", "size", "color", "shape"]
+    print("Out of distribution is...")
+    for k in range(2):
+        choice = random.randint(0, len(choices) - 1)
+        holes.append(choices[choice])
+        choices.pop(choice)
+        print(choices[choice])
+    print("boundaries")
+    print(shape_boundaries)
+    print(color_boundaries)
+    print(size_boundaries)
+    print(rotation_boundaries)
+    print(x_boundaries)
+    print(y_boundaries)
+
+    out_datasets = []
+    for dataset in datasets:
+        in_dist, out_dist = split_in_out_dist(dataset, holes, shape_boundaries, color_boundaries,
+                                              size_boundaries, rotation_boundaries, x_boundaries, y_boundaries)
+        out_datasets.append((in_dist, out_dist))
+    return out_datasets
