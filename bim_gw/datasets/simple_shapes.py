@@ -303,8 +303,8 @@ def create_ood_split(datasets):
     for k in range(2):
         choice = random.randint(0, len(choices) - 1)
         holes.append(choices[choice])
-        choices.pop(choice)
         print(choices[choice])
+        choices.pop(choice)
     print("boundaries")
     print(shape_boundaries)
     print(color_boundaries)
