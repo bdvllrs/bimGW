@@ -199,27 +199,41 @@ class SimpleShapesData(LightningDataModule):
             }
 
         test_set = self.shapes_val if stage == "fit" else self.shapes_test
-        used_dist = "ood" if test_set["ood"] is not None else "in_dist"
+        validation_reconstruction_indices = {}
+        validation_reconstruction_indices["in_dist"] = torch.randint(len(test_set["in_dist"]),
+                                                                     size=(self.validation_domain_examples,))
+        validation_reconstruction_indices["ood"] = None
 
-        validation_reconstruction_indices = torch.randint(len(test_set[used_dist]),
-                                                          size=(self.validation_domain_examples,))
+        if test_set["ood"] is not None:
+            validation_reconstruction_indices["ood"] = torch.randint(len(test_set["ood"]),
+                                                                     size=(self.validation_domain_examples,))
 
         self.validation_domain_examples = {
-            "v": torch.stack([test_set[used_dist][k][visual_index] for k in validation_reconstruction_indices], dim=0),
-            "t": []
+            "in_dist": {
+                "v": torch.stack(
+                    [test_set["in_dist"][k][visual_index] for k in validation_reconstruction_indices["in_dist"]], dim=0),
+                "t": [],
+            },
+            "ood": {
+                "v": None if test_set["ood"] is None else torch.stack(
+                    [test_set["ood"][k][visual_index] for k in validation_reconstruction_indices["ood"]], dim=0),
+                "t": None if test_set["ood"] is None else []
+            }
         }
 
         # add t examples
-        for k in range(len(test_set[used_dist][0][text_index])):
-            if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
-                self.validation_domain_examples["t"].append(
-                    torch.tensor([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices])
-                )
-            else:
-                self.validation_domain_examples["t"].append(
-                    torch.stack([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices],
-                                dim=0)
-                )
+        for used_dist in ["in_dist", "ood"]:
+            if validation_reconstruction_indices[used_dist] is not None:
+                for k in range(len(test_set[used_dist][0][text_index])):
+                    if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
+                        self.validation_domain_examples[used_dist]["t"].append(
+                            torch.tensor([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices[used_dist]])
+                        )
+                    else:
+                        self.validation_domain_examples[used_dist]["t"].append(
+                            torch.stack([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices[used_dist]],
+                                        dim=0)
+                        )
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",

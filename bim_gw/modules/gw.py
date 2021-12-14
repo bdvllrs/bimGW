@@ -153,20 +153,23 @@ class GlobalWorkspace(LightningModule):
         self.grad_norms_bin = GradNormLogger()
 
         # val sampling
+        self.validation_domain_examples = validation_domain_examples
         self.train_domain_examples = None
         if validation_domain_examples is not None:
             self.validation_example_list = dict()
-            for key, example_vecs in validation_domain_examples.items():
-                assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
-                if not isinstance(example_vecs, (tuple, list)):
-                    example_vecs = [example_vecs]
+            for dist, example_dist_vecs in validation_domain_examples.items():
+                for key, example_vecs in example_dist_vecs.items():
+                    assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                    if example_vecs is not None:
+                        if not isinstance(example_vecs, (tuple, list)):
+                            example_vecs = [example_vecs]
 
-                self.validation_example_list[key] = len(example_vecs)
-                for k, example_vec in enumerate(example_vecs):
-                    if type(example_vec) is list:
-                        setattr(self, f"validation_examples_domain_{key}_{k}", example_vec)
-                    else:
-                        self.register_buffer(f"validation_examples_domain_{key}_{k}", example_vec)
+                        self.validation_example_list[key] = len(example_vecs)
+                        for k, example_vec in enumerate(example_vecs):
+                            if type(example_vec) is list:
+                                setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+                            else:
+                                self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
         print("done!")
@@ -396,11 +399,11 @@ class GlobalWorkspace(LightningModule):
         total_loss, losses = self.step(latents, latents, domains, mode="test")
         return total_loss
 
-    def get_validation_examples(self):
+    def get_validation_examples(self, dist):
         domain_examples = {}
         for domain_name, n_items in self.validation_example_list.items():
             domain_example = [
-                getattr(self, f"validation_examples_domain_{domain_name}_{k}") for k in range(n_items)
+                getattr(self, f"validation_{dist}_examples_domain_{domain_name}_{k}") for k in range(n_items)
             ]
             if len(domain_example) == 1:
                 domain_example = domain_example[0]
@@ -471,12 +474,13 @@ class GlobalWorkspace(LightningModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
-            validation_examples = self.get_validation_examples()
-
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
+            for dist in ["in_dist", "ood"]:
+                if self.validation_domain_examples[dist] is not None:
+                    validation_examples = self.get_validation_examples(dist)
 
-            if self.validation_example_list is not None:
-                self.log_images(validation_examples, "val")
+                    if self.validation_example_list is not None:
+                        self.log_images(validation_examples, f"val_{dist}")
 
             if self.train_domain_examples is not None:
                 self.log_images(self.train_domain_examples, "train", 32)
