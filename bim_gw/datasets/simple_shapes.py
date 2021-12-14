@@ -239,6 +239,14 @@ class SimpleShapesData(LightningDataModule):
                                            num_workers=self.num_workers, pin_memory=True)
 
 
+def in_interval(x, xmin, xmax, val_min, val_max):
+    if val_min <= xmin <= xmax <= val_max:
+        return xmin <= x <= xmax
+    if xmax < xmin:
+        return xmin <= x <= val_max or val_min <= x <= xmax
+    return False
+
+
 def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, size_boundaries,
                       rotation_boundaries, x_boundaries, y_boundaries):
     in_dist_items = []
@@ -254,15 +262,16 @@ def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, si
         n_cond_checked = 0
         if "shape" in ood_attrs and shape_boundaries[k] == cls:
             n_cond_checked += 1
-        if "position" in ood_attrs and x_boundaries[k] <= x <= x_boundaries[(k + 1) % 3]:
+        if "position" in ood_attrs and in_interval(x, x_boundaries[k], x_boundaries[(k + 1) % 3], 0, 32):
             n_cond_checked += 1
-        if "position" in ood_attrs and y_boundaries[k] <= y <= y_boundaries[(k + 1) % 3]:
+        if "position" in ood_attrs and in_interval(y, y_boundaries[k], y_boundaries[(k + 1) % 3], 0, 32):
             n_cond_checked += 1
-        if "color" in ood_attrs and color_boundaries[k] <= hue <= color_boundaries[(k + 1) % 3]:
+        if "color" in ood_attrs and in_interval(hue, color_boundaries[k], color_boundaries[(k + 1) % 3], 0, 256):
             n_cond_checked += 1
-        if "size" in ood_attrs and size_boundaries[k] <= size <= size_boundaries[(k + 1) % 3]:
+        if "size" in ood_attrs and in_interval(size, size_boundaries[k], size_boundaries[(k + 1) % 3], 0, 25):
             n_cond_checked += 1
-        if "rotation" in ood_attrs and rotation_boundaries[k] <= rotation <= rotation_boundaries[(k + 1) % 3]:
+        if "rotation" in ood_attrs and in_interval(rotation, rotation_boundaries[k], rotation_boundaries[(k + 1) % 3],
+                                                   0, 2 * np.pi):
             n_cond_checked += 1
         if n_cond_checked < len(ood_attrs):
             in_dist_items.append(i)
@@ -306,12 +315,12 @@ def create_ood_split(datasets):
         print(choices[choice])
         choices.pop(choice)
     print("boundaries")
-    print(shape_boundaries)
-    print(color_boundaries)
-    print(size_boundaries)
-    print(rotation_boundaries)
-    print(x_boundaries)
-    print(y_boundaries)
+    print("shape", shape_boundaries)
+    print("color", color_boundaries)
+    print("size", size_boundaries)
+    print("rotation", rotation_boundaries)
+    print("x", x_boundaries)
+    print("y", y_boundaries)
 
     out_datasets = []
     for dataset in datasets:
