@@ -179,28 +179,46 @@ class SimpleShapesData(LightningDataModule):
 
         if self.split_ood:
             id_ood_splits = create_ood_split([self.train_datasets['sync_'], self.shapes_val, self.shapes_test])
-            self.shapes_val = torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1])
-            self.shapes_test = torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1])
+            self.shapes_val = {
+                "in_dist": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][0]),
+                "ood": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1]),
+            }
+            self.shapes_test = {
+                "in_dist": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][0]),
+                "ood": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1]),
+            }
             self.train_datasets["sync_"] = torch.utils.data.Subset(self.train_datasets["sync_"], id_ood_splits[0][0])
+        else:
+            self.shapes_val = {
+                "in_dist": self.shapes_val,
+                "ood": None
+            }
+            self.shapes_test = {
+                "in_dist": self.shapes_test,
+                "ood": None
+            }
 
         test_set = self.shapes_val if stage == "fit" else self.shapes_test
+        used_dist = "ood" if test_set["ood"] is not None else "in_dist"
 
-        validation_reconstruction_indices = torch.randint(len(test_set), size=(self.validation_domain_examples,))
+        validation_reconstruction_indices = torch.randint(len(test_set[used_dist]),
+                                                          size=(self.validation_domain_examples,))
 
         self.validation_domain_examples = {
-            "v": torch.stack([test_set[k][visual_index] for k in validation_reconstruction_indices], dim=0),
+            "v": torch.stack([test_set[used_dist][k][visual_index] for k in validation_reconstruction_indices], dim=0),
             "t": []
         }
 
         # add t examples
-        for k in range(len(test_set[0][text_index])):
-            if isinstance(test_set[0][text_index][k], (int, float)):
+        for k in range(len(test_set[used_dist][0][text_index])):
+            if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
                 self.validation_domain_examples["t"].append(
-                    torch.tensor([test_set[i][text_index][k] for i in validation_reconstruction_indices])
+                    torch.tensor([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices])
                 )
             else:
                 self.validation_domain_examples["t"].append(
-                    torch.stack([test_set[i][text_index][k] for i in validation_reconstruction_indices], dim=0)
+                    torch.stack([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices],
+                                dim=0)
                 )
 
     def compute_inception_statistics(self, batch_size, device):
@@ -231,12 +249,29 @@ class SimpleShapesData(LightningDataModule):
                                            num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.shapes_val, self.batch_size,
-                                           num_workers=self.num_workers, pin_memory=True)
+        dataloaders = [
+            torch.utils.data.DataLoader(self.shapes_val["in_dist"], self.batch_size,
+                                        num_workers=self.num_workers, pin_memory=True),
+        ]
+        if self.shapes_val["ood"] is not None:
+            dataloaders.append(
+                torch.utils.data.DataLoader(self.shapes_val["ood"], self.batch_size,
+                                            num_workers=self.num_workers, pin_memory=True)
+            )
+        return dataloaders
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.shapes_test, self.batch_size,
-                                           num_workers=self.num_workers, pin_memory=True)
+        dataloaders = [
+            torch.utils.data.DataLoader(self.shapes_test["in_dist"], self.batch_size,
+                                        num_workers=self.num_workers, pin_memory=True),
+        ]
+
+        if self.shapes_test["ood"] is not None:
+            dataloaders.append(
+                torch.utils.data.DataLoader(self.shapes_test["ood"], self.batch_size,
+                                            num_workers=self.num_workers, pin_memory=True)
+            )
+        return dataloaders
 
 
 def in_interval(x, xmin, xmax, val_min, val_max):

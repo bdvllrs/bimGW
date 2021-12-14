@@ -134,18 +134,21 @@ class GlobalWorkspace(LightningModule):
 
         # Accuracies
         train_accuracy_metrics = []
-        val_accuracy_metrics = []
+        val_in_dist_accuracy_metrics = []
+        val_ood_accuracy_metrics = []
         self.accuracy_metrics_order = []
         for domain_name, mod in self.domain_mods.items():
             if mod.requires_acc_computation:
                 for domain_name_start, mod_start in self.domain_mods.items():
                     if domain_name_start != domain_name:
                         train_accuracy_metrics.append(torchmetrics.Accuracy())
-                        val_accuracy_metrics.append(torchmetrics.Accuracy())
+                        val_in_dist_accuracy_metrics.append(torchmetrics.Accuracy())
+                        val_ood_accuracy_metrics.append(torchmetrics.Accuracy())
                         self.accuracy_metrics_order.append((domain_name_start, domain_name))
 
         self.train_accuracy_metrics = nn.ModuleList(train_accuracy_metrics)
-        self.val_accuracy_metrics = nn.ModuleList(val_accuracy_metrics)
+        self.val_in_dist_accuracy_metrics = nn.ModuleList(val_in_dist_accuracy_metrics)
+        self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
         self.grad_norms_bin = GradNormLogger()
 
@@ -310,7 +313,7 @@ class GlobalWorkspace(LightningModule):
             losses["supervision_loss"] = loss
         return losses["supervision_loss"], losses, losses_no_coefs
 
-    def step(self, latents, sync_latents, sync_supervision, mode="val"):
+    def step(self, latents, sync_latents, sync_supervision, mode="val", prefix=""):
         losses = dict()
         loss_no_coef = dict()
 
@@ -331,18 +334,18 @@ class GlobalWorkspace(LightningModule):
             "supervision_loss"]
 
         for name, loss in loss_no_coef.items():
-            self.log(f"{mode}_{name}", loss, logger=True)
-        self.log(f"{mode}_total_loss", total_loss_no_coef, logger=True)
+            self.log(f"{mode}{prefix}_{name}", loss, logger=True, add_dataloader_idx=False)
+        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True, add_dataloader_idx=False)
 
         # compute accuracies
-        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}_accuracy_metrics"),
+        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}{prefix}_accuracy_metrics"),
                                                             self.accuracy_metrics_order):
             predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
             prediction = self.domain_mods[domain_name].decode(predicted_t)
             accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
                                                                  sync_supervision[domain_name])
-            self.log(f"{mode}_acc_{domain_name_start}_to_{domain_name}", accuracy,
-                     on_step=True, on_epoch=(mode == "val"))
+            self.log(f"{mode}{prefix}_acc_{domain_name_start}_to_{domain_name}", accuracy,
+                     on_step=True, on_epoch=(mode == "val"), add_dataloader_idx=False)
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
@@ -373,9 +376,10 @@ class GlobalWorkspace(LightningModule):
 
         return total_loss
 
-    def validation_step(self, domains, batch_idx):
+    def validation_step(self, domains, batch_idx, dataset_idx=0):
         latents = self.project(domains)
-        total_loss, losses = self.step(latents, latents, domains, mode="val")
+        prefix = "_in_dist" if dataset_idx == 0 else "_ood"
+        total_loss, losses = self.step(latents, latents, domains, mode="val", prefix=prefix)
 
         latent_start = self.domain_mods["v"].encode(domains["v"])
         latent_end = self.translate(latent_start, "v", "t")
@@ -387,7 +391,7 @@ class GlobalWorkspace(LightningModule):
         self.rotation_error_val.extend((diff * 180 / np.pi).tolist())
         return total_loss
 
-    def test_step(self, domains, batch_idx):
+    def test_step(self, domains, batch_idx, dataset_idx=0):
         latents = self.project(domains)
         total_loss, losses = self.step(latents, latents, domains, mode="test")
         return total_loss
