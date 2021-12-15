@@ -77,7 +77,7 @@ class SimpleShapesDataset:
         label = self.labels[item]
         cls = int(label[0])
         x, y = label[1], label[2]
-        radius = label[3]
+        size = label[3]
         # if cls == 0:  # square
         #     rotation = label[4] % 90
         # elif cls == 1:  # circle
@@ -87,13 +87,12 @@ class SimpleShapesDataset:
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
-        h, l, s = label[8], label[9], label[10]
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
 
         labels = [
             cls,
-            torch.tensor([x, y, radius, rotation_x, rotation_y, r, g, b], dtype=torch.float),
+            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         ]
 
         if self.output_transform is not None:
