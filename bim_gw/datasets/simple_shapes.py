@@ -51,7 +51,7 @@ class SimpleShapesDataset:
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
             reader = csv.reader(f)
             for k, line in enumerate(reader):
-                if k > 0 and (selected_indices is None or k in selected_indices):
+                if k > 0 and (selected_indices is None or k - 1 in selected_indices):
                     self.labels.append(list(map(float, line)))
                     self.ids.append(k - 1)
 
@@ -132,6 +132,13 @@ class SimpleShapesData(LightningDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             if self.bimodal:
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
+                                                      lambda v, t: {"v": v, "t": t})
+                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
+                                                       lambda v, t: {"v": v, "t": t})
+                visual_index = "v"
+                text_index = "t"
+
                 sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                get_preprocess(self.use_data_augmentation),
                                                lambda v, t: {"v": v, "t": t})
@@ -140,13 +147,40 @@ class SimpleShapesData(LightningDataModule):
                                                   get_preprocess(self.use_data_augmentation),
                                                   lambda v, t: v)
 
+                if self.split_ood:
+                    id_ood_splits = create_ood_split([sync_set, self.shapes_val, self.shapes_test])
+                    self.shapes_val = {
+                        "in_dist": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][0]),
+                        "ood": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1]),
+                    }
+                    self.shapes_test = {
+                        "in_dist": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][0]),
+                        "ood": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1]),
+                    }
+
+                    target_indices = np.unique(id_ood_splits[0][0])
+
+                    print("Val set in dist size", len(id_ood_splits[1][0]))
+                    print("Val set OOD size", len(id_ood_splits[1][1]))
+                    print("Test set in dist size", len(id_ood_splits[2][0]))
+                    print("Test set OOD size", len(id_ood_splits[2][1]))
+                else:
+                    self.shapes_val = {
+                        "in_dist": self.shapes_val,
+                        "ood": None
+                    }
+                    self.shapes_test = {
+                        "in_dist": self.shapes_test,
+                        "ood": None
+                    }
+                    target_indices = np.arange(len(v_train_set))
+
                 if self.prop_labelled_images < 1.:
                     # Unlabel randomly some elements
                     n_targets = len(v_train_set)
-                    target_indices = np.arange(n_targets)
                     np.random.shuffle(target_indices)
-                    num_unlabelled = int((1 - self.prop_labelled_images) * n_targets)
-                    labelled_elems = target_indices[num_unlabelled:]
+                    num_labelled = int(self.prop_labelled_images * n_targets)
+                    labelled_elems = target_indices[:num_labelled]
                     print(f"Training using {len(labelled_elems)} labelled examples.")
                     sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                    get_preprocess(self.use_data_augmentation),
@@ -161,42 +195,12 @@ class SimpleShapesData(LightningDataModule):
                     "sync_": sync_set
                 }
             else:
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
+                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
+                visual_index = 0
+                text_index = 1
                 self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                         get_preprocess(self.use_data_augmentation))
-
-        if self.bimodal:
-            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
-                                                  lambda v, t: {"v": v, "t": t})
-            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
-                                                   lambda v, t: {"v": v, "t": t})
-            visual_index = "v"
-            text_index = "t"
-        else:
-            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
-            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
-            visual_index = 0
-            text_index = 1
-
-        if self.split_ood:
-            id_ood_splits = create_ood_split([self.train_datasets['sync_'], self.shapes_val, self.shapes_test])
-            self.shapes_val = {
-                "in_dist": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][0]),
-                "ood": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1]),
-            }
-            self.shapes_test = {
-                "in_dist": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][0]),
-                "ood": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1]),
-            }
-            self.train_datasets["sync_"] = torch.utils.data.Subset(self.train_datasets["sync_"], id_ood_splits[0][0])
-        else:
-            self.shapes_val = {
-                "in_dist": self.shapes_val,
-                "ood": None
-            }
-            self.shapes_test = {
-                "in_dist": self.shapes_test,
-                "ood": None
-            }
 
         test_set = self.shapes_val if stage == "fit" else self.shapes_test
         validation_reconstruction_indices = {}
@@ -211,7 +215,8 @@ class SimpleShapesData(LightningDataModule):
         self.validation_domain_examples = {
             "in_dist": {
                 "v": torch.stack(
-                    [test_set["in_dist"][k][visual_index] for k in validation_reconstruction_indices["in_dist"]], dim=0),
+                    [test_set["in_dist"][k][visual_index] for k in validation_reconstruction_indices["in_dist"]],
+                    dim=0),
                 "t": [],
             },
             "ood": {
@@ -227,11 +232,13 @@ class SimpleShapesData(LightningDataModule):
                 for k in range(len(test_set[used_dist][0][text_index])):
                     if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
                         self.validation_domain_examples[used_dist]["t"].append(
-                            torch.tensor([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices[used_dist]])
+                            torch.tensor([test_set[used_dist][i][text_index][k] for i in
+                                          validation_reconstruction_indices[used_dist]])
                         )
                     else:
                         self.validation_domain_examples[used_dist]["t"].append(
-                            torch.stack([test_set[used_dist][i][text_index][k] for i in validation_reconstruction_indices[used_dist]],
+                            torch.stack([test_set[used_dist][i][text_index][k] for i in
+                                         validation_reconstruction_indices[used_dist]],
                                         dim=0)
                         )
 
@@ -307,22 +314,27 @@ def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, si
         size = label[3]
         rotation = label[4]
         hue = label[8]
-        k = 0
-        n_cond_checked = 0
-        if "shape" in ood_attrs and shape_boundaries[k] == cls:
-            n_cond_checked += 1
-        if "position" in ood_attrs and in_interval(x, x_boundaries[k], x_boundaries[(k + 1) % 3], 0, 32):
-            n_cond_checked += 1
-        if "position" in ood_attrs and in_interval(y, y_boundaries[k], y_boundaries[(k + 1) % 3], 0, 32):
-            n_cond_checked += 1
-        if "color" in ood_attrs and in_interval(hue, color_boundaries[k], color_boundaries[(k + 1) % 3], 0, 256):
-            n_cond_checked += 1
-        if "size" in ood_attrs and in_interval(size, size_boundaries[k], size_boundaries[(k + 1) % 3], 0, 25):
-            n_cond_checked += 1
-        if "rotation" in ood_attrs and in_interval(rotation, rotation_boundaries[k], rotation_boundaries[(k + 1) % 3],
-                                                   0, 2 * np.pi):
-            n_cond_checked += 1
-        if n_cond_checked < len(ood_attrs):
+        keep = True
+        for k in range(3):
+            n_cond_checked = 0
+            if "shape" in ood_attrs[k] and shape_boundaries[k] == cls:
+                n_cond_checked += 1
+            if "position" in ood_attrs[k] and in_interval(x, x_boundaries[k], x_boundaries[(k + 1) % 3], 0, 32):
+                n_cond_checked += 1
+            if "position" in ood_attrs[k] and in_interval(y, y_boundaries[k], y_boundaries[(k + 1) % 3], 0, 32):
+                n_cond_checked += 1
+            if "color" in ood_attrs[k] and in_interval(hue, color_boundaries[k], color_boundaries[(k + 1) % 3], 0, 256):
+                n_cond_checked += 1
+            if "size" in ood_attrs[k] and in_interval(size, size_boundaries[k], size_boundaries[(k + 1) % 3], 0, 25):
+                n_cond_checked += 1
+            if "rotation" in ood_attrs[k] and in_interval(rotation, rotation_boundaries[k],
+                                                          rotation_boundaries[(k + 1) % 3],
+                                                          0, 2 * np.pi):
+                n_cond_checked += 1
+            if n_cond_checked >= len(ood_attrs[k]):
+                keep = False
+                break
+        if keep:
             in_dist_items.append(i)
         else:
             out_dist_imates.append(i)
@@ -355,14 +367,6 @@ def create_ood_split(datasets):
     y_boundary = random.random() * 32
     y_boundaries = y_boundary, (y_boundary + 11.6) % 32, (y_boundary + 23.2) % 32
 
-    holes = []
-    choices = ["position", "rotation", "size", "color", "shape"]
-    print("Out of distribution is...")
-    for k in range(2):
-        choice = random.randint(0, len(choices) - 1)
-        holes.append(choices[choice])
-        print(choices[choice])
-        choices.pop(choice)
     print("boundaries")
     print("shape", shape_boundaries)
     print("color", color_boundaries)
@@ -370,6 +374,17 @@ def create_ood_split(datasets):
     print("rotation", rotation_boundaries)
     print("x", x_boundaries)
     print("y", y_boundaries)
+
+    holes = []
+    for i in range(3):
+        holes_k = []
+        choices = ["position", "rotation", "size", "color", "shape"]
+        for k in range(2):
+            choice = random.randint(0, len(choices) - 1)
+            holes_k.append(choices[choice])
+            choices.pop(choice)
+        holes.append(holes_k)
+    print("OOD: ", holes)
 
     out_datasets = []
     for dataset in datasets:
