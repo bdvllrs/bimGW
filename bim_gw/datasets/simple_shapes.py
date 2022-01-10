@@ -117,6 +117,7 @@ class SimpleShapesData(LightningDataModule):
         self.bimodal = bimodal
         self.split_ood = split_ood
         self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
+        self.ood_boundaries = None
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -147,7 +148,9 @@ class SimpleShapesData(LightningDataModule):
                                                   lambda v, t: v)
 
                 if self.split_ood:
-                    id_ood_splits = create_ood_split([sync_set, self.shapes_val, self.shapes_test])
+                    id_ood_splits, ood_boundaries = create_ood_split([sync_set, self.shapes_val, self.shapes_test])
+                    self.ood_boundaries = ood_boundaries
+
                     self.shapes_val = {
                         "in_dist": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][0]),
                         "ood": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1]),
@@ -374,7 +377,7 @@ def create_ood_split(datasets):
     print("x", x_boundaries)
     print("y", y_boundaries)
 
-    holes = []
+    selected_attributes = []
     for i in range(3):
         holes_k = []
         choices = ["position", "rotation", "size", "color", "shape"]
@@ -382,12 +385,21 @@ def create_ood_split(datasets):
             choice = random.randint(0, len(choices) - 1)
             holes_k.append(choices[choice])
             choices.pop(choice)
-        holes.append(holes_k)
-    print("OOD: ", holes)
+        selected_attributes.append(holes_k)
+    print("OOD: ", selected_attributes)
+
+    ood_boundaries = {
+        "x": x_boundaries,
+        "y": y_boundaries,
+        "size": size_boundaries,
+        "rotation": rotation_boundaries,
+        "color": color_boundaries,
+        "selected_attributes": selected_attributes
+    }
 
     out_datasets = []
     for dataset in datasets:
-        in_dist, out_dist = split_in_out_dist(dataset, holes, shape_boundaries, color_boundaries,
+        in_dist, out_dist = split_in_out_dist(dataset, selected_attributes, shape_boundaries, color_boundaries,
                                               size_boundaries, rotation_boundaries, x_boundaries, y_boundaries)
         out_datasets.append((in_dist, out_dist))
-    return out_datasets
+    return out_datasets, ood_boundaries

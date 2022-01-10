@@ -474,6 +474,9 @@ class GlobalWorkspace(LightningModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
+            if self.current_epoch == 0:
+                if self.trainer.datamodule.ood_boundaries is not None:
+                    self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
             for dist in ["in_dist", "ood"]:
                 if self.validation_domain_examples[dist] is not None:
