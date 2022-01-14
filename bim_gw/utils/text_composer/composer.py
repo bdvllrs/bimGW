@@ -45,7 +45,7 @@ if __name__ == '__main__':
     composer = Composer(writers)
 
     print(composer({
-        "shape": "egg",
+        "shape": 2,
         "rotation": np.pi/6,
         "color": (129, 76, 200),
         "size": 20,

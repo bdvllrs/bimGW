@@ -1,28 +1,55 @@
+import os
+
+import matplotlib.pyplot as plt
+import seaborn as sn
 import torch
-import torch.nn.functional as F
-from transformers import BartForConditionalGeneration, BartTokenizer
+from transformers import BertModel, BertTokenizer
+
+from bim_gw.datasets.simple_shapes import get_preprocess, SimpleShapesDataset
+from bim_gw.utils import get_args
 
 if __name__ == '__main__':
-    bart = BartForConditionalGeneration.from_pretrained("facebook/bart-base")
-    bart_tokenizer = BartTokenizer.from_pretrained("facebook/bart-base")
+    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    transformer_model = BertModel.from_pretrained("bert-base-uncased")
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
-    sentence = ["I really like dogs. You can see they love you back.", "Hi! My name is cute."]
+    dataset = SimpleShapesDataset(args.simple_shapes_path, "train",
+                                  get_preprocess(False),
+                                  lambda v, t: t,
+                                  textify=True)
+    num_examples_per_class = 8
+    num_classes = 32
 
-    tokens = bart_tokenizer(sentence, return_tensors='pt', padding=True)['input_ids']
-    encoding = bart.model.encoder(tokens)
+    text_rep = []
 
-    embedding = encoding[0][:, 0]
+    for i in range(num_classes):
+        sentences = [dataset[i][0] for k in range(num_examples_per_class)]
+        tokens = tokenizer(sentences, return_tensors='pt', padding=True)
+        latent_rep = transformer_model(**tokens)["last_hidden_state"][:, 0]
+        text_rep.append(latent_rep)
 
-    text_dec = torch.full_like(tokens, 2)
-    text_dec[:, 0] = 0
-    text_latent = embedding.unsqueeze(1)
-    for k in range(1, tokens.size(1)):
-        decod_out = bart.model.decoder(input_ids=text_dec,
-                                       encoder_hidden_states=text_latent)[0]
-        logits = F.linear(decod_out, bart.model.shared.weight, bart.final_logits_bias)
-        decoded_token = torch.argmax(logits[:, k], dim=1)
-        text_dec[:, k] = decoded_token
+    text_rep = torch.stack(text_rep, dim=0)
+    distances = torch.zeros(num_classes, num_classes, num_examples_per_class, num_examples_per_class)
 
-    decoded_text = [bart_tokenizer.decode(sentence) for sentence in text_dec]
-
+    for i in range(num_classes):
+        for j in range(num_classes):
+            for k in range(num_examples_per_class):
+                for p in range(num_examples_per_class):
+                    distances[i, j, k, p] = torch.nn.functional.mse_loss(text_rep[i, k], text_rep[j, p])
+                    if i == j:
+                        factor = (num_examples_per_class * num_examples_per_class)
+                        factor /= factor - num_examples_per_class
+                        distances[i, j, k, p] *= factor
+    avg_distantes = distances.mean((2, 3)).detach().cpu().numpy()
+    sn.heatmap(avg_distantes)
+    # for i in range(num_classes):
+    #     for j in range(num_classes):
+    #         text = plt.text(j, i, f"{avg_distantes[i, j]:.2f}", ha="center", va="center", color="w")
+    plt.title(f"Intra and inter distances between BERT vectors")
+    plt.xlabel("Images")
+    plt.ylabel("Images")
+    plt.show()
     print('ok')
+
+    # tokens = tokenizer(sentence, return_tensors='pt', padding=True)
+    # encoding = transformer_model(**tokens)["last_hidden_state"][:, 0]

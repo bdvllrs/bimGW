@@ -8,8 +8,11 @@ from PIL import Image
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 from torchvision import transforms
+from transformers import BertTokenizer
 
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
+from bim_gw.utils.text_composer.composer import Composer
+from bim_gw.utils.text_composer.writers import writers
 
 
 def get_preprocess(augmentation=False):
@@ -27,7 +30,7 @@ def get_preprocess(augmentation=False):
 
 class SimpleShapesDataset:
     def __init__(self, path, split="train", transform=None, output_transform=None,
-                 selected_indices=None, min_dataset_size=None):
+                 selected_indices=None, min_dataset_size=None, textify=False):
         """
         Args:
             path:
@@ -64,6 +67,12 @@ class SimpleShapesDataset:
             self.ids = np.tile(self.ids, n_repeats)
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
+        self.text_composer = None
+        self.tokenizer = None
+        if textify:
+            self.text_composer = Composer(writers)
+            self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
     def __len__(self):
         return len(self.labels)
 
@@ -90,10 +99,21 @@ class SimpleShapesDataset:
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
 
-        labels = [
-            cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-        ]
+        if self.text_composer is not None:
+            sentence = self.text_composer({
+                "shape": cls,
+                "rotation": rotation,
+                "color": (label[5], label[6], label[7]),
+                "size": size,
+                "location": (x, y)
+            })
+            labels = sentence
+
+        else:
+            labels = (
+                cls,
+                torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
+            )
 
         if self.output_transform is not None:
             return self.output_transform(img, labels)
@@ -105,7 +125,7 @@ class SimpleShapesData(LightningDataModule):
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
             n_validation_domain_examples=None,
-            bimodal=False, split_ood=True
+            bimodal=False, split_ood=True, textify=False
     ):
         super().__init__()
         if bimodal and use_data_augmentation:
@@ -118,6 +138,7 @@ class SimpleShapesData(LightningDataModule):
         self.split_ood = split_ood
         self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
         self.ood_boundaries = None
+        self.textify = textify
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -133,15 +154,15 @@ class SimpleShapesData(LightningDataModule):
         if stage == "fit" or stage is None:
             if self.bimodal:
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
-                                                      lambda v, t: {"v": v, "t": t})
+                                                      lambda v, t: {"v": v, "t": t}, textify=self.textify)
                 self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
-                                                       lambda v, t: {"v": v, "t": t})
+                                                       lambda v, t: {"v": v, "t": t}, textify=self.textify)
                 visual_index = "v"
                 text_index = "t"
 
                 sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                get_preprocess(self.use_data_augmentation),
-                                               lambda v, t: {"v": v, "t": t})
+                                               lambda v, t: {"v": v, "t": t}, textify=self.textify)
 
                 v_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                   get_preprocess(self.use_data_augmentation),
@@ -187,22 +208,26 @@ class SimpleShapesData(LightningDataModule):
                     sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                    get_preprocess(self.use_data_augmentation),
                                                    lambda v, t: {"v": v, "t": t},
-                                                   labelled_elems, n_targets)
+                                                   labelled_elems, n_targets, textify=self.textify)
 
                 self.train_datasets = {
                     "v": v_train_set,
                     "t": SimpleShapesDataset(self.simple_shapes_folder, "train",
                                              get_preprocess(self.use_data_augmentation),
-                                             lambda v, t: t),
+                                             lambda v, t: t,
+                                             textify=self.textify),
                     "sync_": sync_set
                 }
             else:
-                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
-                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
+                                                      textify=self.textify)
+                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
+                                                       textify=self.textify)
                 visual_index = 0
                 text_index = 1
                 self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                        get_preprocess(self.use_data_augmentation))
+                                                        get_preprocess(self.use_data_augmentation),
+                                                        textify=self.textify)
 
         test_set = self.shapes_val if stage == "fit" else self.shapes_test
         validation_reconstruction_indices = {}
@@ -231,18 +256,24 @@ class SimpleShapesData(LightningDataModule):
         # add t examples
         for used_dist in ["in_dist", "ood"]:
             if validation_reconstruction_indices[used_dist] is not None:
-                for k in range(len(test_set[used_dist][0][text_index])):
-                    if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
-                        self.validation_domain_examples[used_dist]["t"].append(
-                            torch.tensor([test_set[used_dist][i][text_index][k] for i in
-                                          validation_reconstruction_indices[used_dist]])
-                        )
-                    else:
-                        self.validation_domain_examples[used_dist]["t"].append(
-                            torch.stack([test_set[used_dist][i][text_index][k] for i in
-                                         validation_reconstruction_indices[used_dist]],
-                                        dim=0)
-                        )
+                if self.textify:
+                    examples = [test_set[used_dist][i][text_index] for i in
+                                validation_reconstruction_indices[used_dist]]
+                    self.validation_domain_examples[used_dist]["t"] = examples
+                else:
+                    for k in range(len(test_set[used_dist][0][text_index])):
+                        examples = [test_set[used_dist][i][text_index][k] for i in
+                                    validation_reconstruction_indices[used_dist]]
+                        if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
+                            self.validation_domain_examples[used_dist]["t"].append(
+                                torch.tensor(examples)
+                            )
+                        else:
+                            self.validation_domain_examples[used_dist]["t"].append(
+                                torch.stack(examples, dim=0)
+                            )
+                    self.validation_domain_examples[used_dist]["t"] = tuple(
+                        self.validation_domain_examples[used_dist]["t"])
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",

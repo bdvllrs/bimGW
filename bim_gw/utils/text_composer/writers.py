@@ -155,7 +155,9 @@ colors = {"alice blue": [240, 248, 255],
           "yellow green": [154, 205, 50]}
 
 # TODO
-colors_sparse = ["azure", "beige", "black", "blue", "brown", "cyan", "dark blue", "dark cyan", "dark grey", "dark green"]
+colors_sparse = ["azure", "beige", "black", "blue", "brown", "cyan", "dark blue", "dark cyan", "dark grey",
+                 "dark green"]
+
 
 class Writer:
     captions = dict()
@@ -241,11 +243,11 @@ class ContinuousRotationWriter(Writer):
 
 class ShapesWriter(OptionsWriter):
     choices = {
-        "triangle": ["isosceles triangle", "triangle"],
-        "egg": ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
-                "oval shaped structure", "triangle-like shape, with rounded vertexes", "guitar pick"],
-        "diamond": ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
-                    "deformed square shape"],
+        2: ["isosceles triangle", "triangle"],
+        1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
+            "oval shaped structure", "triangle-like shape, with rounded vertexes", "guitar pick"],
+        0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
+            "deformed square shape"],
     }
 
 
@@ -315,7 +317,6 @@ class ColorWriter(QuantizedWriter):
         super().__init__(label_type)
 
 
-
 writers = {
     "shape": [ShapesWriter()],
     "rotation": [CardinalRotationWriter("corners"), CardinalRotationWriter("cardinals"),
@@ -334,9 +335,9 @@ def test_rotation_writer(writer):
 
 def test_shapes_writer(writer):
     for k in range(5):
-        print(writer("triangle"))
-        print(writer("egg"))
-        print(writer("diamond"))
+        print(writer(2))
+        print(writer(1))
+        print(writer(0))
 
 
 def test_size_writer(writer):
@@ -351,8 +352,10 @@ def test_location_writer(writer):
             for j in range(0, 32, 6):
                 print(writer(i, j))
 
+
 def test_colors(writer):
     print(writer(255, 165, 87))
+
 
 if __name__ == '__main__':
     test_rotation_writer(CardinalRotationWriter("corners"))

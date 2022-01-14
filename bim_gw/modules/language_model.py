@@ -2,11 +2,13 @@ import numpy as np
 import torch
 from gensim.models import KeyedVectors
 from torch.nn import functional as F
-from transformers import BartForConditionalGeneration, BartTokenizer
+from transformers import BertTokenizer, BertModel
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
+from bim_gw.utils.text_composer.composer import Composer
+from bim_gw.utils.text_composer.writers import writers
 
 
 class SkipGramLM(WorkspaceModule):
@@ -132,10 +134,10 @@ class ShapesAttributesLM(WorkspaceModule):
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
 
-        labels = [
+        labels = (
             torch.from_numpy(cls),
             torch.from_numpy(np.stack([x, y, radius, rotation_x, rotation_y, r, g, b], axis=1)).to(torch.float),
-        ]
+        )
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
@@ -160,96 +162,58 @@ def make_causal_mask_prog(input_dec, encod_out):
     mask = (torch.triu(torch.ones(input_dec.size(1), encod_out.size(1))) == 1).permute(1, 0)
     return mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.)).to(input_dec.device)
 
+
 class ShapesLM(WorkspaceModule):
     def __init__(self, n_classes, imsize):
         super(ShapesLM, self).__init__()
         self.n_classes = n_classes
-        self.z_size = 3
+        self.z_size = 768
         self.imsize = imsize
 
-        self.bart = BartForConditionalGeneration.from_pretrained("facebook/bart-base")
-        self.bart_tokenizer = BartTokenizer.from_pretrained("facebook/bart-base")
+        self.transformer = BertModel.from_pretrained("bert-base-uncased")
+        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self.text_composer = Composer(writers)
 
-        self.output_dims = [self.z_size, 8]
-        self.requires_acc_computation = True
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            lambda x: torch.softmax(x, dim=1),  # shapes
-            # torch.tanh,  # rotations
-            torch.tanh,  # rest
+            None
         ]
 
         self.losses = [
-            lambda x, y: nll_loss(x.log(), y),  # shapes
-            # F.mse_loss,  # rotations
-            F.mse_loss  # rest
+            F.mse_loss
         ]
 
     def encode(self, x):
         return self(x)
 
     def decode(self, text_latent):
-        device = text_latent.device
-        text_latent = text_latent
-        text_dec = torch.ones(text_latent.size(0), text_latent.size(1) + 2,
-                              dtype=torch.long, device=device).fill_(2)
-        logits = torch.zeros(text_latent.size(0), text_latent.size(1), self.bart.model.shared.weight.size(0))
-        text_dec[:, 1] = 0
-        text_dec[:, -1] = 2
+        return text_latent
 
-        for i in range(text_latent.size(1) - 1):
-            mask = make_causal_mask_prog(text_dec[:, :-2], text_latent)
-
-            decod_out, = self.bart.model.decoder(text_dec[:, :-2], text_latent, encoder_padding_mask=None,
-                                                 decoder_padding_mask=None,
-                                                 decoder_causal_mask=mask)
-
-            logits[:, i + 1] = F.linear(decod_out,
-                                        self.bart.model.shared.weight,
-                                        self.bart.final_logits_bias)[:, i + 1]
-
-            if i + 2 < text_dec.size(1):
-                text_dec[:, i + 2] = torch.argmax(logits[:, i + 1], dim=1)
-        return text_dec[:, 1:]
-
-    def forward(self, x):
-        tokens = self.bart_tokenizer(x[0], return_tensors='pt', padding=True)['input_ids'].to(self.device)
-        encoding = self.bart.model.encoder(tokens)[0]
-        return encoding
-
-    def compute_acc(self, acc_metric, predictions, targets):
-        return acc_metric(predictions[0], targets[0].to(torch.int16))
+    def forward(self, sentences):
+        tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
+        x = self.transformer(**tokens)["last_hidden_state"][:, 0]
+        return x
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
         cls = samples["classes"]
         x, y = samples["locations"][:, 0], samples["locations"][:, 1]
-        radius = samples["sizes"]
+        size = samples["sizes"]
         rotation = samples["rotations"]
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
 
-        labels = [
-            torch.from_numpy(cls),
-            torch.from_numpy(np.stack([x, y, radius, rotation_x, rotation_y, r, g, b], axis=1)).to(torch.float),
-        ]
+        labels = self.text_composer({
+            "shape": cls,
+            "rotation": rotation,
+            "color": (r, g, b),
+            "size": size,
+            "location": (x, y)
+        })
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        classes = x[0][:max_examples].detach().cpu().numpy()
-        latents = x[1][:max_examples].detach().cpu().numpy()
-
-        # visualization
-        log_shape_fig(
-            logger,
-            classes,
-            # rotations,
-            latents,
-            name + "_vis"
-        )
-
-        # text
-        text = ", ".join(map(str, [classes[0].item()] + latents[0].tolist()))
-        logger.experiment[name + "_text"].log(text)
+        if isinstance(x[0], str):
+            for t in x:
+                logger.experiment[name + "_text"].log(t)

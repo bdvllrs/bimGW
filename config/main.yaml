@@ -17,6 +17,7 @@ global_workspace:
   monitor_grad_norms: false  # if true, training is a bit slower.
   batch_size: 128
   data_augmentation: false
+  text_domain: "attributes"
 
   z_size: 20
   hidden_size: 512

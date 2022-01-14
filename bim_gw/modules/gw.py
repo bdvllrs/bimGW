@@ -55,7 +55,7 @@ class DomainDecoder(torch.nn.Module):
             outputs.append(z)
         if len(outputs) == 1:
             return outputs[0]
-        return outputs
+        return tuple(outputs)
 
 
 class DomainEncoder(nn.Module):
@@ -77,9 +77,9 @@ class DomainEncoder(nn.Module):
     def forward(self, x):
         if len(self.in_dims) > 1:
             assert len(x) == len(self.in_dims), "Not enough values as input."
-        if isinstance(x, (list, tuple)) and len(x) == 1:
+        if isinstance(x, tuple) and len(x) == 1:
             x = x[0]
-        elif isinstance(x, (list, tuple)):
+        elif isinstance(x, tuple):
             x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)
@@ -161,8 +161,8 @@ class GlobalWorkspace(LightningModule):
                 for key, example_vecs in example_dist_vecs.items():
                     assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
                     if example_vecs is not None:
-                        if not isinstance(example_vecs, (tuple, list)):
-                            example_vecs = [example_vecs]
+                        if not isinstance(example_vecs, tuple):
+                            example_vecs = (example_vecs,)
 
                         self.validation_example_list[key] = len(example_vecs)
                         for k, example_vec in enumerate(example_vecs):
@@ -228,9 +228,9 @@ class GlobalWorkspace(LightningModule):
 
             out = self.demi_cycle(domain, name)
 
-            if not isinstance(domain, (list, tuple)):
-                domain = [domain]
-                out = [out]
+            if not isinstance(domain, tuple):
+                domain = (domain,)
+                out = (out,)
 
             l = torch.tensor(0.).to(self.device)
             for k in range(len(domain)):
@@ -261,10 +261,10 @@ class GlobalWorkspace(LightningModule):
 
                     out = self.cycle(domain, domain_name_start, domain_name_inter)
 
-                    if not isinstance(domain, (list, tuple)):
-                        assert not isinstance(domain, (list, tuple))
-                        domain = [domain]
-                        out = [out]
+                    if not isinstance(domain, tuple):
+                        assert not isinstance(domain, tuple)
+                        domain = (domain,)
+                        out = (out,)
 
                     l = torch.tensor(0.).to(self.device)
                     for k in range(len(domain)):
@@ -287,10 +287,10 @@ class GlobalWorkspace(LightningModule):
                 if domain_name_1 != domain_name_2:
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
-                    if not isinstance(domain_2, (list, tuple)):
-                        assert not isinstance(domain_2, (list, tuple))
-                        domain_2 = [domain_2]
-                        pred_domain_2 = [pred_domain_2]
+                    if not isinstance(domain_2, tuple):
+                        assert not isinstance(domain_2, tuple)
+                        domain_2 = (domain_2,)
+                        pred_domain_2 = (pred_domain_2,)
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
                             token = f"{domain_name_1}_to_{domain_name_2}_{k}"
@@ -384,14 +384,14 @@ class GlobalWorkspace(LightningModule):
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
         total_loss, losses = self.step(latents, latents, domains, mode="val", prefix=prefix)
 
-        latent_start = self.domain_mods["v"].encode(domains["v"])
-        latent_end = self.translate(latent_start, "v", "t")
-        domain_end_pred = self.domain_mods["t"].decode(latent_end)
-        rotations_pred = domain_end_pred[1][:, 3].detach().cpu().numpy()
-        rotations_ori = domains["t"][1][:, 3].detach().cpu().numpy()
-        diff = rotations_pred - rotations_ori
-        diff = np.where(diff > np.pi, diff - 2 * np.pi, diff)
-        self.rotation_error_val.extend((diff * 180 / np.pi).tolist())
+        # latent_start = self.domain_mods["v"].encode(domains["v"])
+        # latent_end = self.translate(latent_start, "v", "t")
+        # domain_end_pred = self.domain_mods["t"].decode(latent_end)
+        # rotations_pred = domain_end_pred[1][:, 3].detach().cpu().numpy()
+        # rotations_ori = domains["t"][1][:, 3].detach().cpu().numpy()
+        # diff = rotations_pred - rotations_ori
+        # diff = np.where(diff > np.pi, diff - 2 * np.pi, diff)
+        # self.rotation_error_val.extend((diff * 180 / np.pi).tolist())
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
