@@ -9,6 +9,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 from torchvision import transforms
 from transformers import BertTokenizer
+import matplotlib.pyplot as plt
 
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.text_composer.composer import Composer

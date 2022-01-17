@@ -200,7 +200,7 @@ class QuantizedWriter(Writer):
 
 class CardinalRotationWriter(QuantizedWriter):
     quantized_values = np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 5])
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4])
 
     labels = {
         "corners":
