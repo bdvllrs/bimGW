@@ -69,10 +69,8 @@ class SimpleShapesDataset:
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
         self.text_composer = None
-        self.tokenizer = None
         if textify:
             self.text_composer = Composer(writers)
-            self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
     def __len__(self):
         return len(self.labels)

@@ -164,14 +164,14 @@ def make_causal_mask_prog(input_dec, encod_out):
 
 
 class ShapesLM(WorkspaceModule):
-    def __init__(self, n_classes, imsize):
+    def __init__(self, n_classes, imsize, bert_path):
         super(ShapesLM, self).__init__()
         self.n_classes = n_classes
         self.z_size = 768
         self.imsize = imsize
 
-        self.transformer = BertModel.from_pretrained("bert-base-uncased")
-        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self.transformer = BertModel.from_pretrained(bert_path)
+        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
         self.text_composer = Composer(writers)
 
         self.output_dims = [self.z_size]

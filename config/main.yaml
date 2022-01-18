@@ -18,6 +18,7 @@ global_workspace:
   batch_size: 128
   data_augmentation: false
   text_domain: "attributes"
+  bert_path: "bert-base-uncased"
 
   z_size: 20
   hidden_size: 512

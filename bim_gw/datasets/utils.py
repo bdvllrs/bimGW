@@ -35,7 +35,7 @@ def get_lm(args, data):
     if args.global_workspace.text_domain == "attributes":
         lm = ShapesAttributesLM(len(data.classes), data.img_size)
     elif args.global_workspace.text_domain == "bert":
-        lm = ShapesLM(len(data.classes), data.img_size)
+        lm = ShapesLM(len(data.classes), data.img_size, args.global_workspace.bert_path)
     else:
         lm = SkipGramLM(args.gensim_model_path, data.classes, args.word_embeddings).eval()
     return lm
