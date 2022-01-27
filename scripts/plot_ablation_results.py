@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from bim_gw.utils.neptune import CSVLog
+from bim_gw.utils.csv import CSVLog
 
 
 def load_data():

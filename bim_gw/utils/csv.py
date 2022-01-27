@@ -35,6 +35,15 @@ class CSVLog:
                     row = {key: _set_float(val) for key, val in row.items()}
                     self.data.append(row)
 
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def values(self, item):
+        return [d[item] for d in self.data]
+
     def _get_dict_row(self, row):
         return {key: row[k] for key, k in self.keys_to_index.items()}
 
