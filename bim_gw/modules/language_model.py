@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from gensim.models import KeyedVectors
+from torch import nn
 from torch.nn import functional as F
 from transformers import BertTokenizer, BertModel
 
@@ -164,15 +165,38 @@ def make_causal_mask_prog(input_dec, encod_out):
 
 
 class ShapesLM(WorkspaceModule):
-    def __init__(self, n_classes, imsize, bert_path):
+    def __init__(
+            self, z_size, n_classes, imsize, bert_path,
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
+            validation_domain_examples=None,
+    ):
+
         super(ShapesLM, self).__init__()
+        self.save_hyperparameters()
         self.n_classes = n_classes
-        self.z_size = 768
+        self.z_size = z_size
+        self.bert_size = 768
         self.imsize = imsize
 
         self.transformer = BertModel.from_pretrained(bert_path)
+        for p in self.transformer.parameters():
+            p.requires_grad_(False)
+
         self.tokenizer = BertTokenizer.from_pretrained(bert_path)
         self.text_composer = Composer(writers)
+
+        self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
+
+        self.projection = nn.Sequential(
+            nn.Linear(self.bert_size, self.bert_size // 2),
+            nn.ReLU(),
+            nn.Linear(self.bert_size // 2, self.z_size)
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
+        )
+
+        self.validation_domain_examples = validation_domain_examples
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
@@ -189,10 +213,14 @@ class ShapesLM(WorkspaceModule):
     def decode(self, text_latent):
         return text_latent
 
-    def forward(self, sentences):
+    def get_bert_latent(self, sentences):
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
         x = self.transformer(**tokens)["last_hidden_state"][:, 0]
         return x
+
+    def forward(self, sentences):
+        bert_latent = self.get_bert_latent(sentences)
+        return self.projection(bert_latent)
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -217,3 +245,74 @@ class ShapesLM(WorkspaceModule):
         if isinstance(x[0], str):
             for t in x:
                 logger.experiment[name + "_text"].log(t)
+
+    def classify(self, sentences):
+        z = self(sentences)
+        prediction = self.classifier(z)
+        predictions = []
+        last_dim = 0
+        for dim, act_fn in zip(self.shapes_attribute.output_dims, self.shapes_attribute.decoder_activation_fn):
+            pred = act_fn(prediction[:, last_dim:last_dim + dim])
+            predictions.append(pred)
+            last_dim += dim
+        return predictions
+
+    def step(self, batch, batch_idx, mode="train"):
+        sentences, targets = batch
+        targets = self.shapes_attribute.encode(targets)
+        predictions = self.classify(sentences)
+        losses = []
+        total_loss = 0
+        for k, (group_pred, loss, target) in enumerate(zip(predictions,
+                                                           self.shapes_attribute.losses, targets)):
+            group_loss = loss(group_pred, target)
+            predictions.append(group_pred)
+            losses.append(group_loss)
+            total_loss += group_loss
+
+            self.log(f"{mode}_loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"))
+
+        self.log(f"{mode}_total_loss", total_loss, logger=True, on_epoch=(mode == "val"))
+        return predictions, losses, total_loss
+
+    def training_step(self, batch, batch_idx):
+        predictions, losses, total_loss = self.step(batch, batch_idx, "train")
+        return total_loss
+
+    def validation_step(self, batch, batch_idx):
+        predictions, losses, total_loss = self.step(batch, batch_idx, "val")
+        return total_loss
+
+    def validation_epoch_end(self, outputs):
+        if self.logger is not None:
+            predictions = self.shapes_attribute.decode(self.classify(self.validation_domain_examples["s"]))
+            cls = predictions[0].detach().cpu().numpy()
+            attributes = predictions[1].detach().cpu().numpy()
+            # Text
+            rotation_x = attributes[:, 3] * 2 - 1
+            rotation_y = attributes[:, 4] * 2 - 1
+            rotations = np.arctan2(rotation_y, rotation_x)
+
+            sentence_predictions = [self.text_composer({
+                "shape": int(cls[k]),
+                "rotation": rotations[k],
+                "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
+                "size": attributes[k, 2],
+                "location": (attributes[k, 0], attributes[k, 1])
+            }) for k in range(len(cls))]
+
+            self.logger.experiment["predictions_text"].log(sentence_predictions)
+
+            # Images
+            self.shapes_attribute.log_domain(self.logger, predictions, "predictions_reconstruction")
+            # if self.current_epoch == 0:
+            self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
+            self.logger.experiment["target_text"].log(self.validation_domain_examples["s"])
+
+    def configure_optimizers(self):
+        params = [p for p in self.parameters() if p.requires_grad]
+        optimizer = torch.optim.Adam(params, lr=self.hparams.optim_lr,
+                                     weight_decay=self.hparams.optim_weight_decay)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
+                                                    self.hparams.scheduler_gamma)
+        return [optimizer], [scheduler]

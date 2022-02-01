@@ -8,8 +8,6 @@ from PIL import Image
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 from torchvision import transforms
-from transformers import BertTokenizer
-import matplotlib.pyplot as plt
 
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.text_composer.composer import Composer
@@ -119,7 +117,7 @@ class SimpleShapesDataset:
         return img, labels
 
 
-class SimpleShapesData(LightningDataModule):
+class SimpleShapesGWData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,

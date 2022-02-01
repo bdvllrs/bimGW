@@ -25,7 +25,7 @@ def train_gw(args):
     ).eval()
     vae.freeze()
 
-    lm = get_lm(args, data)
+    lm = get_lm(args, data).eval()
     lm.freeze()
 
     global_workspace = GlobalWorkspace({

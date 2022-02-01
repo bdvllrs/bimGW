@@ -1,6 +1,6 @@
 from bim_gw.datasets import CIFARData
 from bim_gw.datasets import ImageNetData
-from bim_gw.datasets.simple_shapes import SimpleShapesData
+from bim_gw.datasets.simple_shapes import SimpleShapesGWData
 from bim_gw.modules import SkipGramLM
 from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
@@ -21,21 +21,23 @@ def load_dataset(args, local_args, **kwargs):
     elif args.visual_dataset == "shapes":
         print("Loading Shapes.")
         textify = args.global_workspace.text_domain == "bert"
-        return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
-                                args.dataloader.num_workers, local_args.data_augmentation,
-                                args.global_workspace.prop_labelled_images,
-                                args.n_validation_examples,
-                                textify=textify,
-                                **kwargs)
+        return SimpleShapesGWData(args.simple_shapes_path, local_args.batch_size,
+                                  args.dataloader.num_workers, local_args.data_augmentation,
+                                  args.global_workspace.prop_labelled_images,
+                                  args.n_validation_examples,
+                                  textify=textify,
+                                  **kwargs)
     else:
         raise ValueError("The requested dataset is not implemented.")
 
 
-def get_lm(args, data):
+def get_lm(args, data, **kwargs):
     if args.global_workspace.text_domain == "attributes":
         lm = ShapesAttributesLM(len(data.classes), data.img_size)
     elif args.global_workspace.text_domain == "bert":
-        lm = ShapesLM(len(data.classes), data.img_size, args.global_workspace.bert_path)
+        lm = ShapesLM.load_from_checkpoint(
+            args.global_workspace.lm_checkpoint,
+            bert_path=args.global_workspace.bert_path)
     else:
         lm = SkipGramLM(args.gensim_model_path, data.classes, args.word_embeddings).eval()
     return lm
