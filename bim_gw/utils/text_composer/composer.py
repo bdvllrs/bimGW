@@ -8,17 +8,16 @@ from bim_gw.utils.text_composer.writers import writers
 
 class Composer:
     script_structures = [
-        "{start} {size} {color} {shape}, {located} {in_the} {location} {corner}. It is {pointing} the {rotation} {corner}.",
-        "{start} {size} {shape} in {color} color, {located} {in_the} {location} {corner}. It is {pointing} the {rotation} {corner}.",
-        "{start} {size} {shape} in {color} color. It is {located} {in_the} {location} {corner} and {pointing} the {rotation} {corner}.",
-        "{start} {size} {color} {shape}. It is {located} {in_the} {location} {corner} and {pointing} the {rotation} {corner}.",
+        "{start} {size} {color} {shape}, {located} {in_the} {location}. It is {pointing} the {rotation}.",
+        "{start} {size} {shape} in {color} color, {located} {in_the} {location}. It is {pointing} the {rotation}.",
+        "{start} {size} {shape} in {color} color. It is {located} {in_the} {location} and {pointing} the {rotation}.",
+        "{start} {size} {color} {shape}. It is {located} {in_the} {location} and {pointing} the {rotation}.",
     ]
 
     variants = {
         "start": ["A", "It is a", "A kind of", "This is a", "There is a"],
         "located": ["", "located"],
         "in_the": ["in the", "at the"],
-        "corner": ["", "corner"],
         "pointing": ["pointing towards", "rotated towards"]
     }
 

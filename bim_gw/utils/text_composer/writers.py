@@ -154,9 +154,11 @@ colors = {"alice blue": [240, 248, 255],
           "yellow": [255, 255, 0],
           "yellow green": [154, 205, 50]}
 
-# TODO
 colors_sparse = ["azure", "beige", "black", "blue", "brown", "cyan", "dark blue", "dark cyan", "dark grey",
-                 "dark green"]
+                 "dark green", "dark orange", "dark red", "dark violet", "grey", "green", "green yellow", "indigo",
+                 "light blue", "light grey", "light green", "light pink", "light yellow", "magenta", "medium blue",
+                 "medium purple", "orange", "pale green", "pink", "purple", "red", "violet", "white", "yellow",
+                 "yellow green"]
 
 
 class Writer:
@@ -317,12 +319,26 @@ class ColorWriter(QuantizedWriter):
         super().__init__(label_type)
 
 
+class SimpleColorWriter(QuantizedWriter):
+    def __init__(self, label_type):
+        labels = colors_sparse
+        self.quantized_values = [colors[label] for label in labels]
+        self.quantized_values = np.stack(list(self.quantized_values), axis=1)
+        self.labels = {
+            0: list(labels)
+        }
+        self.captions = {
+            0: "{val}"
+        }
+
+        super().__init__(label_type)
+
 writers = {
     "shape": [ShapesWriter()],
     "rotation": [CardinalRotationWriter("corners"), CardinalRotationWriter("cardinals"),
                  ContinuousRotationWriter("degrees")],
     "size": [SizeWriter(0)],  # TODO: area based size writer
-    "color": [ColorWriter(0)],  # TODO: add other kind of color description
+    "color": [ColorWriter(0), SimpleColorWriter(0)],
     "location": [LocationWriter(0)]
 }
 
