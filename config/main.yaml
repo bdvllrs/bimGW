@@ -13,33 +13,6 @@ img_size: 32
 
 n_validation_examples: 32
 
-global_workspace:
-  monitor_grad_norms: false  # if true, training is a bit slower.
-  batch_size: 128
-  data_augmentation: false
-  text_domain: "attributes"
-  bert_path: "bert-base-uncased"
-
-  z_size: 20
-  hidden_size: 512
-  prop_labelled_images: 1.  # of the allowed classes to be labelled.
-  classes_labelled_images: null  # null is all classes
-  vae_checkpoint: ???
-  vae_mmd_loss_coef: 0.
-  vae_kl_loss_coef: 0.
-
-  optim:
-    lr:
-      encoders: 1e-4
-      decoders: 1e-4
-      supervised_multiplier: 1.
-      unsupervised_multiplier: 1.
-    weight_decay: 3e-5
-
-  scheduler:
-    step: 20
-    gamma: 0.5
-
 vae:
   batch_size: 128
   data_augmentation: true
@@ -59,6 +32,45 @@ vae:
     step: 20
     gamma: 0.5
 
+lm:
+  z_size: 12
+
+  batch_size: 128
+  n_validation_examples: 32
+  optim:
+    lr: 1e-4
+    weight_decay: 3e-5
+  scheduler:
+    step: 10
+    gamma: 0.1
+
+global_workspace:
+  monitor_grad_norms: false  # if true, training is a bit slower.
+  batch_size: 128
+  data_augmentation: false
+  text_domain: "attributes"
+  bert_path: "bert-base-uncased"
+
+  z_size: 20
+  hidden_size: 512
+  prop_labelled_images: 1.  # of the allowed classes to be labelled.
+  classes_labelled_images: null  # null is all classes
+  vae_checkpoint: ???
+  lm_checkpoint: ???
+  vae_mmd_loss_coef: 0.
+  vae_kl_loss_coef: 0.
+
+  optim:
+    lr:
+      encoders: 1e-4
+      decoders: 1e-4
+      supervised_multiplier: 1.
+      unsupervised_multiplier: 1.
+    weight_decay: 3e-5
+
+  scheduler:
+    step: 20
+    gamma: 0.5
 
 losses:
   coefs:
