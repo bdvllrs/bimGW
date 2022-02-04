@@ -186,13 +186,18 @@ class ShapesLM(WorkspaceModule):
         self.text_composer = Composer(writers)
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
+        self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
+            nn.Linear(self.bert_size, self.bert_size),
+            nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
             nn.Linear(self.bert_size // 2, self.z_size)
         )
         self.classifier = nn.Sequential(
+            nn.Linear(self.z_size, self.z_size),
+            nn.ReLU(),
             nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
         )
 
@@ -211,7 +216,23 @@ class ShapesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, text_latent):
-        return text_latent
+        predictions = self.classify(text_latent)
+        predictions = self.shapes_attribute.decode(predictions)
+        cls = predictions[0].detach().cpu().numpy()
+        attributes = predictions[1].detach().cpu().numpy()
+        # Text
+        rotation_x = attributes[:, 3] * 2 - 1
+        rotation_y = attributes[:, 4] * 2 - 1
+        rotations = np.arctan2(rotation_y, rotation_x)
+
+        sentence_predictions = [self.text_composer({
+            "shape": int(cls[k]),
+            "rotation": rotations[k],
+            "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
+            "size": attributes[k, 2],
+            "location": (attributes[k, 0], attributes[k, 1])
+        }) for k in range(len(cls))]
+        return sentence_predictions
 
     def get_bert_latent(self, sentences):
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
@@ -246,8 +267,7 @@ class ShapesLM(WorkspaceModule):
             for t in x:
                 logger.experiment[name + "_text"].log(t)
 
-    def classify(self, sentences):
-        z = self(sentences)
+    def classify(self, z):
         prediction = self.classifier(z)
         predictions = []
         last_dim = 0
@@ -258,9 +278,10 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch
+        sentences, targets = batch["t"], batch["a"]
         targets = self.shapes_attribute.encode(targets)
-        predictions = self.classify(sentences)
+        z = self.encode(sentences)
+        predictions = self.classify(z)
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -285,23 +306,12 @@ class ShapesLM(WorkspaceModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
-            predictions = self.shapes_attribute.decode(self.classify(self.validation_domain_examples["s"]))
-            cls = predictions[0].detach().cpu().numpy()
-            attributes = predictions[1].detach().cpu().numpy()
-            # Text
-            rotation_x = attributes[:, 3] * 2 - 1
-            rotation_y = attributes[:, 4] * 2 - 1
-            rotations = np.arctan2(rotation_y, rotation_x)
-
-            sentence_predictions = [self.text_composer({
-                "shape": int(cls[k]),
-                "rotation": rotations[k],
-                "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
-                "size": attributes[k, 2],
-                "location": (attributes[k, 0], attributes[k, 1])
-            }) for k in range(len(cls))]
+            encoded_s = self.encode(self.validation_domain_examples["s"])
+            predictions = self.classify(encoded_s)
+            sentence_predictions = self.shapes_attribute.decode(encoded_s)
 
             self.logger.experiment["predictions_text"].log(sentence_predictions)
+            self.logger.experiment["predictions_text"].log("-----")
 
             # Images
             self.shapes_attribute.log_domain(self.logger, predictions, "predictions_reconstruction")

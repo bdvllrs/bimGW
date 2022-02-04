@@ -1,6 +1,6 @@
 from bim_gw.datasets import CIFARData
 from bim_gw.datasets import ImageNetData
-from bim_gw.datasets.simple_shapes import SimpleShapesGWData
+from bim_gw.datasets.simple_shapes import SimpleShapesData
 from bim_gw.modules import SkipGramLM
 from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
@@ -20,13 +20,11 @@ def load_dataset(args, local_args, **kwargs):
                          args.dataloader.num_workers, local_args.data_augmentation)
     elif args.visual_dataset == "shapes":
         print("Loading Shapes.")
-        textify = args.global_workspace.text_domain == "bert"
-        return SimpleShapesGWData(args.simple_shapes_path, local_args.batch_size,
-                                  args.dataloader.num_workers, local_args.data_augmentation,
-                                  args.global_workspace.prop_labelled_images,
-                                  args.n_validation_examples,
-                                  textify=textify,
-                                  **kwargs)
+        return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
+                                args.dataloader.num_workers, local_args.data_augmentation,
+                                local_args.prop_labelled_images,
+                                args.n_validation_examples, local_args.selected_domains,
+                                local_args.split_ood)
     else:
         raise ValueError("The requested dataset is not implemented.")
 

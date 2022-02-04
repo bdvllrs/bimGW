@@ -27,9 +27,79 @@ def get_preprocess(augmentation=False):
     return transforms.Compose(transformations)
 
 
+class VisualDataFetcher:
+    def __init__(self, root_path, split, ids, transforms=None):
+        self.root_path = root_path
+        self.split = split
+        self.ids = ids
+        self.transforms = transforms
+
+    def __getitem__(self, item):
+        image_id = self.ids[item]
+        with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
+            img = Image.open(f)
+            img = img.convert('RGB')
+        if self.transforms is not None:
+            img = self.transforms(img)
+        return img
+
+
+class AttributesDataFetcher:
+    def __init__(self, labels, transforms=None):
+        self.labels = labels
+        self.transforms = transforms
+
+    def __getitem__(self, item):
+        label = self.labels[item]
+        cls = int(label[0])
+        x, y = label[1], label[2]
+        size = label[3]
+        rotation = label[4]
+        r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
+        rotation_x = (np.cos(rotation) + 1) / 2
+        rotation_y = (np.sin(rotation) + 1) / 2
+
+        labels = (
+            cls,
+            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
+        )
+
+        if self.transforms is not None:
+            labels = self.transforms(labels)
+        return labels
+
+
+class TextDataFetcher:
+    def __init__(self, labels, transforms=None):
+        self.labels = labels
+        self.transforms = transforms
+        self.text_composer = Composer(writers)
+
+    def __getitem__(self, item):
+        label = self.labels[item]
+        cls = int(label[0])
+        x, y = label[1], label[2]
+        size = label[3]
+        rotation = label[4]
+
+        sentence = self.text_composer({
+            "shape": cls,
+            "rotation": rotation,
+            "color": (label[5], label[6], label[7]),
+            "size": size,
+            "location": (x, y)
+        })
+
+        if self.transforms is not None:
+            sentence = self.transforms(sentence)
+        return sentence
+
+
 class SimpleShapesDataset:
-    def __init__(self, path, split="train", transform=None, output_transform=None,
-                 selected_indices=None, min_dataset_size=None, textify=False):
+    available_domains = ["v", "a", "t"]
+
+    def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
+                 selected_domains=None, transform=None, output_transform=None):
         """
         Args:
             path:
@@ -40,8 +110,10 @@ class SimpleShapesDataset:
             min_dataset_size: Copies the data so that the effective size is the one given.
         """
         assert split in ["train", "val", "test"]
+        self.selected_domains = self.available_domains if selected_domains is None else selected_domains
         self.root_path = Path(path)
-        self.transforms = transform
+        self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
+                           for domain in self.available_domains}
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
@@ -66,76 +138,43 @@ class SimpleShapesDataset:
             self.ids = np.tile(self.ids, n_repeats)
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
-        self.text_composer = None
-        if textify:
-            self.text_composer = Composer(writers)
+        self.data_fetchers = {
+            "v": VisualDataFetcher(self.root_path, self.split, self.ids, self.transforms["v"]),
+            "a": AttributesDataFetcher(self.labels, self.transforms["a"]),
+            "t": TextDataFetcher(self.labels, self.transforms["t"])
+        }
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, item):
-        image_id = self.ids[item]
-        with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
-            img = Image.open(f)
-            img = img.convert('RGB')
-        if self.transforms is not None:
-            img = self.transforms(img)
-        label = self.labels[item]
-        cls = int(label[0])
-        x, y = label[1], label[2]
-        size = label[3]
-        # if cls == 0:  # square
-        #     rotation = label[4] % 90
-        # elif cls == 1:  # circle
-        #     rotation = 0
-        # else:
-        rotation = label[4]
-        # assert 0 <= rotation <= 1
-        # rotation = rotation * 2 * np.pi / 360  # put in radians
-        r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
-
-        if self.text_composer is not None:
-            sentence = self.text_composer({
-                "shape": cls,
-                "rotation": rotation,
-                "color": (label[5], label[6], label[7]),
-                "size": size,
-                "location": (x, y)
-            })
-            labels = sentence
-
-        else:
-            labels = (
-                cls,
-                torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-            )
+        selected_domains = {
+            domain: self.data_fetchers[domain][item] for domain in self.selected_domains
+        }
 
         if self.output_transform is not None:
-            return self.output_transform(img, labels)
-        return img, labels
+            return self.output_transform(selected_domains)
+        return selected_domains
 
 
-class SimpleShapesGWData(LightningDataModule):
+class SimpleShapesData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
-            n_validation_domain_examples=None,
-            bimodal=False, split_ood=True, textify=False
+            n_validation_domain_examples=None, selected_domains=None,
+            split_ood=True
     ):
         super().__init__()
-        if bimodal and use_data_augmentation:
-            raise ValueError("bimodal mode and data augmentation is not possible for now...")
+        if selected_domains != ["v"] and use_data_augmentation:
+            raise ValueError("multimodal mode and data augmentation is not possible for now...")
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.img_size = 32
-        self.bimodal = bimodal
         self.split_ood = split_ood
         self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
         self.ood_boundaries = None
-        self.textify = textify
+        self.selected_domains = selected_domains
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -148,85 +187,48 @@ class SimpleShapesGWData(LightningDataModule):
         self.val_dataset_size = len(ds)
 
     def setup(self, stage=None):
+        val_transforms = {"v": get_preprocess()}
+        train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
         if stage == "fit" or stage is None:
-            if self.bimodal:
-                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
-                                                      lambda v, t: {"v": v, "t": t}, textify=self.textify)
-                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
-                                                       lambda v, t: {"v": v, "t": t}, textify=self.textify)
-                visual_index = "v"
-                text_index = "t"
+            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
+                                                  transform=val_transforms,
+                                                  selected_domains=self.selected_domains)
+            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
+                                                   transform=val_transforms,
+                                                   selected_domains=self.selected_domains)
 
-                sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                               get_preprocess(self.use_data_augmentation),
-                                               lambda v, t: {"v": v, "t": t}, textify=self.textify)
+            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                 transform=train_transforms,
+                                                 selected_domains=self.selected_domains)
+            self.shapes_train = {}
+            for domain in self.selected_domains:
+                self.shapes_train[domain] = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                                transform=train_transforms,
+                                                                selected_domains=[domain],
+                                                                output_transform=lambda x, y=domain: x[y])
 
-                v_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                  get_preprocess(self.use_data_augmentation),
-                                                  lambda v, t: v)
+            if self.split_ood:
+                id_ood_splits, ood_boundaries = create_ood_split(
+                    [sync_train_set, self.shapes_val, self.shapes_test])
+                self.ood_boundaries = ood_boundaries
 
-                if self.split_ood:
-                    id_ood_splits, ood_boundaries = create_ood_split([sync_set, self.shapes_val, self.shapes_test])
-                    self.ood_boundaries = ood_boundaries
+                target_indices = np.unique(id_ood_splits[0][0])
 
-                    self.shapes_val = {
-                        "in_dist": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][0]),
-                        "ood": torch.utils.data.Subset(self.shapes_val, id_ood_splits[1][1]),
-                    }
-                    self.shapes_test = {
-                        "in_dist": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][0]),
-                        "ood": torch.utils.data.Subset(self.shapes_test, id_ood_splits[2][1]),
-                    }
-
-                    target_indices = np.unique(id_ood_splits[0][0])
-
-                    print("Val set in dist size", len(id_ood_splits[1][0]))
-                    print("Val set OOD size", len(id_ood_splits[1][1]))
-                    print("Test set in dist size", len(id_ood_splits[2][0]))
-                    print("Test set OOD size", len(id_ood_splits[2][1]))
-                else:
-                    self.shapes_val = {
-                        "in_dist": self.shapes_val,
-                        "ood": None
-                    }
-                    self.shapes_test = {
-                        "in_dist": self.shapes_test,
-                        "ood": None
-                    }
-                    target_indices = np.arange(len(v_train_set))
-
-                if self.prop_labelled_images < 1.:
-                    # Unlabel randomly some elements
-                    n_targets = len(v_train_set)
-                    np.random.shuffle(target_indices)
-                    num_labelled = int(self.prop_labelled_images * n_targets)
-                    labelled_elems = target_indices[:num_labelled]
-                    print(f"Training using {len(labelled_elems)} labelled examples.")
-                    sync_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                   get_preprocess(self.use_data_augmentation),
-                                                   lambda v, t: {"v": v, "t": t},
-                                                   labelled_elems, n_targets, textify=self.textify)
-
-                self.train_datasets = {
-                    "v": v_train_set,
-                    "t": SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                             get_preprocess(self.use_data_augmentation),
-                                             lambda v, t: t,
-                                             textify=self.textify),
-                    "sync_": sync_set
-                }
+                print("Val set in dist size", len(id_ood_splits[1][0]))
+                print("Val set OOD size", len(id_ood_splits[1][1]))
+                print("Test set in dist size", len(id_ood_splits[2][0]))
+                print("Test set OOD size", len(id_ood_splits[2][1]))
             else:
-                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess(),
-                                                      textify=self.textify)
-                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess(),
-                                                       textify=self.textify)
-                visual_index = 0
-                text_index = 1
-                self.shapes_train = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                        get_preprocess(self.use_data_augmentation),
-                                                        textify=self.textify)
+                id_ood_splits = None
+                target_indices = np.arange(len(sync_train_set))
 
-        test_set = self.shapes_val if stage == "fit" else self.shapes_test
+            self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
+            self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
+            self.shapes_train["sync_"] = self.filter_sync_domains(sync_train_set, target_indices)
+
+        self.set_validation_examples(self.shapes_val if stage == "fit" else self.shapes_test)
+
+    def set_validation_examples(self, test_set):
         validation_reconstruction_indices = {}
         validation_reconstruction_indices["in_dist"] = torch.randint(len(test_set["in_dist"]),
                                                                      size=(self.validation_domain_examples,))
@@ -237,46 +239,67 @@ class SimpleShapesGWData(LightningDataModule):
                                                                      size=(self.validation_domain_examples,))
 
         self.validation_domain_examples = {
-            "in_dist": {
-                "v": torch.stack(
-                    [test_set["in_dist"][k][visual_index] for k in validation_reconstruction_indices["in_dist"]],
-                    dim=0),
-                "t": [],
-            },
-            "ood": {
-                "v": None if test_set["ood"] is None else torch.stack(
-                    [test_set["ood"][k][visual_index] for k in validation_reconstruction_indices["ood"]], dim=0),
-                "t": None if test_set["ood"] is None else []
-            }
+            "in_dist": {domain: [] for domain in self.selected_domains},
+            "ood": {domain: [] for domain in self.selected_domains}
         }
 
         # add t examples
         for used_dist in ["in_dist", "ood"]:
             if validation_reconstruction_indices[used_dist] is not None:
-                if self.textify:
-                    examples = [test_set[used_dist][i][text_index] for i in
-                                validation_reconstruction_indices[used_dist]]
-                    self.validation_domain_examples[used_dist]["t"] = examples
-                else:
-                    for k in range(len(test_set[used_dist][0][text_index])):
-                        examples = [test_set[used_dist][i][text_index][k] for i in
+                for domain in self.selected_domains:
+                    if not isinstance(test_set[used_dist][0][domain], tuple):
+                        examples = [test_set[used_dist][i][domain] for i in
                                     validation_reconstruction_indices[used_dist]]
-                        if isinstance(test_set[used_dist][0][text_index][k], (int, float)):
-                            self.validation_domain_examples[used_dist]["t"].append(
-                                torch.tensor(examples)
-                            )
+                        if isinstance(test_set[used_dist][0][domain], (int, float)):
+                            self.validation_domain_examples[used_dist][domain] = torch.tensor(examples)
+                        elif isinstance(test_set[used_dist][0][domain], torch.Tensor):
+                            self.validation_domain_examples[used_dist][domain] = torch.stack(examples, dim=0)
                         else:
-                            self.validation_domain_examples[used_dist]["t"].append(
-                                torch.stack(examples, dim=0)
-                            )
-                    self.validation_domain_examples[used_dist]["t"] = tuple(
-                        self.validation_domain_examples[used_dist]["t"])
+                            self.validation_domain_examples[used_dist][domain] = examples
+                    else:
+                        for k in range(len(test_set[used_dist][0][domain])):
+                            examples = [test_set[used_dist][i][domain][k] for i in
+                                        validation_reconstruction_indices[used_dist]]
+                            if isinstance(test_set[used_dist][0][domain][k], (int, float)):
+                                self.validation_domain_examples[used_dist][domain].append(
+                                    torch.tensor(examples)
+                                )
+                            elif isinstance(test_set[used_dist][0][domain][k], torch.Tensor):
+                                self.validation_domain_examples[used_dist][domain].append(
+                                    torch.stack(examples, dim=0)
+                                )
+                            else:
+                                self.validation_domain_examples[used_dist][domain].append(examples)
+                        self.validation_domain_examples[used_dist][domain] = tuple(
+                            self.validation_domain_examples[used_dist][domain])
+
+    def filter_sync_domains(self, sync_train_set, allowed_indices):
+        if self.prop_labelled_images < 1.:
+            # Unlabel randomly some elements
+            n_targets = len(sync_train_set)
+            np.random.shuffle(allowed_indices)
+            num_labelled = int(self.prop_labelled_images * n_targets)
+            labelled_elems = allowed_indices[:num_labelled]
+            print(f"Training using {len(labelled_elems)} labelled examples.")
+            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                 labelled_elems, n_targets,
+                                                 selected_domains=self.selected_domains,
+                                                 transform=sync_train_set.transforms)
+        return sync_train_set
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                       get_preprocess(self.use_data_augmentation))
-        val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val", get_preprocess())
-        test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test", get_preprocess())
+                                       transform={"v":get_preprocess(self.use_data_augmentation)},
+                                       selected_domains=["v"],
+                                       output_transform=lambda d: (d["v"], 0))
+        val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
+                                     transform={"v":get_preprocess(self.use_data_augmentation)},
+                                     selected_domains=["v"],
+                                     output_transform=lambda d: (d["v"], 0))
+        test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
+                                      transform={"v":get_preprocess(self.use_data_augmentation)},
+                                      selected_domains=["v"],
+                                      output_transform=lambda d: (d["v"], 0))
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
                                                                      "shapes_train",
                                                                      batch_size, device)
@@ -287,17 +310,13 @@ class SimpleShapesGWData(LightningDataModule):
                                                                     batch_size, device)
 
     def train_dataloader(self):
-        if self.bimodal:
-            dataloaders = {}
-            for key, dataset in self.train_datasets.items():
-                # dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 2 * self.batch_size)),
-                dataloaders[key] = torch.utils.data.DataLoader(dataset,
-                                                               batch_size=self.batch_size, shuffle=True,
-                                                               num_workers=self.num_workers, pin_memory=True)
-            return dataloaders
-        return torch.utils.data.DataLoader(self.shapes_train,
-                                           batch_size=self.batch_size, shuffle=True,
-                                           num_workers=self.num_workers, pin_memory=True)
+        dataloaders = {}
+        for key, dataset in self.shapes_train.items():
+            # dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 2 * self.batch_size)),
+            dataloaders[key] = torch.utils.data.DataLoader(dataset,
+                                                           batch_size=self.batch_size, shuffle=True,
+                                                           num_workers=self.num_workers, pin_memory=True)
+        return dataloaders
 
     def val_dataloader(self):
         dataloaders = [
@@ -431,3 +450,10 @@ def create_ood_split(datasets):
                                               size_boundaries, rotation_boundaries, x_boundaries, y_boundaries)
         out_datasets.append((in_dist, out_dist))
     return out_datasets, ood_boundaries
+
+
+def split_odd_sets(dataset, id_ood_split=None):
+    return {
+        "in_dist": torch.utils.data.Subset(dataset, id_ood_split[1][0]) if id_ood_split is not None else dataset,
+        "ood": torch.utils.data.Subset(dataset, id_ood_split[1][1]) if id_ood_split is not None else None,
+    }

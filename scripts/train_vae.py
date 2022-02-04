@@ -13,6 +13,10 @@ from bim_gw.utils import get_args
 def train_vae(args):
     seed_everything(args.seed)
 
+    args.vae.prop_labelled_images = 1.
+    args.vae.split_ood = False
+    args.vae.selected_domains = ["v"]
+
     data = load_dataset(args, args.vae)
 
     data.prepare_data()
@@ -23,7 +27,7 @@ def train_vae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.validation_domain_examples["v"], args.vae.n_FID_samples
+        data.validation_domain_examples["in_dist"]["v"], args.vae.n_FID_samples
     )
 
     # checkpoint = torch.load(args.resume_from_checkpoint)

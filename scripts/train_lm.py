@@ -3,7 +3,7 @@ import os
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from bim_gw.datasets.simple_shapes_lm_attributes import SimpleShapesData
+from bim_gw.datasets.simple_shapes import SimpleShapesData
 from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules.language_model import ShapesLM
 from bim_gw.utils import get_args
@@ -12,14 +12,14 @@ from bim_gw.utils import get_args
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers,
-                            args.lm.n_validation_examples)
+    data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
+                            args.lm.n_validation_examples, ["a", "t"], False)
     data.prepare_data()
     data.setup(stage="fit")
 
     lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
-                  data.validation_domain_examples)
+                  data.validation_domain_examples["in_dist"])
 
     logger = None
     if args.neptune.project_name is not None:

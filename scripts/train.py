@@ -14,7 +14,7 @@ from bim_gw.utils import get_args
 def train_gw(args):
     seed_everything(args.seed)
 
-    data = load_dataset(args, args.global_workspace, bimodal=True)
+    data = load_dataset(args, args.global_workspace)
     data.prepare_data()
     data.setup(stage="fit")
 

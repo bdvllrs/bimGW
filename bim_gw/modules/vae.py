@@ -192,7 +192,7 @@ class VAE(WorkspaceModule):
 
     # Lightning
     def training_step(self, batch, batch_idx):
-        x, _ = batch
+        x = batch["v"]
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
@@ -209,7 +209,7 @@ class VAE(WorkspaceModule):
         return total_loss
 
     def validation_step(self, batch, batch_idx):
-        x, _ = batch
+        x = batch["v"]
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
