@@ -15,7 +15,7 @@ def train_vae(args):
 
     args.vae.prop_labelled_images = 1.
     args.vae.split_ood = False
-    args.vae.selected_domains = ["v"]
+    args.vae.selected_domains = {"v": "v"}
 
     data = load_dataset(args, args.vae)
 

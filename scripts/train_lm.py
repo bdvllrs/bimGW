@@ -13,7 +13,7 @@ def train_lm(args):
     seed_everything(args.seed)
 
     data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
-                            args.lm.n_validation_examples, ["a", "t"], False)
+                            args.lm.n_validation_examples, False, {"a": "a", "t": "t"})
     data.prepare_data()
     data.setup(stage="fit")
 

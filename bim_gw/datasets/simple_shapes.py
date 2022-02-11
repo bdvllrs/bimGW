@@ -4,14 +4,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 from torchvision import transforms
 
+from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
+    TransformationDataFetcher, TransformedVisualDataFetcher, TransformedTextDataFetcher, \
+    TransformedAttributesDataFetcher
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
-from bim_gw.utils.text_composer.composer import Composer
-from bim_gw.utils.text_composer.writers import writers
 
 
 def get_preprocess(augmentation=False):
@@ -27,76 +27,16 @@ def get_preprocess(augmentation=False):
     return transforms.Compose(transformations)
 
 
-class VisualDataFetcher:
-    def __init__(self, root_path, split, ids, transforms=None):
-        self.root_path = root_path
-        self.split = split
-        self.ids = ids
-        self.transforms = transforms
-
-    def __getitem__(self, item):
-        image_id = self.ids[item]
-        with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
-            img = Image.open(f)
-            img = img.convert('RGB')
-        if self.transforms is not None:
-            img = self.transforms(img)
-        return img
-
-
-class AttributesDataFetcher:
-    def __init__(self, labels, transforms=None):
-        self.labels = labels
-        self.transforms = transforms
-
-    def __getitem__(self, item):
-        label = self.labels[item]
-        cls = int(label[0])
-        x, y = label[1], label[2]
-        size = label[3]
-        rotation = label[4]
-        r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
-
-        labels = (
-            cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-        )
-
-        if self.transforms is not None:
-            labels = self.transforms(labels)
-        return labels
-
-
-class TextDataFetcher:
-    def __init__(self, labels, transforms=None):
-        self.labels = labels
-        self.transforms = transforms
-        self.text_composer = Composer(writers)
-
-    def __getitem__(self, item):
-        label = self.labels[item]
-        cls = int(label[0])
-        x, y = label[1], label[2]
-        size = label[3]
-        rotation = label[4]
-
-        sentence = self.text_composer({
-            "shape": cls,
-            "rotation": rotation,
-            "color": (label[5], label[6], label[7]),
-            "size": size,
-            "location": (x, y)
-        })
-
-        if self.transforms is not None:
-            sentence = self.transforms(sentence)
-        return sentence
-
-
 class SimpleShapesDataset:
-    available_domains = ["v", "a", "t"]
+    available_domains = {
+        "v": VisualDataFetcher,
+        "a": AttributesDataFetcher,
+        "t": TextDataFetcher,
+        "action": TransformationDataFetcher,
+        "t_v": TransformedVisualDataFetcher,
+        "t_a": TransformedAttributesDataFetcher,
+        "t_t": TransformedTextDataFetcher
+    }
 
     def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
                  selected_domains=None, transform=None, output_transform=None):
@@ -110,10 +50,10 @@ class SimpleShapesDataset:
             min_dataset_size: Copies the data so that the effective size is the one given.
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains = self.available_domains if selected_domains is None else selected_domains
+        self.selected_domains = {domain: domain for domain in self.available_domains.keys()} if selected_domains is None else selected_domains
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
-                           for domain in self.available_domains}
+                           for domain in self.available_domains.keys()}
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
@@ -138,10 +78,13 @@ class SimpleShapesDataset:
             self.ids = np.tile(self.ids, n_repeats)
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
+        self.all_fetchers = {
+            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in self.available_domains.items()
+        }
+
         self.data_fetchers = {
-            "v": VisualDataFetcher(self.root_path, self.split, self.ids, self.transforms["v"]),
-            "a": AttributesDataFetcher(self.labels, self.transforms["a"]),
-            "t": TextDataFetcher(self.labels, self.transforms["t"])
+            domain_key: self.all_fetchers[domain]
+            for domain_key, domain in self.selected_domains.items()
         }
 
     def __len__(self):
@@ -149,7 +92,7 @@ class SimpleShapesDataset:
 
     def __getitem__(self, item):
         selected_domains = {
-            domain: self.data_fetchers[domain][item] for domain in self.selected_domains
+            domain_key: fetcher[item] for domain_key, fetcher in self.data_fetchers.items()
         }
 
         if self.output_transform is not None:
@@ -161,12 +104,9 @@ class SimpleShapesData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
-            n_validation_domain_examples=None, selected_domains=None,
-            split_ood=True
-    ):
+            n_validation_domain_examples=None, split_ood=True,
+            selected_domains=None):
         super().__init__()
-        if selected_domains != ["v"] and use_data_augmentation:
-            raise ValueError("multimodal mode and data augmentation is not possible for now...")
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -201,11 +141,11 @@ class SimpleShapesData(LightningDataModule):
                                                  transform=train_transforms,
                                                  selected_domains=self.selected_domains)
             self.shapes_train = {}
-            for domain in self.selected_domains:
-                self.shapes_train[domain] = SimpleShapesDataset(self.simple_shapes_folder, "train",
+            for domain_key, domain in self.selected_domains.items():
+                self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                                 transform=train_transforms,
-                                                                selected_domains=[domain],
-                                                                output_transform=lambda x, y=domain: x[y])
+                                                                selected_domains={domain_key: domain},
+                                                                output_transform=lambda x, y=domain_key: x[y])
 
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
@@ -239,14 +179,14 @@ class SimpleShapesData(LightningDataModule):
                                                                      size=(self.validation_domain_examples,))
 
         self.validation_domain_examples = {
-            "in_dist": {domain: [] for domain in self.selected_domains},
-            "ood": {domain: [] for domain in self.selected_domains}
+            "in_dist": {domain: [] for domain in self.selected_domains.keys()},
+            "ood": {domain: [] for domain in self.selected_domains.keys()}
         }
 
         # add t examples
         for used_dist in ["in_dist", "ood"]:
             if validation_reconstruction_indices[used_dist] is not None:
-                for domain in self.selected_domains:
+                for domain in self.selected_domains.keys():
                     if not isinstance(test_set[used_dist][0][domain], tuple):
                         examples = [test_set[used_dist][i][domain] for i in
                                     validation_reconstruction_indices[used_dist]]
@@ -290,15 +230,15 @@ class SimpleShapesData(LightningDataModule):
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                        transform={"v":get_preprocess(self.use_data_augmentation)},
-                                       selected_domains=["v"],
+                                       selected_domains={"v": "v"},
                                        output_transform=lambda d: (d["v"], 0))
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                      transform={"v":get_preprocess(self.use_data_augmentation)},
-                                     selected_domains=["v"],
+                                     selected_domains={"v": "v"},
                                      output_transform=lambda d: (d["v"], 0))
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                       transform={"v":get_preprocess(self.use_data_augmentation)},
-                                      selected_domains=["v"],
+                                      selected_domains={"v": "v"},
                                       output_transform=lambda d: (d["v"], 0))
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
                                                                      "shapes_train",

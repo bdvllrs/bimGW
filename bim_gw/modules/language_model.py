@@ -263,9 +263,11 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        if isinstance(x[0], str):
-            for t in x:
-                logger.experiment[name + "_text"].log(t)
+        logger.experiment[name + "_s"].log(x)
+        logger.experiment[name + "_s"].log("-----")
+        encoded_s = self.encode(x)
+        predictions = self.shapes_attribute.decode(self.classify(encoded_s))
+        self.shapes_attribute.log_domain(logger, predictions, name, max_examples)
 
     def classify(self, z):
         prediction = self.classifier(z)
@@ -306,19 +308,22 @@ class ShapesLM(WorkspaceModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
-            encoded_s = self.encode(self.validation_domain_examples["s"])
+            encoded_s = self.encode(self.validation_domain_examples["t"])
             predictions = self.classify(encoded_s)
-            sentence_predictions = self.shapes_attribute.decode(encoded_s)
+            sentence_predictions = self.decode(encoded_s)
 
-            self.logger.experiment["predictions_text"].log(sentence_predictions)
+            for k in range(len(sentence_predictions)):
+                self.logger.experiment["predictions_text"].log(f"{k+1} - {sentence_predictions[k]}")
             self.logger.experiment["predictions_text"].log("-----")
 
             # Images
-            self.shapes_attribute.log_domain(self.logger, predictions, "predictions_reconstruction")
+            self.shapes_attribute.log_domain(self.logger, self.shapes_attribute.decode(predictions),
+                                             "predictions_reconstruction")
 
-            if self.current_epoch == 0:
-                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
-                self.logger.experiment["target_text"].log(self.validation_domain_examples["s"])
+            # if self.current_epoch == 0:
+            self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
+            for k in range(len(sentence_predictions)):
+                self.logger.experiment["predictions_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

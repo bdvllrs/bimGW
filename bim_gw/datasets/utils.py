@@ -23,8 +23,8 @@ def load_dataset(args, local_args, **kwargs):
         return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
                                 args.dataloader.num_workers, local_args.data_augmentation,
                                 local_args.prop_labelled_images,
-                                args.n_validation_examples, local_args.selected_domains,
-                                local_args.split_ood)
+                                args.n_validation_examples, local_args.split_ood,
+                                local_args.selected_domains)
     else:
         raise ValueError("The requested dataset is not implemented.")
 
