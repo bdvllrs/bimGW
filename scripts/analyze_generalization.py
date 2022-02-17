@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     n_images = sorted(np.unique(log.values("n_images")))
 
-    for loss in ["v_to_t_0", "t_to_v_0"]:
+    for loss in ["loss"]:
         for type_ in ["in_dist", "ood"]:
             for supervision, use_cycles in [("supervised", 0), ("cycles", 1)]:
                 x = []
@@ -21,7 +21,7 @@ if __name__ == '__main__':
                     l = log.filter_eq("n_images", n_image)
                     l = l.filter_eq("parameters/losses/coefs/cycles", use_cycles)
                     x.append(n_image)
-                    values = np.array(l.values(f'metrics/val_{type_}_loss_supervision_{loss} (last)'))
+                    values = np.array(l.values(f'metrics/val_{type_}_supervision_{loss} (last)'))
                     y.append(np.mean(values))
                     err.append(np.std(values))
 
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         # plt.gca().set_yscale("log")
         plt.gca().set_xscale("log")
         plt.xlabel("Number of synchronized images")
-        plt.ylabel(f"AVG translation validation {loss} losses")
+        plt.ylabel(f"AVG translation validation losses")
         plt.legend()
         plt.title("AVG translation losses. Each point is averaged over 5 trials.")
         plt.show()

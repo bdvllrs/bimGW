@@ -26,7 +26,7 @@ class VisualDataFetcher:
 class AttributesDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.labels = labels
-        self.transforms = transforms["a"]
+        self.transforms = transforms["attr"]
 
     def __getitem__(self, item):
         label = self.labels[item]
@@ -77,11 +77,14 @@ class TextDataFetcher:
 class TransformationDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.labels = labels
-        self.transforms = transforms["action"]
+        self.transforms = transforms["a"]
 
     def __getitem__(self, item):
         label = self.labels[item]
+        orig_cls = int(label[0])
         cls = int(label[11])
+        # predict 4 classes: no transformation (label 0), or transform to 1 of 3 classes
+        cls = 0 if cls == orig_cls else int(label[11]) + 1
         d_x, d_y = label[12], label[13]
         d_size = label[14]
         d_rotation = label[15]

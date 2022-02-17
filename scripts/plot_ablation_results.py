@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
 
 from bim_gw.utils.csv import CSVLog
 
@@ -33,6 +32,21 @@ def get_x_y(d, cond):
     return labels, kept_data, job_ids
 
 
+def cond_losses(*, demi_cycle, cycle, supervision):
+    def aux(row):
+        return (
+            ((row['parameters/losses/coefs/demi_cycles'] != 0 and not demi_cycle) or
+            (row['parameters/losses/coefs/demi_cycles'] == 0 and demi_cycle)) and
+
+            ((row['parameters/losses/coefs/cycles'] != 0 and not cycle) or
+             (row['parameters/losses/coefs/cycles'] == 0 and cycle)) and
+
+            ((row['parameters/losses/coefs/supervision'] != 0 and not supervision) or
+             (row['parameters/losses/coefs/supervision'] == 0 and supervision))
+        )
+    return aux
+
+
 if __name__ == '__main__':
     log = CSVLog("../data/bim-gw.csv")
     log = log.add_token_column().filter_between("_token", 609, 846)
@@ -50,7 +64,8 @@ if __name__ == '__main__':
         for z_size in [12]:
             l = l.filter_eq('gw_z_size', z_size)
 
-            cond = lambda row: row['parameters/losses/coefs/demi_cycles'] == 1 and row['parameters/losses/coefs/cycles'] == 1
+            cond = lambda row: row['parameters/losses/coefs/demi_cycles'] == 1 and row[
+                'parameters/losses/coefs/cycles'] == 1
             l = l.filter(cond)
 
             lf = l.filter_between('metrics/epoch (last)', min_epoch)
@@ -75,7 +90,8 @@ if __name__ == '__main__':
         for z_size in [12]:
             l = l.filter_eq('gw_z_size', z_size)
 
-            cond = lambda row: row['parameters/losses/coefs/demi_cycles'] == 1 and row['parameters/losses/coefs/cycles'] == 1
+            cond = lambda row: row['parameters/losses/coefs/demi_cycles'] == 1 and row[
+                'parameters/losses/coefs/cycles'] == 1
             l = l.filter(cond)
 
             lf = l.filter_between('metrics/epoch (last)', min_epoch)
@@ -95,24 +111,24 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
 
-            # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
-            #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
-            #                                      and row["z_size"] == z_size))
-            # line = plt.loglog(x, y, label=f"Supervision + cycles ($\\alpha={alpha}$, z={z_size})")
-            #
-            # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
-            #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= 80
-            #                                      and row["z_size"] == z_size))
-            # plt.loglog(x, y, "x", c=line[0].get_color())
+    # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
+    #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= min_epoch
+    #                                      and row["z_size"] == z_size))
+    # line = plt.loglog(x, y, label=f"Supervision + cycles ($\\alpha={alpha}$, z={z_size})")
+    #
+    # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 0
+    #                                      and row["cycle_coef"] == 1 and row["nepochs"] >= 80
+    #                                      and row["z_size"] == z_size))
+    # plt.loglog(x, y, "x", c=line[0].get_color())
 
-        # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
-        #                                      and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch
-        #                                      and row["z_size"] == 12))
-        # line = plt.loglog(x, y, label="Supervision only")
-        # x, y, ids = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
-        #                                        and row["cycle_coef"] == 0 and row["nepochs"] >= 80
-        #                                        and row["z_size"] == 12))
-        # plt.loglog(x, y, "x", c=line[0].get_color())
+    # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
+    #                                      and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch
+    #                                      and row["z_size"] == 12))
+    # line = plt.loglog(x, y, label="Supervision only")
+    # x, y, ids = get_x_y(data, lambda row: (row["sup_coef"] == 1 and row["demicycle_coef"] == 0
+    #                                        and row["cycle_coef"] == 0 and row["nepochs"] >= 80
+    #                                        and row["z_size"] == 12))
+    # plt.loglog(x, y, "x", c=line[0].get_color())
 
     # x, y, _ = get_x_y(data, lambda row: (row["sup_coef"] == alpha and row["demicycle_coef"] == 1
     #                                      and row["cycle_coef"] == 0 and row["nepochs"] >= min_epoch))

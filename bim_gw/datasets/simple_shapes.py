@@ -27,15 +27,59 @@ def get_preprocess(augmentation=False):
     return transforms.Compose(transformations)
 
 
+class RandomDomainSelection:
+    def __init__(self, probs=None):
+        if probs is None:
+            probs = [0.25] * 4
+        self.probs = probs
+
+    def __call__(self, items):
+        if "a" in items.keys():
+            selection_type = np.random.choice(4, p=self.probs)
+        else:
+            selection_type = np.random.choice(2, p=self.probs[:2])
+        possible_domains = [item for item in items.keys() if "_f" not in item and item != "a"]
+        if selection_type == 0:  # uni modal
+            input_domain = random.choice(list(possible_domains))
+            return (
+                {input_domain: items[input_domain]},
+                None
+            )
+        elif selection_type == 1:  # one domain to one domain
+            input_domain = random.choice(possible_domains)
+            output_domain = random.choice(list(set(possible_domains) - {input_domain}))
+            return (
+                {input_domain: items[input_domain]},
+                {output_domain: items[output_domain]}
+            )
+        elif selection_type == 2:  # domain and action to domain
+            input_domain = random.choice(possible_domains)
+            output_domain = random.choice(possible_domains) + "_f"
+            return (
+                {input_domain: items[input_domain], "a": items["a"]},
+                {output_domain: items[output_domain]}
+            )
+        elif selection_type == 3:  # Domain input and output to action
+            input_domain = random.choice(possible_domains)
+            output_domain = random.choice(possible_domains) + "_f"
+            return (
+                {input_domain: items[input_domain], output_domain: items[output_domain]},
+                {"a": items["a"]}
+            )
+
+
+
+
+
 class SimpleShapesDataset:
     available_domains = {
         "v": VisualDataFetcher,
-        "a": AttributesDataFetcher,
+        "attr": AttributesDataFetcher,
         "t": TextDataFetcher,
-        "action": TransformationDataFetcher,
-        "t_v": TransformedVisualDataFetcher,
-        "t_a": TransformedAttributesDataFetcher,
-        "t_t": TransformedTextDataFetcher
+        "a": TransformationDataFetcher,
+        "v_f": TransformedVisualDataFetcher,
+        "attr_f": TransformedAttributesDataFetcher,
+        "t_f": TransformedTextDataFetcher
     }
 
     def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,

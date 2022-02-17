@@ -1,5 +1,7 @@
 import os
+from copy import deepcopy
 
+from bim_gw.modules.ations import ActionModule
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
@@ -28,9 +30,16 @@ def train_gw(args):
     lm = get_lm(args, data).eval()
     lm.freeze()
 
+    def get_domain_model(name):
+        if "v" in name:
+            return deepcopy(vae)
+        elif "t" in name:
+            return deepcopy(lm)
+        elif name == "a":
+            return ActionModule()
+
     global_workspace = GlobalWorkspace({
-        "v": vae,
-        "t": lm
+        name: get_domain_model(name) for name in args.global_workspace.selected_domains.keys()
     }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
         args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
