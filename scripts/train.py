@@ -1,13 +1,13 @@
 import os
 from copy import deepcopy
 
-from bim_gw.modules.ations import ActionModule
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
 from bim_gw.loggers.neptune import NeptuneLogger
+from bim_gw.modules.ations import ActionModule
 from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.vae import VAE
 from bim_gw.utils import get_args

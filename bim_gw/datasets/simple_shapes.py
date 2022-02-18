@@ -224,11 +224,17 @@ class SimpleShapesData(LightningDataModule):
 
         self.validation_domain_examples = {
             "in_dist": {domain: [] for domain in self.selected_domains.keys()},
-            "ood": {domain: [] for domain in self.selected_domains.keys()}
+            "ood": None
         }
 
+        used_dists = ["in_dist"]
+
+        if self.split_ood:
+            self.validation_domain_examples["ood"] = {domain: [] for domain in self.selected_domains.keys()}
+            used_dists.append("ood")
+
         # add t examples
-        for used_dist in ["in_dist", "ood"]:
+        for used_dist in used_dists:
             if validation_reconstruction_indices[used_dist] is not None:
                 for domain in self.selected_domains.keys():
                     if not isinstance(test_set[used_dist][0][domain], tuple):
@@ -256,6 +262,7 @@ class SimpleShapesData(LightningDataModule):
                                 self.validation_domain_examples[used_dist][domain].append(examples)
                         self.validation_domain_examples[used_dist][domain] = tuple(
                             self.validation_domain_examples[used_dist][domain])
+        print("ok")
 
     def filter_sync_domains(self, sync_train_set, allowed_indices):
         if self.prop_labelled_images < 1.:

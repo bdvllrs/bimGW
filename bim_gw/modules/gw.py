@@ -158,18 +158,19 @@ class GlobalWorkspace(LightningModule):
         if validation_domain_examples is not None:
             self.validation_example_list = dict()
             for dist, example_dist_vecs in validation_domain_examples.items():
-                for key, example_vecs in example_dist_vecs.items():
-                    assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
-                    if example_vecs is not None:
-                        if not isinstance(example_vecs, tuple):
-                            example_vecs = (example_vecs,)
+                if example_dist_vecs is not None:
+                    for key, example_vecs in example_dist_vecs.items():
+                        assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                        if example_vecs is not None:
+                            if not isinstance(example_vecs, tuple):
+                                example_vecs = (example_vecs,)
 
-                        self.validation_example_list[key] = len(example_vecs)
-                        for k, example_vec in enumerate(example_vecs):
-                            if type(example_vec) is list:
-                                setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
-                            else:
-                                self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+                            self.validation_example_list[key] = len(example_vecs)
+                            for k, example_vec in enumerate(example_vecs):
+                                if type(example_vec) is list:
+                                    setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+                                else:
+                                    self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
         print("done!")
