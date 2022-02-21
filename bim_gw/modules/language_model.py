@@ -263,7 +263,8 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        logger.experiment[name + "_s"].log(x)
+        for k in range(len(x)):
+            logger.experiment[name + "_s"].log(f"{k + 1} - {x[k]}")
         logger.experiment[name + "_s"].log("-----")
         encoded_s = self.encode(x)
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
