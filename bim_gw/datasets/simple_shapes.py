@@ -68,9 +68,6 @@ class RandomDomainSelection:
             )
 
 
-
-
-
 class SimpleShapesDataset:
     available_domains = {
         "v": VisualDataFetcher,
@@ -94,7 +91,8 @@ class SimpleShapesDataset:
             min_dataset_size: Copies the data so that the effective size is the one given.
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains = {domain: domain for domain in self.available_domains.keys()} if selected_domains is None else selected_domains
+        self.selected_domains = {domain: domain for domain in
+                                 self.available_domains.keys()} if selected_domains is None else selected_domains
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
                            for domain in self.available_domains.keys()}
@@ -123,7 +121,8 @@ class SimpleShapesDataset:
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
         self.all_fetchers = {
-            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in self.available_domains.items()
+            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
+            self.available_domains.items()
         }
 
         self.data_fetchers = {
@@ -149,7 +148,9 @@ class SimpleShapesData(LightningDataModule):
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
             n_validation_domain_examples=None, split_ood=True,
-            selected_domains=None):
+            selected_domains=None,
+            domain_selection_probs=None
+    ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
@@ -162,6 +163,7 @@ class SimpleShapesData(LightningDataModule):
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
+        self.domain_selection_probs = domain_selection_probs
 
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
@@ -181,19 +183,14 @@ class SimpleShapesData(LightningDataModule):
                                                    transform=val_transforms,
                                                    selected_domains=self.selected_domains)
 
-            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                 transform=train_transforms,
-                                                 selected_domains=self.selected_domains)
-            self.shapes_train = {}
-            for domain_key, domain in self.selected_domains.items():
-                self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                                transform=train_transforms,
-                                                                selected_domains={domain_key: domain},
-                                                                output_transform=lambda x, y=domain_key: x[y])
+
+            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                            transform=train_transforms,
+                                            selected_domains=self.selected_domains)
 
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
-                    [sync_train_set, self.shapes_val, self.shapes_test])
+                    [train_set, self.shapes_val, self.shapes_test])
                 self.ood_boundaries = ood_boundaries
 
                 target_indices = np.unique(id_ood_splits[0][0])
@@ -204,11 +201,12 @@ class SimpleShapesData(LightningDataModule):
                 print("Test set OOD size", len(id_ood_splits[2][1]))
             else:
                 id_ood_splits = None
-                target_indices = np.arange(len(sync_train_set))
+                target_indices = np.arange(len(train_set))
 
             self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
-            self.shapes_train["sync_"] = self.filter_sync_domains(sync_train_set, target_indices)
+            # TODO: add diversity in which domain are selected
+            self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
         self.set_validation_examples(self.shapes_val if stage == "fit" else self.shapes_test)
 
@@ -264,31 +262,31 @@ class SimpleShapesData(LightningDataModule):
                             self.validation_domain_examples[used_dist][domain])
         print("ok")
 
-    def filter_sync_domains(self, sync_train_set, allowed_indices):
+    def filter_sync_domains(self, train_set, allowed_indices):
         if self.prop_labelled_images < 1.:
             # Unlabel randomly some elements
-            n_targets = len(sync_train_set)
+            n_targets = len(train_set)
             np.random.shuffle(allowed_indices)
             num_labelled = int(self.prop_labelled_images * n_targets)
             labelled_elems = allowed_indices[:num_labelled]
             print(f"Training using {len(labelled_elems)} labelled examples.")
-            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                 labelled_elems, n_targets,
-                                                 selected_domains=self.selected_domains,
-                                                 transform=sync_train_set.transforms)
-        return sync_train_set
+            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                            labelled_elems, n_targets,
+                                            selected_domains=self.selected_domains,
+                                            transform=train_set.transforms)
+        return train_set
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                       transform={"v":get_preprocess(self.use_data_augmentation)},
+                                       transform={"v": get_preprocess(self.use_data_augmentation)},
                                        selected_domains={"v": "v"},
                                        output_transform=lambda d: (d["v"], 0))
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
-                                     transform={"v":get_preprocess(self.use_data_augmentation)},
+                                     transform={"v": get_preprocess(self.use_data_augmentation)},
                                      selected_domains={"v": "v"},
                                      output_transform=lambda d: (d["v"], 0))
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
-                                      transform={"v":get_preprocess(self.use_data_augmentation)},
+                                      transform={"v": get_preprocess(self.use_data_augmentation)},
                                       selected_domains={"v": "v"},
                                       output_transform=lambda d: (d["v"], 0))
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
@@ -301,13 +299,9 @@ class SimpleShapesData(LightningDataModule):
                                                                     batch_size, device)
 
     def train_dataloader(self):
-        dataloaders = {}
-        for key, dataset in self.shapes_train.items():
-            # dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 2 * self.batch_size)),
-            dataloaders[key] = torch.utils.data.DataLoader(dataset,
-                                                           batch_size=self.batch_size, shuffle=True,
-                                                           num_workers=self.num_workers, pin_memory=True)
-        return dataloaders
+        return torch.utils.data.DataLoader(self.shapes_train,
+                                           batch_size=self.batch_size, shuffle=True,
+                                           num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):
         dataloaders = [
