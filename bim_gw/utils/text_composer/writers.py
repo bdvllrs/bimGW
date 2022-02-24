@@ -154,11 +154,10 @@ colors = {"alice blue": [240, 248, 255],
           "yellow": [255, 255, 0],
           "yellow green": [154, 205, 50]}
 
-colors_sparse = ["azure", "beige", "black", "blue", "brown", "cyan", "dark blue", "dark cyan", "dark grey",
-                 "dark green", "dark orange", "dark red", "dark violet", "grey", "green", "green yellow", "indigo",
-                 "light blue", "light grey", "light green", "light pink", "light yellow", "magenta", "medium blue",
-                 "medium purple", "orange", "pale green", "pink", "purple", "red", "violet", "white", "yellow",
-                 "yellow green"]
+colors_sparse = ["azure", "beige", "black", "blue", "brown", "crimson", "cyan", "dark blue", "dark cyan", "dark grey",
+                 "dark green", "dark orange", "dark red", "dark violet", "grey", "green", "indigo",
+                 "light blue", "light grey", "light green", "light pink", "light yellow", "lime", "magenta", "medium blue",
+                 "orange", "pale green", "pink", "purple", "red", "turquoise", "violet", "white", "yellow"]
 
 
 class Writer:
@@ -175,7 +174,8 @@ class Writer:
             for k, choices in self.variants[self.label_type].items():
                 variants[k] = random.choice(choices)
 
-        text = self.captions[self.label_type].format(val=val, **variants).strip()
+        val = str(val).format(**variants)
+        text = self.captions[self.label_type].format(val=val, **variants)
         return text
 
 
@@ -206,40 +206,44 @@ class CardinalRotationWriter(QuantizedWriter):
 
     labels = {
         "corners":
-            ["top", "top-left", "left", "bottom-left", "bottom", "bottom-right", "right", "top-right"],
+            ["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}", "right{side}", "top-right{corner}"],
         "cardinals":
             ["north", "north-west", "west", "south-west", "south", "south-east", "east", "north-east"]
     }
 
     captions = {
-        "corners": "{val}",
-        "cardinals": "{val}"
+        "corners": "{rotated} the {val}",
+        "cardinals": "{rotated} {val}"
     }
 
     variants = {
         "corners": {
-            "of_image": ["", "of the image"]
+            "of_image": ["", "of the image"],
+            "rotated": ["pointing to", "pointing towards"],
+            "corner": ["", " corner"],
+            "side": ["", " side"]
         },
         "cardinals": {
-            "of_image": ["", "of the image"]
+            "of_image": ["", "of the image"],
+            "rotated": ["pointing to the", "pointing towards the", "pointing"]
         }
     }
 
 
 class ContinuousRotationWriter(Writer):
     captions = {
-        "degrees": "{val} degrees {anti_clock}",
+        "degrees": "rotated {val} degrees {anti_clock}",
     }
 
     variants = {
         "degrees": {
-            "anti_clock": ["", "anti clockwise"]
+            "anti_clock": ["", "anti clockwise"],
         }
     }
 
     def __call__(self, rotation):
         # round to every 5 degrees
-        deg = 5 * round(rotation * 360 / (2 * np.pi) / 5)
+        deg = int(5 * round(rotation * 360 / (2 * np.pi) / 5))
         return super(ContinuousRotationWriter, self).__call__(deg)
 
 
@@ -247,7 +251,7 @@ class ShapesWriter(OptionsWriter):
     choices = {
         2: ["isosceles triangle", "triangle"],
         1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
-            "oval shaped structure", "triangle-like shape, with rounded vertices", "guitar pick"],
+            "oval shaped structure", "triangle-like shape with rounded vertices", "guitar pick"],
         0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
             "deformed square shape"],
     }
@@ -337,7 +341,7 @@ writers = {
     "shape": [ShapesWriter()],
     "rotation": [CardinalRotationWriter("corners"), CardinalRotationWriter("cardinals"),
                  ContinuousRotationWriter("degrees")],
-    "size": [SizeWriter(0)],  # TODO: area based size writer
+    "size": [SizeWriter(0)],
     "color": [ColorWriter(0), SimpleColorWriter(0)],
     "location": [LocationWriter(0)]
 }
