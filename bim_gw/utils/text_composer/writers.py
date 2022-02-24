@@ -247,7 +247,7 @@ class ShapesWriter(OptionsWriter):
     choices = {
         2: ["isosceles triangle", "triangle"],
         1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
-            "oval shaped structure", "triangle-like shape, with rounded vertexes", "guitar pick"],
+            "oval shaped structure", "triangle-like shape, with rounded vertices", "guitar pick"],
         0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
             "deformed square shape"],
     }

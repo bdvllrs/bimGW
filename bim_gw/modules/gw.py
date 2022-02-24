@@ -333,7 +333,7 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        total_loss = demi_cycle_loss + supervision_loss
+        total_loss = demi_cycle_loss + supervision_loss + cycle_loss
         total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
             "supervision_loss"]
 
