@@ -3,7 +3,7 @@ import random
 import numpy as np
 import re
 
-from .writers import writers
+from bim_gw.utils.text_composer.writers import writers
 
 
 class Composer:
