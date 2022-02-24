@@ -248,6 +248,8 @@ class ContinuousRotationWriter(Writer):
     }
 
     def __call__(self, rotation):
+        if rotation < 0:
+            rotation = 2 * np.pi + rotation
         # round to every 5 degrees
         deg = int(5 * round(rotation * 360 / (2 * np.pi) / 5))
         return super(ContinuousRotationWriter, self).__call__(deg)
