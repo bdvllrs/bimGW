@@ -12,6 +12,7 @@ def get_closest_key(values, comp):
     return np.argmin(d)
 
 
+# List of colors obtained from matplotlib colors
 colors = {"alice blue": [240, 248, 255],
           "antique white": [250, 235, 215],
           "aqua": [0, 255, 255],
@@ -154,6 +155,7 @@ colors = {"alice blue": [240, 248, 255],
           "yellow": [255, 255, 0],
           "yellow green": [154, 205, 50]}
 
+# A smaller set of colors
 colors_sparse = ["azure", "beige", "black", "blue", "brown", "crimson", "cyan", "dark blue", "dark cyan", "dark grey",
                  "dark green", "dark orange", "dark red", "dark violet", "grey", "green", "indigo",
                  "light blue", "light grey", "light green", "light pink", "light yellow", "lime", "magenta", "medium blue",
@@ -161,6 +163,10 @@ colors_sparse = ["azure", "beige", "black", "blue", "brown", "crimson", "cyan", 
 
 
 class Writer:
+    """
+    Writer instances generate the text associated to a specific value of an attribute.
+    They can have different ways of describing the same element. This is defined by the "label_type" property.
+    """
     captions = dict()
     variants = dict()
 
