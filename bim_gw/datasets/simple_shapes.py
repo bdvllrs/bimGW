@@ -1,4 +1,5 @@
 import csv
+import itertools
 import random
 from pathlib import Path
 
@@ -79,7 +80,7 @@ class SimpleShapesDataset:
         "t_f": TransformedTextDataFetcher
     }
 
-    def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
+    def __init__(self, path, split="train", synced_domain_mapping=None,
                  selected_domains=None, transform=None, output_transform=None):
         """
         Args:
@@ -87,8 +88,7 @@ class SimpleShapesDataset:
             split:
             transform:
             output_transform:
-            selected_indices: To reduce the size of the dataset to given indices.
-            min_dataset_size: Copies the data so that the effective size is the one given.
+            synced_domain_mapping: list with each available modality for each point
         """
         assert split in ["train", "val", "test"]
         self.selected_domains = {domain: domain for domain in
@@ -101,24 +101,27 @@ class SimpleShapesDataset:
         self.img_size = 32
 
         self.classes = np.array(["square", "circle", "triangle"])
+        self.synced_domain_mapping = synced_domain_mapping
         self.labels = []
         self.ids = []
 
+        domain_mapping_to_remove = []
         with open(self.root_path / f"{split}_labels.csv", "r") as f:
             reader = csv.reader(f)
             for k, line in enumerate(reader):
-                if k > 0 and (selected_indices is None or k - 1 in selected_indices):
+                if k > 0 and (self.synced_domain_mapping is None or len(self.synced_domain_mapping[k - 1])):
                     self.labels.append(list(map(float, line)))
                     self.ids.append(k - 1)
+                elif k > 0 and self.synced_domain_mapping is not None:
+                    # Keep track of which items are removed. Otherwise, there will be a mismatch in indices
+                    domain_mapping_to_remove.append(k - 1)
+
+        # Remove empty elements
+        for idx in reversed(domain_mapping_to_remove):
+            del self.synced_domain_mapping[idx]
 
         self.ids = np.array(self.ids)
         self.labels = np.array(self.labels, dtype=np.float32)
-
-        if min_dataset_size is not None:
-            original_size = len(self.labels)
-            n_repeats = min_dataset_size // original_size + 1 * int(min_dataset_size % original_size > 0)
-            self.ids = np.tile(self.ids, n_repeats)
-            self.labels = np.tile(self.labels, (n_repeats, 1))
 
         self.all_fetchers = {
             name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
@@ -135,8 +138,16 @@ class SimpleShapesDataset:
 
     def __getitem__(self, item):
         selected_domains = {
-            domain_key: fetcher[item] for domain_key, fetcher in self.data_fetchers.items()
+            domain_key: (fetcher[item]
+                         if self.synced_domain_mapping is None or domain_key in self.synced_domain_mapping[item]
+                         else fetcher.get_null_item())
+            for domain_key, fetcher in self.data_fetchers.items()
         }
+        selected_domains["_available_domains"] = torch.tensor([
+            (1 if self.synced_domain_mapping is None or domain_key in self.synced_domain_mapping[item]
+             else 0)
+            for domain_key in sorted(self.data_fetchers.keys())
+        ], dtype=torch.uint8)
 
         if self.output_transform is not None:
             return self.output_transform(selected_domains)
@@ -146,7 +157,7 @@ class SimpleShapesDataset:
 class SimpleShapesData(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
+            num_workers=0, use_data_augmentation=False, prop_sync_domains=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
             domain_selection_probs=None
@@ -161,8 +172,7 @@ class SimpleShapesData(LightningDataModule):
         self.ood_boundaries = None
         self.selected_domains = selected_domains
 
-        assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
-        self.prop_labelled_images = prop_labelled_images
+        self.prop_sync_domains = prop_sync_domains
         self.domain_selection_probs = domain_selection_probs
 
         self.num_channels = 3
@@ -182,7 +192,6 @@ class SimpleShapesData(LightningDataModule):
             self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                                    transform=val_transforms,
                                                    selected_domains=self.selected_domains)
-
 
             train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                             transform=train_transforms,
@@ -205,7 +214,6 @@ class SimpleShapesData(LightningDataModule):
 
             self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
-            # TODO: add diversity in which domain are selected
             self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
         self.set_validation_examples(self.shapes_val if stage == "fit" else self.shapes_test)
@@ -263,17 +271,32 @@ class SimpleShapesData(LightningDataModule):
         print("ok")
 
     def filter_sync_domains(self, train_set, allowed_indices):
-        if self.prop_labelled_images < 1.:
-            # Unlabel randomly some elements
-            n_targets = len(train_set)
-            np.random.shuffle(allowed_indices)
-            num_labelled = int(self.prop_labelled_images * n_targets)
-            labelled_elems = allowed_indices[:num_labelled]
-            print(f"Training using {len(labelled_elems)} labelled examples.")
-            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                            labelled_elems, n_targets,
-                                            selected_domains=self.selected_domains,
-                                            transform=train_set.transforms)
+        # Unlabel randomly some elements
+        n_targets = len(allowed_indices)
+        np.random.shuffle(allowed_indices)
+        sync_domain_mapping = {}
+        if self.prop_sync_domains is not None:
+            last_idx = 0
+            for key, prop in self.prop_sync_domains.items():
+                n_items = int(prop * n_targets)
+                sampled_domains = sample_domains(train_set.selected_domains, key, n_items)
+                for k, idx in enumerate(allowed_indices[last_idx:last_idx + n_items]):
+                    sync_domain_mapping[idx] = list(sampled_domains[k])
+                last_idx += n_items
+
+        domain_mapping = []
+        for k in range(len(train_set)):
+            if k in sync_domain_mapping.keys():
+                domain_mapping.append(sync_domain_mapping[k])
+            else:
+                domain_mapping.append([])
+
+        print(f"Training using {len(allowed_indices)} examples.")
+        train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                        domain_mapping,
+                                        selected_domains=self.selected_domains,
+                                        transform=train_set.transforms,
+                                        output_transform=train_set.output_transform)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):
@@ -442,3 +465,43 @@ def split_odd_sets(dataset, id_ood_split=None):
         "in_dist": torch.utils.data.Subset(dataset, id_ood_split[1][0]) if id_ood_split is not None else dataset,
         "ood": torch.utils.data.Subset(dataset, id_ood_split[1][1]) if id_ood_split is not None else None,
     }
+
+
+def sample_domains(available_domains, possible_domains, size):
+    if possible_domains == "1d0a1t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 1
+        combs = np.expand_dims(np.array(domains), axis=1)
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "2d0a1t":
+        if random.randint(0, 1) == 0:
+            domains = [key for key, val in available_domains.items() if val != "a" and "_f" in val]
+        else:
+            domains = [key for key, val in available_domains.items() if val != "a" and "_f" not in val]
+        assert len(domains) >= 2
+        combs = np.array(list(itertools.combinations(domains, 2)))
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "2d1a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 2
+        combs = np.array(list(itertools.combinations(domains, 2)))
+        sample = np.random.randint(len(combs), size=size)
+        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+    elif possible_domains == "3d0a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 3
+        combs = np.array(list(itertools.combinations(domains, 3)))
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "3d1a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 3
+        combs = np.array(list(itertools.combinations(domains, 3)))
+        sample = np.random.randint(len(combs), size=size)
+        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+    elif possible_domains == "all":
+        domains = list(available_domains.keys())
+        return np.array([domains for _ in range(size)])
+    assert f"{possible_domains} is not available."

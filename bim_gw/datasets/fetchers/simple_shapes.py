@@ -6,6 +6,12 @@ from bim_gw.utils.text_composer.composer import Composer
 from bim_gw.utils.text_composer.writers import writers
 
 
+def transform(data, transformation):
+    if transformation is not None:
+        data = transformation(data)
+    return data
+
+
 class VisualDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.root_path = root_path
@@ -13,14 +19,20 @@ class VisualDataFetcher:
         self.ids = ids
         self.transforms = transforms["v"]
 
-    def __getitem__(self, item):
+    def get_null_item(self):
+        x = self.get_item(0)
+        x[:] = 0.
+        return transform(x, self.transforms)
+
+    def get_item(self, item):
         image_id = self.ids[item]
         with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
-        if self.transforms is not None:
-            img = self.transforms(img)
         return img
+
+    def __getitem__(self, item):
+        return transform(self.get_item(item), self.transforms)
 
 
 class AttributesDataFetcher:
@@ -28,7 +40,12 @@ class AttributesDataFetcher:
         self.labels = labels
         self.transforms = transforms["attr"]
 
-    def __getitem__(self, item):
+    def get_null_item(self):
+        cls, attr = self.get_item(0)
+        attr[:] = 0.
+        return transform((0, attr), self.transforms)
+
+    def get_item(self, item):
         label = self.labels[item]
         cls = int(label[0])
         x, y = label[1], label[2]
@@ -38,14 +55,13 @@ class AttributesDataFetcher:
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
 
-        labels = (
+        return (
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
 
-        if self.transforms is not None:
-            labels = self.transforms(labels)
-        return labels
+    def __getitem__(self, item):
+        return transform(self.get_item(item), self.transforms)
 
 
 class TextDataFetcher:
@@ -54,14 +70,14 @@ class TextDataFetcher:
         self.transforms = transforms["t"]
         self.text_composer = Composer(writers)
 
-    def __getitem__(self, item):
+    def get_item(self, item):
         label = self.labels[item]
         cls = int(label[0])
         x, y = label[1], label[2]
         size = label[3]
         rotation = label[4]
 
-        sentence = self.text_composer({
+        return self.text_composer({
             "shape": cls,
             "rotation": rotation,
             "color": (label[5], label[6], label[7]),
@@ -69,9 +85,11 @@ class TextDataFetcher:
             "location": (x, y)
         })
 
-        if self.transforms is not None:
-            sentence = self.transforms(sentence)
-        return sentence
+    def get_null_item(self):
+        return transform("", self.transforms)
+
+    def __getitem__(self, item):
+        return transform(self.get_item(item), self.transforms)
 
 
 class TransformationDataFetcher:
@@ -79,7 +97,7 @@ class TransformationDataFetcher:
         self.labels = labels
         self.transforms = transforms["a"]
 
-    def __getitem__(self, item):
+    def get_item(self, item):
         label = self.labels[item]
         orig_cls = int(label[0])
         cls = int(label[11])
@@ -92,26 +110,36 @@ class TransformationDataFetcher:
         d_rotation_x = (np.cos(d_rotation) + 1) / 2
         d_rotation_y = (np.sin(d_rotation) + 1) / 2
 
-        labels = (
+        return (
             cls,
             torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
         )
 
-        if self.transforms is not None:
-            labels = self.transforms(labels)
-        return labels
+    def get_null_item(self):
+        _, x = self.get_item(0)
+        x[:] = 0.
+        return transform((0, x), self.transforms)
+
+    def __getitem__(self, item):
+        return transform(self.get_item(item), self.transforms)
 
 
 class TransformedVisualDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.data_fetcher = VisualDataFetcher(root_path / "transformed", split, ids, labels, transforms)
 
+    def get_null_item(self):
+        return self.data_fetcher.get_null_item()
+
+    def get_item(self, item):
+        return self.data_fetcher.get_item(item)
+
     def __getitem__(self, item):
         return self.data_fetcher[item]
 
 
 class TransformedAttributesDataFetcher(AttributesDataFetcher):
-    def __getitem__(self, item):
+    def get_item(self, item):
         label = self.labels[item]
         cls = int(label[11])
         x, y = label[1] + label[12], label[2] + label[13]
@@ -121,18 +149,14 @@ class TransformedAttributesDataFetcher(AttributesDataFetcher):
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
 
-        labels = (
+        return (
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
 
-        if self.transforms is not None:
-            labels = self.transforms(labels)
-        return labels
-
 
 class TransformedTextDataFetcher(TextDataFetcher):
-    def __getitem__(self, item):
+    def get_item(self, item):
         label = self.labels[item]
         cls = int(label[11])
         x, y = label[1] + label[12], label[2] + label[13]
@@ -140,14 +164,10 @@ class TransformedTextDataFetcher(TextDataFetcher):
         rotation = label[4] + label[15]
         r, g, b = label[5] + label[16], label[6] + label[17], label[7] + label[18]
 
-        sentence = self.text_composer({
+        return self.text_composer({
             "shape": cls,
             "rotation": rotation,
             "color": (r, g, b),
             "size": size,
             "location": (x, y)
         })
-
-        if self.transforms is not None:
-            sentence = self.transforms(sentence)
-        return sentence

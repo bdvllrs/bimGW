@@ -22,7 +22,7 @@ def load_dataset(args, local_args, **kwargs):
         print("Loading Shapes.")
         return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
                                 args.dataloader.num_workers, local_args.data_augmentation,
-                                local_args.prop_labelled_images,
+                                local_args.prop_sync_domains,
                                 args.n_validation_examples, local_args.split_ood,
                                 local_args.selected_domains)
     else:

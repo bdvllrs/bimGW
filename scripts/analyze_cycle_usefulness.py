@@ -51,12 +51,12 @@ if __name__ == '__main__':
     log = CSVLog("../data/bim-gw.csv")
     log = log.add_token_column()
     # log = log.filter_between("_token", 609, 846)
-    log = log.filter_between("_token", 609)
+    log = log.filter_between("_token", 1045, 1097)
     log = log.add_column("n_images", lambda row: int(row["prop_lab_images"] * 500_000))
 
-    alpha = 2
-    min_epoch = 95
-    seed = 0
+    alpha = 4
+    min_epoch = 30
+    seed = 42
     losses = {"loss": ""}
     # z_size = 4
     log = log.filter_eq("parameters/seed", seed).filter_between('metrics/epoch (last)', min_epoch)
@@ -74,20 +74,20 @@ if __name__ == '__main__':
 
     alphas = {
         "Supervision": 1,
-        "Demi cycles + Supervision": 0.2,
-        "Complete cycles + Supervision": 0.2,
+        "Demi cycles + Supervision": 1,
+        "Complete cycles + Supervision": 1,
         "All losses": 1,
 
     }
 
     for used_loss, loss_label in losses.items():
         for k, (label, cond) in enumerate(loss_parts.items()):
-            l = log.filter_neq(f'metrics/val_supervision_{used_loss} (last)', '')
+            l = log.filter_neq(f'metrics/val_in_dist_supervision_{used_loss} (last)', '')
             l = l.filter(cond)
             if label != "Supervision":
                 l = l.filter_eq("parameters/losses/coefs/supervision", alpha)
             lf = l.filter_between('metrics/epoch (last)', min_epoch)
-            x, y, ids = lf.zip(['n_images', f'metrics/val_supervision_{used_loss} (last)', '_token'], sort=lambda e: e[0])
+            x, y, ids = lf.zip(['n_images', f'metrics/val_in_dist_supervision_{used_loss} (last)', '_token'], sort=lambda e: e[0])
             line = plt.loglog(x, y, "x-", alpha=alphas[label], label=label)
 
             # lf = l.filter_between('metrics/epoch (last)', 90)
