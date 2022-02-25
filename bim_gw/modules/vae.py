@@ -236,7 +236,7 @@ class VAE(WorkspaceModule):
         # FID
         fid, mse = compute_FID(
             self.trainer.datamodule.inception_stats_path_train,
-            self.trainer.datamodule.val_dataloader(),
+            self.trainer.datamodule.val_dataloader()[0],
             self, self.z_size, [self.image_size, self.image_size],
             self.device, self.n_FID_samples
         )

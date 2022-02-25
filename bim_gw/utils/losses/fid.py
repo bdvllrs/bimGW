@@ -189,7 +189,8 @@ def imread_custom_MNIST(filename, dataset=True):
 def output_mse(data_loader, generation_model, device):
     generation_model.eval()
     all_mse = []
-    for i, (batch, target) in enumerate(data_loader):
+    for i, batch in enumerate(data_loader):
+        batch = batch["v"]
         batch = batch.to(device)
 
         # reco, _, _, _, _, _ = generation_model(batch)
