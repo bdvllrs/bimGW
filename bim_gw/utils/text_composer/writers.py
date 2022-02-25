@@ -250,8 +250,10 @@ class ContinuousRotationWriter(Writer):
     def __call__(self, rotation):
         if rotation < 0:
             rotation = 2 * np.pi + rotation
+        # In the code the 0 rotation is at the top. In text, it is more natural to put 0 degrees when facing right.
+        rotation += np.pi / 2
         # round to every 5 degrees
-        deg = int(5 * round(rotation * 360 / (2 * np.pi) / 5))
+        deg = int(5 * round(rotation * 360 / (2 * np.pi) / 5)) % 360
         return super(ContinuousRotationWriter, self).__call__(deg)
 
 
