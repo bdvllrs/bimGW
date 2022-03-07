@@ -197,7 +197,7 @@ class GlobalWorkspace(LightningModule):
             self.encode(latents[domain_name], domain_name)
             for domain_name in self.domain_names
         ], dim=1)
-        state[:, 1 - projected_domains] = 0.
+        state[1 - projected_domains, :] = 0.
 
         state = state.sum(dim=1)
         return state

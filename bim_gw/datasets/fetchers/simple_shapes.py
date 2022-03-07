@@ -22,14 +22,14 @@ class VisualDataFetcher:
     def get_null_item(self):
         x = self.get_item(0)
         x[:] = 0.
-        return transform(x, self.transforms)
+        return transform((0, x), self.transforms)
 
     def get_item(self, item):
         image_id = self.ids[item]
         with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
-        return img
+        return (1, img)
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -43,7 +43,7 @@ class AttributesDataFetcher:
     def get_null_item(self):
         cls, attr = self.get_item(0)
         attr[:] = 0.
-        return transform((0, attr), self.transforms)
+        return transform((0, 0, attr), self.transforms)
 
     def get_item(self, item):
         label = self.labels[item]
@@ -56,6 +56,7 @@ class AttributesDataFetcher:
         rotation_y = (np.sin(rotation) + 1) / 2
 
         return (
+            1,
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
@@ -77,16 +78,16 @@ class TextDataFetcher:
         size = label[3]
         rotation = label[4]
 
-        return self.text_composer({
+        return (1, self.text_composer({
             "shape": cls,
             "rotation": rotation,
             "color": (label[5], label[6], label[7]),
             "size": size,
             "location": (x, y)
-        })
+        }))
 
     def get_null_item(self):
-        return transform("", self.transforms)
+        return transform((0, ""), self.transforms)
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -107,10 +108,11 @@ class TransformationDataFetcher:
         d_size = label[14]
         d_rotation = label[15]
         d_r, d_g, d_b = label[16] / 255, label[17] / 255, label[18] / 255
-        d_rotation_x = (np.cos(d_rotation) + 1) / 2
-        d_rotation_y = (np.sin(d_rotation) + 1) / 2
+        d_rotation_x = np.cos(d_rotation)
+        d_rotation_y = np.sin(d_rotation)
 
         return (
+            1,
             cls,
             torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
         )
@@ -118,7 +120,7 @@ class TransformationDataFetcher:
     def get_null_item(self):
         _, x = self.get_item(0)
         x[:] = 0.
-        return transform((0, x), self.transforms)
+        return transform((0, 0, x), self.transforms)
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -150,6 +152,7 @@ class TransformedAttributesDataFetcher(AttributesDataFetcher):
         rotation_y = (np.sin(rotation) + 1) / 2
 
         return (
+            1,
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
@@ -164,10 +167,10 @@ class TransformedTextDataFetcher(TextDataFetcher):
         rotation = label[4] + label[15]
         r, g, b = label[5] + label[16], label[6] + label[17], label[7] + label[18]
 
-        return self.text_composer({
+        return (1, self.text_composer({
             "shape": cls,
             "rotation": rotation,
             "color": (r, g, b),
             "size": size,
             "location": (x, y)
-        })
+        }))

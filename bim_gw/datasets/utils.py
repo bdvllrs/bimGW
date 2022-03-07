@@ -1,7 +1,6 @@
 from bim_gw.datasets import CIFARData
 from bim_gw.datasets import ImageNetData
 from bim_gw.datasets.simple_shapes import SimpleShapesData
-from bim_gw.modules import SkipGramLM
 from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
 
@@ -36,6 +35,4 @@ def get_lm(args, data, **kwargs):
         lm = ShapesLM.load_from_checkpoint(
             args.global_workspace.lm_checkpoint,
             bert_path=args.global_workspace.bert_path)
-    else:
-        lm = SkipGramLM(args.gensim_model_path, data.classes, args.word_embeddings).eval()
     return lm

@@ -1,7 +1,7 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
@@ -113,12 +113,17 @@ class VAE(WorkspaceModule):
         self.vae_type = vae_type
         self.n_FID_samples = n_FID_samples
 
-        self.output_dims = self.z_size
-        self.decoder_activation_fn = None
-        self.losses = [lambda x, y: (F.mse_loss(x, y) +
-                                     mmd_loss_coef * mmd_loss(x, y) +
-                                     kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
-                                     )]
+        self.output_dims = [1, self.z_size]
+        self.decoder_activation_fn = [
+            F.sigmoid,
+            None
+        ]
+        self.losses = [
+            F.binary_cross_entropy,
+            lambda x, y: (F.mse_loss(x, y) +
+                          mmd_loss_coef * mmd_loss(x, y) +
+                          kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
+                          )]
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
@@ -153,15 +158,18 @@ class VAE(WorkspaceModule):
         return mean_z, var_z
 
     def encode(self, x: torch.Tensor):
+        is_active, x = x
         mean_z, _ = self.encode_stats(x)
 
         # z = reparameterize(mean_z, var_z)
-        return mean_z
+        return is_active.reshape(-1, 1), mean_z
 
     def decode(self, z: torch.Tensor):
-        return self.decoder(z)
+        is_active, z = z
+        return is_active, self.decoder(z)
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+        is_active, x = x
         mean, logvar = self.encode_stats(x)
         z = reparameterize(mean, logvar)
 
@@ -183,9 +191,9 @@ class VAE(WorkspaceModule):
         kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         return kl
 
-    def sample(self, size: int) -> torch.Tensor:
+    def sample(self, size: int) -> Tuple[Tensor, Any]:
         z = torch.randn(size, self.z_size).to(self.device)
-        return self.decoder(z)
+        return torch.ones(size), self.decoder(z)
 
     def generate(self, samples):
         return self.decode(samples)
@@ -227,11 +235,11 @@ class VAE(WorkspaceModule):
         _, x_reconstructed = self(x)
 
         if self.current_epoch == 0:
-            log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+            self.log_domain(self.logger, x, "val_original_images", self.hparams.n_validation_examples)
 
-        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
+        self.log_domain(self.logger, x, "val_reconstruction", self.hparams.n_validation_examples)
         sampled_images = self.decoder(self.validation_sampling_z)
-        log_image(self.logger, sampled_images, "val_sampling")
+        self.log_domain(self.logger, x, "val_sampling", self.hparams.n_validation_examples)
 
         # FID
         fid, mse = compute_FID(
@@ -264,7 +272,7 @@ class VAE(WorkspaceModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None):
-        log_image(logger, x[:max_examples], title)
+        log_image(logger, x[1][:max_examples], title)
 
 
 class CEncoderV2(nn.Module):

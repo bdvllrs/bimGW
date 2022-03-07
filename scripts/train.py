@@ -36,7 +36,7 @@ def train_gw(args):
         elif "t" in name:
             return deepcopy(lm)
         elif name == "a":
-            return ActionModule()
+            return ActionModule(len(data.classes), data.img_size)
 
     global_workspace = GlobalWorkspace({
         name: get_domain_model(name) for name in args.global_workspace.selected_domains.keys()

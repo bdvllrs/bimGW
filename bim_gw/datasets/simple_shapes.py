@@ -14,6 +14,15 @@ from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, Attributes
     TransformedAttributesDataFetcher
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
+class ComposeWithExtraParameters:
+    def __init__(self, transform, index=0):
+        self.transform = transform
+        self.index = index
+
+    def __call__(self, x):
+        x = list(x)
+        x[self.index] = self.transform(x[self.index])
+        return tuple(x)
 
 def get_preprocess(augmentation=False):
     transformations = []
@@ -25,7 +34,7 @@ def get_preprocess(augmentation=False):
         # transforms.Normalize(norm_mean, norm_std)
     ])
 
-    return transforms.Compose(transformations)
+    return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
 
 
 class RandomDomainSelection:

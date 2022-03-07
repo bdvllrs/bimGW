@@ -12,87 +12,24 @@ from bim_gw.utils.text_composer.composer import Composer
 from bim_gw.utils.text_composer.writers import writers
 
 
-class SkipGramLM(WorkspaceModule):
-    def log_domain(self, logger, x, title, max_examples=None):
-        pass
-
-    def compute_acc(self, acc_metric, predictions, targets):
-        pass
-
-    def __init__(self, path, classnames, load_embeddings=None):
-        super(SkipGramLM, self).__init__()
-
-        if load_embeddings is None:
-            self.gensim_model = KeyedVectors.load_word2vec_format(path)
-
-            unavailable_classes = []
-            embeddings = []
-            for classname in classnames:
-                unavailable = True
-                for cls in classname:
-                    embs = []
-                    try:
-                        emb = self.gensim_model.get_vector(cls.lower().replace(" ", "_"))
-                        embs.append(emb)
-                    except KeyError:
-                        try:
-                            emb = self.gensim_model.get_vector(cls.lower().replace("-", "_"))
-                            embs.append(emb)
-                        except KeyError:
-                            cls = cls.replace("-", " ")
-                            for word in cls.split(" "):
-                                try:
-                                    embs.append(self.gensim_model.get_vector(word.lower()))
-                                except KeyError:
-                                    print(f"{word} does not have an embedding, in {classname}.")
-                    if len(embs):
-                        embeddings.append(np.vstack(embs).mean(axis=0))
-                        unavailable = False
-                        break
-                if unavailable:
-                    unavailable_classes.append(classname)
-
-            word_vectors = torch.from_numpy(np.vstack(embeddings))
-        else:
-            word_vectors = torch.from_numpy(np.load(load_embeddings, allow_pickle=True))
-
-        self.z_size = word_vectors.size(1)
-
-        self.register_buffer("word_vectors", word_vectors)
-
-    def encode(self, targets):
-        return self(targets)
-
-    def decode(self, z):
-        return z @ self.word_vectors.t()
-
-    def forward(self, targets):
-        embeddings = self.word_vectors.gather(0, targets[:, None].expand(-1, self.z_size))
-        return embeddings
-
-    def get_targets(self, targets):
-        return targets
-
-    def get_random_vector(self, classes):
-        return classes
-
-
 class ShapesAttributesLM(WorkspaceModule):
     def __init__(self, n_classes, imsize):
         super(ShapesAttributesLM, self).__init__()
         self.n_classes = n_classes
-        self.z_size = 3
+        self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 8]
+        self.output_dims = [1, self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
+            F.sigmoid,
             lambda x: torch.softmax(x, dim=1),  # shapes
             # torch.tanh,  # rotations
             torch.tanh,  # rest
         ]
 
         self.losses = [
+            F.binary_cross_entropy,
             lambda x, y: nll_loss(x.log(), y),  # shapes
             # F.mse_loss,  # rotations
             F.mse_loss  # rest
@@ -102,26 +39,24 @@ class ShapesAttributesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, x):
-        logits, latent = x
+        is_active, logits, latent = x
         out_latents = (latent.clone() + 1) / 2
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        return (torch.argmax(logits, dim=-1),
-                out_latents)
+        return (is_active, torch.argmax(logits, dim=-1), out_latents)
 
     def forward(self, x: list):
-        cls, latents = x
+        is_active, cls, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                # rotations,
+        return (is_active.reshape(-1, 1), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 out_latents * 2 - 1)
 
     def compute_acc(self, acc_metric, predictions, targets):
-        return acc_metric(predictions[0], targets[0].to(torch.int16))
+        return acc_metric(predictions[1], targets[1].to(torch.int16))
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -136,14 +71,15 @@ class ShapesAttributesLM(WorkspaceModule):
         r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
 
         labels = (
+            torch.ones(size),
             torch.from_numpy(cls),
             torch.from_numpy(np.stack([x, y, radius, rotation_x, rotation_y, r, g, b], axis=1)).to(torch.float),
         )
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        classes = x[0][:max_examples].detach().cpu().numpy()
-        latents = x[1][:max_examples].detach().cpu().numpy()
+        classes = x[1][:max_examples].detach().cpu().numpy()
+        latents = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
@@ -198,17 +134,19 @@ class ShapesLM(WorkspaceModule):
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
+            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims) - 1)
         )
 
         self.validation_domain_examples = validation_domain_examples
 
-        self.output_dims = [self.z_size]
+        self.output_dims = [1, self.z_size]
         self.decoder_activation_fn = [
+            F.sigmoid,
             None
         ]
 
         self.losses = [
+            F.binary_cross_entropy,
             F.mse_loss
         ]
 
@@ -218,8 +156,8 @@ class ShapesLM(WorkspaceModule):
     def decode(self, text_latent):
         predictions = self.classify(text_latent)
         predictions = self.shapes_attribute.decode(predictions)
-        cls = predictions[0].detach().cpu().numpy()
-        attributes = predictions[1].detach().cpu().numpy()
+        cls = predictions[1].detach().cpu().numpy()
+        attributes = predictions[2].detach().cpu().numpy()
         # Text
         rotation_x = attributes[:, 3] * 2 - 1
         rotation_y = attributes[:, 4] * 2 - 1
@@ -232,7 +170,7 @@ class ShapesLM(WorkspaceModule):
             "size": attributes[k, 2],
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
-        return sentence_predictions
+        return predictions[0], sentence_predictions
 
     def get_bert_latent(self, sentences):
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
@@ -240,8 +178,9 @@ class ShapesLM(WorkspaceModule):
         return x
 
     def forward(self, sentences):
+        is_active, sentences = sentences
         bert_latent = self.get_bert_latent(sentences)
-        return self.projection(bert_latent)
+        return is_active.reshape(-1, 1), self.projection(bert_latent)
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -260,24 +199,26 @@ class ShapesLM(WorkspaceModule):
             "size": size,
             "location": (x, y)
         })
-        return labels
+        return (1, labels)
 
     def log_domain(self, logger, x, name, max_examples=None):
-        for k in range(len(x)):
-            logger.experiment[name + "_s"].log(f"{k + 1} - {x[k]}")
+        for k in range(len(x[1])):
+            logger.experiment[name + "_s"].log(f"{k + 1} - {x[1][k]}")
         logger.experiment[name + "_s"].log("-----")
         encoded_s = self.encode(x)
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples)
 
     def classify(self, z):
+        is_active, z = z
         prediction = self.classifier(z)
-        predictions = []
+        predictions = [is_active]
         last_dim = 0
-        for dim, act_fn in zip(self.shapes_attribute.output_dims, self.shapes_attribute.decoder_activation_fn):
-            pred = act_fn(prediction[:, last_dim:last_dim + dim])
-            predictions.append(pred)
-            last_dim += dim
+        for k, (dim, act_fn) in enumerate(zip(self.shapes_attribute.output_dims, self.shapes_attribute.decoder_activation_fn)):
+            if k > 0:
+                pred = act_fn(prediction[:, last_dim:last_dim + dim])
+                predictions.append(pred)
+                last_dim += dim
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
