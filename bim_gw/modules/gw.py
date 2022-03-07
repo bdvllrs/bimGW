@@ -83,7 +83,6 @@ class DomainEncoder(nn.Module):
             x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)
-        # return out
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -173,7 +172,7 @@ class GlobalWorkspace(LightningModule):
                                     self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
-        print("done!")
+        print("Global Workspace instantiated.")
 
     def encode(self, x, domain_name):
         return self.encoders[domain_name](x)

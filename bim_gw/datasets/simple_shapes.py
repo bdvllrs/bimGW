@@ -262,7 +262,6 @@ class SimpleShapesData(LightningDataModule):
                                 self.validation_domain_examples[used_dist][domain].append(examples)
                         self.validation_domain_examples[used_dist][domain] = tuple(
                             self.validation_domain_examples[used_dist][domain])
-        print("ok")
 
     def filter_sync_domains(self, sync_train_set, allowed_indices):
         if self.prop_labelled_images < 1.:
