@@ -15,7 +15,7 @@ class ActionModule(WorkspaceModule):
         self.output_dims = [1, self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
-            F.sigmoid,
+            torch.sigmoid,
             lambda x: torch.softmax(x, dim=1),  # shapes
             # torch.tanh,  # rotations
             torch.tanh,  # rest
@@ -45,7 +45,7 @@ class ActionModule(WorkspaceModule):
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return is_active.reshape(-1, 1), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), out_latents
+        return is_active.reshape(-1, 1).type_as(latents), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), out_latents
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))

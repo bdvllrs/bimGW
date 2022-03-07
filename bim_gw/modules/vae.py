@@ -115,7 +115,7 @@ class VAE(WorkspaceModule):
 
         self.output_dims = [1, self.z_size]
         self.decoder_activation_fn = [
-            F.sigmoid,
+            torch.sigmoid,
             None
         ]
         self.losses = [
@@ -162,7 +162,7 @@ class VAE(WorkspaceModule):
         mean_z, _ = self.encode_stats(x)
 
         # z = reparameterize(mean_z, var_z)
-        return is_active.reshape(-1, 1), mean_z
+        return is_active.reshape(-1, 1).to(torch.float), mean_z
 
     def decode(self, z: torch.Tensor):
         is_active, z = z

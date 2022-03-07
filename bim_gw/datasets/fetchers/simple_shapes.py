@@ -18,11 +18,15 @@ class VisualDataFetcher:
         self.split = split
         self.ids = ids
         self.transforms = transforms["v"]
+        self.null_image = None
 
     def get_null_item(self):
-        x = self.get_item(0)
-        x[:] = 0.
-        return transform((0, x), self.transforms)
+        if self.null_image is None:
+            _, x = self.get_item(0)
+            shape = list(x.size) + [3]
+            img = np.zeros(shape, np.uint8)
+            self.null_image = Image.fromarray(img)
+        return transform((0, self.null_image), self.transforms)
 
     def get_item(self, item):
         image_id = self.ids[item]
@@ -41,7 +45,7 @@ class AttributesDataFetcher:
         self.transforms = transforms["attr"]
 
     def get_null_item(self):
-        cls, attr = self.get_item(0)
+        _, cls, attr = self.get_item(0)
         attr[:] = 0.
         return transform((0, 0, attr), self.transforms)
 
@@ -118,7 +122,7 @@ class TransformationDataFetcher:
         )
 
     def get_null_item(self):
-        _, x = self.get_item(0)
+        _, _, x = self.get_item(0)
         x[:] = 0.
         return transform((0, 0, x), self.transforms)
 

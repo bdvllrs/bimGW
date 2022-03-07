@@ -22,7 +22,7 @@ class ShapesAttributesLM(WorkspaceModule):
         self.output_dims = [1, self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
-            F.sigmoid,
+            torch.sigmoid,
             lambda x: torch.softmax(x, dim=1),  # shapes
             # torch.tanh,  # rotations
             torch.tanh,  # rest
@@ -52,7 +52,7 @@ class ShapesAttributesLM(WorkspaceModule):
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return (is_active.reshape(-1, 1), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+        return (is_active.reshape(-1, 1).type_as(latents), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 out_latents * 2 - 1)
 
     def compute_acc(self, acc_metric, predictions, targets):
@@ -141,7 +141,7 @@ class ShapesLM(WorkspaceModule):
 
         self.output_dims = [1, self.z_size]
         self.decoder_activation_fn = [
-            F.sigmoid,
+            torch.sigmoid,
             None
         ]
 
@@ -180,7 +180,7 @@ class ShapesLM(WorkspaceModule):
     def forward(self, sentences):
         is_active, sentences = sentences
         bert_latent = self.get_bert_latent(sentences)
-        return is_active.reshape(-1, 1), self.projection(bert_latent)
+        return is_active.reshape(-1, 1).to(torch.float), self.projection(bert_latent)
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)

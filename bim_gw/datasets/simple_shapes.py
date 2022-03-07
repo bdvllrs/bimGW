@@ -156,7 +156,7 @@ class SimpleShapesDataset:
             (1 if self.synced_domain_mapping is None or domain_key in self.synced_domain_mapping[item]
              else 0)
             for domain_key in sorted(self.data_fetchers.keys())
-        ], dtype=torch.uint8)
+        ], dtype=torch.bool)
 
         if self.output_transform is not None:
             return self.output_transform(selected_domains)
@@ -277,7 +277,6 @@ class SimpleShapesData(LightningDataModule):
                                 self.validation_domain_examples[used_dist][domain].append(examples)
                         self.validation_domain_examples[used_dist][domain] = tuple(
                             self.validation_domain_examples[used_dist][domain])
-        print("ok")
 
     def filter_sync_domains(self, train_set, allowed_indices):
         # Unlabel randomly some elements
