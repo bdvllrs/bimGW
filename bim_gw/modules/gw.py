@@ -242,9 +242,12 @@ class GlobalWorkspace(LightningModule):
 
             l = torch.tensor(0.).to(self.device)
             for k in range(len(latent_ori)):
-                loss_fn = self.loss_fn[f"{name}_{k}"]
-                l += loss_fn(latent_pred[k][available_domains[:, i]],
-                             latent_ori[k][available_domains[:, i]]).mean() / total
+                # Only compute loss if there is at least one element containing modality "i".
+                if available_domains[:, i].any():
+                    loss_fn = self.loss_fn[f"{name}_{k}"]
+                    pred = latent_pred[k][available_domains[:, i]]
+                    ori = latent_ori[k][available_domains[:, i]]
+                    l += loss_fn(pred, ori).mean() / total
             losses[f"loss_{loss_name}_{name}"] = coef * l
             losses_no_coefs[f"loss_{loss_name}_{name}"] = l
             loss += losses[f"loss_{loss_name}_{name}"]
