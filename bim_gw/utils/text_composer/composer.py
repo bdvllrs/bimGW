@@ -12,7 +12,7 @@ class Composer:
     script_structures = [
         "{start} {size} {color} {shape}, {located} {in_the} {location}{link} {rotation}.",
         "{start} {color} {size} {shape}, {located} {in_the} {location}{link} {rotation}.",
-        "{start} {size} {shape} in {color} color, {located} {in_the} {location}{link} {is?}{rotation}.",
+        "{start} {size} {shape} in {color} color, {located} {in_the} {location}{link} {rotation}.",
         "{start} {size} {shape} in {color} color{link} {located} {in_the} {location} and {is?}{rotation}.",
         "{start} {size} {color} {shape}{link} {located} {in_the} {location} and {is?}{rotation}.",
         "{start} {color} {size} {shape}{link} {located} {in_the} {location} and {is?}{rotation}.",

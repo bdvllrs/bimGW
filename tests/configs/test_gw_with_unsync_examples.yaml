@@ -1,0 +1,2 @@
+global_workspace:
+  prop_labelled_images: .3  # of the allowed classes to be labelled.

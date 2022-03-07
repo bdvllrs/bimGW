@@ -1,6 +1,7 @@
 gpus: 1
 distributed_backend: ddp
 seed: 0
+fast_dev_run: false
 max_epochs: 100
 
 image_net_path: ???

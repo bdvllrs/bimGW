@@ -83,7 +83,6 @@ class DomainEncoder(nn.Module):
             x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)
-        # return out
 
 
 def check_domains_eq(domains_ori, domains_comp):
