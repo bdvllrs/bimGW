@@ -216,6 +216,17 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
+    def get_cycles(self, latents, available_domains):
+        unavailable_domains = torch.logical_not(available_domains)
+        # Project uni modal latent vectors into the GW
+        gw_state = self.project(latents, unavailable_domains)
+        # Predict all modalities from the GW state
+        demi_cycle_predictions = self.predict(gw_state)
+        # Make full cycle by encoding the unavailable modalities into the GW and predicting again
+        cycle_gw_state = gw_state + self.project(demi_cycle_predictions, available_domains)
+        cycle_predictions = self.predict(cycle_gw_state)
+        return demi_cycle_predictions, cycle_predictions
+
     def cycle_loss(self, latents_ori, latents_pred, available_domains, coef=1., loss_name="cycle"):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
@@ -245,21 +256,12 @@ class GlobalWorkspace(LightningModule):
         # One hot telling which modalities are in the input.
         # Unavailable modalities are artificially set to 0 in the "latents" dict.
         available_domains = domains["_available_domains"]
-        unavailable_domains = torch.logical_not(available_domains)
-
-        # Project uni modal latent vectors into the GW
-        gw_state = self.project(latents, unavailable_domains)
-        # Predict all modalities from the GW state
-        predictions = self.predict(gw_state)
-        # Make full cycle by encoding the unavailable modalities into the GW and predicting again
-        cycle_gw_state = gw_state + self.project(predictions, available_domains)
-        cycle_predictions = self.predict(cycle_gw_state)
-
+        demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains)
         # Compute all losses
         losses = dict()
         loss_no_coef = dict()
 
-        demi_cycle_loss, l, l_no_coefs = self.cycle_loss(latents, predictions, available_domains,
+        demi_cycle_loss, l, l_no_coefs = self.cycle_loss(latents, demi_cycle_predictions, available_domains,
                                                          self.hparams.loss_coef_demi_cycles, "demi_cycle")
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
@@ -348,42 +350,19 @@ class GlobalWorkspace(LightningModule):
                 plt.close(fig)
                 self.rotation_error_val = []
 
-            for domain_name, domain_example in examples.items():
-                # Demi cycles
-                latent_x = self.domain_mods[domain_name].encode(domain_example)
-                latent_reconstructed = self.demi_cycle(latent_x, domain_name)
-                x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+            latents = self.encode_modalities(examples)
+            available_domains = torch.stack([examples[domain_name][0] for domain_name in self.domain_names], dim=1).to(self.device, torch.bool)
+            demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains)
+
+            for domain_name in examples.keys():
+                x_reconstructed = self.domain_mods[domain_name].decode(demi_cycle_predictions[domain_name])
                 self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
                                                          f"{slug}_demi_cycle_{domain_name}", max_examples)
 
-                for domain_name_2, domain_example_2 in examples.items():
-                    if domain_name_2 != domain_name:
-                        # Full cycles
-                        latent_x = self.domain_mods[domain_name].encode(domain_example)
-                        latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
-                        x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
-                        self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                                 f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
-                                                                 max_examples)
-
-                        # Translations
-                        latent_start = self.domain_mods[domain_name].encode(domain_example)
-                        latent_end = self.translate(latent_start, domain_name, domain_name_2)
-                        domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
-                        self.domain_mods[domain_name_2].log_domain(
-                            self.logger, domain_end_pred,
-                            f"{slug}_translation_{domain_name}_to_{domain_name_2}",
-                            max_examples
-                        )
-                        if domain_name == "t" and domain_name_2 == "v":
-                            fig, axes = plt.subplots(1, latent_end.size(1))
-                            for k in range(latent_end.size(1)):
-                                l = latent_end.detach().cpu().numpy()[:, k]
-                                x = np.linspace(-0.8, 0.8, 100)
-                                axes[k].hist(l, 50, density=True)
-                                axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                            self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
-                            plt.close(fig)
+                x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
+                self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+                                                         f"{slug}_cycle_{domain_name}",
+                                                         max_examples)
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
