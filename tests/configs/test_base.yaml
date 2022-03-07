@@ -35,6 +35,8 @@ losses:
     cycles: 1.
     supervision: 4.
 
+neptune:
+  project_name: null
 
 global_workspace:
   monitor_grad_norms: true
