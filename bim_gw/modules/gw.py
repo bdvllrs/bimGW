@@ -284,8 +284,6 @@ class GlobalWorkspace(LightningModule):
         return total_loss, losses
 
     def training_step(self, domains, batch_idx):
-        if batch_idx == 549:
-            print('ok')
         if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = domains
 
