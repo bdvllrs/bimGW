@@ -284,6 +284,8 @@ class GlobalWorkspace(LightningModule):
         return total_loss, losses
 
     def training_step(self, domains, batch_idx):
+        if batch_idx == 549:
+            print('ok')
         if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = domains
 
@@ -416,7 +418,7 @@ class GlobalWorkspace(LightningModule):
         grad_norms = {}
         last_grads = {}  # we need them to infer grad norm of each loss (and not accumulated gradients)
         for name, loss in losses.items():
-            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"]:
+            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"] and loss.requires_grad:
                 self.manual_backward(loss, retain_graph=True)
                 for model_name in ["encoders", "decoders"]:
                     model = getattr(self, model_name)
