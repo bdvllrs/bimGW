@@ -4,11 +4,11 @@ from copy import deepcopy
 import torch
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.loggers import NeptuneLogger
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.simple_shapes import SimpleShapesData
 from bim_gw.datasets.utils import get_lm
-from bim_gw.loggers.neptune import NeptuneLogger
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ActionModule, ShapesLM
 
 
@@ -80,10 +80,12 @@ def train_gw(args):
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
         fast_dev_run=args.fast_dev_run,
-        gpus=args.gpus, logger=logger,
+        accelerator="auto",
+        devices=args.gpus,
+        strategy=(args.distributed_backend if args.gpus > 1 else None),
+        logger=logger,
         callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
-        distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs,
         # val_check_interval=0.25,
         multiple_trainloader_mode="min_size",
@@ -132,10 +134,15 @@ def train_lm(args):
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
         fast_dev_run=args.fast_dev_run,
-        gpus=args.gpus, logger=logger, callbacks=callbacks,
+        accelerator="auto",
+        devices=args.gpus,
+        strategy=(args.distributed_backend if args.gpus > 1 else None),
+        logger=logger,
+        callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
-        distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
-        max_epochs=args.max_epochs, log_every_n_steps=1
+        max_epochs=args.max_epochs,
+        # val_check_interval=0.25,
+        multiple_trainloader_mode="min_size",
     )
 
     trainer.fit(lm, data)
@@ -247,10 +254,15 @@ def train_vae(args):
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
         fast_dev_run=args.fast_dev_run,
-        gpus=args.gpus, logger=logger, callbacks=callbacks,
+        accelerator="auto",
+        devices=args.gpus,
+        strategy=(args.distributed_backend if args.gpus > 1 else None),
+        logger=logger,
+        callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
-        distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
-        max_epochs=args.max_epochs, log_every_n_steps=1
+        max_epochs=args.max_epochs,
+        # val_check_interval=0.25,
+        multiple_trainloader_mode="min_size",
     )
 
     trainer.fit(vae, data)

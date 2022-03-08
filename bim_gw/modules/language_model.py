@@ -189,13 +189,15 @@ class ShapesLM(WorkspaceModule):
         self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
-            nn.Linear(self.bert_size, self.bert_size),
-            nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.z_size)
+            nn.Linear(self.bert_size // 2, self.bert_size // 4),
+            nn.ReLU(),
+            nn.Linear(self.bert_size // 4, self.z_size)
         )
         self.classifier = nn.Sequential(
+            nn.Linear(self.z_size, self.z_size),
+            nn.ReLU(),
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
             nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
