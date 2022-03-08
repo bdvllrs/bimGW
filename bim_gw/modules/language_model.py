@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from gensim.models import KeyedVectors
+from sentence_transformers import SentenceTransformer
 from torch import nn
 from torch.nn import functional as F
 from transformers import BertTokenizer, BertModel
@@ -178,11 +179,8 @@ class ShapesLM(WorkspaceModule):
         self.bert_size = 768
         self.imsize = imsize
 
-        self.transformer = BertModel.from_pretrained(bert_path)
-        for p in self.transformer.parameters():
-            p.requires_grad_(False)
+        self.transformer = SentenceTransformer('all-mpnet-base-v2')
 
-        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
         self.text_composer = Composer(writers)
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
@@ -237,8 +235,9 @@ class ShapesLM(WorkspaceModule):
         return sentence_predictions
 
     def get_bert_latent(self, sentences):
-        tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
-        x = self.transformer(**tokens)["last_hidden_state"][:, 0]
+        # tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
+        # x = self.transformer(**tokens)["last_hidden_state"][:, 0]
+        x = torch.from_numpy(self.transformer.encode(sentences)).to(self.device)
         return x
 
     def forward(self, sentences):
