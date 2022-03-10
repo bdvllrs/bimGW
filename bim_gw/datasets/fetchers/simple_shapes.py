@@ -151,3 +151,16 @@ class TransformedTextDataFetcher(TextDataFetcher):
         if self.transforms is not None:
             sentence = self.transforms(sentence)
         return sentence
+
+
+class PreSavedLatentDataFetcher:
+    def __init__(self, root_path, ids):
+        self.root_path = root_path
+        self.ids = ids
+        self.data = np.load(str(self.root_path))[self.ids]
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def __getitem__(self, item):
+        return self.data[item]

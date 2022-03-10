@@ -49,9 +49,12 @@ global_workspace:
   monitor_grad_norms: false  # if true, training is a bit slower.
   batch_size: 128
   data_augmentation: false
-  selected_domains: null
+  selected_domains: { "v": "v", "t": "t" }
+
+  use_pre_saved: false
+  load_pre_saved_latents: null
+
   split_ood: false
-  text_domain: "attributes"
   bert_path: "bert-base-uncased"
 
   z_size: 20

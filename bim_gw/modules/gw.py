@@ -9,6 +9,7 @@ from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
 
+from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.utils import val_or_default
 
@@ -111,7 +112,6 @@ class GlobalWorkspace(LightningModule):
         self.monitor_grad_norms = monitor_grad_norms
 
         for mod in domain_mods.values():
-            assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
             mod.freeze()  # insures that all modules are frozen
 
         self.domain_mods = nn.ModuleDict(domain_mods)
@@ -180,7 +180,7 @@ class GlobalWorkspace(LightningModule):
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
 
-    def project(self, domains):
+    def encode_uni_modal(self, domains):
         """
         Encodes unimodal inputs to their unimodal latent version
         """
@@ -189,6 +189,17 @@ class GlobalWorkspace(LightningModule):
             z = self.domain_mods[domain_name].encode(x)
             out[domain_name] = z
         return out
+
+    def decode_uni_modal(self, domains):
+        """
+        Encodes unimodal inputs to their unimodal latent version
+        """
+        out = dict()
+        for domain_name, x in domains.items():
+            z = self.domain_mods[domain_name].decode(x)
+            out[domain_name] = z
+        return out
+
 
     def forward(self, domains):
         """
@@ -353,7 +364,10 @@ class GlobalWorkspace(LightningModule):
 
     def training_step(self, batch, batch_idx):
         if batch_idx == 0 and self.current_epoch == 0:
-            self.train_domain_examples = batch['sync_']
+            x = self.encode_uni_modal(batch['sync_'])
+            self.set_unimodal_pass_through(False)
+            self.train_domain_examples = self.decode_uni_modal(x)
+            self.set_unimodal_pass_through(True)
 
         opt = self.optimizers()
         # remove the sync batch
@@ -362,8 +376,8 @@ class GlobalWorkspace(LightningModule):
 
         opt.zero_grad()
 
-        latents = self.project(domains)
-        sync_latents = self.project(sync_supervision)
+        latents = self.encode_uni_modal(domains)
+        sync_latents = self.encode_uni_modal(sync_supervision)
 
         total_loss, losses = self.step(latents, sync_latents, sync_supervision, mode="train")
 
@@ -380,7 +394,7 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
-        latents = self.project(domains)
+        latents = self.encode_uni_modal(domains)
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
         total_loss, losses = self.step(latents, latents, domains, mode="val", prefix=prefix)
 
@@ -395,7 +409,7 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
-        latents = self.project(domains)
+        latents = self.encode_uni_modal(domains)
         total_loss, losses = self.step(latents, latents, domains, mode="test")
         return total_loss
 
@@ -488,8 +502,17 @@ class GlobalWorkspace(LightningModule):
             if self.train_domain_examples is not None:
                 self.log_images(self.train_domain_examples, "train", 32)
 
+    def set_unimodal_pass_through(self, mode=True):
+        for domain_mod in self.domain_mods.values():
+            if isinstance(domain_mod, PassThroughWM):
+                domain_mod.pass_through(mode)
+
     def on_train_epoch_start(self):
         self.domain_mods.eval()
+        self.set_unimodal_pass_through(True)
+
+    def on_train_epoch_end(self):
+        self.set_unimodal_pass_through(False)
 
     def configure_optimizers(self):
         params = []

@@ -1,5 +1,4 @@
 import os
-from copy import deepcopy
 
 import torch
 from pytorch_lightning import seed_everything, Trainer
@@ -8,8 +7,8 @@ from pytorch_lightning.loggers import NeptuneLogger
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.simple_shapes import SimpleShapesData
-from bim_gw.datasets.utils import get_lm
-from bim_gw.modules import VAE, AE, GlobalWorkspace, ActionModule, ShapesLM
+from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
+from bim_gw.scripts.utils import get_domains
 
 
 def train_gw(args):
@@ -19,27 +18,9 @@ def train_gw(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    vae = VAE.load_from_checkpoint(
-        args.global_workspace.vae_checkpoint,
-        mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-        kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
-    ).eval()
-    vae.freeze()
-
-    lm = get_lm(args, data).eval()
-    lm.freeze()
-
-    def get_domain_model(name):
-        if "v" in name:
-            return deepcopy(vae)
-        elif "t" in name:
-            return deepcopy(lm)
-        elif name == "a":
-            return ActionModule()
-
-    global_workspace = GlobalWorkspace({
-        name: get_domain_model(name) for name in args.global_workspace.selected_domains.keys()
-    }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
+    global_workspace = GlobalWorkspace(
+        get_domains(args, data),
+        args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
         args.losses.coefs.demi_cycles,
         args.losses.coefs.cycles, args.losses.coefs.supervision,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,

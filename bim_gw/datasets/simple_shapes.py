@@ -10,7 +10,7 @@ from torchvision import transforms
 
 from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
     TransformationDataFetcher, TransformedVisualDataFetcher, TransformedTextDataFetcher, \
-    TransformedAttributesDataFetcher
+    TransformedAttributesDataFetcher, PreSavedLatentDataFetcher
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
@@ -68,9 +68,6 @@ class RandomDomainSelection:
             )
 
 
-
-
-
 class SimpleShapesDataset:
     available_domains = {
         "v": VisualDataFetcher,
@@ -83,7 +80,7 @@ class SimpleShapesDataset:
     }
 
     def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
-                 selected_domains=None, transform=None, output_transform=None):
+                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None):
         """
         Args:
             path:
@@ -94,7 +91,8 @@ class SimpleShapesDataset:
             min_dataset_size: Copies the data so that the effective size is the one given.
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains = {domain: domain for domain in self.available_domains.keys()} if selected_domains is None else selected_domains
+        self.selected_domains = {domain: domain for domain in
+                                 self.available_domains.keys()} if selected_domains is None else selected_domains
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
                            for domain in self.available_domains.keys()}
@@ -123,13 +121,18 @@ class SimpleShapesDataset:
             self.labels = np.tile(self.labels, (n_repeats, 1))
 
         self.all_fetchers = {
-            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in self.available_domains.items()
+            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
+            self.available_domains.items()
         }
 
         self.data_fetchers = {
             domain_key: self.all_fetchers[domain]
             for domain_key, domain in self.selected_domains.items()
         }
+
+        if pre_saved_latent_path is not None:
+            for key, path in pre_saved_latent_path.items():
+                self.data_fetchers[key] = PreSavedLatentDataFetcher(self.root_path / "saved_latents" / split / path, self.ids)
 
     def __len__(self):
         return len(self.labels)
@@ -149,7 +152,9 @@ class SimpleShapesData(LightningDataModule):
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
             n_validation_domain_examples=None, split_ood=True,
-            selected_domains=None):
+            selected_domains=None,
+            pre_saved_latent_paths=None
+    ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.batch_size = batch_size
@@ -159,6 +164,7 @@ class SimpleShapesData(LightningDataModule):
         self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
         self.ood_boundaries = None
         self.selected_domains = selected_domains
+        self.pre_saved_latent_paths = pre_saved_latent_paths
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -182,14 +188,16 @@ class SimpleShapesData(LightningDataModule):
                                                    selected_domains=self.selected_domains)
 
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                 pre_saved_latent_path=self.pre_saved_latent_paths,
                                                  transform=train_transforms,
                                                  selected_domains=self.selected_domains)
             self.shapes_train = {}
             for domain_key, domain in self.selected_domains.items():
                 self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                                transform=train_transforms,
-                                                                selected_domains={domain_key: domain},
-                                                                output_transform=lambda x, y=domain_key: x[y])
+                                                                    pre_saved_latent_path=self.pre_saved_latent_paths,
+                                                                    transform=train_transforms,
+                                                                    selected_domains={domain_key: domain},
+                                                                    output_transform=lambda x, y=domain_key: x[y])
 
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
@@ -273,21 +281,22 @@ class SimpleShapesData(LightningDataModule):
             print(f"Training using {len(labelled_elems)} labelled examples.")
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                  labelled_elems, n_targets,
+                                                 pre_saved_latent_path=self.pre_saved_latent_paths,
                                                  selected_domains=self.selected_domains,
                                                  transform=sync_train_set.transforms)
         return sync_train_set
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                       transform={"v":get_preprocess(self.use_data_augmentation)},
+                                       transform={"v": get_preprocess(self.use_data_augmentation)},
                                        selected_domains={"v": "v"},
                                        output_transform=lambda d: (d["v"], 0))
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
-                                     transform={"v":get_preprocess(self.use_data_augmentation)},
+                                     transform={"v": get_preprocess(self.use_data_augmentation)},
                                      selected_domains={"v": "v"},
                                      output_transform=lambda d: (d["v"], 0))
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
-                                      transform={"v":get_preprocess(self.use_data_augmentation)},
+                                      transform={"v": get_preprocess(self.use_data_augmentation)},
                                       selected_domains={"v": "v"},
                                       output_transform=lambda d: (d["v"], 0))
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
@@ -299,12 +308,12 @@ class SimpleShapesData(LightningDataModule):
         self.inception_stats_path_test = compute_dataset_statistics(test_ds, self.simple_shapes_folder, "shapes_test",
                                                                     batch_size, device)
 
-    def train_dataloader(self):
+    def train_dataloader(self, shuffle=True):
         dataloaders = {}
         for key, dataset in self.shapes_train.items():
             # dataloaders[key] = torch.utils.data.DataLoader(Subset(dataset, torch.arange(0, 2 * self.batch_size)),
             dataloaders[key] = torch.utils.data.DataLoader(dataset,
-                                                           batch_size=self.batch_size, shuffle=True,
+                                                           batch_size=self.batch_size, shuffle=shuffle,
                                                            num_workers=self.num_workers, pin_memory=True)
         return dataloaders
 

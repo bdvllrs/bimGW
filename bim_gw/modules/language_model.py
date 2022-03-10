@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from gensim.models import KeyedVectors
-from sentence_transformers import SentenceTransformer
 from torch import nn
 from torch.nn import functional as F
 from transformers import BertTokenizer, BertModel
@@ -179,7 +178,11 @@ class ShapesLM(WorkspaceModule):
         self.bert_size = 768
         self.imsize = imsize
 
-        self.transformer = SentenceTransformer('all-mpnet-base-v2')
+        self.transformer =  BertModel.from_pretrained(bert_path)
+        for p in self.transformer.parameters():
+            p.requires_grad_(False)
+
+        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
 
         self.text_composer = Composer(writers)
 
@@ -187,15 +190,13 @@ class ShapesLM(WorkspaceModule):
         self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
+            nn.Linear(self.bert_size, self.bert_size),
+            nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.bert_size // 4),
-            nn.ReLU(),
-            nn.Linear(self.bert_size // 4, self.z_size)
+            nn.Linear(self.bert_size // 2, self.z_size)
         )
         self.classifier = nn.Sequential(
-            nn.Linear(self.z_size, self.z_size),
-            nn.ReLU(),
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
             nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
@@ -235,9 +236,8 @@ class ShapesLM(WorkspaceModule):
         return sentence_predictions
 
     def get_bert_latent(self, sentences):
-        # tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
-        # x = self.transformer(**tokens)["last_hidden_state"][:, 0]
-        x = torch.from_numpy(self.transformer.encode(sentences)).to(self.device)
+        tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
+        x = self.transformer(**tokens)["last_hidden_state"][:, 0]
         return x
 
     def forward(self, sentences):
