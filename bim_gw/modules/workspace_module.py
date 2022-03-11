@@ -36,7 +36,7 @@ class PassThroughWM(WorkspaceModule):
         self.decoder_activation_fn = self.workspace_module.decoder_activation_fn
         self.losses = self.workspace_module.losses
 
-        self.use_pass_through = False
+        self.use_pass_through = True
 
     def pass_through(self, mode=True):
         self.use_pass_through = mode

@@ -96,7 +96,7 @@ class GlobalWorkspace(LightningModule):
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-            validation_domain_examples: Optional[dict] = None,
+            domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
 
@@ -149,11 +149,10 @@ class GlobalWorkspace(LightningModule):
         self.grad_norms_bin = GradNormLogger()
 
         # val sampling
-        self.validation_domain_examples = validation_domain_examples
-        self.train_domain_examples = None
-        if validation_domain_examples is not None:
+        self.domain_examples = domain_examples
+        if domain_examples is not None:
             self.validation_example_list = dict()
-            for dist, example_dist_vecs in validation_domain_examples.items():
+            for dist, example_dist_vecs in domain_examples.items():
                 if example_dist_vecs is not None:
                     for key, example_vecs in example_dist_vecs.items():
                         assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
@@ -361,12 +360,6 @@ class GlobalWorkspace(LightningModule):
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
-        if batch_idx == 0 and self.current_epoch == 0:
-            x = self.encode_uni_modal(batch['sync_'])
-            self.set_unimodal_pass_through(False)
-            self.train_domain_examples = self.decode_uni_modal(x)
-            self.set_unimodal_pass_through(True)
-
         opt = self.optimizers()
         # remove the sync batch
         domains = {key: val for key, val in batch.items() if key != "sync_"}
@@ -485,19 +478,23 @@ class GlobalWorkspace(LightningModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
+            self.set_unimodal_pass_through(False)
             if self.current_epoch == 0:
                 if self.trainer.datamodule.ood_boundaries is not None:
                     self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
             for dist in ["in_dist", "ood"]:
-                if self.validation_domain_examples[dist] is not None:
+                if self.domain_examples[dist] is not None:
                     validation_examples = self.get_validation_examples(dist)
 
                     if self.validation_example_list is not None:
                         self.log_images(validation_examples, f"val_{dist}")
 
-            if self.train_domain_examples is not None:
-                self.log_images(self.train_domain_examples, "train", 32)
+            if self.domain_examples["train"] is not None:
+                train_examples = self.get_validation_examples("train")
+                self.log_images(train_examples, "train")
+
+            self.set_unimodal_pass_through(True)
 
     def set_unimodal_pass_through(self, mode=True):
         for domain_mod in self.domain_mods.values():
@@ -506,10 +503,6 @@ class GlobalWorkspace(LightningModule):
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()
-        self.set_unimodal_pass_through(True)
-
-    def on_validation_start(self):
-        self.set_unimodal_pass_through(False)
 
     def configure_optimizers(self):
         params = []

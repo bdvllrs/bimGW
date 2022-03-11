@@ -25,7 +25,7 @@ def train_gw(args):
         args.losses.coefs.cycles, args.losses.coefs.supervision,
         args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        data.validation_domain_examples,
+        data.domain_examples,
         args.global_workspace.monitor_grad_norms
     )
 
@@ -85,7 +85,7 @@ def train_lm(args):
 
     lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
-                  data.validation_domain_examples["in_dist"])
+                  data.domain_examples["in_dist"])
 
     logger = None
     if args.neptune.project_name is not None:
@@ -141,7 +141,7 @@ def train_ae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.validation_domain_examples["v"]
+        data.domain_examples["in_dist"]["v"]
     )
 
     # checkpoint = torch.load(args.resume_from_checkpoint)
@@ -201,7 +201,7 @@ def train_vae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.validation_domain_examples["in_dist"]["v"], args.vae.n_FID_samples
+        data.domain_examples["in_dist"]["v"], args.vae.n_FID_samples
     )
 
     # checkpoint = torch.load(args.resume_from_checkpoint)
