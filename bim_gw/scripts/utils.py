@@ -3,7 +3,7 @@ from bim_gw.modules.language_model import ShapesAttributesLM
 from bim_gw.modules.workspace_module import PassThroughWM
 
 
-def get_domain(domain_name, args, data):
+def get_domain(name, domain_name, args, data):
     if domain_name in ["v", "v_f"]:
         domain = VAE.load_from_checkpoint(
             args.global_workspace.vae_checkpoint,
@@ -21,7 +21,7 @@ def get_domain(domain_name, args, data):
     else:
         raise ValueError(f"{domain_name} is not a valid domain name.")
 
-    if args.global_workspace.use_pre_saved:
+    if args.global_workspace.use_pre_saved and name in args.global_workspace.load_pre_saved_latents.keys():
         domain = PassThroughWM(domain)
 
     domain.eval()
@@ -31,5 +31,5 @@ def get_domain(domain_name, args, data):
 
 def get_domains(args, data):
     return {
-        name: get_domain(domain, args, data) for name, domain in args.global_workspace.selected_domains.items()
+        name: get_domain(name, domain, args, data) for name, domain in args.global_workspace.selected_domains.items()
     }

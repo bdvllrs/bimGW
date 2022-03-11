@@ -35,6 +35,7 @@ class PassThroughWM(WorkspaceModule):
         self.output_dims = self.workspace_module.output_dims
         self.decoder_activation_fn = self.workspace_module.decoder_activation_fn
         self.losses = self.workspace_module.losses
+        # self.requires_acc_computation = self.workspace_module.requires_acc_computation
 
         self.use_pass_through = True
 

@@ -344,9 +344,10 @@ class GlobalWorkspace(LightningModule):
 
         batch_size = latents[list(latents.keys())[0]].size(0)
         for name, loss in loss_no_coef.items():
-            self.log(f"{mode}{prefix}_{name}", loss, logger=True, add_dataloader_idx=False, batch_size=batch_size)
-        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True, add_dataloader_idx=False,
-                 batch_size=batch_size)
+            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
+                     add_dataloader_idx=False, batch_size=batch_size)
+        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True,
+                 add_dataloader_idx=False, batch_size=batch_size)
 
         # compute accuracies
         for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}{prefix}_accuracy_metrics"),
@@ -355,8 +356,8 @@ class GlobalWorkspace(LightningModule):
             prediction = self.domain_mods[domain_name].decode(predicted_t)
             accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
                                                                  sync_supervision[domain_name])
-            self.log(f"{mode}{prefix}_acc_{domain_name_start}_to_{domain_name}", accuracy,
-                     on_step=True, on_epoch=(mode == "val"), add_dataloader_idx=False)
+            self.log(f"{mode}{prefix}_acc_{domain_name_start}_to_{domain_name}", accuracy, logger=True,
+                     on_step=(mode != "val"), on_epoch=(mode == "val"), add_dataloader_idx=False)
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
