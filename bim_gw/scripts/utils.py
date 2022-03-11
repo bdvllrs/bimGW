@@ -9,21 +9,23 @@ def get_domain(domain_name, args, data):
             args.global_workspace.vae_checkpoint,
             mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
             kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
-        ).eval()
+        )
     elif domain_name in ["t", "t_f"]:
         domain = ShapesLM.load_from_checkpoint(
             args.global_workspace.lm_checkpoint,
-            bert_path=args.global_workspace.bert_path).eval()
+            bert_path=args.global_workspace.bert_path)
     elif domain_name in ["attr", "attr_f"]:
-        domain = ShapesAttributesLM(len(data.classes), data.img_size).eval()
+        domain = ShapesAttributesLM(len(data.classes), data.img_size)
     elif domain_name == "a":
-        domain = ActionModule().eval()
+        domain = ActionModule()
     else:
         raise ValueError(f"{domain_name} is not a valid domain name.")
 
-    domain.freeze()
     if args.global_workspace.use_pre_saved:
         domain = PassThroughWM(domain)
+
+    domain.eval()
+    domain.freeze()
     return domain
 
 
