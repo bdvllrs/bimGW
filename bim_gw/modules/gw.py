@@ -1,7 +1,10 @@
 from typing import Optional
 
+import numpy as np
+import scipy
 import torch
 import torchmetrics
+from matplotlib import pyplot as plt
 from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
@@ -422,23 +425,23 @@ class GlobalWorkspace(LightningModule):
                 for domain_name, domain_example in examples.items():
                     self.domain_mods[domain_name].log_domain(self.logger, domain_example,
                                                              f"{slug}_original_domain_{domain_name}", max_examples)
-                    # if domain_name == "v":
-                    #     latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
-                    #     fig, axes = plt.subplots(1, latent.shape[1])
-                    #     for k in range(latent.shape[1]):
-                    #         l = latent[:, k]
-                    #         axes[k].hist(l, 50, density=True)
-                    #         x = np.linspace(-0.8, 0.8, 100)
-                    #         axes[k].plot(x, sps.norm.pdf(x, 0, 1))
-                    #     self.logger.experiment["original_v_hist"].log(File.as_image(fig))
-                    #     plt.close(fig)
+                    if domain_name == "v":
+                        latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
+                        fig, axes = plt.subplots(1, latent.shape[1])
+                        for k in range(latent.shape[1]):
+                            l = latent[:, k]
+                            axes[k].hist(l, 50, density=True)
+                            x = np.linspace(-0.8, 0.8, 100)
+                            axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                        self.logger.experiment["original_v_hist"].log(File.as_image(fig))
+                        plt.close(fig)
 
-            # if len(self.rotation_error_val):
-            #     fig = plt.figure()
-            #     plt.hist(self.rotation_error_val, 50, density=True)
-            #     self.logger.experiment["rotation_error_val"].log(File.as_image(fig))
-            #     plt.close(fig)
-            #     self.rotation_error_val = []
+            if len(self.rotation_error_val):
+                fig = plt.figure()
+                plt.hist(self.rotation_error_val, 50, density=True)
+                self.logger.experiment["rotation_error_val"].log(File.as_image(fig))
+                plt.close(fig)
+                self.rotation_error_val = []
 
             for domain_name, domain_example in examples.items():
                 # Demi cycles
@@ -467,15 +470,15 @@ class GlobalWorkspace(LightningModule):
                             f"{slug}_translation_{domain_name}_to_{domain_name_2}",
                             max_examples
                         )
-                        # if domain_name == "t" and domain_name_2 == "v":
-                        #     fig, axes = plt.subplots(1, latent_end.size(1))
-                        #     for k in range(latent_end.size(1)):
-                        #         l = latent_end.detach().cpu().numpy()[:, k]
-                        #         x = np.linspace(-0.8, 0.8, 100)
-                        #         axes[k].hist(l, 50, density=True)
-                        #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                        #     self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
-                        #     plt.close(fig)
+                        if domain_name == "t" and domain_name_2 == "v":
+                            fig, axes = plt.subplots(1, latent_end.size(1))
+                            for k in range(latent_end.size(1)):
+                                l = latent_end.detach().cpu().numpy()[:, k]
+                                x = np.linspace(-0.8, 0.8, 100)
+                                axes[k].hist(l, 50, density=True)
+                                axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                            self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
+                            plt.close(fig)
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
