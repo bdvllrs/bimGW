@@ -11,7 +11,7 @@ from torchvision import transforms
 
 from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
     TransformationDataFetcher, TransformedVisualDataFetcher, TransformedTextDataFetcher, \
-    TransformedAttributesDataFetcher
+    TransformedAttributesDataFetcher, PreSavedLatentDataFetcher
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 class ComposeWithExtraParameters:
@@ -90,7 +90,7 @@ class SimpleShapesDataset:
     }
 
     def __init__(self, path, split="train", synced_domain_mapping=None,
-                 selected_domains=None, transform=None, output_transform=None):
+                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None):
         """
         Args:
             path:
@@ -142,6 +142,14 @@ class SimpleShapesDataset:
             for domain_key, domain in self.selected_domains.items()
         }
 
+        if pre_saved_latent_path is not None:
+            self.use_pre_saved_latents(pre_saved_latent_path)
+
+    def use_pre_saved_latents(self, pre_saved_latent_path):
+        for key, path in pre_saved_latent_path.items():
+            self.data_fetchers[key] = PreSavedLatentDataFetcher(
+                self.root_path / "saved_latents" / self.split / path, self.ids)
+
     def __len__(self):
         return len(self.labels)
 
@@ -169,7 +177,8 @@ class SimpleShapesData(LightningDataModule):
             num_workers=0, use_data_augmentation=False, prop_sync_domains=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
-            domain_selection_probs=None
+            domain_selection_probs=None,
+            pre_saved_latent_paths = None
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
@@ -177,9 +186,10 @@ class SimpleShapesData(LightningDataModule):
         self.num_workers = num_workers
         self.img_size = 32
         self.split_ood = split_ood
-        self.validation_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
+        self.domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
         self.ood_boundaries = None
         self.selected_domains = selected_domains
+        self.pre_saved_latent_paths = pre_saved_latent_paths
 
         self.prop_sync_domains = prop_sync_domains
         self.domain_selection_probs = domain_selection_probs
@@ -225,58 +235,72 @@ class SimpleShapesData(LightningDataModule):
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
             self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
-        self.set_validation_examples(self.shapes_val if stage == "fit" else self.shapes_test)
+        self.set_validation_examples(
+            self.shapes_val if stage == "fit" else self.shapes_test,
+            self.shapes_train
+        )
 
-    def set_validation_examples(self, test_set):
-        validation_reconstruction_indices = {}
-        validation_reconstruction_indices["in_dist"] = torch.randint(len(test_set["in_dist"]),
-                                                                     size=(self.validation_domain_examples,))
-        validation_reconstruction_indices["ood"] = None
+        # Use pre saved latents if provided.
+        for shapes_set in [self.shapes_train, self.shapes_val, self.shapes_test]:
+            for dataset in shapes_set.values():
+                if dataset is not None:
+                    if isinstance(dataset, Subset):
+                        dataset = dataset.dataset
+                    dataset.use_pre_saved_latents(self.pre_saved_latent_paths)
 
-        if test_set["ood"] is not None:
-            validation_reconstruction_indices["ood"] = torch.randint(len(test_set["ood"]),
-                                                                     size=(self.validation_domain_examples,))
-
-        self.validation_domain_examples = {
-            "in_dist": {domain: [] for domain in self.selected_domains.keys()},
-            "ood": None
+    def set_validation_examples(self, test_set, train_set):
+        reconstruction_indices = {
+            "train": torch.randint(len(train_set), size=(self.domain_examples,)),
+            "in_dist": torch.randint(len(test_set["in_dist"]), size=(self.domain_examples,)),
+            "ood": None,
         }
 
-        used_dists = ["in_dist"]
+        if test_set["ood"] is not None:
+            reconstruction_indices["ood"] = torch.randint(len(test_set["ood"]),
+                                                          size=(self.domain_examples,))
+
+        self.domain_examples = {
+            "train": {domain: [] for domain in self.selected_domains.keys()},
+            "in_dist": {domain: [] for domain in self.selected_domains.keys()},
+            "ood": None,
+        }
+
+        used_dists = ["train", "in_dist"]
 
         if self.split_ood:
-            self.validation_domain_examples["ood"] = {domain: [] for domain in self.selected_domains.keys()}
+            self.domain_examples["ood"] = {domain: [] for domain in self.selected_domains.keys()}
             used_dists.append("ood")
 
         # add t examples
         for used_dist in used_dists:
-            if validation_reconstruction_indices[used_dist] is not None:
+            used_set = train_set if used_dist == "train" else test_set[used_dist]
+            if reconstruction_indices[used_dist] is not None:
                 for domain in self.selected_domains.keys():
-                    if not isinstance(test_set[used_dist][0][domain], tuple):
-                        examples = [test_set[used_dist][i][domain] for i in
-                                    validation_reconstruction_indices[used_dist]]
-                        if isinstance(test_set[used_dist][0][domain], (int, float)):
-                            self.validation_domain_examples[used_dist][domain] = torch.tensor(examples)
-                        elif isinstance(test_set[used_dist][0][domain], torch.Tensor):
-                            self.validation_domain_examples[used_dist][domain] = torch.stack(examples, dim=0)
+                    if not isinstance(used_set[0][domain], tuple):
+                        examples = [used_set[i][domain] for i in
+                                    reconstruction_indices[used_dist]]
+                        if isinstance(used_set[0][domain], (int, float)):
+                            self.domain_examples[used_dist][domain] = torch.tensor(examples)
+                        elif isinstance(used_set[0][domain], torch.Tensor):
+                            self.domain_examples[used_dist][domain] = torch.stack(examples, dim=0)
                         else:
-                            self.validation_domain_examples[used_dist][domain] = examples
+                            self.domain_examples[used_dist][domain] = examples
                     else:
-                        for k in range(len(test_set[used_dist][0][domain])):
-                            examples = [test_set[used_dist][i][domain][k] for i in
-                                        validation_reconstruction_indices[used_dist]]
-                            if isinstance(test_set[used_dist][0][domain][k], (int, float)):
-                                self.validation_domain_examples[used_dist][domain].append(
+                        for k in range(len(used_set[0][domain])):
+                            examples = [used_set[i][domain][k] for i in
+                                        reconstruction_indices[used_dist]]
+                            if isinstance(used_set[0][domain][k], (int, float)):
+                                self.domain_examples[used_dist][domain].append(
                                     torch.tensor(examples)
                                 )
-                            elif isinstance(test_set[used_dist][0][domain][k], torch.Tensor):
-                                self.validation_domain_examples[used_dist][domain].append(
+                            elif isinstance(used_set[0][domain][k], torch.Tensor):
+                                self.domain_examples[used_dist][domain].append(
                                     torch.stack(examples, dim=0)
                                 )
                             else:
-                                self.validation_domain_examples[used_dist][domain].append(examples)
-                        self.validation_domain_examples[used_dist][domain] = tuple(
-                            self.validation_domain_examples[used_dist][domain])
+                                self.domain_examples[used_dist][domain].append(examples)
+                        self.domain_examples[used_dist][domain] = tuple(
+                            self.domain_examples[used_dist][domain])
 
     def filter_sync_domains(self, train_set, allowed_indices):
         # Unlabel randomly some elements
@@ -329,9 +353,9 @@ class SimpleShapesData(LightningDataModule):
         self.inception_stats_path_test = compute_dataset_statistics(test_ds, self.simple_shapes_folder, "shapes_test",
                                                                     batch_size, device)
 
-    def train_dataloader(self):
+    def train_dataloader(self, shuffle=True):
         return torch.utils.data.DataLoader(self.shapes_train,
-                                           batch_size=self.batch_size, shuffle=True,
+                                           batch_size=self.batch_size, shuffle=shuffle,
                                            num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):

@@ -114,11 +114,12 @@ class ShapesLM(WorkspaceModule):
         self.bert_size = 768
         self.imsize = imsize
 
-        self.transformer = BertModel.from_pretrained(bert_path)
+        self.transformer =  BertModel.from_pretrained(bert_path)
         for p in self.transformer.parameters():
             p.requires_grad_(False)
 
         self.tokenizer = BertTokenizer.from_pretrained(bert_path)
+
         self.text_composer = Composer(writers)
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)

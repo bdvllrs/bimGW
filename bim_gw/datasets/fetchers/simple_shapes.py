@@ -178,3 +178,22 @@ class TransformedTextDataFetcher(TextDataFetcher):
             "size": size,
             "location": (x, y)
         }))
+
+
+class PreSavedLatentDataFetcher:
+    def __init__(self, root_path, ids):
+        self.root_path = root_path
+        self.ids = ids
+        self.data = np.load(str(self.root_path))[self.ids]
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def get_null_item(self):
+        return 0, np.zeros_like(self.data[0])
+
+    def get_item(self, item):
+        return 1, self.data[item]
+
+    def __getitem__(self, item):
+        return self.get_item(item)

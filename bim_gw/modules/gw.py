@@ -9,6 +9,7 @@ from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
 
+from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.utils import val_or_default
 
@@ -98,7 +99,7 @@ class GlobalWorkspace(LightningModule):
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-            validation_domain_examples: Optional[dict] = None,
+            domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
 
@@ -111,7 +112,6 @@ class GlobalWorkspace(LightningModule):
         self.monitor_grad_norms = monitor_grad_norms
 
         for mod in domain_mods.values():
-            assert hasattr(mod, "z_size"), "Module must have a parameter z_size."
             mod.freeze()  # insures that all modules are frozen
 
         self.domain_mods = nn.ModuleDict(domain_mods)
@@ -152,11 +152,10 @@ class GlobalWorkspace(LightningModule):
         self.grad_norms_bin = GradNormLogger()
 
         # val sampling
-        self.validation_domain_examples = validation_domain_examples
-        self.train_domain_examples = None
-        if validation_domain_examples is not None:
+        self.domain_examples = domain_examples
+        if domain_examples is not None:
             self.validation_example_list = dict()
-            for dist, example_dist_vecs in validation_domain_examples.items():
+            for dist, example_dist_vecs in domain_examples.items():
                 if example_dist_vecs is not None:
                     for key, example_vecs in example_dist_vecs.items():
                         assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
@@ -189,6 +188,16 @@ class GlobalWorkspace(LightningModule):
             if domain_name != "_available_domains":
                 z = self.domain_mods[domain_name].encode(x)
                 out[domain_name] = z
+        return out
+
+    def decode_uni_modal(self, domains):
+        """
+        Encodes unimodal inputs to their unimodal latent version
+        """
+        out = dict()
+        for domain_name, x in domains.items():
+            z = self.domain_mods[domain_name].decode(x)
+            out[domain_name] = z
         return out
 
     def project(self, latents, masked_domains):
@@ -277,9 +286,12 @@ class GlobalWorkspace(LightningModule):
         total_loss = demi_cycle_loss + cycle_loss
         total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"]
 
+        batch_size = latents[list(latents.keys())[0]].size(0)
         for name, loss in loss_no_coef.items():
-            self.log(f"{mode}{prefix}_{name}", loss, logger=True, add_dataloader_idx=False)
-        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True, add_dataloader_idx=False)
+            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
+                     add_dataloader_idx=False, batch_size=batch_size)
+        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True,
+                 add_dataloader_idx=False, batch_size=batch_size)
 
         return total_loss, losses
 
@@ -334,14 +346,13 @@ class GlobalWorkspace(LightningModule):
                 for domain_name, domain_example in examples.items():
                     self.domain_mods[domain_name].log_domain(self.logger, domain_example,
                                                              f"{slug}_original_domain_{domain_name}", max_examples)
-
                     if domain_name == "v":
-                        latent = self.domain_mods[domain_name].encode(domain_example)
-                        fig, axes = plt.subplots(1, latent.size(1))
-                        for k in range(latent.size(1)):
-                            l = latent.detach().cpu().numpy()[:, k]
-                            x = np.linspace(-0.8, 0.8, 100)
+                        latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
+                        fig, axes = plt.subplots(1, latent.shape[1])
+                        for k in range(latent.shape[1]):
+                            l = latent[:, k]
                             axes[k].hist(l, 50, density=True)
+                            x = np.linspace(-0.8, 0.8, 100)
                             axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
                         self.logger.experiment["original_v_hist"].log(File.as_image(fig))
                         plt.close(fig)
@@ -369,19 +380,28 @@ class GlobalWorkspace(LightningModule):
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:
+            self.set_unimodal_pass_through(False)
             if self.current_epoch == 0:
                 if self.trainer.datamodule.ood_boundaries is not None:
                     self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
             self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
             for dist in ["in_dist", "ood"]:
-                if self.validation_domain_examples[dist] is not None:
+                if self.domain_examples[dist] is not None:
                     validation_examples = self.get_validation_examples(dist)
 
                     if self.validation_example_list is not None:
                         self.log_images(validation_examples, f"val_{dist}")
 
-            if self.train_domain_examples is not None:
-                self.log_images(self.train_domain_examples, "train", 32)
+            if self.domain_examples["train"] is not None:
+                train_examples = self.get_validation_examples("train")
+                self.log_images(train_examples, "train")
+
+            self.set_unimodal_pass_through(True)
+
+    def set_unimodal_pass_through(self, mode=True):
+        for domain_mod in self.domain_mods.values():
+            if isinstance(domain_mod, PassThroughWM):
+                domain_mod.pass_through(mode)
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()

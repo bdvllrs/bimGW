@@ -168,17 +168,17 @@ class ImageNetData(LightningDataModule):
         self.inception_stats_path_val = compute_dataset_statistics(val_ds, self.image_net_folder, "imagenet_val",
                                                                    batch_size, device)
 
-    def train_dataloader(self):
+    def train_dataloader(self, shuffle=True):
         if self.bimodal:
             dataloaders = {}
             for key, dataset in self.train_datasets.items():
                 dataloaders[key] = torch.utils.data.DataLoader(dataset,
-                                                               batch_size=self.batch_size, shuffle=True,
+                                                               batch_size=self.batch_size, shuffle=shuffle,
                                                                num_workers=self.num_workers, pin_memory=True)
             return dataloaders
         else:
             return torch.utils.data.DataLoader(self.image_net_train,
-                                               batch_size=self.batch_size, shuffle=True,
+                                               batch_size=self.batch_size, shuffle=shuffle,
                                                num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):

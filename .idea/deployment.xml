@@ -41,6 +41,13 @@
           </excludedPaths>
         </serverdata>
       </paths>
+      <paths name="Anita (4)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/benjamin/Projects/bimGW" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="BigGanEncoder">
         <serverdata>
           <mappings>

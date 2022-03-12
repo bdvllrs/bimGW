@@ -3,11 +3,9 @@ import sys
 import torchvision
 from matplotlib import pyplot as plt
 from neptune.new.types import File
-
 from omegaconf import OmegaConf
 
 from bim_gw.utils import PROJECT_DIR
-
 
 
 def has_internet_connection(host='https://google.com'):
@@ -79,3 +77,5 @@ def val_or_default(d, key, default=None):
     if key in d:
         return d[key]
     return default
+
+
