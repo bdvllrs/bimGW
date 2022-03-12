@@ -7,7 +7,7 @@ def get_requirements():
     return requirements
 
 def get_version():
-    with open("requirements.txt", "r") as f:
+    with open("version.txt", "r") as f:
         version = f.read().lstrip("\n")
     return version
 
