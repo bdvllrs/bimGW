@@ -146,9 +146,10 @@ class SimpleShapesDataset:
             self.use_pre_saved_latents(pre_saved_latent_path)
 
     def use_pre_saved_latents(self, pre_saved_latent_path):
-        for key, path in pre_saved_latent_path.items():
-            self.data_fetchers[key] = PreSavedLatentDataFetcher(
-                self.root_path / "saved_latents" / self.split / path, self.ids)
+        if pre_saved_latent_path is not None:
+            for key, path in pre_saved_latent_path.items():
+                self.data_fetchers[key] = PreSavedLatentDataFetcher(
+                    self.root_path / "saved_latents" / self.split / path, self.ids)
 
     def __len__(self):
         return len(self.labels)
@@ -390,10 +391,9 @@ def in_interval(x, xmin, xmax, val_min, val_max):
     return False
 
 
-def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, size_boundaries,
-                      rotation_boundaries, x_boundaries, y_boundaries):
+def split_in_out_dist(dataset, ood_attrs):
     in_dist_items = []
-    out_dist_imates = []
+    out_dist_items = []
 
     for i, label in enumerate(dataset.labels):
         cls = int(label[0])
@@ -404,28 +404,32 @@ def split_in_out_dist(dataset, ood_attrs, shape_boundaries, color_boundaries, si
         keep = True
         for k in range(3):
             n_cond_checked = 0
-            if "shape" in ood_attrs[k] and shape_boundaries[k] == cls:
+            if "shape" in ood_attrs["selected_attributes"][k] and ood_attrs["shape"][k] == cls:
                 n_cond_checked += 1
-            if "position" in ood_attrs[k] and in_interval(x, x_boundaries[k], x_boundaries[(k + 1) % 3], 0, 32):
+            if "position" in ood_attrs["selected_attributes"][k] and in_interval(x, ood_attrs["x"][k],
+                                                                                 ood_attrs["x"][(k + 1) % 3], 0, 32):
                 n_cond_checked += 1
-            if "position" in ood_attrs[k] and in_interval(y, y_boundaries[k], y_boundaries[(k + 1) % 3], 0, 32):
+            if "position" in ood_attrs["selected_attributes"][k] and in_interval(y, ood_attrs["y"][k],
+                                                                                 ood_attrs["y"][(k + 1) % 3], 0, 32):
                 n_cond_checked += 1
-            if "color" in ood_attrs[k] and in_interval(hue, color_boundaries[k], color_boundaries[(k + 1) % 3], 0, 256):
+            if "color" in ood_attrs["selected_attributes"][k] and in_interval(hue, ood_attrs["color"][k],
+                                                                              ood_attrs["color"][(k + 1) % 3], 0, 256):
                 n_cond_checked += 1
-            if "size" in ood_attrs[k] and in_interval(size, size_boundaries[k], size_boundaries[(k + 1) % 3], 0, 25):
+            if "size" in ood_attrs["selected_attributes"][k] and in_interval(size, ood_attrs["size"][k],
+                                                                             ood_attrs["size"][(k + 1) % 3], 0, 25):
                 n_cond_checked += 1
-            if "rotation" in ood_attrs[k] and in_interval(rotation, rotation_boundaries[k],
-                                                          rotation_boundaries[(k + 1) % 3],
-                                                          0, 2 * np.pi):
+            if "rotation" in ood_attrs["selected_attributes"][k] and in_interval(rotation, ood_attrs["rotation"][k],
+                                                                                 ood_attrs["rotation"][(k + 1) % 3],
+                                                                                 0, 2 * np.pi):
                 n_cond_checked += 1
-            if n_cond_checked >= len(ood_attrs[k]):
+            if n_cond_checked >= len(ood_attrs["selected_attributes"][k]):
                 keep = False
                 break
         if keep:
             in_dist_items.append(i)
         else:
-            out_dist_imates.append(i)
-    return in_dist_items, out_dist_imates
+            out_dist_items.append(i)
+    return in_dist_items, out_dist_items
 
 
 def create_ood_split(datasets):
@@ -479,13 +483,13 @@ def create_ood_split(datasets):
         "size": size_boundaries,
         "rotation": rotation_boundaries,
         "color": color_boundaries,
-        "selected_attributes": selected_attributes
+        "selected_attributes": selected_attributes,
+        "shape": shape_boundaries
     }
 
     out_datasets = []
     for dataset in datasets:
-        in_dist, out_dist = split_in_out_dist(dataset, selected_attributes, shape_boundaries, color_boundaries,
-                                              size_boundaries, rotation_boundaries, x_boundaries, y_boundaries)
+        in_dist, out_dist = split_in_out_dist(dataset, ood_boundaries)
         out_datasets.append((in_dist, out_dist))
     return out_datasets, ood_boundaries
 
