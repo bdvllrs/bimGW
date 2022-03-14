@@ -181,7 +181,7 @@ class ShapesLM(WorkspaceModule):
     def forward(self, sentences):
         is_active, sentences = sentences
         bert_latent = self.get_bert_latent(sentences)
-        return is_active.reshape(-1, 1).to(torch.float), self.projection(bert_latent)
+        return is_active, self.projection(bert_latent)
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -200,7 +200,7 @@ class ShapesLM(WorkspaceModule):
             "size": size,
             "location": (x, y)
         })
-        return (1, labels)
+        return 1, labels
 
     def log_domain(self, logger, x, name, max_examples=None):
         for k in range(len(x[1])):

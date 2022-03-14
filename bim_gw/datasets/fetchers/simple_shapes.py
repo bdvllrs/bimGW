@@ -26,14 +26,14 @@ class VisualDataFetcher:
             shape = list(x.size) + [3]
             img = np.zeros(shape, np.uint8)
             self.null_image = Image.fromarray(img)
-        return transform((0, self.null_image), self.transforms)
+        return transform((torch.tensor(0.).float(), self.null_image), self.transforms)
 
     def get_item(self, item):
         image_id = self.ids[item]
         with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
-        return (1, img)
+        return torch.tensor(1.).float(), img
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -47,7 +47,7 @@ class AttributesDataFetcher:
     def get_null_item(self):
         _, cls, attr = self.get_item(0)
         attr[:] = 0.
-        return transform((0, 0, attr), self.transforms)
+        return transform((torch.tensor(0.).float(), 0, attr), self.transforms)
 
     def get_item(self, item):
         label = self.labels[item]
@@ -60,7 +60,7 @@ class AttributesDataFetcher:
         rotation_y = (np.sin(rotation) + 1) / 2
 
         return (
-            1,
+            torch.tensor(1.).float(),
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
@@ -97,10 +97,10 @@ class TextDataFetcher:
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
-        return 1, sentence
+        return torch.tensor(1.).float(), sentence
 
     def get_null_item(self):
-        return transform((0, ""), self.transforms)
+        return transform((torch.tensor(0.).float(), ""), self.transforms)
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -125,7 +125,7 @@ class TransformationDataFetcher:
         d_rotation_y = np.sin(d_rotation)
 
         return (
-            1,
+            torch.tensor(1.).float(),
             cls,
             torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
         )
@@ -133,7 +133,7 @@ class TransformationDataFetcher:
     def get_null_item(self):
         _, _, x = self.get_item(0)
         x[:] = 0.
-        return transform((0, 0, x), self.transforms)
+        return transform((torch.tensor(0.).float(), 0, x), self.transforms)
 
     def __getitem__(self, item):
         return transform(self.get_item(item), self.transforms)
@@ -165,7 +165,7 @@ class TransformedAttributesDataFetcher(AttributesDataFetcher):
         rotation_y = (np.sin(rotation) + 1) / 2
 
         return (
-            1,
+            torch.tensor(1.).float(),
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
@@ -194,7 +194,7 @@ class TransformedTextDataFetcher(TextDataFetcher):
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
-        return 1, sentence
+        return torch.tensor(1.).float(), sentence
 
 
 class PreSavedLatentDataFetcher:
@@ -207,10 +207,10 @@ class PreSavedLatentDataFetcher:
         return self.data.shape[0]
 
     def get_null_item(self):
-        return (0, np.zeros_like(self.data[0]))
+        return torch.tensor(0.).float(), np.zeros_like(self.data[0])
 
     def get_item(self, item):
-        return (1, self.data[item])
+        return torch.tensor(1.).float(), self.data[item]
 
     def __getitem__(self, item):
         return self.get_item(item)

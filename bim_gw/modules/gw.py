@@ -54,9 +54,7 @@ class DomainDecoder(torch.nn.Module):
             if activation_fn is not None:
                 z = activation_fn(z)
             outputs.append(z)
-        if len(outputs) == 1:
-            return outputs[0]
-        return tuple(outputs)
+        return outputs
 
 
 class DomainEncoder(nn.Module):
@@ -78,10 +76,7 @@ class DomainEncoder(nn.Module):
     def forward(self, x):
         if len(self.in_dims) > 1:
             assert len(x) == len(self.in_dims), "Not enough values as input."
-        if isinstance(x, tuple) and len(x) == 1:
-            x = x[0]
-        elif isinstance(x, tuple):
-            x = torch.cat(x, dim=-1)
+        x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)
 
@@ -105,7 +100,6 @@ class GlobalWorkspace(LightningModule):
 
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters()
-        self.automatic_optimization = False
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -160,9 +154,6 @@ class GlobalWorkspace(LightningModule):
                     for key, example_vecs in example_dist_vecs.items():
                         assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
                         if example_vecs is not None:
-                            if not isinstance(example_vecs, tuple):
-                                example_vecs = (example_vecs,)
-
                             self.validation_example_list[key] = len(example_vecs)
                             for k, example_vec in enumerate(example_vecs):
                                 if type(example_vec) is list:
@@ -186,7 +177,12 @@ class GlobalWorkspace(LightningModule):
         out = dict()
         for domain_name, x in domains.items():
             if domain_name != "_available_domains":
-                z = self.domain_mods[domain_name].encode(x)
+                z = []
+                for zi in self.domain_mods[domain_name].encode(x):
+                    if zi.ndim == 1:
+                        z.append(zi.reshape(-1, 1))
+                    else:
+                        z.append(zi)
                 out[domain_name] = z
         return out
 
@@ -245,10 +241,6 @@ class GlobalWorkspace(LightningModule):
             latent_ori = latents_ori[name]
             latent_pred = latents_pred[name]
 
-            if not isinstance(latent_ori, tuple):
-                latent_ori = (latent_ori,)
-                latent_pred = (latent_pred,)
-
             l = torch.tensor(0.).to(self.device)
             for k in range(len(latent_ori)):
                 # Only compute loss if there is at least one element containing modality "i".
@@ -286,7 +278,7 @@ class GlobalWorkspace(LightningModule):
         total_loss = demi_cycle_loss + cycle_loss
         total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"]
 
-        batch_size = latents[list(latents.keys())[0]].size(0)
+        batch_size = latents[list(latents.keys())[0]][0].size(0)
         for name, loss in loss_no_coef.items():
             self.log(f"{mode}{prefix}_{name}", loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
@@ -299,22 +291,8 @@ class GlobalWorkspace(LightningModule):
         if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = domains
 
-        opt = self.optimizers()
-        opt.zero_grad()
-
         latents = self.encode_modalities(domains)
         total_loss, losses = self.step(latents, domains, mode="train")
-
-        if self.monitor_grad_norms:
-            grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
-            self.grad_norms_bin.log(grad_norms)
-            for name, grad_norm in grad_norms.items():
-                self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
-        else:
-            self.manual_backward(total_loss)
-
-        opt.step()
-
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
@@ -335,8 +313,6 @@ class GlobalWorkspace(LightningModule):
             domain_example = [
                 getattr(self, f"validation_{dist}_examples_domain_{domain_name}_{k}") for k in range(n_items)
             ]
-            if len(domain_example) == 1:
-                domain_example = domain_example[0]
             domain_examples[domain_name] = domain_example
         return domain_examples
 
@@ -425,42 +401,3 @@ class GlobalWorkspace(LightningModule):
         predicted_t = self.translate(domain_start_data, domain_start, domain_end)
         prediction = self.domain_mods[domain_end].decode(predicted_t)
         return self.domain_mods[domain_end].compute_acc(acc_fn, prediction, targets)
-
-    def manual_backward_with_grad_norm_monitoring(self, losses):
-        """
-        Args:
-            losses: Different losses to monitor separately.
-
-        Returns: Gradient norms for each loss / sub-model couple.
-        """
-        grad_norms = {}
-        last_grads = {}  # we need them to infer grad norm of each loss (and not accumulated gradients)
-        for name, loss in losses.items():
-            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"] and loss.requires_grad:
-                self.manual_backward(loss, retain_graph=True)
-                for model_name in ["encoders", "decoders"]:
-                    model = getattr(self, model_name)
-                    for modality in model.keys():
-                        param_group = f"{model_name}_{modality}"
-
-                        grad_norms[f"{name}@{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
-                            # remove the already saved gradient that have already been counted in.
-                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}@{param_name}", 0)).norm()
-                            for param_name, p in model[modality].named_parameters()
-                            if p.grad is not None
-                        ])
-                        # assert grad_norms[f"{name}@{param_group}"] >= 0
-                        if torch.isnan(grad_norms[f"{name}@{param_group}"]):
-                            print(grad_norms)
-                            print(f"{name}@{param_group}")
-                            # print(grad_norms[f"{name}@{param_group}"])
-                            # print(last_grads)
-
-                        # Keep track of the value of the gradients to avoid counting
-                        # them multiple times because of accumulation.
-                        for param_name, p in model[modality].named_parameters():
-                            if param_name not in last_grads:
-                                last_grads[f"{param_group}@{param_name}"] = 0
-                            if p.grad is not None:
-                                last_grads[f"{param_group}@{param_name}"] += p.grad.detach()
-        return grad_norms
