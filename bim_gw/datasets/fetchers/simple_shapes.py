@@ -52,22 +52,27 @@ class TextDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.labels = labels
         self.transforms = transforms["t"]
+        self.sentences = {}
         self.text_composer = Composer(writers)
 
     def __getitem__(self, item):
         label = self.labels[item]
-        cls = int(label[0])
-        x, y = label[1], label[2]
-        size = label[3]
-        rotation = label[4]
+        if item in self.sentences:
+            sentence = self.sentences[item]
+        else:
+            cls = int(label[0])
+            x, y = label[1], label[2]
+            size = label[3]
+            rotation = label[4]
 
-        sentence = self.text_composer({
-            "shape": cls,
-            "rotation": rotation,
-            "color": (label[5], label[6], label[7]),
-            "size": size,
-            "location": (x, y)
-        })
+            sentence = self.text_composer({
+                "shape": cls,
+                "rotation": rotation,
+                "color": (label[5], label[6], label[7]),
+                "size": size,
+                "location": (x, y)
+            })
+            self.sentences[item] = sentence
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
@@ -134,19 +139,23 @@ class TransformedAttributesDataFetcher(AttributesDataFetcher):
 class TransformedTextDataFetcher(TextDataFetcher):
     def __getitem__(self, item):
         label = self.labels[item]
-        cls = int(label[11])
-        x, y = label[1] + label[12], label[2] + label[13]
-        size = label[3] + label[14]
-        rotation = label[4] + label[15]
-        r, g, b = label[5] + label[16], label[6] + label[17], label[7] + label[18]
+        if item in self.sentences:
+            sentence = self.sentences[item]
+        else:
+            cls = int(label[11])
+            x, y = label[1] + label[12], label[2] + label[13]
+            size = label[3] + label[14]
+            rotation = label[4] + label[15]
+            r, g, b = label[5] + label[16], label[6] + label[17], label[7] + label[18]
 
-        sentence = self.text_composer({
-            "shape": cls,
-            "rotation": rotation,
-            "color": (r, g, b),
-            "size": size,
-            "location": (x, y)
-        })
+            sentence = self.text_composer({
+                "shape": cls,
+                "rotation": rotation,
+                "color": (r, g, b),
+                "size": size,
+                "location": (x, y)
+            })
+            self.sentences[item] = sentence
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)

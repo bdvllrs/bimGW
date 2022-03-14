@@ -352,7 +352,7 @@ writers = {
     "rotation": [CardinalRotationWriter("corners"), CardinalRotationWriter("cardinals"),
                  ContinuousRotationWriter("degrees")],
     "size": [SizeWriter(0)],
-    "color": [ColorWriter(0), SimpleColorWriter(0)],
+    "color": [ColorWriter(0)],
     "location": [LocationWriter(0)]
 }
 
