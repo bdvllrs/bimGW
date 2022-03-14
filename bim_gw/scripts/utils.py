@@ -17,7 +17,7 @@ def get_domain(name, domain_name, args, data):
     elif domain_name in ["attr", "attr_f"]:
         domain = ShapesAttributesLM(len(data.classes), data.img_size)
     elif domain_name == "a":
-        domain = ActionModule()
+        domain = ActionModule(len(data.classes), data.img_size)
     else:
         raise ValueError(f"{domain_name} is not a valid domain name.")
 

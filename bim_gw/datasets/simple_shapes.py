@@ -177,7 +177,6 @@ class SimpleShapesData(LightningDataModule):
             num_workers=0, use_data_augmentation=False, prop_sync_domains=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
-            domain_selection_probs=None,
             pre_saved_latent_paths = None
     ):
         super().__init__()
@@ -192,7 +191,6 @@ class SimpleShapesData(LightningDataModule):
         self.pre_saved_latent_paths = pre_saved_latent_paths
 
         self.prop_sync_domains = prop_sync_domains
-        self.domain_selection_probs = domain_selection_probs
 
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
@@ -241,7 +239,7 @@ class SimpleShapesData(LightningDataModule):
         )
 
         # Use pre saved latents if provided.
-        for shapes_set in [self.shapes_train, self.shapes_val, self.shapes_test]:
+        for shapes_set in [{"train": self.shapes_train}, self.shapes_val, self.shapes_test]:
             for dataset in shapes_set.values():
                 if dataset is not None:
                     if isinstance(dataset, Subset):

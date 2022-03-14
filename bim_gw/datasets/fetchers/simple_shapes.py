@@ -190,10 +190,10 @@ class PreSavedLatentDataFetcher:
         return self.data.shape[0]
 
     def get_null_item(self):
-        return 0, np.zeros_like(self.data[0])
+        return (0, np.zeros_like(self.data[0]))
 
     def get_item(self, item):
-        return 1, self.data[item]
+        return (1, self.data[item])
 
     def __getitem__(self, item):
         return self.get_item(item)
