@@ -87,8 +87,8 @@ def train_lm(args):
 
     data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
                             args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
-    # data.prepare_data()
-    # data.setup(stage="fit")
+    data.prepare_data()
+    data.setup(stage="fit")
 
     lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
