@@ -323,7 +323,7 @@ class GlobalWorkspace(LightningModule):
                     self.domain_mods[domain_name].log_domain(self.logger, domain_example,
                                                              f"{slug}_original_domain_{domain_name}", max_examples)
                     if domain_name == "v":
-                        latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
+                        latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
                         fig, axes = plt.subplots(1, latent.shape[1])
                         for k in range(latent.shape[1]):
                             l = latent[:, k]

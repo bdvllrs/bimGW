@@ -60,12 +60,12 @@ global_workspace:
   z_size: 20
   hidden_size: 512
   prop_sync_domains:  # Nomenclature of names: <numberDomains>d<isActionPossible>a<hasDifferentTimes>t
-    1d0a1t: 0.5  # having only one domain (excluding actions)
-    2d0a1t: 0.2  # having two domains from same
-    2d1a2t: 0.1  # having two domains and an action with 2 temporality
-    3d0a2t: 0.1
-    3d1a2t: 0.05
-    all: 0.05  # all domain
+    1d0a1t: 0.  # having only one domain (excluding actions)
+    2d0a1t: 0.  # having two domains from same
+    2d1a2t: 0.  # having two domains and an action with 2 temporality
+    3d0a2t: 0.
+    3d1a2t: 0.
+    all: 1.  # all domain
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???
   lm_checkpoint: ???

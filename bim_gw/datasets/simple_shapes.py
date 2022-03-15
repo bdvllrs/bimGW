@@ -148,8 +148,9 @@ class SimpleShapesDataset:
     def use_pre_saved_latents(self, pre_saved_latent_path):
         if pre_saved_latent_path is not None:
             for key, path in pre_saved_latent_path.items():
-                self.data_fetchers[key] = PreSavedLatentDataFetcher(
-                    self.root_path / "saved_latents" / self.split / path, self.ids)
+                if key in self.data_fetchers.keys():
+                    self.data_fetchers[key] = PreSavedLatentDataFetcher(
+                        self.root_path / "saved_latents" / self.split / path, self.ids)
 
     def __len__(self):
         return len(self.labels)
@@ -502,6 +503,8 @@ def split_odd_sets(dataset, id_ood_split=None):
 
 
 def sample_domains(available_domains, possible_domains, size):
+    if size == 0:
+        return np.array([])
     if possible_domains == "1d0a1t":
         domains = [key for key, val in available_domains.items() if val != "a"]
         assert len(domains) >= 1
