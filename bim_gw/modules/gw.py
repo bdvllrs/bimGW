@@ -11,7 +11,6 @@ from torch import nn
 
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
-from bim_gw.utils.utils import val_or_default
 
 
 class DomainDecoder(torch.nn.Module):
@@ -201,9 +200,8 @@ class GlobalWorkspace(LightningModule):
             self.encode(latents[domain_name], domain_name)
             for domain_name in self.domain_names
         ], dim=1)
-        state[masked_domains, :] = 0.
-
-        state = state.sum(dim=1)
+        if masked_domains is not None:
+            state[masked_domains, :] = 0.
         return state
 
     def predict(self, gw_state):
@@ -221,16 +219,30 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def get_cycles(self, latents, available_domains):
+    def get_cycles(self, latents, available_domains, steps=2, masks=None):
+        assert masks is None or len(masks) == steps
+        assert steps >= 1
         unavailable_domains = torch.logical_not(available_domains)
-        # Project uni modal latent vectors into the GW
-        gw_state = self.project(latents, unavailable_domains)
-        # Predict all modalities from the GW state
-        demi_cycle_predictions = self.predict(gw_state)
-        # Make full cycle by encoding the unavailable modalities into the GW and predicting again
-        cycle_gw_state = gw_state + self.project(demi_cycle_predictions, available_domains)
-        cycle_predictions = self.predict(cycle_gw_state)
-        return demi_cycle_predictions, cycle_predictions
+        projection_input = latents
+        projection_masks = masks
+        if projection_masks is None:
+            all_false = torch.full_like(unavailable_domains, False).to(self.device)
+            # Default behavior: auto-regressive, always reuse prediction for the next projection
+            projection_masks = [unavailable_domains] + [all_false for _ in range(steps - 1)]
+        last_state = torch.zeros(unavailable_domains.size(0), len(latents), self.z_size).to(self.device)
+        predictions = []
+        for k in range(steps):
+            mask = projection_masks[k]
+            mask_inv = torch.logical_not(mask)
+            # Project uni modal latent vectors into the GW
+            last_state[mask_inv, :] = 0.
+            # Sum last state and new projection according to the mask.
+            last_state += self.project(projection_input, masked_domains=mask)
+            # Predict all modalities from the GW state
+            predictions.append(self.predict(last_state.sum(dim=1)))
+
+            projection_input = predictions[-1]
+        return predictions
 
     def cycle_loss(self, latents_ori, latents_pred, available_domains, coef=1., loss_name="cycle"):
         loss = torch.tensor(0.).to(self.device)
@@ -260,7 +272,9 @@ class GlobalWorkspace(LightningModule):
         # One hot telling which modalities are in the input.
         # Unavailable modalities are artificially set to 0 in the "latents" dict.
         available_domains = domains["_available_domains"]
-        demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains)
+        unavailable_domains = torch.logical_not(available_domains)
+        demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains, steps=2,
+                                                                    masks=[unavailable_domains, available_domains])
         # Compute all losses
         losses = dict()
         loss_no_coef = dict()
@@ -341,7 +355,8 @@ class GlobalWorkspace(LightningModule):
                 self.rotation_error_val = []
 
             latents = self.encode_modalities(examples)
-            available_domains = torch.stack([examples[domain_name][0] for domain_name in self.domain_names], dim=1).to(self.device, torch.bool)
+            available_domains = torch.stack([examples[domain_name][0] for domain_name in self.domain_names], dim=1).to(
+                self.device, torch.bool)
             demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains)
 
             for domain_name in examples.keys():
