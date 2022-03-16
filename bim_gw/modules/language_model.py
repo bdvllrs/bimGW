@@ -283,6 +283,7 @@ class ShapesLM(WorkspaceModule):
 
     def step(self, batch, batch_idx, mode="train"):
         sentences, targets = batch["t"], batch["a"]
+        bs = len(sentences)
         targets = self.shapes_attribute.encode(targets)
         z = self.encode(sentences)
         predictions = self.classify(z)
@@ -295,9 +296,9 @@ class ShapesLM(WorkspaceModule):
             losses.append(group_loss)
             total_loss += group_loss
 
-            self.log(f"{mode}_loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"))
+            self.log(f"{mode}_loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
 
-        self.log(f"{mode}_total_loss", total_loss, logger=True, on_epoch=(mode == "val"))
+        self.log(f"{mode}_total_loss", total_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
