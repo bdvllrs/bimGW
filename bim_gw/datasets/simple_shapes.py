@@ -12,6 +12,7 @@ from torchvision import transforms
 from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
     TransformationDataFetcher, TransformedVisualDataFetcher, TransformedTextDataFetcher, \
     TransformedAttributesDataFetcher, PreSavedLatentDataFetcher
+from bim_gw.datasets.sampler import Sampler
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 class ComposeWithExtraParameters:
@@ -233,6 +234,7 @@ class SimpleShapesData(LightningDataModule):
 
             self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
+            self.train_sampler = torch.utils.data.RandomSampler(train_set)
             self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
         self.set_validation_examples(
@@ -307,13 +309,19 @@ class SimpleShapesData(LightningDataModule):
         n_targets = len(allowed_indices)
         np.random.shuffle(allowed_indices)
         sync_domain_mapping = {}
+        sampler_domain_map = {}
         if self.prop_sync_domains is not None:
             last_idx = 0
             for key, prop in self.prop_sync_domains.items():
                 n_items = int(prop * n_targets)
                 sampled_domains = sample_domains(train_set.selected_domains, key, n_items)
                 for k, idx in enumerate(allowed_indices[last_idx:last_idx + n_items]):
+                    domain_key = str(sorted(sampled_domains[k]))
+                    if domain_key not in sampler_domain_map.keys():
+                        sampler_domain_map[domain_key] = []
                     sync_domain_mapping[idx] = list(sampled_domains[k])
+                    sampler_domain_map[domain_key].append(idx)
+
                 last_idx += n_items
 
         domain_mapping = []
@@ -322,6 +330,8 @@ class SimpleShapesData(LightningDataModule):
                 domain_mapping.append(sync_domain_mapping[k])
             else:
                 domain_mapping.append([])
+
+        self.train_sampler = Sampler(self.batch_size, {key: set(idx) for key, idx in sampler_domain_map.items()})
 
         print(f"Training using {len(allowed_indices)} examples.")
         train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
@@ -355,7 +365,8 @@ class SimpleShapesData(LightningDataModule):
 
     def train_dataloader(self, shuffle=True):
         return torch.utils.data.DataLoader(self.shapes_train,
-                                           batch_size=self.batch_size, shuffle=shuffle,
+                                           batch_sampler=self.train_sampler,
+                                           batch_size=self.batch_size,
                                            num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):
