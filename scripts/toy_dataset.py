@@ -58,7 +58,7 @@ def main():
     dataset_location = Path("/mnt/SSD/datasets/shapes_v13")
     dataset_location.mkdir(exist_ok=True)
 
-    size_train_set = 500_000
+    size_train_set = 1_000_000
     size_val_set = 50_000
     size_test_set = 50_000
 
