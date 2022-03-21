@@ -3,12 +3,15 @@ import random
 import numpy as np
 
 
-def get_closest_key(values, comp):
+def get_closest_key(values, comp, norm="2"):
+    fn = np.square
+    if norm == "1":
+        fn = np.abs
     if len(comp) > 1:
-        d = np.sum(np.square(values - np.array(comp)[:, None]), axis=0)
+        d = np.sum(fn(values - np.array(comp)[:, None]), axis=0)
     else:
         comp = comp[0]
-        d = np.square(values - comp)
+        d = fn(values - comp)
     return np.argmin(d)
 
 
@@ -197,9 +200,10 @@ class OptionsWriter:
 class QuantizedWriter(Writer):
     quantized_values = np.empty(1)
     labels = dict()
+    norm = "2"
 
     def __call__(self, *val):
-        quantized_val = get_closest_key(self.quantized_values, val)
+        quantized_val = get_closest_key(self.quantized_values, val, self.norm)
         text = self.labels[self.label_type][quantized_val]
         if type(text) is list:
             text = random.choice(text)
