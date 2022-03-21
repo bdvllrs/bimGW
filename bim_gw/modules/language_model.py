@@ -155,8 +155,11 @@ class ShapesAttributesLM(WorkspaceModule):
         )
 
         # text
-        text = ", ".join(map(str, [classes[0].item()] + latents[0].tolist()))
-        logger.experiment[name + "_text"].log(text)
+        labels = ["x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        for k in range(len(classes)):
+            text = f"c: {str(classes[k].item())}, " + ", ".join(map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist())))
+            logger.experiment[name + "_text"].log(f"{k+1} - {text}")
+        logger.experiment[name + "_text"].log("-----")
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -323,10 +326,10 @@ class ShapesLM(WorkspaceModule):
             self.shapes_attribute.log_domain(self.logger, self.shapes_attribute.decode(predictions),
                                              "predictions_reconstruction")
 
-            if self.current_epoch == 0:
-                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
-                for k in range(len(sentence_predictions)):
-                    self.logger.experiment["target_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
+            # if self.current_epoch == 0:
+            self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
+            for k in range(len(sentence_predictions)):
+                self.logger.experiment["target_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
