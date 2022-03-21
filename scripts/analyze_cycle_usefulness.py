@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 from bim_gw.utils.csv import CSVLog
 
@@ -51,15 +52,15 @@ if __name__ == '__main__':
     log = CSVLog("../data/bim-gw.csv")
     log = log.add_token_column()
     # log = log.filter_between("_token", 609, 846)
-    log = log.filter_between("_token", 609)
+    log = log.filter_between("_token", 1371, 1564)
     log = log.add_column("n_images", lambda row: int(row["prop_lab_images"] * 500_000))
 
-    alpha = 2
+    alpha = 4
     min_epoch = 95
-    seed = 0
+    seeds = [0, 1, 2, 3, 4]
     losses = {"loss": ""}
     # z_size = 4
-    log = log.filter_eq("parameters/seed", seed).filter_between('metrics/epoch (last)', min_epoch)
+    log = log.filter_in("parameters/seed", seeds).filter_between('training/epoch (last)', min_epoch)
     log = log.filter_eq('gw_z_size', 12)
 
     loss_parts = {
@@ -74,21 +75,40 @@ if __name__ == '__main__':
 
     alphas = {
         "Supervision": 1,
-        "Demi cycles + Supervision": 0.2,
-        "Complete cycles + Supervision": 0.2,
+        "Demi cycles + Supervision": 1,
+        "Complete cycles + Supervision": 1,
         "All losses": 1,
 
     }
 
+    loss_name = 'supervision'
+
+
     for used_loss, loss_label in losses.items():
         for k, (label, cond) in enumerate(loss_parts.items()):
-            l = log.filter_neq(f'metrics/val_supervision_{used_loss} (last)', '')
+            l = log.filter_neq(f'training/val_in_dist_{loss_name}_{used_loss} (last)', '')
             l = l.filter(cond)
             if label != "Supervision":
                 l = l.filter_eq("parameters/losses/coefs/supervision", alpha)
-            lf = l.filter_between('metrics/epoch (last)', min_epoch)
-            x, y, ids = lf.zip(['n_images', f'metrics/val_supervision_{used_loss} (last)', '_token'], sort=lambda e: e[0])
-            line = plt.loglog(x, y, "x-", alpha=alphas[label], label=label)
+            lf = l.filter_between('training/epoch (last)', min_epoch)
+            n_images = sorted(np.unique(lf.values("n_images")))
+            x = []
+            y = []
+            err = []
+            n_runs = []
+            for n_image in n_images:
+                lf = l.filter_between('training/epoch (last)', min_epoch)
+                lf = lf.filter_eq("n_images", n_image)
+                x.append(n_image)
+                values = np.array(lf.values(f'training/val_in_dist_{loss_name}_{used_loss} (last)'))
+                # assert values.shape[0] == len(seeds)
+                n_runs.append(values.shape[0])
+                y.append(np.mean(values))
+                err.append(np.std(values))
+
+            plt.errorbar(x, y, yerr=np.divide(np.array(err), np.sqrt(n_runs)), alpha=alphas[label], label=label)
+            # x, y, ids = lf.zip(['n_images', f'training/val_in_dist_supervision_{used_loss} (last)', '_token'], sort=lambda e: e[0])
+            # line = plt.loglog(x, y, "x-", alpha=alphas[label], label=label)
 
             # lf = l.filter_between('metrics/epoch (last)', 90)
             # x, y = lf.zip(['n_images', f'metrics/val_loss_supervision_{used_loss} (last)'], sort=lambda e: e[0])
@@ -97,9 +117,11 @@ if __name__ == '__main__':
             # else:
             #     plt.loglog(x, y, "x", c=line[0].get_color())
 
+        # plt.gca().set_yscale("log")
+        plt.gca().set_xscale("log")
         plt.title("Effect of losses")
         plt.xlabel("Number of synchronized examples")
-        plt.ylabel(f"Averaged translation loss on the validation set")
+        plt.ylabel(f"Averaged {loss_name} loss on the validation set")
         legend = plt.legend()
         for t in legend.get_texts():
             t.set_alpha(alphas[t.get_text()])
