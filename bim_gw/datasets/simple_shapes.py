@@ -181,11 +181,15 @@ class SimpleShapesData(LightningDataModule):
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
+        self.train_dataset_size = 500_000
 
     def setup(self, stage=None):
         val_transforms = {"v": get_preprocess()}
         train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
         if stage == "fit" or stage is None:
+            unimodal_indices = np.arange(self.train_dataset_size // 2, self.train_dataset_size)
+            sync_indices = np.arange(self.train_dataset_size // 2)
+
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                   transform=val_transforms,
                                                   selected_domains=self.selected_domains)
@@ -194,11 +198,13 @@ class SimpleShapesData(LightningDataModule):
                                                    selected_domains=self.selected_domains)
 
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                 selected_indices=sync_indices,
                                                  transform=train_transforms,
                                                  selected_domains=self.selected_domains)
             self.shapes_train = {}
             for domain_key, domain in self.selected_domains.items():
                 self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                                    selected_indices=unimodal_indices,
                                                                     transform=train_transforms,
                                                                     selected_domains={domain_key: domain},
                                                                     output_transform=lambda x, y=domain_key: x[y])
@@ -216,7 +222,7 @@ class SimpleShapesData(LightningDataModule):
                 print("Test set OOD size", len(id_ood_splits[2][1]))
             else:
                 id_ood_splits = None
-                target_indices = np.arange(len(sync_train_set))
+                target_indices = sync_train_set.ids
 
             self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
@@ -372,7 +378,7 @@ def split_in_out_dist(dataset, ood_attrs):
     in_dist_items = []
     out_dist_items = []
 
-    for i, label in enumerate(dataset.labels):
+    for i, label in zip(dataset.ids, dataset.labels):
         cls = int(label[0])
         x, y = label[1], label[2]
         size = label[3]
