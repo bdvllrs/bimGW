@@ -63,8 +63,8 @@ def main():
     size_test_set = 50_000
 
     # in pixels
-    min_scale = 10
-    max_scale = 25
+    min_scale = 7
+    max_scale = 14
     min_lightness = 46  # of the HSL format. Higher value generates lighter images. Min 0, Max 256
     max_lightness = 256
 

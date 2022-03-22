@@ -172,7 +172,7 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
     return rgb.astype(np.int), hls[0].astype(np.int)
 
 
-def generate_rotation(n_samples, classes):
+def generate_rotation(n_samples):
     rotations = np.random.rand(n_samples) * 2 * np.pi
     # rotations[classes == 1] = 0  # circles don't have rotations
     # rotations[classes == 0] = rotations[classes == 0] % 90
@@ -180,15 +180,16 @@ def generate_rotation(n_samples, classes):
     return rotations
 
 
-def generate_location(n_samples, scale, imsize):
-    assert (scale <= imsize).all()
-    radii = 1.2 * np.stack((scale / 2, scale / 2), axis=1)
-    locations = np.random.randint(radii, imsize - radii, (n_samples, 2))
+def generate_location(n_samples, max_scale, imsize):
+    assert max_scale <= imsize
+    margin = max_scale / 2
+    locations = np.random.randint(margin, imsize - margin, (n_samples, 2))
     # locations = np.full((n_samples, 2), imsize // 2)
     return locations
 
 
 def generate_class(n_samples):
+    return np.ones((n_samples,))
     return np.random.randint(3, size=n_samples)
 
 
@@ -249,8 +250,8 @@ def generate_dataset(n_samples, min_scale, max_scale, min_lightness, max_lightne
     if classes is None:
         classes = generate_class(n_samples)
     sizes = generate_scale(n_samples, min_scale, max_scale)
-    locations = generate_location(n_samples, sizes, imsize)
-    rotation = generate_rotation(n_samples, classes)
+    locations = generate_location(n_samples, max_scale, imsize)
+    rotation = generate_rotation(n_samples)
     colors_rgb, colors_hls = generate_color(n_samples, min_lightness, max_lightness)
     return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors_rgb,
                 colors_hls=colors_hls)
