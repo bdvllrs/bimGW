@@ -301,18 +301,15 @@ class ShapesWriter(OptionsWriter):
     }
 
 
-class SizeWriter(QuantizedWriter):
-    quantized_values = np.array([10, 12.5, 15, 17.5, 20, 22.5, 25])
+class SizeWriter(BinsWriter):
+    bins = np.array([9, 11, 13])
 
     labels = {
         0: [
             "tiny",
-            ["very small", "quite small", "very little"],
             ["small", "little"],
             ["average sized", "medium sized", "medium"],
             ["big", "large"],
-            ["very big", "very large"],
-            "huge"
         ],
     }
 
