@@ -159,7 +159,7 @@ def log_shape_fig(logger, classes, latents, name):
 
 def generate_scale(n_samples, min_val, max_val):
     assert max_val > min_val
-    return np.random.randint(min_val, max_val, n_samples)
+    return np.random.randint(min_val, max_val + 1, n_samples)
     # return np.full(n_samples, 32)
 
 
@@ -189,7 +189,6 @@ def generate_location(n_samples, max_scale, imsize):
 
 
 def generate_class(n_samples):
-    return np.ones((n_samples,))
     return np.random.randint(3, size=n_samples)
 
 
