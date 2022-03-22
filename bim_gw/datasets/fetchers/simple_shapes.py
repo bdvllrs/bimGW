@@ -12,12 +12,38 @@ def transform(data, transformation):
     return data
 
 
-class VisualDataFetcher:
+class DataFetcher:
+    modality = None
+
     def __init__(self, root_path, split, ids, labels, transforms=None):
         self.root_path = root_path
         self.split = split
         self.ids = ids
-        self.transforms = transforms["v"]
+        self.labels = labels
+        self.transforms = transforms[self.modality]
+
+    def get_null_item(self):
+        raise NotImplementedError
+
+    def get_item(self, item):
+        raise NotImplementedError
+
+    def get_transformed_item(self, item):
+        raise NotImplementedError
+
+    def get_items(self, item, time_steps):
+        items = [
+            self.get_item(item) if 0 in time_steps else self.get_null_item(),
+            self.get_transformed_item(item) if 1 in time_steps else self.get_null_item(),
+        ]
+        return [transform(item, self.transforms) for item in items]
+
+
+class VisualDataFetcher(DataFetcher):
+    modality = "v"
+
+    def __init__(self, root_path, split, ids, labels, transforms=None):
+        super(VisualDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
         self.null_image = None
 
     def get_null_item(self):
@@ -26,28 +52,45 @@ class VisualDataFetcher:
             shape = list(x.size) + [3]
             img = np.zeros(shape, np.uint8)
             self.null_image = Image.fromarray(img)
-        return transform((torch.tensor(0.).float(), self.null_image), self.transforms)
+        return torch.tensor(0.).float(), self.null_image
 
-    def get_item(self, item):
+    def get_item(self, item, path=None):
+        if path is None:
+            path = self.root_path
+
         image_id = self.ids[item]
-        with open(self.root_path / self.split / f"{image_id}.png", 'rb') as f:
+        with open(path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
         return torch.tensor(1.).float(), img
 
-    def __getitem__(self, item):
-        return transform(self.get_item(item), self.transforms)
+    def get_transformed_item(self, item):
+        return self.get_item(item, self.root_path / "transformed")
 
 
-class AttributesDataFetcher:
-    def __init__(self, root_path, split, ids, labels, transforms=None):
-        self.labels = labels
-        self.transforms = transforms["attr"]
+class AttributesDataFetcher(DataFetcher):
+    modality = "attr"
 
     def get_null_item(self):
         _, cls, attr = self.get_item(0)
         attr[:] = 0.
-        return transform((torch.tensor(0.).float(), 0, attr), self.transforms)
+        return torch.tensor(0.).float(), 0, attr
+
+    def get_transformed_item(self, item):
+        label = self.labels[item]
+        cls = int(label[11])
+        x, y = label[1] + label[12], label[2] + label[13]
+        size = label[3] + label[14]
+        rotation = label[4] + label[15]
+        r, g, b = (label[5] + label[16]) / 255, (label[6] + label[17]) / 255, (label[7] + label[18]) / 255
+        rotation_x = (np.cos(rotation) + 1) / 2
+        rotation_y = (np.sin(rotation) + 1) / 2
+
+        return (
+            torch.tensor(1.).float(),
+            cls,
+            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
+        )
 
     def get_item(self, item):
         label = self.labels[item]
@@ -65,14 +108,13 @@ class AttributesDataFetcher:
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
         )
 
-    def __getitem__(self, item):
-        return transform(self.get_item(item), self.transforms)
 
+class TextDataFetcher(DataFetcher):
+    modality = "t"
 
-class TextDataFetcher:
     def __init__(self, root_path, split, ids, labels, transforms=None):
-        self.labels = labels
-        self.transforms = transforms["t"]
+        super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
+
         self.sentences = {}
         self.text_composer = Composer(writers)
 
@@ -99,80 +141,7 @@ class TextDataFetcher:
             sentence = self.transforms(sentence)
         return torch.tensor(1.).float(), sentence
 
-    def get_null_item(self):
-        return transform((torch.tensor(0.).float(), ""), self.transforms)
-
-    def __getitem__(self, item):
-        return transform(self.get_item(item), self.transforms)
-
-
-class TransformationDataFetcher:
-    def __init__(self, root_path, split, ids, labels, transforms=None):
-        self.labels = labels
-        self.transforms = transforms["a"]
-
-    def get_item(self, item):
-        label = self.labels[item]
-        orig_cls = int(label[0])
-        cls = int(label[11])
-        # predict 4 classes: no transformation (label 0), or transform to 1 of 3 classes
-        cls = 0 if cls == orig_cls else int(label[11]) + 1
-        d_x, d_y = label[12], label[13]
-        d_size = label[14]
-        d_rotation = label[15]
-        d_r, d_g, d_b = label[16] / 255, label[17] / 255, label[18] / 255
-        d_rotation_x = np.cos(d_rotation)
-        d_rotation_y = np.sin(d_rotation)
-
-        return (
-            torch.tensor(1.).float(),
-            cls,
-            torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
-        )
-
-    def get_null_item(self):
-        _, _, x = self.get_item(0)
-        x[:] = 0.
-        return transform((torch.tensor(0.).float(), 0, x), self.transforms)
-
-    def __getitem__(self, item):
-        return transform(self.get_item(item), self.transforms)
-
-
-class TransformedVisualDataFetcher:
-    def __init__(self, root_path, split, ids, labels, transforms=None):
-        self.data_fetcher = VisualDataFetcher(root_path / "transformed", split, ids, labels, transforms)
-
-    def get_null_item(self):
-        return self.data_fetcher.get_null_item()
-
-    def get_item(self, item):
-        return self.data_fetcher.get_item(item)
-
-    def __getitem__(self, item):
-        return self.data_fetcher[item]
-
-
-class TransformedAttributesDataFetcher(AttributesDataFetcher):
-    def get_item(self, item):
-        label = self.labels[item]
-        cls = int(label[11])
-        x, y = label[1] + label[12], label[2] + label[13]
-        size = label[3] + label[14]
-        rotation = label[4] + label[15]
-        r, g, b = (label[5] + label[16]) / 255, (label[6] + label[17]) / 255, (label[7] + label[18]) / 255
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
-
-        return (
-            torch.tensor(1.).float(),
-            cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-        )
-
-
-class TransformedTextDataFetcher(TextDataFetcher):
-    def get_item(self, item):
+    def get_transformed_item(self, item):
         label = self.labels[item]
         if item in self.sentences:
             sentence = self.sentences[item]
@@ -196,8 +165,50 @@ class TransformedTextDataFetcher(TextDataFetcher):
             sentence = self.transforms(sentence)
         return torch.tensor(1.).float(), sentence
 
+    def get_null_item(self):
+        return torch.tensor(0.).float(), ""
+
+
+class ActionDataFetcher(DataFetcher):
+    modality = "a"
+
+    def get_item(self, item):
+        label = self.labels[item]
+        orig_cls = int(label[0])
+        cls = int(label[11])
+        # predict 4 classes: no transformation (label 0), or transform to 1 of 3 classes
+        cls = 0 if cls == orig_cls else int(label[11]) + 1
+        d_x, d_y = label[12], label[13]
+        d_size = label[14]
+        d_rotation = label[15]
+        d_r, d_g, d_b = label[16] / 255, label[17] / 255, label[18] / 255
+        d_rotation_x = np.cos(d_rotation)
+        d_rotation_y = np.sin(d_rotation)
+
+        return (
+            torch.tensor(1.).float(),
+            cls,
+            torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
+        )
+
+    def get_transformed_item(self, item):
+        return self.get_item(item)
+
+    def get_null_item(self):
+        _, _, x = self.get_item(0)
+        x[:] = 0.
+        return torch.tensor(0.).float(), 0, x
+
+    def get_items(self, item, time_steps):
+        items = [
+            self.get_item(item) if 0 in time_steps else self.get_null_item(),
+            self.get_transformed_item(item) if 0 in time_steps else self.get_null_item(),  # 2 times 0 as if it is provided once, it's available at each time step.
+        ]
+        return [transform(item, self.transforms) for item in items]
+
 
 class PreSavedLatentDataFetcher:
+    # TODO
     def __init__(self, root_path, ids):
         self.root_path = root_path
         self.ids = ids
