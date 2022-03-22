@@ -369,7 +369,8 @@ class SimpleShapesData(LightningDataModule):
 
     def train_dataloader(self, shuffle=True):
         return torch.utils.data.DataLoader(self.shapes_train,
-                                           batch_sampler=self.train_sampler,
+                                           # batch_sampler=self.train_sampler,
+                                           shuffle=shuffle,
                                            batch_size=self.batch_size,
                                            num_workers=self.num_workers, pin_memory=True)
 
