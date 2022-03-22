@@ -1,55 +1,57 @@
 import os
 
-import matplotlib.pyplot as plt
-import seaborn as sn
-import torch
-from transformers import BertModel, BertTokenizer
+from matplotlib import pyplot as plt
+from pytorch_lightning import seed_everything
+from tqdm import tqdm
 
-from bim_gw.datasets.simple_shapes import get_preprocess, SimpleShapesDataset
+from bim_gw.datasets.simple_shapes import SimpleShapesData
+from bim_gw.modules import ShapesLM
 from bim_gw.utils import get_args
+from bim_gw.utils.text_composer.writers import LocationQuantizer, RotationQuantizer
 
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
-    transformer_model = BertModel.from_pretrained("bert-base-uncased")
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    seed_everything(args.seed)
 
-    dataset = SimpleShapesDataset(args.simple_shapes_path, "train",
-                                  get_preprocess(False),
-                                  lambda v, t: t,
-                                  textify=True)
-    num_examples_per_class = 8
-    num_classes = 32
+    data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
+                            args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
+    data.prepare_data()
+    data.setup(stage="fit")
+    n_samples = len(data.shapes_train["a"])
+    # n_samples = 10_000
 
-    text_rep = []
+    quantizers = {
+        # "location": LocationQuantizer(0),
+        # "rotation": RotationQuantizer(0)
+    }
+    indices = {
+        "location": [1, 2],
+        "rotation": [3, 4]
+    }
 
-    for i in range(num_classes):
-        sentences = [dataset[i][0] for k in range(num_examples_per_class)]
-        tokens = tokenizer(sentences, return_tensors='pt', padding=True)
-        latent_rep = transformer_model(**tokens)["last_hidden_state"][:, 0]
-        text_rep.append(latent_rep)
-
-    text_rep = torch.stack(text_rep, dim=0)
-    distances = torch.zeros(num_classes, num_classes, num_examples_per_class, num_examples_per_class)
-
-    for i in range(num_classes):
-        for j in range(num_classes):
-            for k in range(num_examples_per_class):
-                for p in range(num_examples_per_class):
-                    distances[i, j, k, p] = torch.nn.functional.mse_loss(text_rep[i, k], text_rep[j, p])
-                    if i == j:
-                        factor = (num_examples_per_class * num_examples_per_class)
-                        factor /= factor - num_examples_per_class
-                        distances[i, j, k, p] *= factor
-    avg_distantes = distances.mean((2, 3)).detach().cpu().numpy()
-    sn.heatmap(avg_distantes)
-    # for i in range(num_classes):
-    #     for j in range(num_classes):
-    #         text = plt.text(j, i, f"{avg_distantes[i, j]:.2f}", ha="center", va="center", color="w")
-    plt.title(f"Intra and inter distances between BERT vectors")
-    plt.xlabel("Images")
-    plt.ylabel("Images")
+    plt.hist(data.shapes_train["a"].labels[:, 2], 25)
     plt.show()
-    print('ok')
 
-    # tokens = tokenizer(sentence, return_tensors='pt', padding=True)
-    # encoding = transformer_model(**tokens)["last_hidden_state"][:, 0]
+    for quantizer_name, quantizer in quantizers.items():
+        if type(quantizer.labels[0][0]) is list:
+            labels = [l for labels in quantizer.labels[0] for l in labels]
+        else:
+            labels = [l for l in quantizer.labels[0]]
+
+        location_counts = {l: 0 for l in labels}
+        for k in tqdm(range(n_samples)):
+            cls, attrs = data.shapes_train["a"][k]
+            inputs =  [attrs[idx] for idx in indices[quantizer_name]]
+            location = quantizer(*inputs)
+            location_counts[location] += 1
+
+        bar_x = []
+        bar_y = []
+        for k in range(len(labels)):
+            bar_x.append(k * 0.7)
+            bar_y.append(location_counts[labels[k]])
+        p = plt.bar(bar_x, bar_y, 0.2)
+        plt.gca().bar_label(p)
+        plt.gca().set_xticks(bar_x, labels=labels)
+        plt.title(quantizer_name)
+        plt.show()

@@ -2,7 +2,7 @@ import csv
 from pathlib import Path
 
 import numpy as np
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, patches
 from tqdm import tqdm
 
 from bim_gw.utils.shapes import generate_image, generate_dataset, generate_transformations
@@ -19,9 +19,11 @@ def save_dataset(path_root, dataset, imsize):
         fig, ax = plt.subplots(figsize=(imsize / dpi, imsize / dpi), dpi=dpi)
         generate_image(ax, cls, location, scale, rotation, color, imsize)
         ax.set_facecolor("black")
+        # patch = patches.Circle((location[0], location[1]), 1, facecolor="white")
+        # ax.add_patch(patch)
         plt.tight_layout(pad=0)
-        plt.savefig(path_file, dpi=dpi, format="png")
         # plt.show()
+        plt.savefig(path_file, dpi=dpi, format="png")
         plt.close(fig)
 
 
@@ -53,16 +55,16 @@ def main():
     seed = 0
     image_size = 32
 
-    dataset_location = Path("/mnt/SSD/datasets/shapes_v12")
+    dataset_location = Path("/mnt/SSD/datasets/shapes_v13")
     dataset_location.mkdir(exist_ok=True)
 
-    size_train_set = 500_000
+    size_train_set = 1_000_000
     size_val_set = 50_000
     size_test_set = 50_000
 
     # in pixels
-    min_scale = 10
-    max_scale = 25
+    min_scale = 7
+    max_scale = 14
     min_lightness = 46  # of the HSL format. Higher value generates lighter images. Min 0, Max 256
     max_lightness = 256
 

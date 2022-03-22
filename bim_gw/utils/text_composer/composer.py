@@ -56,9 +56,9 @@ class Composer:
         for attr_name, attr in attributes.items():
             writer = random.choice(self.writers[attr_name])
             if isinstance(attr, (list, tuple)):
-                written_attrs[attr_name] = writer(*attr)
+                written_attrs[attr_name] = writer(*attr).format(**variants)
             else:
-                written_attrs[attr_name] = writer(attr)
+                written_attrs[attr_name] = writer(attr).format(**variants)
         # Create final caption
         final_caption = selected_structure.format(**written_attrs, **variants).strip()
         # remove multiple spaces and spaces in front of "."

@@ -3,12 +3,15 @@ import random
 import numpy as np
 
 
-def get_closest_key(values, comp):
+def get_closest_key(values, comp, norm="2"):
+    fn = np.square
+    if norm == "1":
+        fn = np.abs
     if len(comp) > 1:
-        d = np.sum(np.square(values - np.array(comp)[:, None]), axis=0)
+        d = np.sum(fn(values - np.array(comp)[:, None]), axis=0)
     else:
         comp = comp[0]
-        d = np.square(values - comp)
+        d = fn(values - comp)
     return np.argmin(d)
 
 
@@ -158,7 +161,8 @@ colors = {"alice blue": [240, 248, 255],
 # A smaller set of colors
 colors_sparse = ["azure", "beige", "black", "blue", "brown", "crimson", "cyan", "dark blue", "dark cyan", "dark grey",
                  "dark green", "dark orange", "dark red", "dark violet", "grey", "green", "indigo",
-                 "light blue", "light grey", "light green", "light pink", "light yellow", "lime", "magenta", "medium blue",
+                 "light blue", "light grey", "light green", "light pink", "light yellow", "lime", "magenta",
+                 "medium blue",
                  "orange", "pale green", "pink", "purple", "red", "turquoise", "violet", "white", "yellow"]
 
 
@@ -197,13 +201,42 @@ class OptionsWriter:
 class QuantizedWriter(Writer):
     quantized_values = np.empty(1)
     labels = dict()
+    norm = "2"
 
     def __call__(self, *val):
-        quantized_val = get_closest_key(self.quantized_values, val)
+        quantized_val = get_closest_key(self.quantized_values, val, self.norm)
         text = self.labels[self.label_type][quantized_val]
         if type(text) is list:
             text = random.choice(text)
         return super(QuantizedWriter, self).__call__(text)
+
+
+class BinsWriter(Writer):
+    bins = np.empty(1)
+    labels = dict()
+
+    def __call__(self, val):
+        index = np.digitize([val], self.bins)[0]
+        text = self.labels[self.label_type][index]
+        if type(text) is list:
+            text = random.choice(text)
+        return super(BinsWriter, self).__call__(text)
+
+
+class Bins2dWriter(Writer):
+    bins = np.empty(1)
+    labels = dict()
+
+    def __call__(self, *val):
+        label = self.labels[self.label_type]
+        for k in range(self.bins.shape[0]):
+            bins = self.bins[k]
+            index = np.digitize([val[k]], bins)[0]
+            label = label[index]
+        text = label
+        if type(text) is list:
+            text = random.choice(text)
+        return super(Bins2dWriter, self).__call__(text)
 
 
 class CardinalRotationWriter(QuantizedWriter):
@@ -212,7 +245,8 @@ class CardinalRotationWriter(QuantizedWriter):
 
     labels = {
         "corners":
-            ["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}", "right{side}", "top-right{corner}"],
+            ["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}",
+             "right{side}", "top-right{corner}"],
         "cardinals":
             ["north", "north-west", "west", "south-west", "south", "south-east", "east", "north-east"]
     }
@@ -267,18 +301,15 @@ class ShapesWriter(OptionsWriter):
     }
 
 
-class SizeWriter(QuantizedWriter):
-    quantized_values = np.array([10, 12.5, 15, 17.5, 20, 22.5, 25])
+class SizeWriter(BinsWriter):
+    bins = np.array([9, 11, 13])
 
     labels = {
         0: [
             "tiny",
-            ["very small", "quite small", "very little"],
             ["small", "little"],
             ["average sized", "medium sized", "medium"],
             ["big", "large"],
-            ["very big", "very large"],
-            "huge"
         ],
     }
 
@@ -288,8 +319,8 @@ class SizeWriter(QuantizedWriter):
 
 
 class LocationWriter(QuantizedWriter):
-    quantized_values = np.array([[16 / 3, 16., 5 * 16 / 3, 16 / 3, 5 * 16 / 3, 16., 16 / 3, 16., 5 * 16 / 3],
-                                 [5 * 16 / 3, 5 * 16 / 3, 5 * 16 / 3, 16., 16., 16., 16 / 3, 16 / 3, 16 / 3]])
+    quantized_values = np.array([[10, 16, 22, 10, 16, 22, 10, 16, 22],
+                                 [10, 10, 10, 16, 16, 16, 22, 22, 22]])
 
     labels = {
         0: [
@@ -297,8 +328,8 @@ class LocationWriter(QuantizedWriter):
             ["top center", "top"],
             ["top right", "upper right"],
             ["middle left", "center left"],
-            ["middle right", "center right"],
             ["center", "middle"],
+            ["middle right", "center right"],
             ["bottom left", "lower left"],
             ["bottom center", "bottom"],
             ["bottom right", "lower right"],
@@ -317,6 +348,52 @@ class LocationWriter(QuantizedWriter):
             "of_image": ["", " of the image"]
         }
     }
+
+
+class LocationQuantizer(Bins2dWriter):
+    bins = np.array([[13, 19],
+                     [13, 19]])
+
+    labels = {
+        0: [
+            ["topleft", "top", "topright"],
+            ["left", "mid", "right"],
+            ["botleft", "bot", "botright"]
+        ],
+    }
+
+    captions = {
+        0: "{val}",
+    }
+
+    variants = {
+        0: {}
+    }
+
+
+class RotationQuantizer(BinsWriter):
+    bins = np.array(
+        [np.pi / 8, 3 * np.pi / 8, 5 * np.pi / 8, 7 * np.pi / 8, 9 * np.pi / 8, 11 * np.pi / 8, 13 * np.pi / 8, 15 * np.pi / 8])
+
+    labels = {
+        0: [
+            "right", "topright", "top", "topleft", "left", "botleft", "bot", "botright", "right"
+        ],
+    }
+
+    captions = {
+        0: "{val}",
+    }
+
+    def __call__(self, rotation_x, rotation_y):
+        rotation_x = rotation_x * 2 - 1
+        rotation_y = rotation_y * 2 - 1
+        rotation = np.arctan2(rotation_y, rotation_x)
+        if rotation < 0:
+            rotation = 2 * np.pi + rotation
+        # In the code the 0 rotation is at the top. In text, it is more natural to put 0 degrees when facing right.
+        rotation += np.pi / 2
+        return super(RotationQuantizer, self).__call__(rotation % (2 * np.pi))
 
 
 class ColorWriter(QuantizedWriter):
@@ -346,6 +423,7 @@ class SimpleColorWriter(QuantizedWriter):
         }
 
         super().__init__(label_type)
+
 
 writers = {
     "shape": [ShapesWriter()],

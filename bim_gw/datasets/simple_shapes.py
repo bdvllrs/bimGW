@@ -122,7 +122,7 @@ class SimpleShapesDataset:
                 if k > 0 and (self.synced_domain_mapping is None or len(self.synced_domain_mapping[k - 1])):
                     self.labels.append(list(map(float, line)))
                     self.ids.append(k - 1)
-                elif k > 0 and self.synced_domain_mapping is not None:
+                elif k > 0 and self.synced_domain_mapping is not None:  # self.synced_domain_mapping[k - 1] == []
                     # Keep track of which items are removed. Otherwise, there will be a mismatch in indices
                     domain_mapping_to_remove.append(k - 1)
 
@@ -201,11 +201,15 @@ class SimpleShapesData(LightningDataModule):
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
+        self.train_dataset_size = 500_000
 
     def setup(self, stage=None):
         val_transforms = {"v": get_preprocess()}
         train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
         if stage == "fit" or stage is None:
+            unimodal_indices = np.arange(self.train_dataset_size // 2, self.train_dataset_size)
+            sync_indices = np.arange(self.train_dataset_size // 2)
+
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                   transform=val_transforms,
                                                   selected_domains=self.selected_domains)
@@ -230,7 +234,7 @@ class SimpleShapesData(LightningDataModule):
                 print("Test set OOD size", len(id_ood_splits[2][1]))
             else:
                 id_ood_splits = None
-                target_indices = np.arange(len(train_set))
+                target_indices = train_set.ids
 
             self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
             self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
@@ -407,7 +411,7 @@ def split_in_out_dist(dataset, ood_attrs):
     in_dist_items = []
     out_dist_items = []
 
-    for i, label in enumerate(dataset.labels):
+    for i, label in zip(dataset.ids, dataset.labels):
         cls = int(label[0])
         x, y = label[1], label[2]
         size = label[3]

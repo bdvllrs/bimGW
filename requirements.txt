@@ -8,3 +8,4 @@ tqdm>=4.63.0
 matplotlib>=3.5.1
 torchmetrics==0.7.2
 transformers==4.17.0
+opencv-python==4.5.5.64

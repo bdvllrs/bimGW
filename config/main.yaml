@@ -8,7 +8,7 @@ image_net_path: ???
 cifar10_path: ???
 simple_shapes_path: ???
 
-visual_dataset: "imagenet"
+visual_dataset: "shapes"
 
 img_size: 32
 
