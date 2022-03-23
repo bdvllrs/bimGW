@@ -267,10 +267,10 @@ class ShapesLM(WorkspaceModule):
             self.shapes_attribute.log_domain(self.logger, self.shapes_attribute.decode(predictions),
                                              "predictions_reconstruction")
 
-            # if self.current_epoch == 0:
-            self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
-            for k in range(len(sentence_predictions)):
-                self.logger.experiment["target_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
+            if self.current_epoch == 0:
+                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
+                for k in range(len(sentence_predictions)):
+                    self.logger.experiment["target_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
