@@ -7,7 +7,7 @@ from tqdm import tqdm
 from bim_gw.datasets.simple_shapes import SimpleShapesData
 from bim_gw.modules import ShapesLM
 from bim_gw.utils import get_args
-from bim_gw.utils.text_composer.writers import LocationQuantizer, RotationQuantizer
+from bim_gw.utils.text_composer.writers import LocationQuantizer, RotationQuantizer, SizeQuantizer
 
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -21,16 +21,15 @@ if __name__ == '__main__':
     # n_samples = 10_000
 
     quantizers = {
-        # "location": LocationQuantizer(0),
-        # "rotation": RotationQuantizer(0)
+        "location": LocationQuantizer(0),
+        "rotation": RotationQuantizer(0),
+        "size": SizeQuantizer(0),
     }
     indices = {
-        "location": [1, 2],
-        "rotation": [3, 4]
+        "location": [0, 1],
+        "rotation": [3, 4],
+        "size": [2]
     }
-
-    plt.hist(data.shapes_train["a"].labels[:, 2], 25)
-    plt.show()
 
     for quantizer_name, quantizer in quantizers.items():
         if type(quantizer.labels[0][0]) is list:

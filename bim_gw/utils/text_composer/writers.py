@@ -395,6 +395,23 @@ class RotationQuantizer(BinsWriter):
         rotation += np.pi / 2
         return super(RotationQuantizer, self).__call__(rotation % (2 * np.pi))
 
+class SizeQuantizer(BinsWriter):
+    bins = np.array([9, 11, 13])
+
+    labels = {
+        0: [
+            "tiny",
+            "small",
+            "average sized",
+            "big",
+        ],
+    }
+
+    captions = {
+        0: "{val}",
+    }
+
+
 
 class ColorWriter(QuantizedWriter):
     def __init__(self, label_type):
