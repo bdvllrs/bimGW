@@ -1,8 +1,7 @@
-import csv
 from pathlib import Path
 
 import numpy as np
-from matplotlib import pyplot as plt, patches
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from bim_gw.utils.shapes import generate_image, generate_dataset, generate_transformations
@@ -35,27 +34,21 @@ def save_labels(path_root, dataset, dataset_transfo):
                                                         dataset_transfo["sizes"]
     rotations_transfo, colors_transfo = dataset_transfo["rotations"], dataset_transfo["colors"]
     colors_hls_transfo = dataset_transfo["colors_hls"]
-    header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h", "l", "s", "t_class", "d_x", "d_y", "d_scale",
-              "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
-    with open(path_root, "w") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-        for k in range(len(classes)):
-            # for cls, location, scale, rotation, color, color_hls in zip(classes, locations, sizes, rotations, colors, colors_hls):
-            writer.writerow([
-                classes[k], locations[k][0], locations[k][1], sizes[k], rotations[k], colors[k][0], colors[k][1],
-                colors[k][2], colors_hls[k][0], colors_hls[k][1], colors_hls[k][2],
-                classes_transfo[k], locations_transfo[k][0], locations_transfo[k][1], sizes_transfo[k],
-                rotations_transfo[k], colors_transfo[k][0], colors_transfo[k][1], colors_transfo[k][2],
-                colors_hls_transfo[k][0], colors_hls_transfo[k][1], colors_hls_transfo[k][2]
-            ])
+    # header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h", "l", "s", "t_class", "d_x", "d_y", "d_scale",
+    #           "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
+    labels = np.concatenate([
+        classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)), rotations.reshape((-1, 1)), colors, colors_hls,
+        classes_transfo.reshape((-1, 1)), locations_transfo, sizes_transfo.reshape((-1, 1)),
+        rotations_transfo.reshape((-1, 1)), colors_transfo, colors_hls_transfo
+    ], axis=1).astype(np.float32)
+    np.save(path_root, labels)
 
 
 def main():
     seed = 0
     image_size = 32
 
-    dataset_location = Path("/mnt/SSD/datasets/shapes_v13")
+    dataset_location = Path("/mnt/SSD/datasets/shapes_v14")
     dataset_location.mkdir(exist_ok=True)
 
     size_train_set = 1_000_000
@@ -88,9 +81,9 @@ def main():
                                                                                   max_lightness, image_size))
 
     print("Save labels...")
-    save_labels(dataset_location / "train_labels.csv", train_labels, train_transfo)
-    save_labels(dataset_location / "val_labels.csv", val_labels, val_transfo)
-    save_labels(dataset_location / "test_labels.csv", test_labels, test_transfo)
+    save_labels(dataset_location / "train_labels.npy", train_labels, train_transfo)
+    save_labels(dataset_location / "val_labels.npy", val_labels, val_transfo)
+    save_labels(dataset_location / "test_labels.npy", test_labels, test_transfo)
 
     print("Saving training set...")
     (dataset_location / "transformed").mkdir(exist_ok=True)
