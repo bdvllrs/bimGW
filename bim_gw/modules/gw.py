@@ -150,15 +150,22 @@ class GlobalWorkspace(LightningModule):
             self.validation_example_list = dict()
             for dist, example_dist_vecs in domain_examples.items():
                 if example_dist_vecs is not None:
-                    for key, example_vecs in example_dist_vecs.items():
+                    for key in example_dist_vecs[0].keys():
                         assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
-                        if example_vecs is not None:
-                            self.validation_example_list[key] = len(example_vecs)
-                            for k, example_vec in enumerate(example_vecs):
-                                if type(example_vec) is list:
-                                    setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+                        if example_dist_vecs[0][key] is not None:
+                            self.validation_example_list[key] = len(example_dist_vecs[0][key])
+                            for k in range(len(example_dist_vecs[0][key])):
+                                if type(example_dist_vecs[0][key][k]) is list:
+                                    setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", [
+                                        example_dist_vecs[t][key][k] for t in range(len(example_dist_vecs))
+                                    ])
                                 else:
-                                    self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+                                    self.register_buffer(
+                                        f"validation_{dist}_examples_domain_{key}_{k}",
+                                        torch.stack([
+                                            example_dist_vecs[t][key][k] for t in range(len(example_dist_vecs))
+                                        ], dim=0)
+                                    )
 
         self.rotation_error_val = []
         print("Global Workspace instantiated.")
