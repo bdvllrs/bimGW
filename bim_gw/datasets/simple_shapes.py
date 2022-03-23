@@ -112,26 +112,18 @@ class SimpleShapesDataset:
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.synced_domain_mapping = synced_domain_mapping
-        self.labels = []
-        self.ids = []
+        self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
+        self.ids = np.arange(len(self.labels))
 
         domain_mapping_to_remove = []
-        with open(self.root_path / f"{split}_labels.csv", "r") as f:
-            reader = csv.reader(f)
-            for k, line in enumerate(reader):
-                if k > 0 and (self.synced_domain_mapping is None or len(self.synced_domain_mapping[k - 1])):
-                    self.labels.append(list(map(float, line)))
-                    self.ids.append(k - 1)
-                elif k > 0 and self.synced_domain_mapping is not None:  # self.synced_domain_mapping[k - 1] == []
-                    # Keep track of which items are removed. Otherwise, there will be a mismatch in indices
-                    domain_mapping_to_remove.append(k - 1)
+        if self.synced_domain_mapping is not None:
+            self.ids = np.array([k for k in range(len(self.synced_domain_mapping)) if len(self.synced_domain_mapping[k])])
+            domain_mapping_to_remove = [k for k in range(len(self.synced_domain_mapping)) if not len(self.synced_domain_mapping[k])]
+            self.labels = self.labels[self.ids]
 
         # Remove empty elements
         for idx in reversed(domain_mapping_to_remove):
             del self.synced_domain_mapping[idx]
-
-        self.ids = np.array(self.ids)
-        self.labels = np.array(self.labels, dtype=np.float32)
 
         self.all_fetchers = {
             name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
