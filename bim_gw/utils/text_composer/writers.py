@@ -324,15 +324,15 @@ class LocationWriter(QuantizedWriter):
 
     labels = {
         0: [
-            ["top left", "upper left"],
-            ["top center", "top"],
-            ["top right", "upper right"],
-            ["middle left", "center left"],
-            ["center", "middle"],
-            ["middle right", "center right"],
             ["bottom left", "lower left"],
             ["bottom center", "bottom"],
             ["bottom right", "lower right"],
+            ["middle left", "center left"],
+            ["center", "middle"],
+            ["middle right", "center right"],
+            ["top left", "upper left"],
+            ["top center", "top"],
+            ["top right", "upper right"],
         ],
     }
 
