@@ -90,7 +90,7 @@ class SimpleShapesDataset:
         "t_f": TransformedTextDataFetcher
     }
 
-    def __init__(self, path, split="train", synced_domain_mapping=None,
+    def __init__(self, path, split="train", synced_domain_mapping=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None):
         """
         Args:
@@ -98,6 +98,7 @@ class SimpleShapesDataset:
             split:
             transform:
             output_transform:
+            selected_indices:
             synced_domain_mapping: list with each available modality for each point
         """
         assert split in ["train", "val", "test"]
@@ -114,11 +115,19 @@ class SimpleShapesDataset:
         self.synced_domain_mapping = synced_domain_mapping
         self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
         self.ids = np.arange(len(self.labels))
+        if selected_indices is not None:
+            self.labels = self.labels[selected_indices]
+            self.ids = self.ids[selected_indices]
 
         domain_mapping_to_remove = []
         if self.synced_domain_mapping is not None:
-            self.ids = np.array([k for k in range(len(self.synced_domain_mapping)) if len(self.synced_domain_mapping[k])])
-            domain_mapping_to_remove = [k for k in range(len(self.synced_domain_mapping)) if not len(self.synced_domain_mapping[k])]
+            ids = []
+            for k in range(len(self.synced_domain_mapping)):
+                if (selected_indices is None or k in selected_indices) and len(self.synced_domain_mapping[k]):
+                    ids.append(k)
+                else:
+                    domain_mapping_to_remove.append(k)
+            self.ids = np.array(ids)
             self.labels = self.labels[self.ids]
 
         # Remove empty elements
@@ -193,14 +202,11 @@ class SimpleShapesData(LightningDataModule):
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
-        self.train_dataset_size = 500_000
 
     def setup(self, stage=None):
         val_transforms = {"v": get_preprocess()}
         train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
         if stage == "fit" or stage is None:
-            unimodal_indices = np.arange(self.train_dataset_size // 2, self.train_dataset_size)
-            sync_indices = np.arange(self.train_dataset_size // 2)
 
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                   transform=val_transforms,
@@ -209,7 +215,12 @@ class SimpleShapesData(LightningDataModule):
                                                    transform=val_transforms,
                                                    selected_domains=self.selected_domains)
 
+            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
+            len_train_dataset = len(train_set)
+            # unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
+            sync_indices = np.arange(len_train_dataset // 2)
             train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                            selected_indices=sync_indices,
                                             transform=train_transforms,
                                             selected_domains=self.selected_domains)
 
