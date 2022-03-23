@@ -1,4 +1,3 @@
-import csv
 import random
 from pathlib import Path
 
@@ -101,18 +100,13 @@ class SimpleShapesDataset:
         self.img_size = 32
 
         self.classes = np.array(["square", "circle", "triangle"])
-        self.labels = []
-        self.ids = []
+        self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
 
-        with open(self.root_path / f"{split}_labels.csv", "r") as f:
-            reader = csv.reader(f)
-            for k, line in enumerate(reader):
-                if k > 0 and (selected_indices is None or k - 1 in selected_indices):
-                    self.labels.append(list(map(float, line)))
-                    self.ids.append(k - 1)
+        self.ids = np.arange(self.labels.shape[0])
 
-        self.ids = np.array(self.ids)
-        self.labels = np.array(self.labels, dtype=np.float32)
+        if selected_indices is not None:
+            self.labels = self.labels[selected_indices]
+            self.ids = self.ids[selected_indices]
 
         if min_dataset_size is not None:
             original_size = len(self.labels)
@@ -181,14 +175,11 @@ class SimpleShapesData(LightningDataModule):
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
-        self.train_dataset_size = 500_000
 
     def setup(self, stage=None):
         val_transforms = {"v": get_preprocess()}
         train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
         if stage == "fit" or stage is None:
-            unimodal_indices = np.arange(self.train_dataset_size // 2, self.train_dataset_size)
-            sync_indices = np.arange(self.train_dataset_size // 2)
 
             self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                   transform=val_transforms,
@@ -197,6 +188,10 @@ class SimpleShapesData(LightningDataModule):
                                                    transform=val_transforms,
                                                    selected_domains=self.selected_domains)
 
+            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
+            len_train_dataset = len(sync_train_set)
+            unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
+            sync_indices = np.arange(len_train_dataset // 2)
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                  selected_indices=sync_indices,
                                                  transform=train_transforms,
