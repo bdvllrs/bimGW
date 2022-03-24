@@ -1,4 +1,3 @@
-import csv
 import itertools
 import random
 from pathlib import Path
@@ -89,7 +88,8 @@ class SimpleShapesDataset:
     }
 
     def __init__(self, path, split="train", synced_domain_mapping=None, selected_indices=None,
-                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None):
+                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
+                 extend_dataset=True):
         """
         Args:
             path:
@@ -132,6 +132,11 @@ class SimpleShapesDataset:
         for idx in reversed(domain_mapping_to_remove):
             del self.synced_domain_mapping[idx]
 
+        self.input_domains = self.synced_domain_mapping
+        self.target_domains = self.synced_domain_mapping
+        # if extend_dataset:
+        #     self.define_targets()
+
         self.all_fetchers = {
             name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
             self.available_domains.items()
@@ -152,30 +157,54 @@ class SimpleShapesDataset:
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(
                         self.root_path / "saved_latents" / self.split / path, self.ids)
 
+    def define_targets(self):
+        labels = []
+        ids = []
+        targets = []
+        for k in range(self.labels.shape[0]):
+            domains = list(self.selected_domains.values())
+            if self.synced_domain_mapping is not None:
+                domains = self.synced_domain_mapping[k]
+            for r in range(1, len(domains) + 1):
+                combinations = itertools.combinations(domains, r)
+                for combination in combinations:
+                    labels.append(combination)
+                    targets.append(domains)
+                    ids.append(self.ids[k])
+        self.input_domains = labels
+        self.target_domains = targets
+        if self.synced_domain_mapping is not None:
+            self.synced_domain_mapping = targets
+        self.ids = np.array(ids)
+        self.labels = self.labels[self.ids]
+
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, item):
-        selected_domains = [{}, {}]
-        for domain_key, fetcher in self.data_fetchers.items():
-            time_steps = []
-            if self.synced_domain_mapping is None or domain_key in self.synced_domain_mapping[item]:
-                time_steps.append(0)
-            if self.synced_domain_mapping is None or domain_key + "_f" in self.synced_domain_mapping[item]:
-                time_steps.append(1)
-            fetched_items = fetcher.get_items(item, time_steps)
-            for k, fetched_item in enumerate(fetched_items):
-                selected_domains[k][domain_key] = fetched_item
+        items = []
+        for mapping in [self.input_domains, self.target_domains]:
+            selected_domains = [{}, {}]
+            for domain_key, fetcher in self.data_fetchers.items():
+                time_steps = []
+                if mapping is None or domain_key in mapping[item]:
+                    time_steps.append(0)
+                if mapping is None or domain_key + "_f" in mapping[item]:
+                    time_steps.append(1)
+                fetched_items = fetcher.get_items(item, time_steps)
+                for k, fetched_item in enumerate(fetched_items):
+                    selected_domains[k][domain_key] = fetched_item
 
-        for k in range(len(selected_domains)):
-            selected_domains[k]["_available_domains"] = torch.stack([
-                selected_domains[k][domain_key][0]
-                for domain_key in sorted(self.data_fetchers.keys())
-            ]).to(torch.bool)
+            for k in range(len(selected_domains)):
+                selected_domains[k]["_available_domains"] = torch.stack([
+                    selected_domains[k][domain_key][0]
+                    for domain_key in sorted(self.data_fetchers.keys())
+                ]).to(torch.bool)
 
-        if self.output_transform is not None:
-            return self.output_transform(selected_domains)
-        return selected_domains
+            if self.output_transform is not None:
+                return self.output_transform(selected_domains)
+            items.append(selected_domains)
+        return items
 
 
 class SimpleShapesData(LightningDataModule):
@@ -202,7 +231,7 @@ class SimpleShapesData(LightningDataModule):
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
-        ds = SimpleShapesDataset(simple_shapes_folder, "val")
+        ds = SimpleShapesDataset(simple_shapes_folder, "val", extend_dataset=False)
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
         self.n_time_steps = 2
@@ -219,7 +248,7 @@ class SimpleShapesData(LightningDataModule):
                                                    transform=val_transforms,
                                                    selected_domains=self.selected_domains)
 
-            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
+            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False)
             len_train_dataset = len(train_set)
             # unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
             sync_indices = np.arange(len_train_dataset // 2)
@@ -273,48 +302,53 @@ class SimpleShapesData(LightningDataModule):
                                                           size=(self.domain_examples,))
 
         self.domain_examples = {
-            "train": [{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)],
-            "in_dist": [{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)],
+            "train": [[{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)] for p
+                      in range(2)],
+            "in_dist": [[{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)] for
+                        p in range(2)],
             "ood": None,
         }
 
         used_dists = ["train", "in_dist"]
 
         if self.split_ood:
-            self.domain_examples["ood"] = [{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)]
+            self.domain_examples["ood"] = [
+                [{domain: [] for domain in self.selected_domains.keys()} for _ in range(self.n_time_steps)] for p in
+                range(2)]
             used_dists.append("ood")
 
         # add t examples
         for used_dist in used_dists:
             used_set = train_set if used_dist == "train" else test_set[used_dist]
             if reconstruction_indices[used_dist] is not None:
-                for domain in self.selected_domains.keys():
-                    for t in range(2):
-                        if not isinstance(used_set[0][t][domain], tuple):
-                            examples = [used_set[i][t][domain] for i in
-                                        reconstruction_indices[used_dist]]
-                            if isinstance(used_set[0][t][domain], (int, float)):
-                                self.domain_examples[used_dist][t][domain] = torch.tensor(examples)
-                            elif isinstance(used_set[0][t][domain], torch.Tensor):
-                                self.domain_examples[used_dist][t][domain] = torch.stack(examples, dim=0)
-                            else:
-                                self.domain_examples[used_dist][t][domain] = examples
-                        else:
-                            for k in range(len(used_set[0][t][domain])):
-                                examples = [used_set[i][t][domain][k] for i in
+                for p in range(2):  # input or target
+                    for domain in self.selected_domains.keys():
+                        for t in range(self.n_time_steps):
+                            if not isinstance(used_set[0][p][t][domain], tuple):
+                                examples = [used_set[i][p][t][domain] for i in
                                             reconstruction_indices[used_dist]]
-                                if isinstance(used_set[0][t][domain][k], (int, float)):
-                                    self.domain_examples[used_dist][t][domain].append(
-                                        torch.tensor(examples)
-                                    )
-                                elif isinstance(used_set[0][t][domain][k], torch.Tensor):
-                                    self.domain_examples[used_dist][t][domain].append(
-                                        torch.stack(examples, dim=0)
-                                    )
+                                if isinstance(used_set[0][p][t][domain], (int, float)):
+                                    self.domain_examples[used_dist][p][t][domain] = torch.tensor(examples)
+                                elif isinstance(used_set[0][p][t][domain], torch.Tensor):
+                                    self.domain_examples[used_dist][p][t][domain] = torch.stack(examples, dim=0)
                                 else:
-                                    self.domain_examples[used_dist][t][domain].append(examples)
-                            self.domain_examples[used_dist][t][domain] = tuple(
-                                self.domain_examples[used_dist][t][domain])
+                                    self.domain_examples[used_dist][p][t][domain] = examples
+                            else:
+                                for k in range(len(used_set[0][p][t][domain])):
+                                    examples = [used_set[i][p][t][domain][k] for i in
+                                                reconstruction_indices[used_dist]]
+                                    if isinstance(used_set[0][p][t][domain][k], (int, float)):
+                                        self.domain_examples[used_dist][p][t][domain].append(
+                                            torch.tensor(examples)
+                                        )
+                                    elif isinstance(used_set[0][p][t][domain][k], torch.Tensor):
+                                        self.domain_examples[used_dist][p][t][domain].append(
+                                            torch.stack(examples, dim=0)
+                                        )
+                                    else:
+                                        self.domain_examples[used_dist][p][t][domain].append(examples)
+                                self.domain_examples[used_dist][p][t][domain] = tuple(
+                                    self.domain_examples[used_dist][p][t][domain])
 
     def filter_sync_domains(self, train_set, allowed_indices):
         # Unlabel randomly some elements

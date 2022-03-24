@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
+import torch.nn.functional as F
 
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
@@ -153,22 +154,24 @@ class GlobalWorkspace(LightningModule):
             self.validation_example_list = dict()
             for dist, example_dist_vecs in domain_examples.items():
                 if example_dist_vecs is not None:
-                    for key in example_dist_vecs[0].keys():
-                        assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
-                        if example_dist_vecs[0][key] is not None:
-                            self.validation_example_list[key] = len(example_dist_vecs[0][key])
-                            for k in range(len(example_dist_vecs[0][key])):
-                                if type(example_dist_vecs[0][key][k]) is list:
-                                    setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", [
-                                        example_dist_vecs[t][key][k] for t in range(len(example_dist_vecs))
-                                    ])
-                                else:
-                                    self.register_buffer(
-                                        f"validation_{dist}_examples_domain_{key}_{k}",
-                                        torch.stack([
-                                            example_dist_vecs[t][key][k] for t in range(len(example_dist_vecs))
-                                        ], dim=0)
-                                    )
+                    for p in range(2):
+                        data_type = "" if p == 0 else "_target"
+                        for key in example_dist_vecs[p][0].keys():
+                            assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                            if example_dist_vecs[p][0][key] is not None:
+                                self.validation_example_list[key] = len(example_dist_vecs[p][0][key])
+                                for k in range(len(example_dist_vecs[p][0][key])):
+                                    if type(example_dist_vecs[p][0][key][k]) is list:
+                                        setattr(self, f"validation_{dist}_examples_domain_{key}_{k}{data_type}", [
+                                            example_dist_vecs[p][t][key][k] for t in range(len(example_dist_vecs))
+                                        ])
+                                    else:
+                                        self.register_buffer(
+                                            f"validation_{dist}_examples_domain_{key}_{k}{data_type}",
+                                            torch.stack([
+                                                example_dist_vecs[p][t][key][k] for t in range(len(example_dist_vecs))
+                                            ], dim=0)
+                                        )
 
         self.rotation_error_val = []
         print("Global Workspace instantiated.")
@@ -233,7 +236,7 @@ class GlobalWorkspace(LightningModule):
             state[masks, :] = 0.
         return torch.sigmoid(state.sum(dim=1))
 
-    def project_sequence(self, time_order, latent_sequence, domain_sequence):
+    def project_sequence(self, time_order, latent_sequence, masked_domains):
         past_state = None
         future_state = None
         state = None
@@ -243,11 +246,8 @@ class GlobalWorkspace(LightningModule):
 
         for time_step in time_order:
             latents = latent_sequence[time_step]
-            domains = domain_sequence[time_step]
-            available_domains = domains["_available_domains"]
-            unavailable_domains = torch.logical_not(available_domains)
 
-            state = self.project(latents, past_state, future_state, unavailable_domains)
+            state = self.project(latents, past_state, future_state, masked_domains[time_step])
 
             state_sequence.append(state)
             step_predictions.append(self.predict(state))
@@ -283,37 +283,40 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def cycle_loss(self, latents_ori, latents_pred, available_domains, coef=1., loss_name="cycle"):
-        loss = torch.tensor(0.).to(self.device)
-        losses = {}
-        losses_no_coefs = {}
-        total = len(latents_ori)
-        for i, name in enumerate(sorted(latents_ori.keys())):
-            latent_ori = latents_ori[name]
-            latent_pred = latents_pred[name]
-
-            l = torch.tensor(0.).to(self.device)
-            for k in range(len(latent_ori)):
-                # Only compute loss if there is at least one element containing modality "i".
-                if available_domains[:, i].any():
-                    loss_fn = self.loss_fn[f"{name}_{k}"]
-                    pred = latent_pred[k][available_domains[:, i]]
-                    ori = latent_ori[k][available_domains[:, i]]
-                    l += loss_fn(pred, ori).mean() / total
-            losses[f"loss_{loss_name}_{name}"] = coef * l
-            losses_no_coefs[f"loss_{loss_name}_{name}"] = l
-            loss += losses[f"loss_{loss_name}_{name}"]
-        losses[f"{loss_name}_loss"] = loss
-        losses_no_coefs[f"{loss_name}_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        return losses[f"{loss_name}_loss"], losses, losses_no_coefs
+    def cycle_loss(self, predictions, latent_sequence_target, masked_domains=None,
+                   coef=1., loss_name="cycle"):
+        losses = {step + 1: [] for step in range(len(predictions))}
+        for t in range(len(predictions)):
+            targets = latent_sequence_target[t]
+            for step in range(t, len(predictions[t])):
+                step_predictions = predictions[t][step]
+                loss = 0
+                for n, domain in enumerate(self.domain_names):
+                    if domain in step_predictions:
+                        for k in range(len(step_predictions[domain])):
+                            if masked_domains is not None:
+                                step_predictions[domain][k][masked_domains[t][:, n]] = 0.
+                                targets[domain][k][masked_domains[t][:, n]] = 0.
+                            loss += F.mse_loss(step_predictions[domain][k], targets[domain][k])
+                losses[step - t + 1].append(loss)
+        return {order: l.mean() for order, l in losses.items()}
 
     def step(self, latent_sequence, domain_sequence, mode="val", prefix=""):
-        time_order = range(len(latent_sequence))
+        latent_sequence_input, latent_sequence_target = latent_sequence[0], latent_sequence[1]
+        domain_sequence_input, domain_sequence_target = domain_sequence[0], domain_sequence[1]
+        masked_domains = [torch.logical_not(domain_sequence_input[t]["_available_domains"])
+                          for t in range(len(domain_sequence_input))]
+        time_order = range(len(latent_sequence_input))
         # If timeline is going backward, use reversed
         # time_order = reversed(time_order)
-        state, state_sequence, step_predictions = self.project_sequence(time_order, latent_sequence, domain_sequence)
+        state, state_sequence, step_predictions = self.project_sequence(time_order, latent_sequence_input,
+                                                                        masked_domains)
         final_predictions, final_state_sequence = self.predict_sequence(time_order, state)
-        return None, None
+
+        predictions = [[step_predictions[t], final_predictions[t]] for t in range(len(step_predictions))]
+
+        losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
+                                 self.hparams.loss_coef_cycles, "cycle")
 
         # # Compute all losses
         # losses = dict()
@@ -345,12 +348,14 @@ class GlobalWorkspace(LightningModule):
         if batch_idx == 0 and self.current_epoch == 0:
             self.train_domain_examples = domains
 
-        latents = self.encode_modalities(domains)
+        input_domains, targets = domains[0], domains[1]
+        latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
         total_loss, losses = self.step(latents, domains, mode="train")
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
-        latents = self.encode_modalities(domains)
+        input_domains, targets = domains[0], domains[1]
+        latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
         total_loss, losses = self.step(latents, domains, mode="val", prefix=prefix)
         return total_loss
