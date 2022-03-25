@@ -3,12 +3,12 @@ from typing import Optional
 import numpy as np
 import scipy
 import torch
+import torch.nn.functional as F
 import torchmetrics
 from matplotlib import pyplot as plt
 from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
-import torch.nn.functional as F
 
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
@@ -217,17 +217,14 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = z
         return out
 
-    def project(self, latents, past, future, masked_domains):
+    def project(self, latents, gw_state=None, masked_domains=None):
         state = [
             self.encode(latents[domain_name], domain_name)
             for domain_name in self.domain_names
         ]
         masks = [masked_domains]
-        if past is not None:
-            state.append(self.predict_future(past))
-            masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
-        if future is not None:
-            state.append(self.predict_past(future))
+        if gw_state is not None:
+            state.append(gw_state)
             masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
         state = torch.stack(state, dim=1)
 
@@ -238,7 +235,7 @@ class GlobalWorkspace(LightningModule):
 
     def project_sequence(self, time_order, latent_sequence, masked_domains):
         past_state = None
-        future_state = None
+        # future_state = None
         state = None
 
         step_predictions = []  # predictions as the model is encoding the different time steps
@@ -247,7 +244,7 @@ class GlobalWorkspace(LightningModule):
         for time_step in time_order:
             latents = latent_sequence[time_step]
 
-            state = self.project(latents, past_state, future_state, masked_domains[time_step])
+            state = self.project(latents, past_state, masked_domains[time_step])
 
             state_sequence.append(state)
             step_predictions.append(self.predict(state))
@@ -283,9 +280,9 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def cycle_loss(self, predictions, latent_sequence_target, masked_domains=None,
+    def cycle_loss(self, predictions, latent_sequence_target, masked_domains=None, order_start=1,
                    coef=1., loss_name="cycle"):
-        losses = {step + 1: [] for step in range(len(predictions))}
+        losses = {step + order_start: [] for step in range(len(predictions))}
         for t in range(len(predictions)):
             targets = latent_sequence_target[t]
             for step in range(t, len(predictions[t])):
@@ -298,7 +295,7 @@ class GlobalWorkspace(LightningModule):
                                 step_predictions[domain][k][masked_domains[t][:, n]] = 0.
                                 targets[domain][k][masked_domains[t][:, n]] = 0.
                             loss += F.mse_loss(step_predictions[domain][k], targets[domain][k])
-                losses[step - t + 1].append(loss)
+                losses[step - t + order_start].append(loss)
         return {order: l.mean() for order, l in losses.items()}
 
     def step(self, latent_sequence, domain_sequence, mode="val", prefix=""):
@@ -312,11 +309,16 @@ class GlobalWorkspace(LightningModule):
         state, state_sequence, step_predictions = self.project_sequence(time_order, latent_sequence_input,
                                                                         masked_domains)
         final_predictions, final_state_sequence = self.predict_sequence(time_order, state)
+        full_cycles_predictions = []
+        for pred, final_state in zip(final_predictions, final_state_sequence):
+            full_cycles_predictions.append(self.predict(self.project(pred, final_state)))
 
         predictions = [[step_predictions[t], final_predictions[t]] for t in range(len(step_predictions))]
 
-        losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
-                                 self.hparams.loss_coef_cycles, "cycle")
+        demi_cycle_losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
+                                            coef=self.hparams.loss_coef_demi_cycles, loss_name="demi-cycle")
+        # cycle_losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
+        #                                self.hparams.loss_coef_cycles, "cycle")
 
         # # Compute all losses
         # losses = dict()
