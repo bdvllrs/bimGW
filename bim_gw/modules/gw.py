@@ -12,6 +12,7 @@ from torch import nn
 
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
+from bim_gw.utils.utils import CycleLoss
 
 
 class DomainDecoder(torch.nn.Module):
@@ -225,7 +226,8 @@ class GlobalWorkspace(LightningModule):
         masks = [masked_domains]
         if gw_state is not None:
             state.append(gw_state)
-            masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
+            if masked_domains is not None:
+                masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
         state = torch.stack(state, dim=1)
 
         if masked_domains is not None:
@@ -280,71 +282,99 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def cycle_loss(self, predictions, latent_sequence_target, masked_domains=None, order_start=1,
-                   coef=1., loss_name="cycle"):
-        losses = {step + order_start: [] for step in range(len(predictions))}
+    def loss(self, predictions, latent_sequence_target, masked_domains=None, order_start=1, no_order=False):
+        if no_order:
+            losses = {0: 0}
+        else:
+            losses = {t + order_start: 0 for t in range(len(predictions))}
         for t in range(len(predictions)):
             targets = latent_sequence_target[t]
-            for step in range(t, len(predictions[t])):
-                step_predictions = predictions[t][step]
-                loss = 0
-                for n, domain in enumerate(self.domain_names):
-                    if domain in step_predictions:
-                        for k in range(len(step_predictions[domain])):
-                            if masked_domains is not None:
-                                step_predictions[domain][k][masked_domains[t][:, n]] = 0.
-                                targets[domain][k][masked_domains[t][:, n]] = 0.
-                            loss += F.mse_loss(step_predictions[domain][k], targets[domain][k])
-                losses[step - t + order_start].append(loss)
-        return {order: l.mean() for order, l in losses.items()}
+            step_predictions = predictions[t]
+            loss = 0
+            for n, domain in enumerate(self.domain_names):
+                if domain in step_predictions:
+                    for k in range(len(step_predictions[domain])):
+                        if masked_domains is not None:
+                            step_predictions[domain][k][masked_domains[t][:, n]] = 0.
+                            targets[domain][k][masked_domains[t][:, n]] = 0.
+                        loss += F.mse_loss(step_predictions[domain][k], targets[domain][k])
+            if no_order:
+                losses[0] += loss
+            else:
+                losses[order_start + t] += loss
+        return losses
 
     def step(self, latent_sequence, domain_sequence, mode="val", prefix=""):
         latent_sequence_input, latent_sequence_target = latent_sequence[0], latent_sequence[1]
         domain_sequence_input, domain_sequence_target = domain_sequence[0], domain_sequence[1]
+        batch_size = domain_sequence_input[0]["_available_domains"].size(0)
+
         masked_domains = [torch.logical_not(domain_sequence_input[t]["_available_domains"])
                           for t in range(len(domain_sequence_input))]
+        masked_domains_translation = [
+            torch.logical_or(
+                domain_sequence_input[t]["_available_domains"],
+                torch.logical_not(domain_sequence_target[t]["_available_domains"])
+            ) for t in range(len(domain_sequence_input))
+        ]
+
         time_order = range(len(latent_sequence_input))
         # If timeline is going backward, use reversed
         # time_order = reversed(time_order)
         state, state_sequence, step_predictions = self.project_sequence(time_order, latent_sequence_input,
                                                                         masked_domains)
         final_predictions, final_state_sequence = self.predict_sequence(time_order, state)
-        full_cycles_predictions = []
-        for pred, final_state in zip(final_predictions, final_state_sequence):
-            full_cycles_predictions.append(self.predict(self.project(pred, final_state)))
 
-        predictions = [[step_predictions[t], final_predictions[t]] for t in range(len(step_predictions))]
+        losses = CycleLoss()
 
-        demi_cycle_losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
-                                            coef=self.hparams.loss_coef_demi_cycles, loss_name="demi-cycle")
-        # cycle_losses = self.cycle_loss(predictions, latent_sequence_input, masked_domains,
-        #                                self.hparams.loss_coef_cycles, "cycle")
+        # Demi-cycles
+        losses.update(
+            "demi_cycle",
+            self.loss(step_predictions, latent_sequence_input, masked_domains, order_start=1),
+        )
+        losses.update(
+            "demi_cycle",
+            self.loss([final_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=2),
+        )
 
-        # # Compute all losses
-        # losses = dict()
-        # loss_no_coef = dict()
-        #
-        # demi_cycle_loss, l, l_no_coefs = self.cycle_loss(latents, demi_cycle_predictions, available_domains,
-        #                                                  self.hparams.loss_coef_demi_cycles, "demi_cycle")
-        # losses.update(l)
-        # loss_no_coef.update(l_no_coefs)
-        #
-        # cycle_loss, l, l_no_coefs = self.cycle_loss(latents, cycle_predictions, available_domains,
-        #                                             self.hparams.loss_coef_cycles, "cycle")
-        # losses.update(l)
-        # loss_no_coef.update(l_no_coefs)
-        #
-        # total_loss = demi_cycle_loss + cycle_loss
-        # total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"]
-        #
-        # batch_size = latents[list(latents.keys())[0]][0].size(0)
-        # for name, loss in loss_no_coef.items():
-        #     self.log(f"{mode}{prefix}_{name}", loss, logger=True,
-        #              add_dataloader_idx=False, batch_size=batch_size)
-        # self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True,
-        #          add_dataloader_idx=False, batch_size=batch_size)
-        #
-        # return total_loss, losses
+        # Full-cycles
+        step_cycles_predictions = []
+        final_cycles_predictions = []
+        for t in time_order:
+            step_cycles_predictions.append(self.predict(self.project(step_predictions[t], state_sequence[t])))
+            final_cycles_predictions.append(self.predict(self.project(final_predictions[t], final_state_sequence[t])))
+
+        losses.update(
+            "cycle",
+            self.loss(step_cycles_predictions, latent_sequence_input, masked_domains, order_start=2)
+        )
+        losses.update(
+            "cycle",
+            self.loss([final_cycles_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=3)
+        )
+
+        # Translation
+        losses.update(
+            "translation",
+            self.loss(final_cycles_predictions, latent_sequence_target, masked_domains_translation, no_order=True)
+        )
+
+        losses.combine(["demi_cycle", "cycle", "translation"], "total")
+
+        # Don't use total, as it does not include coefs.
+        total_loss = (losses.get_sum("demi_cycle", self.hparams.loss_coef_demi_cycles) +
+                      losses.get_sum("cycle", self.hparams.loss_coef_cycles) +
+                      losses.get_sum("translation", self.hparams.loss_coef_supervision))
+
+        for name in losses.keys():
+            loss = losses.get_sum(name)
+            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
+                     add_dataloader_idx=False, batch_size=batch_size)
+
+        self.log(f"{mode}{prefix}_total_loss", losses.get_sum("total"), logger=True,
+                 add_dataloader_idx=False, batch_size=batch_size)
+
+        return total_loss
 
     def training_step(self, domains, batch_idx):
         if batch_idx == 0 and self.current_epoch == 0:
@@ -352,14 +382,14 @@ class GlobalWorkspace(LightningModule):
 
         input_domains, targets = domains[0], domains[1]
         latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
-        total_loss, losses = self.step(latents, domains, mode="train")
+        total_loss = self.step(latents, domains, mode="train")
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
         input_domains, targets = domains[0], domains[1]
         latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
-        total_loss, losses = self.step(latents, domains, mode="val", prefix=prefix)
+        total_loss = self.step(latents, domains, mode="val", prefix=prefix)
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):

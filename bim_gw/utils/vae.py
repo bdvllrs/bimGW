@@ -6,7 +6,7 @@ from torch.nn import functional as F
 def reparameterize(mean, logvar):
     std = logvar.mul(0.5).exp()
     eps = torch.randn_like(std)
-    return eps.mul(std).add(mean)
+    return eps.mul(std).update(mean, )
 
 
 def gaussian_nll(mu, log_sigma, x):

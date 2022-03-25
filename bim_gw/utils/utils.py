@@ -94,3 +94,46 @@ def partition(collection):
             yield smaller[:n] + [[first] + subset] + smaller[n + 1:]
         # put `first` in its own subset
         yield [[first]] + smaller
+
+
+def sum_update_dict(d1, d2):
+    for key in d2.keys():
+        if key not in d1:
+            d1[key] = d2[key]
+        else:
+            d1[key] += d2[key]
+
+
+class CycleLoss:
+    def __init__(self):
+        self.losses = {}
+
+    def keys(self):
+        return self.losses.keys()
+
+    def values(self):
+        return self.losses.values()
+
+    def items(self):
+        return self.losses.items()
+
+    def update(self, name, losses):
+        if name not in self.losses.keys():
+            self.losses[name] = losses
+        else:
+            sum_update_dict(self.losses[name], losses)
+        return self
+
+    def combine(self, names, new_name):
+        if new_name not in self.losses.keys():
+            self.losses[new_name] = {}
+        for name in names:
+            sum_update_dict(self.losses[new_name], self.losses[name])
+        return self
+
+    def get(self, name, coef=1.):
+        return {key: coef * val for key, val in self.losses[name].items()}
+
+    def get_sum(self, name, coef=1.):
+        d = self.get(name, coef)
+        return sum(d.values())
