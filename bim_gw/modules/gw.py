@@ -235,8 +235,8 @@ class GlobalWorkspace(LightningModule):
             state[masks, :] = 0.
         return torch.sigmoid(state.sum(dim=1))
 
-    def project_sequence(self, time_order, latent_sequence, masked_domains):
-        past_state = None
+    def project_sequence(self, time_order, time_direction, latent_sequence, masked_domains):
+        last_state = None
         # future_state = None
         state = None
 
@@ -246,14 +246,16 @@ class GlobalWorkspace(LightningModule):
         for time_step in time_order:
             latents = latent_sequence[time_step]
 
-            state = self.project(latents, past_state, masked_domains[time_step])
+            state = self.project(latents, last_state, masked_domains[time_step])
 
             state_sequence.append(state)
             step_predictions.append(self.predict(state))
 
-            # if we go in opposite time direction, use:
-            # future_state = self.predict_past(state)
-            past_state = self.predict_future(state)
+            if time_direction == "future":
+                last_state = self.predict_future(state)
+            else:
+                # if we go in opposite time direction, use:
+                last_state = self.predict_past(state)
         return state, state_sequence, step_predictions
 
     def predict(self, gw_state):
@@ -262,7 +264,7 @@ class GlobalWorkspace(LightningModule):
             for domain_name in self.domain_names
         }
 
-    def predict_sequence(self, time_order, state):
+    def predict_sequence(self, time_order, time_direction, state):
         final_predictions = [None for _ in time_order]  # final predictions when everything has been encoded
         state_sequence = [None for _ in time_order]  # final predictions when everything has been encoded
 
@@ -270,7 +272,10 @@ class GlobalWorkspace(LightningModule):
         for time_step in reversed(time_order):
             final_predictions[time_step] = self.predict(state)
             state_sequence[time_step] = state
-            state = self.predict_past(state)
+            if time_direction == "future":
+                state = self.predict_past(state)
+            else:
+                state = self.predict_future(state)
         return final_predictions, state_sequence
 
     def forward(self, domains):
@@ -282,12 +287,12 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def loss(self, predictions, latent_sequence_target, masked_domains=None, order_start=1, no_order=False):
+    def loss(self, time_order, predictions, latent_sequence_target, masked_domains=None, order_start=1, no_order=False):
         if no_order:
             losses = {0: 0}
         else:
             losses = {t + order_start: 0 for t in range(len(predictions))}
-        for t in range(len(predictions)):
+        for step, t in enumerate(time_order):
             targets = latent_sequence_target[t]
             step_predictions = predictions[t]
             loss = 0
@@ -301,10 +306,10 @@ class GlobalWorkspace(LightningModule):
             if no_order:
                 losses[0] += loss
             else:
-                losses[order_start + t] += loss
+                losses[order_start + step] += loss
         return losses
 
-    def step(self, latent_sequence, domain_sequence, mode="val", prefix=""):
+    def step(self, latent_sequence, domain_sequence, batch_idx, mode="val", prefix=""):
         latent_sequence_input, latent_sequence_target = latent_sequence[0], latent_sequence[1]
         domain_sequence_input, domain_sequence_target = domain_sequence[0], domain_sequence[1]
         batch_size = domain_sequence_input[0]["_available_domains"].size(0)
@@ -319,22 +324,25 @@ class GlobalWorkspace(LightningModule):
         ]
 
         time_order = range(len(latent_sequence_input))
-        # If timeline is going backward, use reversed
-        # time_order = reversed(time_order)
-        state, state_sequence, step_predictions = self.project_sequence(time_order, latent_sequence_input,
+        time_direction = "future"
+        if batch_idx % 2:
+            # If timeline is going backward, use reversed
+            time_direction = "past"
+            time_order = reversed(time_order)
+        state, state_sequence, step_predictions = self.project_sequence(time_order, time_direction, latent_sequence_input,
                                                                         masked_domains)
-        final_predictions, final_state_sequence = self.predict_sequence(time_order, state)
+        final_predictions, final_state_sequence = self.predict_sequence(time_order, time_direction, state)
 
         losses = CycleLoss()
 
         # Demi-cycles
         losses.update(
             "demi_cycle",
-            self.loss(step_predictions, latent_sequence_input, masked_domains, order_start=1),
+            self.loss(time_order, step_predictions, latent_sequence_input, masked_domains, order_start=1),
         )
         losses.update(
             "demi_cycle",
-            self.loss([final_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=2),
+            self.loss(time_order, [final_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=2),
         )
 
         # Full-cycles
@@ -346,17 +354,17 @@ class GlobalWorkspace(LightningModule):
 
         losses.update(
             "cycle",
-            self.loss(step_cycles_predictions, latent_sequence_input, masked_domains, order_start=2)
+            self.loss(time_order, step_cycles_predictions, latent_sequence_input, masked_domains, order_start=2)
         )
         losses.update(
             "cycle",
-            self.loss([final_cycles_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=3)
+            self.loss(time_order, [final_cycles_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=3)
         )
 
         # Translation
         losses.update(
             "translation",
-            self.loss(final_cycles_predictions, latent_sequence_target, masked_domains_translation, no_order=True)
+            self.loss(time_order, final_cycles_predictions, latent_sequence_target, masked_domains_translation, no_order=True)
         )
 
         losses.combine(["demi_cycle", "cycle", "translation"], "total")
@@ -382,20 +390,20 @@ class GlobalWorkspace(LightningModule):
 
         input_domains, targets = domains[0], domains[1]
         latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
-        total_loss = self.step(latents, domains, mode="train")
+        total_loss = self.step(latents, domains, batch_idx, mode="train")
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
         input_domains, targets = domains[0], domains[1]
         latents = [self.encode_modalities(input_domains), self.encode_modalities(targets)]
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
-        total_loss = self.step(latents, domains, mode="val", prefix=prefix)
+        total_loss = self.step(latents, domains, batch_idx, mode="val", prefix=prefix)
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
         latents = self.encode_modalities(domains)
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
-        total_loss, losses = self.step(latents, domains, mode="test", prefix=prefix)
+        total_loss, losses = self.step(latents, domains, batch_idx, mode="test", prefix=prefix)
         return total_loss
 
     def get_validation_examples(self, dist):
