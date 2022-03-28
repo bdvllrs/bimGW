@@ -233,16 +233,16 @@ class VAE(WorkspaceModule):
         sampled_images = self.decoder(self.validation_sampling_z)
         log_image(self.logger, sampled_images, "val_sampling")
 
-        # FID
-        fid, mse = compute_FID(
-            self.trainer.datamodule.inception_stats_path_train,
-            self.trainer.datamodule.val_dataloader()[0],
-            self, self.z_size, [self.image_size, self.image_size],
-            self.device, self.n_FID_samples
-        )
-        self.log("val_fid", fid)
-        # self.print("FID: ", fid)
-        self.log("val_mse", mse)
+        # # FID
+        # fid, mse = compute_FID(
+        #     self.trainer.datamodule.inception_stats_path_train,
+        #     self.trainer.datamodule.val_dataloader()[0],
+        #     self, self.z_size, [self.image_size, self.image_size],
+        #     self.device, self.n_FID_samples
+        # )
+        # self.log("val_fid", fid)
+        # # self.print("FID: ", fid)
+        # self.log("val_mse", mse)
 
         #
         # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
