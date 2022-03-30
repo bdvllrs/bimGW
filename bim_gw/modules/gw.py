@@ -106,6 +106,8 @@ class GlobalWorkspace(LightningModule):
         self.hidden_size = hidden_size
         self.monitor_grad_norms = monitor_grad_norms
 
+        assert "a" in domain_mods.keys(), "action should be a modality."
+
         for mod in domain_mods.values():
             mod.freeze()  # insures that all modules are frozen
 
@@ -115,13 +117,14 @@ class GlobalWorkspace(LightningModule):
 
         # Define encoders for translation
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
-                                       for item, mod in domain_mods.items()})
+                                       for item, mod in domain_mods.items() if item != "a"})
         self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
                                                             mod.output_dims, mod.decoder_activation_fn))
-                                       for item, mod in domain_mods.items()})
+                                       for item, mod in domain_mods.items() if item != "a"})
 
-        self.future_encoder = DomainEncoder(self.z_size, self.hidden_size, self.z_size)
-        self.past_encoder = DomainEncoder(self.z_size, self.hidden_size, self.z_size)
+        self.future_encoder = DomainEncoder([self.z_size, self.domain_mods["a"].output_dims], self.hidden_size, self.z_size)
+        self.past_encoder = DomainEncoder([self.z_size, self.domain_mods["a"].output_dims], self.hidden_size, self.z_size)
+        self.action_decoder = DomainEncoder([self.z_size, self.z_size], self.hidden_size, self.domain_mods["a"].output_dims)
 
         # Define losses
         self.loss_fn = {}
