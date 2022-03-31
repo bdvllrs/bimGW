@@ -12,7 +12,6 @@ from torch import nn
 
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
-from bim_gw.utils.utils import CycleLoss
 
 
 class DomainDecoder(torch.nn.Module):
@@ -112,7 +111,7 @@ class GlobalWorkspace(LightningModule):
             mod.freeze()  # insures that all modules are frozen
 
         self.domain_mods = nn.ModuleDict(domain_mods)
-        self.domain_names = list(domain_mods.keys())
+        self.domain_names = [d for d in domain_mods.keys() if d != "a"]
         self.validation_example_list = None
 
         # Define encoders for translation
@@ -122,9 +121,13 @@ class GlobalWorkspace(LightningModule):
                                                             mod.output_dims, mod.decoder_activation_fn))
                                        for item, mod in domain_mods.items() if item != "a"})
 
-        self.future_encoder = DomainEncoder([self.z_size, self.domain_mods["a"].output_dims], self.hidden_size, self.z_size)
-        self.past_encoder = DomainEncoder([self.z_size, self.domain_mods["a"].output_dims], self.hidden_size, self.z_size)
-        self.action_decoder = DomainEncoder([self.z_size, self.z_size], self.hidden_size, self.domain_mods["a"].output_dims)
+        self.future_encoder = DomainEncoder([self.z_size] + self.domain_mods["a"].output_dims, self.hidden_size,
+                                            self.z_size)
+        self.past_encoder = DomainEncoder([self.z_size] + self.domain_mods["a"].output_dims, self.hidden_size,
+                                          self.z_size)
+        self.action_decoder = DomainDecoder(self.z_size + self.z_size, self.hidden_size,
+                                            self.domain_mods["a"].output_dims,
+                                            self.domain_mods["a"].decoder_activation_fn)
 
         # Define losses
         self.loss_fn = {}
@@ -161,7 +164,8 @@ class GlobalWorkspace(LightningModule):
                     for p in range(2):
                         data_type = "" if p == 0 else "_target"
                         for key in example_dist_vecs[p][0].keys():
-                            assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                            assert key in self.domain_names + [
+                                "a"], f"{key} is not a valid domain for validation examples."
                             if example_dist_vecs[p][0][key] is not None:
                                 self.validation_example_list[key] = len(example_dist_vecs[p][0][key])
                                 for k in range(len(example_dist_vecs[p][0][key])):
@@ -184,13 +188,15 @@ class GlobalWorkspace(LightningModule):
         return self.encoders[domain_name](x)
 
     def decode(self, z, domain_name):
+        if domain_name == "a":
+            return self.action_decoder(z)
         return self.decoders[domain_name](z)
 
-    def predict_future(self, state):
-        return self.future_encoder([state])
+    def predict_future(self, state, action):
+        return self.future_encoder([state] + action)
 
-    def predict_past(self, state):
-        return self.past_encoder([state])
+    def predict_past(self, state, action):
+        return self.past_encoder([state] + action)
 
     def encode_modalities(self, domain_sequence):
         """
@@ -221,16 +227,17 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = z
         return out
 
-    def project(self, latents, gw_state=None, masked_domains=None):
+    def project(self, latents, gw_states=None, masked_domains=None):
         state = [
             self.encode(latents[domain_name], domain_name)
             for domain_name in self.domain_names
         ]
         masks = [masked_domains]
-        if gw_state is not None:
-            state.append(gw_state)
+        if gw_states is not None:
+            state.extend(gw_states)
             if masked_domains is not None:
-                masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
+                for k in range(len(gw_states)):
+                    masks.append(torch.full_like(masked_domains[:, 0], False).reshape(-1, 1))
         state = torch.stack(state, dim=1)
 
         if masked_domains is not None:
@@ -267,19 +274,41 @@ class GlobalWorkspace(LightningModule):
             for domain_name in self.domain_names
         }
 
-    def predict_sequence(self, time_order, time_direction, state):
-        final_predictions = [None for _ in time_order]  # final predictions when everything has been encoded
-        state_sequence = [None for _ in time_order]  # final predictions when everything has been encoded
-
-        # Go in the other direction to obtain state with everything included.
-        for time_step in reversed(time_order):
-            final_predictions[time_step] = self.predict(state)
-            state_sequence[time_step] = state
-            if time_direction == "future":
-                state = self.predict_past(state)
-            else:
-                state = self.predict_future(state)
-        return final_predictions, state_sequence
+    def predict_sequence(self, time_order, latent_sequence_input):
+        all_states = []
+        all_predictions = []
+        for steps in range(2):
+            states = []
+            predictions = []
+            for t in time_order:
+                gw_states = None
+                if len(all_predictions):
+                    gw_states = []
+                    if "_from_future" in all_predictions[-1][t].keys():
+                        gw_states.append(all_predictions[-1][t]["_from_future"])
+                    if "_from_past" in all_predictions[-1][t].keys():
+                        gw_states.append(all_predictions[-1][t]["_from_past"])
+                state = self.project(latent_sequence_input[t], gw_states)
+                prediction = self.predict(state)
+                states.append(state)
+                predictions.append(prediction)
+            # Change order of states if time direction changes
+            predicted_action = self.decode(torch.cat(states, dim=1), "a")
+            # define action that will be used
+            used_action = latent_sequence_input[0]["a"]
+            mask = torch.logical_not(latent_sequence_input[0]["a"][0].to(torch.bool))[:, 0]
+            for k in range(len(used_action)):
+                used_action[k][mask, :] = predicted_action[k][mask, :]
+            # add actions to predicted states
+            for t in time_order:
+                predictions[t]["a"] = predicted_action
+                if t > 0:
+                    predictions[t - 1]["_from_future"] = self.predict_past(states[t], used_action)
+                if t < len(time_order) - 1:
+                    predictions[t + 1]["_from_past"] = self.predict_future(states[t], used_action)
+            all_states.append(states)
+            all_predictions.append(predictions)
+        return all_states, all_predictions
 
     def forward(self, domains):
         """
@@ -327,65 +356,9 @@ class GlobalWorkspace(LightningModule):
         ]
 
         time_order = range(len(latent_sequence_input))
-        time_direction = "future"
-        if batch_idx % 2:
-            # If timeline is going backward, use reversed
-            time_direction = "past"
-            time_order = reversed(time_order)
-        state, state_sequence, step_predictions = self.project_sequence(time_order, time_direction, latent_sequence_input,
-                                                                        masked_domains)
-        final_predictions, final_state_sequence = self.predict_sequence(time_order, time_direction, state)
+        states, predictions = self.predict_sequence(time_order, latent_sequence_input)
 
-        losses = CycleLoss()
-
-        # Demi-cycles
-        losses.update(
-            "demi_cycle",
-            self.loss(time_order, step_predictions, latent_sequence_input, masked_domains, order_start=1),
-        )
-        losses.update(
-            "demi_cycle",
-            self.loss(time_order, [final_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=2),
-        )
-
-        # Full-cycles
-        step_cycles_predictions = []
-        final_cycles_predictions = []
-        for t in time_order:
-            step_cycles_predictions.append(self.predict(self.project(step_predictions[t], state_sequence[t])))
-            final_cycles_predictions.append(self.predict(self.project(final_predictions[t], final_state_sequence[t])))
-
-        losses.update(
-            "cycle",
-            self.loss(time_order, step_cycles_predictions, latent_sequence_input, masked_domains, order_start=2)
-        )
-        losses.update(
-            "cycle",
-            self.loss(time_order, [final_cycles_predictions[0]], [latent_sequence_input[0]], masked_domains, order_start=3)
-        )
-
-        # Translation
-        losses.update(
-            "translation",
-            self.loss(time_order, final_cycles_predictions, latent_sequence_target, masked_domains_translation, no_order=True)
-        )
-
-        losses.combine(["demi_cycle", "cycle", "translation"], "total")
-
-        # Don't use total, as it does not include coefs.
-        total_loss = (losses.get_sum("demi_cycle", self.hparams.loss_coef_demi_cycles) +
-                      losses.get_sum("cycle", self.hparams.loss_coef_cycles) +
-                      losses.get_sum("translation", self.hparams.loss_coef_supervision))
-
-        for name in losses.keys():
-            loss = losses.get_sum(name)
-            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
-                     add_dataloader_idx=False, batch_size=batch_size)
-
-        self.log(f"{mode}{prefix}_total_loss", losses.get_sum("total"), logger=True,
-                 add_dataloader_idx=False, batch_size=batch_size)
-
-        return total_loss
+        return None
 
     def training_step(self, domains, batch_idx):
         if batch_idx == 0 and self.current_epoch == 0:
