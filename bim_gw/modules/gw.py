@@ -278,34 +278,44 @@ class GlobalWorkspace(LightningModule):
         all_states = []
         all_predictions = []
         for steps in range(2):
-            states = []
-            predictions = []
-            for t in time_order:
-                gw_states = None
-                if len(all_predictions):
-                    gw_states = []
-                    if "_from_future" in all_predictions[-1][t].keys():
-                        gw_states.append(all_predictions[-1][t]["_from_future"])
-                    if "_from_past" in all_predictions[-1][t].keys():
-                        gw_states.append(all_predictions[-1][t]["_from_past"])
-                state = self.project(latent_sequence_input[t], gw_states)
-                prediction = self.predict(state)
-                states.append(state)
-                predictions.append(prediction)
+            states = [[], []]
+            predictions = [[], []]
+            for is_cycle in range(2):
+                for t in time_order:
+                    gw_states = None
+                    if len(all_predictions):
+                        gw_states = []
+                        if "_from_future" in all_predictions[-1][is_cycle][t].keys():
+                            gw_states.append(all_predictions[-1][is_cycle][t]["_from_future"])
+                        if "_from_past" in all_predictions[-1][is_cycle][t].keys():
+                            gw_states.append(all_predictions[-1][is_cycle][t]["_from_past"])
+                    latent = latent_sequence_input[t]
+                    if is_cycle and len(all_predictions):
+                        latent = all_predictions[-1][is_cycle][t]
+                    state = self.project(latent, gw_states)
+                    prediction = self.predict(state)
+
+                    states[is_cycle].append(state)
+                    predictions[is_cycle].append(prediction)
+
             # Change order of states if time direction changes
-            predicted_action = self.decode(torch.cat(states, dim=1), "a")
+            predicted_actions = [self.decode(torch.cat(states[k], dim=1), "a") for k in range(2)]
             # define action that will be used
             used_action = latent_sequence_input[0]["a"]
             mask = torch.logical_not(latent_sequence_input[0]["a"][0].to(torch.bool))[:, 0]
             for k in range(len(used_action)):
-                used_action[k][mask, :] = predicted_action[k][mask, :]
+                used_action[k][mask, :] = predicted_actions[0][k][mask, :]
+            used_actions = [used_action, predicted_actions[1]]
             # add actions to predicted states
-            for t in time_order:
-                predictions[t]["a"] = predicted_action
-                if t > 0:
-                    predictions[t - 1]["_from_future"] = self.predict_past(states[t], used_action)
-                if t < len(time_order) - 1:
-                    predictions[t + 1]["_from_past"] = self.predict_future(states[t], used_action)
+            for is_cycle in range(2):
+                for t in time_order:
+                    predictions[is_cycle][t]["a"] = predicted_actions[is_cycle]
+                    if t > 0:
+                        predictions[is_cycle][t - 1]["_from_future"] = self.predict_past(states[is_cycle][t],
+                                                                                         used_actions[is_cycle])
+                    if t < len(time_order) - 1:
+                        predictions[is_cycle][t + 1]["_from_past"] = self.predict_future(states[is_cycle][t],
+                                                                                         used_actions[is_cycle])
             all_states.append(states)
             all_predictions.append(predictions)
         return all_states, all_predictions
@@ -319,46 +329,52 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = self.encode(x, domain_name)
         return out
 
-    def loss(self, time_order, predictions, latent_sequence_target, masked_domains=None, order_start=1, no_order=False):
-        if no_order:
-            losses = {0: 0}
-        else:
-            losses = {t + order_start: 0 for t in range(len(predictions))}
-        for step, t in enumerate(time_order):
-            targets = latent_sequence_target[t]
-            step_predictions = predictions[t]
-            loss = 0
-            for n, domain in enumerate(self.domain_names):
-                if domain in step_predictions:
-                    for k in range(len(step_predictions[domain])):
-                        if masked_domains is not None:
-                            step_predictions[domain][k][masked_domains[t][:, n]] = 0.
-                            targets[domain][k][masked_domains[t][:, n]] = 0.
-                        loss += F.mse_loss(step_predictions[domain][k], targets[domain][k])
-            if no_order:
-                losses[0] += loss
-            else:
-                losses[order_start + step] += loss
-        return losses
+    def loss(self, predictions, targets, is_cycle=False, prefix=""):
+        is_cycle = int(is_cycle)
+        losses = {}
+        indiv_losses = {}
+
+        # Steps represent the step of predictions (before or after having included the states of other time steps).
+        for step in range(len(predictions)):
+            order = step + is_cycle + 1
+            losses[order] = []
+            for t in range(len(predictions[step][is_cycle])):
+                for domain in targets[t].keys():
+                    if domain in predictions[step][is_cycle][t].keys():
+                        loss = 0
+                        for k in range(len(predictions[step][is_cycle][t][domain])):
+                            name = f"{prefix}_order_{order}_t_{t}_domain_{domain}_{k}"
+                            l = F.mse_loss(predictions[step][is_cycle][t][domain][k], targets[t][domain][k])
+                            loss += l
+                            indiv_losses[name] = l
+                        name = f"{prefix}_order_{order}_t_{t}_d_{domain}"
+                        indiv_losses[name] = loss
+                        losses[order].append(loss)
+        for k in losses.keys():
+            name = f"{prefix}_order_{k}"
+            loss = torch.stack(losses[k], dim=0).mean()
+            indiv_losses[name] = loss
+            losses[k] = loss
+        indiv_losses[prefix] = torch.stack(list(losses.values()), dim=0).mean()
+        return indiv_losses
 
     def step(self, latent_sequence, domain_sequence, batch_idx, mode="val", prefix=""):
         latent_sequence_input, latent_sequence_target = latent_sequence[0], latent_sequence[1]
         domain_sequence_input, domain_sequence_target = domain_sequence[0], domain_sequence[1]
         batch_size = domain_sequence_input[0]["_available_domains"].size(0)
 
-        masked_domains = [torch.logical_not(domain_sequence_input[t]["_available_domains"])
-                          for t in range(len(domain_sequence_input))]
-        masked_domains_translation = [
-            torch.logical_or(
-                domain_sequence_input[t]["_available_domains"],
-                torch.logical_not(domain_sequence_target[t]["_available_domains"])
-            ) for t in range(len(domain_sequence_input))
-        ]
-
         time_order = range(len(latent_sequence_input))
         states, predictions = self.predict_sequence(time_order, latent_sequence_input)
+        demi_cycle_losses = self.loss(predictions, latent_sequence_input, prefix="demi_cycle")
+        cycle_losses = self.loss(predictions, latent_sequence_input, is_cycle=True, prefix="cycle")
+        translation_losses = self.loss(predictions, latent_sequence_target, prefix="translation")
 
-        return None
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses}
+        losses["total"] = losses["demi_cycle"] + losses["cycle"] + losses["translation"]
+        for name, loss in losses.items():
+            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
+                     add_dataloader_idx=False, batch_size=batch_size)
+        return losses["total"]
 
     def training_step(self, domains, batch_idx):
         if batch_idx == 0 and self.current_epoch == 0:
