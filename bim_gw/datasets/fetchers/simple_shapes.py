@@ -202,13 +202,13 @@ class ActionDataFetcher(DataFetcher):
     def get_items(self, item, time_steps):
         items = [
             self.get_item(item) if 0 in time_steps else self.get_null_item(),
-            self.get_transformed_item(item) if 0 in time_steps else self.get_null_item(),  # 2 times 0 as if it is provided once, it's available at each time step.
+            self.get_transformed_item(item) if 0 in time_steps else self.get_null_item(),
+            # 2 times 0 as if it is provided once, it's available at each time step.
         ]
         return [transform(item, self.transforms) for item in items]
 
 
 class PreSavedLatentDataFetcher:
-    # TODO
     def __init__(self, root_path, ids):
         self.root_path = root_path
         self.ids = ids
@@ -218,10 +218,16 @@ class PreSavedLatentDataFetcher:
         return self.data.shape[0]
 
     def get_null_item(self):
-        return torch.tensor(0.).float(), np.zeros_like(self.data[0])
+        return torch.tensor(0.).float(), np.zeros_like(self.data[0][0])
 
     def get_item(self, item):
-        return torch.tensor(1.).float(), self.data[item]
+        return torch.tensor(1.).float(), self.data[item][0]
 
-    def __getitem__(self, item):
-        return self.get_item(item)
+    def get_transformed_item(self, item):
+        return torch.tensor(1.).float(), self.data[item][1]
+
+    def get_items(self, item, time_steps):
+        return [
+            self.get_item(item) if 0 in time_steps else self.get_null_item(),
+            self.get_transformed_item(item) if 1 in time_steps else self.get_null_item(),
+        ]
