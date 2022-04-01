@@ -399,30 +399,39 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def get_validation_examples(self, dist):
-        domain_examples = {}
-        for domain_name, n_items in self.validation_example_list.items():
-            domain_example = [
-                getattr(self, f"validation_{dist}_examples_domain_{domain_name}_{k}") for k in range(n_items)
-            ]
-            domain_examples[domain_name] = domain_example
+        domain_examples = []
+        for p in range(2):
+            data_type = "" if p == 0 else "_target"
+            type_domains = []
+            for t in range(2):
+                time_domains = {}
+                for domain_name, n_items in self.validation_example_list.items():
+                    time_domains[domain_name] = [
+                        getattr(self, f"validation_{dist}_examples_domain_{domain_name}_{k}{data_type}")[t]
+                        for k in range(n_items)
+                    ]
+                type_domains.append(time_domains)
+            domain_examples.append(type_domains)
         return domain_examples
 
     def log_images(self, examples, slug="val", max_examples=None):
         if self.logger is not None:
             if self.current_epoch == 0:
-                for domain_name, domain_example in examples.items():
-                    self.domain_mods[domain_name].log_domain(self.logger, domain_example,
-                                                             f"{slug}_original_domain_{domain_name}", max_examples)
-                    if domain_name == "v":
-                        latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
-                        fig, axes = plt.subplots(1, latent.shape[1])
-                        for k in range(latent.shape[1]):
-                            l = latent[:, k]
-                            axes[k].hist(l, 50, density=True)
-                            x = np.linspace(-0.8, 0.8, 100)
-                            axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                        self.logger.experiment["original_v_hist"].log(File.as_image(fig))
-                        plt.close(fig)
+                for t in range(2):
+                    for domain_name, domain_example in examples[1][t].items():
+                        self.domain_mods[domain_name].log_domain(self.logger, domain_example,
+                                                                 f"{slug}_original_domain_{domain_name}_t_{t}",
+                                                                 max_examples)
+                        if domain_name == "v" and t == 0:
+                            latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
+                            fig, axes = plt.subplots(1, latent.shape[1])
+                            for k in range(latent.shape[1]):
+                                l = latent[:, k]
+                                axes[k].hist(l, 50, density=True)
+                                x = np.linspace(-0.8, 0.8, 100)
+                                axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                            self.logger.experiment["original_v_hist"].log(File.as_image(fig))
+                            plt.close(fig)
 
             if len(self.rotation_error_val):
                 fig = plt.figure()
@@ -431,20 +440,20 @@ class GlobalWorkspace(LightningModule):
                 plt.close(fig)
                 self.rotation_error_val = []
 
-            latents = self.encode_modalities(examples)
-            available_domains = torch.stack([examples[domain_name][0] for domain_name in self.domain_names], dim=1).to(
-                self.device, torch.bool)
-            demi_cycle_predictions, cycle_predictions = self.get_cycles(latents, available_domains)
+            latents = self.encode_modalities(examples[0])
+            time_order = range(len(latents))
+            states, predictions = self.predict_sequence(time_order, latents)
+            # TODO: finir ça ! Séparer les inputs targets des vals pour avoir des vraies traductions !!
 
-            for domain_name in examples.keys():
-                x_reconstructed = self.domain_mods[domain_name].decode(demi_cycle_predictions[domain_name])
-                self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                         f"{slug}_demi_cycle_{domain_name}", max_examples)
-
-                x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
-                self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                         f"{slug}_cycle_{domain_name}",
-                                                         max_examples)
+            # for domain_name in examples[0].keys():
+            #     x_reconstructed = self.domain_mods[domain_name].decode(predictions[][domain_name])
+            #     self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+            #                                              f"{slug}_demi_cycle_{domain_name}", max_examples)
+            #
+            #     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
+            #     self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
+            #                                              f"{slug}_cycle_{domain_name}",
+            #                                              max_examples)
 
     def validation_epoch_end(self, outputs):
         if self.logger is not None:

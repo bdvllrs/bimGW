@@ -272,6 +272,7 @@ def train_vae(args):
         max_epochs=args.max_epochs,
         # val_check_interval=0.25,
         multiple_trainloader_mode="min_size",
+        track_grad_norm=2
     )
 
     trainer.fit(vae, data)
