@@ -15,6 +15,7 @@ if __name__ == '__main__':
     assert args.global_workspace.load_pre_saved_latents is not None, "Pre-saved latent path should be defined."
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args.global_workspace.prop_sync_domains = {"all": 1.}
 
     data = load_dataset(args, args.global_workspace)
     data.prepare_data()
@@ -26,7 +27,7 @@ if __name__ == '__main__':
         domain.eval()
 
     data_loaders = {
-        "train": data.train_dataloader(shuffle=False)["sync_"],
+        "train": data.train_dataloader(shuffle=False),
         "val": data.val_dataloader()[0],  # only keep in dist dataloaders
         "test": data.test_dataloader()[0]
     }
@@ -42,12 +43,18 @@ if __name__ == '__main__':
             domain_name: [] for domain_name in domains.keys()
         }
         print(f"Fetching {name} data.")
-        for idx, batch in tqdm(enumerate(data_loader),
+        for idx, (batch, target) in tqdm(enumerate(data_loader),
                                total=int(len(data_loader.dataset) / data_loader.batch_size)):
-            for domain_name, data in batch.items():
-                if isinstance(data, torch.Tensor):
-                    data = data.to(device)
-                latents[domain_name].append(domains[domain_name].encode(data).cpu().detach().numpy())
+            for domain_name in domains.keys():
+                l = []
+                for t in range(len(batch)):
+                    data = batch[t][domain_name]
+                    for k in range(len(data)):
+                        if isinstance(data[k], torch.Tensor):
+                            data[k] = data[k].to(device)
+                    l.append(domains[domain_name].encode(data)[1].cpu().detach().numpy())
+                l = np.stack(l, axis=1)
+                latents[domain_name].append(l)
         for domain_name, l in latents.items():
             (path / name).mkdir(exist_ok=True)
             np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.concatenate(l))
