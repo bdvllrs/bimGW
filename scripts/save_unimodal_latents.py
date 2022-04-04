@@ -14,6 +14,10 @@ if __name__ == '__main__':
 
     assert args.global_workspace.load_pre_saved_latents is not None, "Pre-saved latent path should be defined."
 
+    args.global_workspace.use_pre_saved = False
+    args.global_workspace.prop_labelled_images = 1.
+    args.global_workspace.sync_uses_whole_dataset = True
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     data = load_dataset(args, args.global_workspace)
