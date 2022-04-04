@@ -72,10 +72,6 @@ class SimpleShapesDataset:
         "v": VisualDataFetcher,
         "attr": AttributesDataFetcher,
         "t": TextDataFetcher,
-        "a": TransformationDataFetcher,
-        "v_f": TransformedVisualDataFetcher,
-        "attr_f": TransformedAttributesDataFetcher,
-        "t_f": TransformedTextDataFetcher
     }
 
     def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
@@ -153,7 +149,8 @@ class SimpleShapesData(LightningDataModule):
             num_workers=0, use_data_augmentation=False, prop_labelled_images=1.,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
-            pre_saved_latent_paths=None
+            pre_saved_latent_paths=None,
+            sync_uses_whole_dataset=False
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
@@ -165,6 +162,7 @@ class SimpleShapesData(LightningDataModule):
         self.ood_boundaries = None
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
+        self.sync_uses_whole_dataset = sync_uses_whole_dataset
 
         assert 0 <= prop_labelled_images <= 1, "The proportion of labelled images must be between 0 and 1."
         self.prop_labelled_images = prop_labelled_images
@@ -190,8 +188,12 @@ class SimpleShapesData(LightningDataModule):
 
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
             len_train_dataset = len(sync_train_set)
-            unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
-            sync_indices = np.arange(len_train_dataset // 2)
+            if self.sync_uses_whole_dataset:
+                unimodal_indices = np.arange(len_train_dataset)
+                sync_indices = np.arange(len_train_dataset)
+            else:
+                unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
+                sync_indices = np.arange(len_train_dataset // 2)
             sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                  selected_indices=sync_indices,
                                                  transform=train_transforms,

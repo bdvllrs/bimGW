@@ -26,6 +26,6 @@ def load_dataset(args, local_args, **kwargs):
                                 local_args.prop_labelled_images,
                                 args.n_validation_examples, local_args.split_ood,
                                 local_args.selected_domains,
-                                pre_saved_latent_paths)
+                                pre_saved_latent_paths, args.global_workspace.sync_uses_whole_dataset)
     else:
         raise ValueError("The requested dataset is not implemented.")
