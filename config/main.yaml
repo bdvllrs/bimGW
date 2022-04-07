@@ -90,6 +90,7 @@ losses:
     demi_cycles: 1.
     cycles: 1.
     supervision: 1.
+    cosine: 0.
 
 gensim_model_path: ???
 word_embeddings: null

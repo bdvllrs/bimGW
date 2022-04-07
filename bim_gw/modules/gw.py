@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 import scipy
 import torch
+import torch.nn.functional as F
 import torchmetrics
 from matplotlib import pyplot as plt
 from neptune.new.types import File
@@ -97,7 +98,7 @@ class GlobalWorkspace(LightningModule):
     def __init__(
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
-            loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
+            loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_supervision=1., loss_coef_cosine=0.,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
@@ -296,6 +297,7 @@ class GlobalWorkspace(LightningModule):
                 if domain_name_1 != domain_name_2:
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
+
                     if not isinstance(domain_2, tuple):
                         assert not isinstance(domain_2, tuple)
                         domain_2 = (domain_2,)
@@ -325,6 +327,43 @@ class GlobalWorkspace(LightningModule):
             losses["supervision_loss"] = loss
         return losses["supervision_loss"], losses, losses_no_coefs
 
+    def cosine_loss(self, sync_domains, coefficients=1.):
+        loss = torch.tensor(0.).to(self.device)
+        losses = {}
+        losses_no_coefs = {}
+        cosine_sims = {}
+        total = 0
+        for domain_name_1, domain_1 in sync_domains.items():
+            for domain_name_2, domain_2 in sync_domains.items():
+                if domain_name_1 != domain_name_2:
+                    # project domains into one another
+                    latent_domain_1 = self.encode(domain_1, domain_name_1)
+                    latent_domain_2 = self.encode(domain_2, domain_name_2)
+                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(latent_domain_1, latent_domain_2).mean()
+
+                    token = f"s_{domain_name_1}-s_{domain_name_2}"
+                    coef = 1.
+                    if isinstance(coefficients, (int, float)):
+                        coef = coefficients
+                    elif token in coefficients:
+                        coef = coefficients[token]
+
+                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2, torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
+                    losses[f"loss_cosine_{token}"] = coef * l
+                    losses_no_coefs[f"loss_cosine_{token}"] = l
+                    loss += losses[f"loss_cosine_{token}"]
+                    total += 1
+        if total > 0:
+            for name in losses.keys():
+                losses[name] = losses[name] / total
+                losses_no_coefs[name] = losses_no_coefs[name] / total
+            losses["cosine_loss"] = loss / total
+            losses_no_coefs["cosine_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        else:
+            losses["cosine_loss"] = loss
+        losses_no_coefs.update(cosine_sims)
+        return losses["cosine_loss"], losses, losses_no_coefs
+
     def step(self, latents, sync_latents, sync_supervision, mode="val", prefix=""):
         losses = dict()
         loss_no_coef = dict()
@@ -341,15 +380,21 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        total_loss = demi_cycle_loss + supervision_loss + cycle_loss
+        cosine_loss, l, l_no_coefs = self.cosine_loss(sync_latents, self.hparams.loss_coef_cosine)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
+        total_loss = demi_cycle_loss + supervision_loss + cycle_loss + cosine_loss
         total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
-            "supervision_loss"]
+            "supervision_loss"] + loss_no_coef["cosine_loss"]
 
         batch_size = latents[list(latents.keys())[0]].size(0)
         for name, loss in loss_no_coef.items():
             self.log(f"{mode}{prefix}_{name}", loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
         self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True,
+                 add_dataloader_idx=False, batch_size=batch_size)
+        self.log(f"{mode}{prefix}_total_loss_with_coef", total_loss, logger=True,
                  add_dataloader_idx=False, batch_size=batch_size)
 
         # compute accuracies

@@ -41,9 +41,9 @@ def train_gw(args):
         "a": actions
     }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
         args.loss_parts.coefs.demi_cycles, args.loss_parts.coefs.cycles, args.loss_parts.coefs.supervision,
-        args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay, args.global_workspace.scheduler.mode,
-        args.global_workspace.scheduler.interval, args.global_workspace.scheduler.step,
-        args.global_workspace.scheduler.gamma, data.validation_domain_examples,
+        args.losses.coefs.cosine, args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
+        args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
+        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma, data.validation_domain_examples,
         args.global_workspace.monitor_grad_norms)
 
     logger = None
