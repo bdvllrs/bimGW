@@ -76,6 +76,7 @@ global_workspace:
     weight_decay: 3e-5
 
   scheduler:
+    interval: epoch
     step: 20
     gamma: 0.5
 

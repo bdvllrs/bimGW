@@ -98,7 +98,7 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
@@ -520,7 +520,14 @@ class GlobalWorkspace(LightningModule):
         optimizer = torch.optim.Adam(params)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
                                                     self.hparams.scheduler_gamma)
-        return [optimizer], [scheduler]
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler_config": {
+                "scheduler": scheduler,
+                "interval": self.hparams.sheduler_interval,
+                "frequency": 1
+            }
+        }
 
     def vis_to_text_accuracy(self, domain_start, domain_end, acc_fn, domain_start_data, targets):
         # translate the visual domain to text domain

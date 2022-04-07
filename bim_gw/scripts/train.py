@@ -19,16 +19,14 @@ def train_gw(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    global_workspace = GlobalWorkspace(
-        get_domains(args, data),
-        args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
-        args.losses.coefs.demi_cycles,
-        args.losses.coefs.cycles, args.losses.coefs.supervision,
-        args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
-        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        data.domain_examples,
-        args.global_workspace.monitor_grad_norms
-    )
+    global_workspace = GlobalWorkspace(get_domains(args, data), args.global_workspace.z_size,
+                                       args.global_workspace.hidden_size, len(data.classes),
+                                       args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
+                                       args.losses.coefs.supervision, args.global_workspace.optim.lr,
+                                       args.global_workspace.optim.weight_decay,
+                                       args.global_workspace.scheduler.interval, args.global_workspace.scheduler.step,
+                                       args.global_workspace.scheduler.gamma, data.domain_examples,
+                                       args.global_workspace.monitor_grad_norms)
 
     logger = None
     slurm_job_id = os.getenv("SLURM_JOBID", None)
