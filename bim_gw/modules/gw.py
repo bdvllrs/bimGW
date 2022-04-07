@@ -98,7 +98,7 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1, loss_coef_cycles=1, loss_coef_supervision=1,
-            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
@@ -518,13 +518,27 @@ class GlobalWorkspace(LightningModule):
                     "weight_decay": self.hparams.optim_weight_decay
                 })
         optimizer = torch.optim.Adam(params)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
-                                                    self.hparams.scheduler_gamma)
+
+        scheduler_interval = self.hparams.scheduler_interval
+        scheduler_step = self.hparams.scheduler_step
+        scheduler_gamma = self.hparams.scheduler_gamma
+        if self.hparams.scheduler_mode == "adaptive":
+            # Convert into step interval if adaptive mode.
+            if scheduler_interval == "epoch":
+                size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
+                batch_size = self.trainer.datamodule.batch_size
+                n_step_per_epoch = int(size_dataset / batch_size)
+                scheduler_interval = "step"
+                scheduler_step *= n_step_per_epoch
+            # If less data, we need to do more scheduler steps. Must depend on the synchronised data
+            scheduler_step = int(scheduler_step / self.trainer.datamodule.prop_labelled_images)
+
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {
             "optimizer": optimizer,
             "lr_scheduler_config": {
                 "scheduler": scheduler,
-                "interval": self.hparams.sheduler_interval,
+                "interval": scheduler_interval,
                 "frequency": 1
             }
         }

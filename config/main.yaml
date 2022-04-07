@@ -76,6 +76,11 @@ global_workspace:
     weight_decay: 3e-5
 
   scheduler:
+    # "fixed"/"adaptive".
+    # - Fixed will use the following values.
+    # - Adaptive will change the values based on the prop_labelled_image setting.
+    #   The given values are the one used if prop_labelled_images is set to 1.
+    mode: fixed
     interval: epoch
     step: 20
     gamma: 0.5

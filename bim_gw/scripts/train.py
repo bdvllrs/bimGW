@@ -23,7 +23,7 @@ def train_gw(args):
                                        args.global_workspace.hidden_size, len(data.classes),
                                        args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
                                        args.losses.coefs.supervision, args.global_workspace.optim.lr,
-                                       args.global_workspace.optim.weight_decay,
+                                       args.global_workspace.optim.weight_decay, args.global_workspace.scheduler.mode,
                                        args.global_workspace.scheduler.interval, args.global_workspace.scheduler.step,
                                        args.global_workspace.scheduler.gamma, data.domain_examples,
                                        args.global_workspace.monitor_grad_norms)
