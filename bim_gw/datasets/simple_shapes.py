@@ -8,8 +8,7 @@ from torch.utils.data import Subset
 from torchvision import transforms
 
 from bim_gw.datasets.fetchers.simple_shapes import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
-    TransformationDataFetcher, TransformedVisualDataFetcher, TransformedTextDataFetcher, \
-    TransformedAttributesDataFetcher, PreSavedLatentDataFetcher
+    PreSavedLatentDataFetcher
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
