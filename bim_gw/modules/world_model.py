@@ -1,15 +1,23 @@
+from typing import Optional
+
 import torch
+from pytorch_lightning import LightningModule
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from bim_gw.modules.ations import ActionModule
 from bim_gw.modules.utils import DomainDecoder, DomainEncoder
 
 
-class WorldModel(torch.nn.Module):
-    def __init__(self, z_size, hidden_size, action_modality: ActionModule):
+class WorldModel(LightningModule):
+    def __init__(self, global_workspace, action_modality: ActionModule,
+                 optimizer_lr=1e-3, optimizer_weight_decay=1e-5, scheduler_step=100, scheduler_gamma=0.1):
         super(WorldModel, self).__init__()
+        self.save_hyperparameters()
 
-        self.z_size = z_size
-        self.hidden_size = hidden_size
+
+        self.global_workspace = global_workspace
+        self.z_size = self.global_workspace.z_size
+        self.hidden_size = self.global_workspace.hidden_size
         self.action_modality = action_modality
 
         in_dims = [self.z_size] + self.action_modality.output_dims
@@ -40,3 +48,16 @@ class WorldModel(torch.nn.Module):
             return self.predict_past(future_state, action)
         else:
             raise ValueError("There is not enough information to predict anything.")
+
+    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+        pass
+
+    def validation_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
+        pass
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(),
+                                     lr=self.hparams.optimizer_lr, weight_decay=self.hparams.optimizer_weight_decay)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
+                                                    self.hparams.scheduler_gamma)
+        return [optimizer], [scheduler]
