@@ -7,7 +7,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import NeptuneLogger
 
 from bim_gw.datasets import load_dataset
-from bim_gw.datasets.simple_shapes import SimpleShapesData
+from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
 from bim_gw.scripts.utils import get_domains
 
@@ -83,8 +83,8 @@ def train_gw(args):
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = SimpleShapesData(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
-                            args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
+    data = SimpleShapesDataModule(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
+                                  args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
     data.prepare_data()
     data.setup(stage="fit")
 

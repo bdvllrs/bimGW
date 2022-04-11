@@ -1,8 +1,23 @@
+import itertools
 import random
 
 import numpy as np
 import torch
 from torchvision import transforms
+
+
+class ComposeWithExtraParameters:
+    """
+    DataFetchers return [active_items, modality] we apply the transform only on the modality
+    """
+    def __init__(self, transform, index=0):
+        self.transform = transform
+        self.index = index
+
+    def __call__(self, x):
+        x = list(x)
+        x[self.index] = self.transform(x[self.index])
+        return tuple(x)
 
 
 def get_preprocess(augmentation=False):
@@ -15,48 +30,7 @@ def get_preprocess(augmentation=False):
         # transforms.Normalize(norm_mean, norm_std)
     ])
 
-    return transforms.Compose(transformations)
-
-
-class RandomDomainSelection:
-    def __init__(self, probs=None):
-        if probs is None:
-            probs = [0.25] * 4
-        self.probs = probs
-
-    def __call__(self, items):
-        if "a" in items.keys():
-            selection_type = np.random.choice(4, p=self.probs)
-        else:
-            selection_type = np.random.choice(2, p=self.probs[:2])
-        possible_domains = [item for item in items.keys() if "_f" not in item and item != "a"]
-        if selection_type == 0:  # uni modal
-            input_domain = random.choice(list(possible_domains))
-            return (
-                {input_domain: items[input_domain]},
-                None
-            )
-        elif selection_type == 1:  # one domain to one domain
-            input_domain = random.choice(possible_domains)
-            output_domain = random.choice(list(set(possible_domains) - {input_domain}))
-            return (
-                {input_domain: items[input_domain]},
-                {output_domain: items[output_domain]}
-            )
-        elif selection_type == 2:  # domain and action to domain
-            input_domain = random.choice(possible_domains)
-            output_domain = random.choice(possible_domains) + "_f"
-            return (
-                {input_domain: items[input_domain], "a": items["a"]},
-                {output_domain: items[output_domain]}
-            )
-        elif selection_type == 3:  # Domain input and output to action
-            input_domain = random.choice(possible_domains)
-            output_domain = random.choice(possible_domains) + "_f"
-            return (
-                {input_domain: items[input_domain], output_domain: items[output_domain]},
-                {"a": items["a"]}
-            )
+    return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
 
 
 def in_interval(x, xmin, xmax, val_min, val_max):
@@ -175,3 +149,45 @@ def split_odd_sets(dataset, id_ood_split=None):
         "in_dist": torch.utils.data.Subset(dataset, id_ood_split[1][0]) if id_ood_split is not None else dataset,
         "ood": torch.utils.data.Subset(dataset, id_ood_split[1][1]) if id_ood_split is not None else None,
     }
+
+
+def sample_domains(available_domains, possible_domains, size):
+    if size == 0:
+        return np.array([])
+    if possible_domains == "1d0a1t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 1
+        combs = np.expand_dims(np.array(domains), axis=1)
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "2d0a1t":
+        if random.randint(0, 1) == 0:
+            domains = [key for key, val in available_domains.items() if val != "a" and "_f" in val]
+        else:
+            domains = [key for key, val in available_domains.items() if val != "a" and "_f" not in val]
+        assert len(domains) >= 2
+        combs = np.array(list(itertools.combinations(domains, 2)))
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "2d1a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 2
+        combs = np.array(list(itertools.combinations(domains, 2)))
+        sample = np.random.randint(len(combs), size=size)
+        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+    elif possible_domains == "3d0a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 3
+        combs = np.array(list(itertools.combinations(domains, 3)))
+        sample = np.random.randint(len(combs), size=size)
+        return combs[sample]
+    elif possible_domains == "3d1a2t":
+        domains = [key for key, val in available_domains.items() if val != "a"]
+        assert len(domains) >= 3
+        combs = np.array(list(itertools.combinations(domains, 3)))
+        sample = np.random.randint(len(combs), size=size)
+        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+    elif possible_domains == "all":
+        domains = list(available_domains.keys())
+        return np.array([domains for _ in range(size)])
+    assert f"{possible_domains} is not available."

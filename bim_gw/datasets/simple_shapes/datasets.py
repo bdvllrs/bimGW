@@ -1,28 +1,30 @@
+import itertools
 from pathlib import Path
 
 import numpy as np
 
 from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
-    PreSavedLatentDataFetcher
-
+    PreSavedLatentDataFetcher, ActionDataFetcher
 
 class SimpleShapesDataset:
     available_domains = {
         "v": VisualDataFetcher,
         "attr": AttributesDataFetcher,
         "t": TextDataFetcher,
+        "a": ActionDataFetcher,
     }
 
-    def __init__(self, path, split="train", selected_indices=None, min_dataset_size=None,
-                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None):
+    def __init__(self, path, split="train", synced_domain_mapping=None, selected_indices=None,
+                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
+                 extend_dataset=True):
         """
         Args:
             path:
             split:
             transform:
             output_transform:
-            selected_indices: To reduce the size of the dataset to given indices.
-            min_dataset_size: Copies the data so that the effective size is the one given.
+            selected_indices:
+            synced_domain_mapping: list with each available modality for each point
         """
         assert split in ["train", "val", "test"]
         self.selected_domains = {domain: domain for domain in
@@ -35,19 +37,34 @@ class SimpleShapesDataset:
         self.img_size = 32
 
         self.classes = np.array(["square", "circle", "triangle"])
+        self.synced_domain_mapping = synced_domain_mapping
         self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
-
-        self.ids = np.arange(self.labels.shape[0])
-
+        self.ids = np.arange(len(self.labels))
         if selected_indices is not None:
             self.labels = self.labels[selected_indices]
             self.ids = self.ids[selected_indices]
 
-        if min_dataset_size is not None:
-            original_size = len(self.labels)
-            n_repeats = min_dataset_size // original_size + 1 * int(min_dataset_size % original_size > 0)
-            self.ids = np.tile(self.ids, n_repeats)
-            self.labels = np.tile(self.labels, (n_repeats, 1))
+        domain_mapping_to_remove = []
+        if self.synced_domain_mapping is not None:
+            ids = []
+            for k in range(len(self.synced_domain_mapping)):
+                if (selected_indices is None or k in selected_indices) and len(self.synced_domain_mapping[k]):
+                    ids.append(k)
+                else:
+                    domain_mapping_to_remove.append(k)
+            self.ids = np.array(ids)
+            self.labels = self.labels[self.ids]
+
+        # Remove empty elements
+        for idx in reversed(domain_mapping_to_remove):
+            del self.synced_domain_mapping[idx]
+
+        self.input_domains = self.synced_domain_mapping
+        self.target_domains = self.synced_domain_mapping
+
+        if extend_dataset:
+            pass
+            # self.define_targets()
 
         self.all_fetchers = {
             name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
@@ -69,14 +86,43 @@ class SimpleShapesDataset:
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(
                         self.root_path / "saved_latents" / self.split / path, self.ids)
 
+    def define_targets(self):
+        labels = []
+        ids = []
+        targets = []
+        for k in range(self.labels.shape[0]):
+            domains = list(self.selected_domains.values())
+            if self.synced_domain_mapping is not None:
+                domains = self.synced_domain_mapping[k]
+            for r in range(1, len(domains) + 1):
+                combinations = itertools.combinations(domains, r)
+                for combination in combinations:
+                    labels.append(combination)
+                    targets.append(domains)
+                    ids.append(self.ids[k])
+        self.input_domains = labels
+        self.target_domains = targets
+        if self.synced_domain_mapping is not None:
+            self.synced_domain_mapping = targets
+        self.ids = np.array(ids)
+        self.labels = self.labels[self.ids]
+
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, item):
-        selected_domains = {
-            domain_key: fetcher[item] for domain_key, fetcher in self.data_fetchers.items()
-        }
+        items = []
+        for mapping in [self.input_domains, self.target_domains]:
+            selected_domains = {}
+            for domain_key, fetcher in self.data_fetchers.items():
+                time_steps = []
+                if mapping is None or domain_key in mapping[item]:
+                    time_steps.append(0)
+                if mapping is None or domain_key + "_f" in mapping[item]:
+                    time_steps.append(1)
+                selected_domains[domain_key] = fetcher.get_items(item, time_steps)
 
-        if self.output_transform is not None:
-            return self.output_transform(selected_domains)
-        return selected_domains
+            if self.output_transform is not None:
+                return self.output_transform(selected_domains)
+            items.append(selected_domains)
+        return items

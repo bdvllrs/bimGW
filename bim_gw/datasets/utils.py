@@ -1,6 +1,7 @@
 from bim_gw.datasets import CIFARData
 from bim_gw.datasets import ImageNetData
-from bim_gw.datasets.simple_shapes import SimpleShapesData
+from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
+from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
 
 def load_dataset(args, local_args, **kwargs):
@@ -21,11 +22,21 @@ def load_dataset(args, local_args, **kwargs):
         pre_saved_latent_paths = None
         if "use_pre_saved" in local_args and local_args.use_pre_saved:
             pre_saved_latent_paths = args.global_workspace.load_pre_saved_latents
-        return SimpleShapesData(args.simple_shapes_path, local_args.batch_size,
-                                args.dataloader.num_workers, local_args.data_augmentation,
-                                local_args.prop_labelled_images,
-                                args.n_validation_examples, local_args.split_ood,
-                                local_args.selected_domains,
-                                pre_saved_latent_paths, args.global_workspace.sync_uses_whole_dataset)
+        return SimpleShapesDataModule(args.simple_shapes_path, local_args.batch_size,
+                                      args.dataloader.num_workers, local_args.data_augmentation,
+                                      local_args.prop_sync_domains,
+                                      args.n_validation_examples, local_args.split_ood,
+                                      local_args.selected_domains,
+                                      pre_saved_latent_paths)
     else:
         raise ValueError("The requested dataset is not implemented.")
+
+
+def get_lm(args, data, **kwargs):
+    if args.global_workspace.text_domain == "attributes":
+        lm = ShapesAttributesLM(len(data.classes), data.img_size)
+    elif args.global_workspace.text_domain == "bert":
+        lm = ShapesLM.load_from_checkpoint(
+            args.global_workspace.lm_checkpoint,
+            bert_path=args.global_workspace.bert_path)
+    return lm
