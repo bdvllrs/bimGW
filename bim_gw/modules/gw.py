@@ -28,7 +28,8 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_supervision=1., loss_coef_cosine=0.,
-            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
+            scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
@@ -106,6 +107,25 @@ class GlobalWorkspace(LightningModule):
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
 
+    def project(self, latents, masked_domains=None):
+        state = [
+            self.encode(latents[domain_name], domain_name)
+            for domain_name in self.domain_names
+        ]
+        masks = [masked_domains]
+        state = torch.stack(state, dim=1)
+
+        if masked_domains is not None:
+            masks = torch.cat(masks, dim=1)
+            state[masks, :] = 0.
+        return torch.sigmoid(state.sum(dim=1))
+
+    def predict(self, state):
+        return {
+            domain_name: self.decode(state, domain_name)
+            for domain_name in self.domain_names
+        }
+
     def encode_uni_modal(self, domains):
         """
         Encodes unimodal inputs to their unimodal latent version
@@ -154,21 +174,13 @@ class GlobalWorkspace(LightningModule):
         z = self.translate(x, domain_name_start, domain_name_inter)
         return self.translate(z, domain_name_inter, domain_name_start)
 
-    def demi_cycle_loss(self, domains, coefficients=1.):
+    def demi_cycle_loss(self, domains, coef=1.):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
         losses_no_coefs = {}
         total = len(domains)
         for name, domain in domains.items():
-            coef = 1.
-            if isinstance(coefficients, (int, float)):
-                coef = coefficients
-            elif name in coefficients:
-                coef = coefficients[name]
-            assert coef >= 0, "coefs must be positive."
-
             out = self.demi_cycle(domain, name)
-
             l = torch.tensor(0.).to(self.device)
             for k in range(len(domain)):
                 loss_fn = self.loss_fn[f"{name}_{k}"]
@@ -257,7 +269,8 @@ class GlobalWorkspace(LightningModule):
                     # project domains into one another
                     latent_domain_1 = self.encode(domain_1, domain_name_1)
                     latent_domain_2 = self.encode(domain_2, domain_name_2)
-                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(latent_domain_1, latent_domain_2).mean()
+                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
+                        latent_domain_1, latent_domain_2).mean()
 
                     token = f"s_{domain_name_1}-s_{domain_name_2}"
                     coef = 1.
@@ -266,7 +279,8 @@ class GlobalWorkspace(LightningModule):
                     elif token in coefficients:
                         coef = coefficients[token]
 
-                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2, torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
+                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
+                                                torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
                     losses[f"loss_cosine_{token}"] = coef * l
                     losses_no_coefs[f"loss_cosine_{token}"] = l
                     loss += losses[f"loss_cosine_{token}"]
