@@ -83,6 +83,7 @@ class CeleAData(LightningDataModule):
             bimodal=False,
     ):
         super().__init__()
+        raise NotImplementedError("This dataset is not yet implemented. Sorry.")
         if bimodal and use_data_augmentation:
             raise ValueError("bimodal mode and data augmentation is not possible for now...")
         self.simple_shapes_folder = Path(simple_shapes_folder)

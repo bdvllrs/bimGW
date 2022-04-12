@@ -90,6 +90,7 @@ class ImageNetData(LightningDataModule):
             bimodal=False
     ):
         super().__init__()
+        raise NotImplementedError("This dataset is not yet implemented. Sorry.")
         self.image_net_folder = imagenet_folder
         self.batch_size = batch_size
         self.num_workers = num_workers

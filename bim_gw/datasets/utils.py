@@ -1,23 +1,9 @@
-from bim_gw.datasets import CIFARData
-from bim_gw.datasets import ImageNetData
 from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
 
 def load_dataset(args, local_args, **kwargs):
-    if args.visual_dataset == "imagenet":
-        print("Loading ImageNet.")
-        return ImageNetData(args.image_net_path, local_args.batch_size, args.img_size,
-                            args.dataloader.num_workers, local_args.data_augmentation,
-                            args.global_workspace.prop_labelled_images,
-                            args.global_workspace.classes_labelled_images, **kwargs)
-    elif args.visual_dataset == "cifar10":
-        print("Loading CIFAR10.")
-        if "bimodal" in kwargs:
-            raise ValueError("CIFAR is not yet ready for GW training...")
-        return CIFARData(args.cifar10_path, local_args.batch_size,
-                         args.dataloader.num_workers, local_args.data_augmentation)
-    elif args.visual_dataset == "shapes":
+    if args.visual_dataset == "shapes":
         print("Loading Shapes.")
         pre_saved_latent_paths = None
         if "use_pre_saved" in local_args and local_args.use_pre_saved:

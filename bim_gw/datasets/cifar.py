@@ -27,6 +27,7 @@ class CIFARData(LightningDataModule):
             num_workers=0, use_data_augmentation=False,
     ):
         super().__init__()
+        raise NotImplementedError("This dataset is not yet implemented. Sorry.")
         self.cifar_folder = cifar_folder
         self.batch_size = batch_size
         self.num_workers = num_workers
