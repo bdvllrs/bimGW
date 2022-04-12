@@ -5,7 +5,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.workspace_module import WorkspaceModule
-from bim_gw.utils.losses.compute_fid import compute_FID
 from bim_gw.utils.losses.mmd import mmd_loss
 from bim_gw.utils.utils import log_image
 from bim_gw.utils.vae import reparameterize, gaussian_nll, softclip
@@ -113,16 +112,28 @@ class VAE(WorkspaceModule):
         self.vae_type = vae_type
         self.n_FID_samples = n_FID_samples
 
-        self.output_dims = self.z_size
-        self.decoder_activation_fn = None
-        self.losses = [lambda x, y: (F.mse_loss(x, y) +
-                                     mmd_loss_coef * mmd_loss(x, y) +
-                                     kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
-                                     )]
+        self.output_dims = [1, self.z_size]
+        self.decoder_activation_fn = [
+            torch.sigmoid,
+            None
+        ]
+        self.losses = [
+            F.binary_cross_entropy,
+            lambda x, y: (
+                F.mse_loss(x, y) +
+                mmd_loss_coef * mmd_loss(x, y) +
+                kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
+            )
+        ]
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
-        self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
+
+        if validation_reconstruction_images is not None:
+            self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
+        else:
+            self.validation_reconstruction_images = None
+
         if self.vae_type == "sigma":
             self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
         else:
@@ -153,13 +164,15 @@ class VAE(WorkspaceModule):
         return mean_z, var_z
 
     def encode(self, x: torch.Tensor):
+        is_active, x = x
         mean_z, _ = self.encode_stats(x)
 
         # z = reparameterize(mean_z, var_z)
-        return mean_z
+        return is_active, mean_z
 
     def decode(self, z: torch.Tensor):
-        return self.decoder(z)
+        is_active, z = z
+        return is_active, self.decoder(z)
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)
@@ -190,71 +203,49 @@ class VAE(WorkspaceModule):
     def generate(self, samples):
         return self.decode(samples)
 
-    # Lightning
-    def training_step(self, batch, batch_idx):
-        x = batch["v"]
+    def step(self, batch, mode="train"):
+        x = batch[0]["v"][1]
+
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
 
-        # self.log("train_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
-        # self.log("train_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), retain_graph=True, allow_unused=True))
-
-        self.log("train_reconstruction_loss", reconstruction_loss, logger=True)
-        self.log("log_sigma", self.log_sigma, logger=True)
-        self.log("train_kl_divergence_loss", kl_divergence_loss, logger=True)
-        self.log("train_total_loss", total_loss)
-
+        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode == "val"))
+        self.log(f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode == "val"))
+        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode == "val"))
+        if mode == "train":
+            self.log("log_sigma", self.log_sigma, logger=True)
         return total_loss
 
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, mode="train")
+
     def validation_step(self, batch, batch_idx):
-        x = batch["v"]
-        (mean, logvar), x_reconstructed = self(x)
-        reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
-        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
-        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
-
-        # self.log("val_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
-        # self.log("val_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), allow_unused=True))
-
-        self.log("val_reconstruction_loss", reconstruction_loss, on_epoch=True)
-        self.log("val_kl_divergence_loss", kl_divergence_loss, on_epoch=True)
-        self.log("val_total_loss", total_loss, on_epoch=True)
+        return self.step(batch, mode="val")
 
     def validation_epoch_end(self, outputs):
-        x = self.validation_reconstruction_images
-        _, x_reconstructed = self(x)
+        if self.validation_reconstruction_images is not None:
+            x = self.validation_reconstruction_images
+            _, x_reconstructed = self(x)
 
-        if self.current_epoch == 0:
-            log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+            if self.current_epoch == 0:
+                log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
 
-        log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
-        sampled_images = self.decoder(self.validation_sampling_z)
-        log_image(self.logger, sampled_images, "val_sampling")
+            log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
+            sampled_images = self.decoder(self.validation_sampling_z)
+            log_image(self.logger, sampled_images, "val_sampling")
 
-        # # FID
-        # fid, mse = compute_FID(
-        #     self.trainer.datamodule.inception_stats_path_train,
-        #     self.trainer.datamodule.val_dataloader()[0],
-        #     self, self.z_size, [self.image_size, self.image_size],
-        #     self.device, self.n_FID_samples
-        # )
-        # self.log("val_fid", fid)
-        # # self.print("FID: ", fid)
-        # self.log("val_mse", mse)
-
-        #
-        # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
-        # mu_dataset_train = stat_train['mu']
-        # sigma_dataset_train = stat_train['sigma']
-        #
-        # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
-        # mu_dataset_test = stat_test['mu']
-        # sigma_dataset_test = stat_test['sigma']
-        #
-        # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
-        # self.print("FID test: ", fid_value)
+            # # FID
+            # fid, mse = compute_FID(
+            #     self.trainer.datamodule.inception_stats_path_train,
+            #     self.trainer.datamodule.val_dataloader()[0],
+            #     self, self.z_size, [self.image_size, self.image_size],
+            #     self.device, self.n_FID_samples
+            # )
+            # self.log("val_fid", fid)
+            # # self.print("FID: ", fid)
+            # self.log("val_mse", mse)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,

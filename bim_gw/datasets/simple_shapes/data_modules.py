@@ -17,7 +17,7 @@ class SimpleShapesDataModule(LightningDataModule):
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
-            sync_uses_whole_dataset=False
+            sync_uses_whole_dataset=False,
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
@@ -30,6 +30,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
+        self.with_actions = 'a' in self.selected_domains.values()
 
         self.prop_sync_domains = prop_sync_domains
 
@@ -108,11 +109,10 @@ class SimpleShapesDataModule(LightningDataModule):
                                                           size=(self.domain_examples,))
 
         self.domain_examples = {
-            "train": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()} for p
-                      in range(2)],
-            "in_dist": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()} for
-                        p
-                        in range(2)],
+            "train": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
+                      for p in range(2)],
+            "in_dist": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
+                        for p in range(2)],
             "ood": None,
         }
 
@@ -132,10 +132,16 @@ class SimpleShapesDataModule(LightningDataModule):
                 for p in range(2):  # input or target
                     for domain in self.selected_domains.keys():
                         example_item = used_set[0][p][domain]
+                        if not self.with_actions:
+                            example_item = [example_item]
                         for t in range(len(example_item)):
                             if not isinstance(example_item[t], tuple):
-                                examples = [used_set[i][p][domain][t] for i in
-                                            reconstruction_indices[used_dist]]
+                                examples = []
+                                for i in reconstruction_indices[used_dist]:
+                                    example = used_set[i][p][domain]
+                                    if self.with_actions:
+                                        example = example[t]
+                                    examples.append(example)
                                 if isinstance(example_item[t], (int, float)):
                                     self.domain_examples[used_dist][p][domain][t] = torch.tensor(examples)
                                 elif isinstance(example_item[t], torch.Tensor):
@@ -144,8 +150,13 @@ class SimpleShapesDataModule(LightningDataModule):
                                     self.domain_examples[used_dist][p][domain][t] = examples
                             else:
                                 for k in range(len(example_item[t])):
-                                    examples = [used_set[i][p][domain][t][k] for i in
-                                                reconstruction_indices[used_dist]]
+                                    examples = []
+                                    for i in reconstruction_indices[used_dist]:
+                                        if self.with_actions:
+                                            example = used_set[i][p][domain][t][k]
+                                        else:
+                                            example = used_set[i][p][domain][k]
+                                        examples.append(example)
                                     if isinstance(example_item[t][k], (int, float)):
                                         self.domain_examples[used_dist][p][domain][t].append(
                                             torch.tensor(examples)
@@ -158,6 +169,8 @@ class SimpleShapesDataModule(LightningDataModule):
                                         self.domain_examples[used_dist][p][domain][t].append(examples)
                                 self.domain_examples[used_dist][p][domain][t] = tuple(
                                     self.domain_examples[used_dist][p][domain][t])
+                        if not self.with_actions:
+                            self.domain_examples[used_dist][p][domain] = self.domain_examples[used_dist][p][domain][0]
 
     def filter_sync_domains(self, train_set, allowed_indices):
         # Unlabel randomly some elements
@@ -203,15 +216,15 @@ class SimpleShapesDataModule(LightningDataModule):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                        transform={"v": get_preprocess(self.use_data_augmentation)},
                                        selected_domains={"v": "v"},
-                                       output_transform=lambda d: (d["v"], 0))
+                                       output_transform=lambda d: d["v"][1])
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                      transform={"v": get_preprocess(self.use_data_augmentation)},
                                      selected_domains={"v": "v"},
-                                     output_transform=lambda d: (d["v"], 0))
+                                     output_transform=lambda d: d["v"][1])
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                       transform={"v": get_preprocess(self.use_data_augmentation)},
                                       selected_domains={"v": "v"},
-                                      output_transform=lambda d: (d["v"], 0))
+                                      output_transform=lambda d: d["v"][1])
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
                                                                      "shapes_train",
                                                                      batch_size, device)

@@ -42,9 +42,7 @@ class DomainDecoder(torch.nn.Module):
             if activation_fn is not None:
                 z = activation_fn(z)
             outputs.append(z)
-        if len(outputs) == 1:
-            return outputs[0]
-        return tuple(outputs)
+        return outputs
 
 
 class DomainEncoder(nn.Module):
@@ -66,9 +64,6 @@ class DomainEncoder(nn.Module):
     def forward(self, x):
         if len(self.in_dims) > 1:
             assert len(x) == len(self.in_dims), "Not enough values as input."
-        if isinstance(x, tuple) and len(x) == 1:
-            x = x[0]
-        elif isinstance(x, tuple):
-            x = torch.cat(x, dim=-1)
+        x = torch.cat(x, dim=-1)
         out = self.encoder(x)
         return torch.tanh(out)

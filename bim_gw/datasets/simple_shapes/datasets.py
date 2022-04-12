@@ -35,6 +35,7 @@ class SimpleShapesDataset:
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
+        self.with_actions = 'a' in self.selected_domains.values()
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.synced_domain_mapping = synced_domain_mapping
@@ -118,9 +119,12 @@ class SimpleShapesDataset:
                 time_steps = []
                 if mapping is None or domain_key in mapping[item]:
                     time_steps.append(0)
-                if mapping is None or domain_key + "_f" in mapping[item]:
+                if self.with_actions and (mapping is None or domain_key + "_f" in mapping[item]):
                     time_steps.append(1)
-                selected_domains[domain_key] = fetcher.get_items(item, time_steps)
+                fetched_items =  fetcher.get_items(item, time_steps)
+                if not self.with_actions:
+                    fetched_items = fetched_items[0]
+                selected_domains[domain_key] = fetched_items
 
             if self.output_transform is not None:
                 return self.output_transform(selected_domains)

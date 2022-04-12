@@ -87,12 +87,9 @@ class GlobalWorkspace(LightningModule):
             self.validation_example_list = dict()
             for dist, example_dist_vecs in domain_examples.items():
                 if example_dist_vecs is not None:
-                    for key, example_vecs in example_dist_vecs.items():
+                    for key, example_vecs in example_dist_vecs[0].items():
                         assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
                         if example_vecs is not None:
-                            if not isinstance(example_vecs, tuple):
-                                example_vecs = (example_vecs,)
-
                             self.validation_example_list[key] = len(example_vecs)
                             for k, example_vec in enumerate(example_vecs):
                                 if type(example_vec) is list:
@@ -115,7 +112,12 @@ class GlobalWorkspace(LightningModule):
         """
         out = dict()
         for domain_name, x in domains.items():
-            z = self.domain_mods[domain_name].encode(x)
+            z = []
+            for zi in self.domain_mods[domain_name].encode(x):
+                if zi.ndim == 1:
+                    z.append(zi.reshape(-1, 1))
+                else:
+                    z.append(zi)
             out[domain_name] = z
         return out
 
@@ -167,10 +169,6 @@ class GlobalWorkspace(LightningModule):
 
             out = self.demi_cycle(domain, name)
 
-            if not isinstance(domain, tuple):
-                domain = (domain,)
-                out = (out,)
-
             l = torch.tensor(0.).to(self.device)
             for k in range(len(domain)):
                 loss_fn = self.loss_fn[f"{name}_{k}"]
@@ -200,11 +198,6 @@ class GlobalWorkspace(LightningModule):
 
                     out = self.cycle(domain, domain_name_start, domain_name_inter)
 
-                    if not isinstance(domain, tuple):
-                        assert not isinstance(domain, tuple)
-                        domain = (domain,)
-                        out = (out,)
-
                     l = torch.tensor(0.).to(self.device)
                     for k in range(len(domain)):
                         loss_fn = self.loss_fn[f"{domain_name_start}_{k}"]
@@ -227,10 +220,6 @@ class GlobalWorkspace(LightningModule):
                     # project domains into one another
                     pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
 
-                    if not isinstance(domain_2, tuple):
-                        assert not isinstance(domain_2, tuple)
-                        domain_2 = (domain_2,)
-                        pred_domain_2 = (pred_domain_2,)
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
                             token = f"{domain_name_1}_to_{domain_name_2}_{k}"
@@ -293,7 +282,7 @@ class GlobalWorkspace(LightningModule):
         losses_no_coefs.update(cosine_sims)
         return losses["cosine_loss"], losses, losses_no_coefs
 
-    def step(self, latents, sync_latents, sync_supervision, mode="val", prefix=""):
+    def step(self, latents, latent_targets, mode="val", prefix=""):
         losses = dict()
         loss_no_coef = dict()
 
@@ -305,11 +294,11 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
+        supervision_loss, l, l_no_coefs = self.supervision_loss(latent_targets, self.hparams.loss_coef_supervision)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        cosine_loss, l, l_no_coefs = self.cosine_loss(sync_latents, self.hparams.loss_coef_cosine)
+        cosine_loss, l, l_no_coefs = self.cosine_loss(latent_targets, self.hparams.loss_coef_cosine)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
@@ -317,7 +306,7 @@ class GlobalWorkspace(LightningModule):
         total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
             "supervision_loss"] + loss_no_coef["cosine_loss"]
 
-        batch_size = latents[list(latents.keys())[0]].size(0)
+        batch_size = latents[list(latents.keys())[0]][0].size(0)
         for name, loss in loss_no_coef.items():
             self.log(f"{mode}{prefix}_{name}", loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
@@ -329,26 +318,25 @@ class GlobalWorkspace(LightningModule):
         # compute accuracies
         for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}{prefix}_accuracy_metrics"),
                                                             self.accuracy_metrics_order):
-            predicted_t = self.translate(sync_latents[domain_name_start], domain_name_start, domain_name)
+            predicted_t = self.translate(latent_targets[domain_name_start], domain_name_start, domain_name)
             prediction = self.domain_mods[domain_name].decode(predicted_t)
             accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
-                                                                 sync_supervision[domain_name])
+                                                                 latent_targets[domain_name])
             self.log(f"{mode}{prefix}_acc_{domain_name_start}_to_{domain_name}", accuracy, logger=True,
                      on_step=(mode != "val"), on_epoch=(mode == "val"), add_dataloader_idx=False)
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
+        domains, targets = batch[0], batch[1]
         opt = self.optimizers()
         # remove the sync batch
-        domains = {key: val for key, val in batch.items() if key != "sync_"}
-        sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
 
         opt.zero_grad()
 
         latents = self.encode_uni_modal(domains)
-        sync_latents = self.encode_uni_modal(sync_supervision)
+        latent_targets = self.encode_uni_modal(targets)
 
-        total_loss, losses = self.step(latents, sync_latents, sync_supervision, mode="train")
+        total_loss, losses = self.step(latents, latent_targets, mode="train")
 
         if self.monitor_grad_norms:
             grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
@@ -363,9 +351,10 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
+        domains, targets = domains[0], domains[1]
         latents = self.encode_uni_modal(domains)
         prefix = "_in_dist" if dataset_idx == 0 else "_ood"
-        total_loss, losses = self.step(latents, latents, domains, mode="val", prefix=prefix)
+        total_loss, losses = self.step(latents, latents, mode="val", prefix=prefix)
 
         # latent_start = self.domain_mods["v"].encode(domains["v"])
         # latent_end = self.translate(latent_start, "v", "t")
@@ -455,7 +444,7 @@ class GlobalWorkspace(LightningModule):
                             plt.close(fig)
 
     def validation_epoch_end(self, outputs):
-        if self.logger is not None:
+        if self.logger is not None and self.domain_examples is not None:
             self.set_unimodal_pass_through(False)
             if self.current_epoch == 0:
                 if self.trainer.datamodule.ood_boundaries is not None:
@@ -499,13 +488,14 @@ class GlobalWorkspace(LightningModule):
         if self.hparams.scheduler_mode == "adaptive":
             # Convert into step interval if adaptive mode.
             if scheduler_interval == "epoch":
-                size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
+                size_dataset = len(self.trainer.datamodule.shapes_train)
                 batch_size = self.trainer.datamodule.batch_size
                 n_step_per_epoch = int(size_dataset / batch_size)
                 scheduler_interval = "step"
                 scheduler_step *= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
-            scheduler_step = int(scheduler_step / self.trainer.datamodule.prop_labelled_images)
+            prop_labelled_image = 1. - self.trainer.datamodule.prop_sync_domains["all"]
+            scheduler_step = int(scheduler_step / prop_labelled_image)
 
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {

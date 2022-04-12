@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from gensim.models import KeyedVectors
 from torch import nn
 from torch.nn import functional as F
 from transformers import BertTokenizer, BertModel
@@ -12,89 +11,24 @@ from bim_gw.utils.text_composer.composer import Composer
 from bim_gw.utils.text_composer.writers import writers
 
 
-class SkipGramLM(WorkspaceModule):
-    def log_domain(self, logger, x, title, max_examples=None):
-        pass
-
-    def compute_acc(self, acc_metric, predictions, targets):
-        pass
-
-    def __init__(self, path, classnames, load_embeddings=None):
-        super(SkipGramLM, self).__init__()
-
-        if load_embeddings is None:
-            self.gensim_model = KeyedVectors.load_word2vec_format(path)
-
-            unavailable_classes = []
-            embeddings = []
-            for classname in classnames:
-                unavailable = True
-                for cls in classname:
-                    embs = []
-                    try:
-                        emb = self.gensim_model.get_vector(cls.lower().replace(" ", "_"))
-                        embs.append(emb)
-                    except KeyError:
-                        try:
-                            emb = self.gensim_model.get_vector(cls.lower().replace("-", "_"))
-                            embs.append(emb)
-                        except KeyError:
-                            cls = cls.replace("-", " ")
-                            for word in cls.split(" "):
-                                try:
-                                    embs.append(self.gensim_model.get_vector(word.lower()))
-                                except KeyError:
-                                    print(f"{word} does not have an embedding, in {classname}.")
-                    if len(embs):
-                        embeddings.append(np.vstack(embs).mean(axis=0))
-                        unavailable = False
-                        break
-                if unavailable:
-                    unavailable_classes.append(classname)
-
-            word_vectors = torch.from_numpy(np.vstack(embeddings))
-        else:
-            word_vectors = torch.from_numpy(np.load(load_embeddings, allow_pickle=True))
-
-        self.z_size = word_vectors.size(1)
-
-        self.register_buffer("word_vectors", word_vectors)
-
-    def encode(self, targets):
-        return self(targets)
-
-    def decode(self, z):
-        return z @ self.word_vectors.t()
-
-    def forward(self, targets):
-        embeddings = self.word_vectors.gather(0, targets[:, None].expand(-1, self.z_size))
-        return embeddings
-
-    def get_targets(self, targets):
-        return targets
-
-    def get_random_vector(self, classes):
-        return classes
-
-
 class ShapesAttributesLM(WorkspaceModule):
     def __init__(self, n_classes, imsize):
         super(ShapesAttributesLM, self).__init__()
         self.n_classes = n_classes
-        self.z_size = 3
+        self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 8]
+        self.output_dims = [1, self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
+            torch.sigmoid,
             lambda x: torch.softmax(x, dim=1),  # shapes
-            # torch.tanh,  # rotations
             torch.tanh,  # rest
         ]
 
         self.losses = [
+            F.binary_cross_entropy,
             lambda x, y: nll_loss(x.log(), y),  # shapes
-            # F.mse_loss,  # rotations
             F.mse_loss  # rest
         ]
 
@@ -157,8 +91,9 @@ class ShapesAttributesLM(WorkspaceModule):
         # text
         labels = ["x", "y", "s", "rotx", "roty", "r", "g", "b"]
         for k in range(len(classes)):
-            text = f"c: {str(classes[k].item())}, " + ", ".join(map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist())))
-            logger.experiment[name + "_text"].log(f"{k+1} - {text}")
+            text = f"c: {str(classes[k].item())}, " + ", ".join(
+                map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist())))
+            logger.experiment[name + "_text"].log(f"{k + 1} - {text}")
         logger.experiment[name + "_text"].log("-----")
 
 
@@ -181,7 +116,7 @@ class ShapesLM(WorkspaceModule):
         self.bert_size = 768
         self.imsize = imsize
 
-        self.transformer =  BertModel.from_pretrained(bert_path)
+        self.transformer = BertModel.from_pretrained(bert_path)
         for p in self.transformer.parameters():
             p.requires_grad_(False)
 
@@ -202,24 +137,28 @@ class ShapesLM(WorkspaceModule):
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
+            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims) - 1)
         )
 
         self.validation_domain_examples = validation_domain_examples
 
-        self.output_dims = [self.z_size]
+        self.output_dims = [1, self.z_size]
         self.decoder_activation_fn = [
+            torch.sigmoid,
             None
         ]
 
         self.losses = [
+            F.binary_cross_entropy,
             F.mse_loss
         ]
 
     def encode(self, x):
-        return self(x)
+        is_active, x = x
+        return is_active, self(x)
 
     def decode(self, text_latent):
+        is_active, text_latent = text_latent
         predictions = self.classify(text_latent)
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
@@ -236,7 +175,7 @@ class ShapesLM(WorkspaceModule):
             "size": attributes[k, 2],
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
-        return sentence_predictions
+        return is_active, sentence_predictions
 
     def get_bert_latent(self, sentences):
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
@@ -285,7 +224,7 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["t"], batch["a"]
+        sentences, targets = batch["t"][1], batch["a"][1]
         bs = len(sentences)
         targets = self.shapes_attribute.encode(targets)
         z = self.encode(sentences)
@@ -305,21 +244,23 @@ class ShapesLM(WorkspaceModule):
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
-        predictions, losses, total_loss = self.step(batch["sync_"], batch_idx, "train")
+        batch, target = batch
+        predictions, losses, total_loss = self.step(batch, batch_idx, "train")
         return total_loss
 
     def validation_step(self, batch, batch_idx):
+        batch, target = batch
         predictions, losses, total_loss = self.step(batch, batch_idx, "val")
         return total_loss
 
     def validation_epoch_end(self, outputs):
-        if self.logger is not None:
+        if self.logger is not None and self.validation_domain_examples is not None:
             encoded_s = self.encode(self.validation_domain_examples["t"])
             predictions = self.classify(encoded_s)
             sentence_predictions = self.decode(encoded_s)
 
             for k in range(len(sentence_predictions)):
-                self.logger.experiment["predictions_text"].log(f"{k+1} - {sentence_predictions[k]}")
+                self.logger.experiment["predictions_text"].log(f"{k + 1} - {sentence_predictions[k]}")
             self.logger.experiment["predictions_text"].log("-----")
 
             # Images
@@ -327,9 +268,10 @@ class ShapesLM(WorkspaceModule):
                                              "predictions_reconstruction")
 
             if self.current_epoch == 0:
-                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"], "target_reconstruction")
+                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"],
+                                                 "target_reconstruction")
                 for k in range(len(sentence_predictions)):
-                    self.logger.experiment["target_text"].log(f"{k+1} - {self.validation_domain_examples['t'][k]}")
+                    self.logger.experiment["target_text"].log(f"{k + 1} - {self.validation_domain_examples['t'][k]}")
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

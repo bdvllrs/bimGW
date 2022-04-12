@@ -83,14 +83,16 @@ def train_gw(args):
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = SimpleShapesDataModule(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False, 1.,
-                                  args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
+    data = SimpleShapesDataModule(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False,
+                                  {"all": 1.}, args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
     data.prepare_data()
     data.setup(stage="fit")
 
+    domain_examples = {d: data.domain_examples["in_dist"][0][d][1] for d in data.domain_examples["in_dist"][0].keys()}
+
     lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
-                  data.domain_examples["in_dist"])
+                  domain_examples)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
     logger = None
@@ -144,6 +146,10 @@ def train_lm(args):
 def train_ae(args):
     seed_everything(args.seed)
 
+    args.vae.prop_sync_domains = {"all": 1.}
+    args.vae.split_ood = False
+    args.vae.selected_domains = {"v": "v"}
+
     data = load_dataset(args, args.vae)
 
     data.prepare_data()
@@ -153,7 +159,7 @@ def train_ae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.domain_examples["in_dist"]["v"]
+        data.domain_examples["in_dist"][0]["v"][1]
     )
 
     # checkpoint = torch.load(args.resume_from_checkpoint)
@@ -206,7 +212,8 @@ def train_ae(args):
 def train_vae(args):
     seed_everything(args.seed)
 
-    args.vae.prop_labelled_images = 1.
+    args.vae.prop_sync_domains = {"all": 1.}
+
     args.vae.split_ood = False
     args.vae.selected_domains = {"v": "v"}
 
@@ -220,7 +227,7 @@ def train_vae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.domain_examples["in_dist"]["v"], args.vae.n_FID_samples
+        data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
     )
 
     # checkpoint = torch.load(args.resume_from_checkpoint)
