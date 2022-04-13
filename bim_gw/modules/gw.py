@@ -463,17 +463,17 @@ class GlobalWorkspace(LightningModule):
                 if self.current_epoch == 0:
                     if self.trainer.datamodule.ood_boundaries is not None:
                         self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
-            # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
+                # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
                 for dist in ["in_dist", "ood"]:
                     if self.domain_examples[dist] is not None:
                         validation_examples = self.get_validation_examples(dist)
 
                         if self.validation_example_list is not None:
-                        self.log_images(logger, validation_examples, f"val_{dist}")
+                            self.log_images(logger, validation_examples, f"val_{dist}")
 
                 if self.domain_examples["train"] is not None:
                     train_examples = self.get_validation_examples("train")
-                self.log_images(logger, train_examples, "train")
+                    self.log_images(logger, train_examples, "train")
 
                 self.set_unimodal_pass_through(True)
 
