@@ -28,13 +28,14 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_supervision=1., loss_coef_cosine=0.,
-            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5,
+            optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
+            scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
 
         super(GlobalWorkspace, self).__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["domain_mods", "domain_examples"])
         self.automatic_optimization = False
 
         self.z_size = z_size
@@ -268,7 +269,8 @@ class GlobalWorkspace(LightningModule):
                     # project domains into one another
                     latent_domain_1 = self.encode(domain_1, domain_name_1)
                     latent_domain_2 = self.encode(domain_2, domain_name_2)
-                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(latent_domain_1, latent_domain_2).mean()
+                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
+                        latent_domain_1, latent_domain_2).mean()
 
                     token = f"s_{domain_name_1}-s_{domain_name_2}"
                     coef = 1.
@@ -277,7 +279,8 @@ class GlobalWorkspace(LightningModule):
                     elif token in coefficients:
                         coef = coefficients[token]
 
-                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2, torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
+                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
+                                                torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
                     losses[f"loss_cosine_{token}"] = coef * l
                     losses_no_coefs[f"loss_cosine_{token}"] = l
                     loss += losses[f"loss_cosine_{token}"]
@@ -393,84 +396,83 @@ class GlobalWorkspace(LightningModule):
             domain_examples[domain_name] = domain_example
         return domain_examples
 
-    def log_images(self, examples, slug="val", max_examples=None):
-        if self.logger is not None:
-            if self.current_epoch == 0:
-                for domain_name, domain_example in examples.items():
-                    self.domain_mods[domain_name].log_domain(self.logger, domain_example,
-                                                             f"{slug}_original_domain_{domain_name}", max_examples)
-                    if domain_name == "v":
-                        latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
-                        fig, axes = plt.subplots(1, latent.shape[1])
-                        for k in range(latent.shape[1]):
-                            l = latent[:, k]
-                            axes[k].hist(l, 50, density=True)
+    def log_images(self, logger, examples, slug="val", max_examples=None):
+        if self.current_epoch == 0:
+            for domain_name, domain_example in examples.items():
+                self.domain_mods[domain_name].log_domain(logger, domain_example,
+                                                         f"{slug}_original_domain_{domain_name}", max_examples)
+                if domain_name == "v":
+                    latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
+                    fig, axes = plt.subplots(1, latent.shape[1])
+                    for k in range(latent.shape[1]):
+                        l = latent[:, k]
+                        axes[k].hist(l, 50, density=True)
+                        x = np.linspace(-0.8, 0.8, 100)
+                        axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                    logger.log_image("original_v_hist", fig)
+                    plt.close(fig)
+
+        if len(self.rotation_error_val):
+            fig = plt.figure()
+            plt.hist(self.rotation_error_val, 50, density=True)
+            logger.log_image("rotation_error_val", fig)
+            plt.close(fig)
+            self.rotation_error_val = []
+
+        for domain_name, domain_example in examples.items():
+            # Demi cycles
+            latent_x = self.domain_mods[domain_name].encode(domain_example)
+            latent_reconstructed = self.demi_cycle(latent_x, domain_name)
+            x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+            self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
+                                                     f"{slug}_demi_cycle_{domain_name}", max_examples)
+
+            for domain_name_2, domain_example_2 in examples.items():
+                if domain_name_2 != domain_name:
+                    # Full cycles
+                    latent_x = self.domain_mods[domain_name].encode(domain_example)
+                    latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
+                    x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                    self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
+                                                             f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
+                                                             max_examples)
+
+                    # Translations
+                    latent_start = self.domain_mods[domain_name].encode(domain_example)
+                    latent_end = self.translate(latent_start, domain_name, domain_name_2)
+                    domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
+                    self.domain_mods[domain_name_2].log_domain(
+                        logger, domain_end_pred,
+                        f"{slug}_translation_{domain_name}_to_{domain_name_2}",
+                        max_examples
+                    )
+                    if domain_name == "t" and domain_name_2 == "v":
+                        fig, axes = plt.subplots(1, latent_end.size(1))
+                        for k in range(latent_end.size(1)):
+                            l = latent_end.detach().cpu().numpy()[:, k]
                             x = np.linspace(-0.8, 0.8, 100)
+                            axes[k].hist(l, 50, density=True)
                             axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                        self.logger.experiment["original_v_hist"].log(File.as_image(fig))
+                        logger.log_image("decoded_v_hist", fig)
                         plt.close(fig)
 
-            if len(self.rotation_error_val):
-                fig = plt.figure()
-                plt.hist(self.rotation_error_val, 50, density=True)
-                self.logger.experiment["rotation_error_val"].log(File.as_image(fig))
-                plt.close(fig)
-                self.rotation_error_val = []
-
-            for domain_name, domain_example in examples.items():
-                # Demi cycles
-                latent_x = self.domain_mods[domain_name].encode(domain_example)
-                latent_reconstructed = self.demi_cycle(latent_x, domain_name)
-                x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
-                self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                         f"{slug}_demi_cycle_{domain_name}", max_examples)
-
-                for domain_name_2, domain_example_2 in examples.items():
-                    if domain_name_2 != domain_name:
-                        # Full cycles
-                        latent_x = self.domain_mods[domain_name].encode(domain_example)
-                        latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
-                        x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
-                        self.domain_mods[domain_name].log_domain(self.logger, x_reconstructed,
-                                                                 f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
-                                                                 max_examples)
-
-                        # Translations
-                        latent_start = self.domain_mods[domain_name].encode(domain_example)
-                        latent_end = self.translate(latent_start, domain_name, domain_name_2)
-                        domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
-                        self.domain_mods[domain_name_2].log_domain(
-                            self.logger, domain_end_pred,
-                            f"{slug}_translation_{domain_name}_to_{domain_name_2}",
-                            max_examples
-                        )
-                        if domain_name == "t" and domain_name_2 == "v":
-                            fig, axes = plt.subplots(1, latent_end.size(1))
-                            for k in range(latent_end.size(1)):
-                                l = latent_end.detach().cpu().numpy()[:, k]
-                                x = np.linspace(-0.8, 0.8, 100)
-                                axes[k].hist(l, 50, density=True)
-                                axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                            self.logger.experiment["decoded_v_hist"].log(File.as_image(fig))
-                            plt.close(fig)
-
     def validation_epoch_end(self, outputs):
-        if self.logger is not None:
+        for logger in self.loggers:
             self.set_unimodal_pass_through(False)
             if self.current_epoch == 0:
                 if self.trainer.datamodule.ood_boundaries is not None:
                     self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
-            self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
+            # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
             for dist in ["in_dist", "ood"]:
                 if self.domain_examples[dist] is not None:
                     validation_examples = self.get_validation_examples(dist)
 
                     if self.validation_example_list is not None:
-                        self.log_images(validation_examples, f"val_{dist}")
+                        self.log_images(logger, validation_examples, f"val_{dist}")
 
             if self.domain_examples["train"] is not None:
                 train_examples = self.get_validation_examples("train")
-                self.log_images(train_examples, "train")
+                self.log_images(logger, train_examples, "train")
 
             self.set_unimodal_pass_through(True)
 

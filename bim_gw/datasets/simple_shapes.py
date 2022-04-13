@@ -172,70 +172,73 @@ class SimpleShapesData(LightningDataModule):
         ds = SimpleShapesDataset(simple_shapes_folder, "val")
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
+        self.is_setup = False
 
     def setup(self, stage=None):
-        val_transforms = {"v": get_preprocess()}
-        train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
-        if stage == "fit" or stage is None:
+        if not self.is_setup:
+            val_transforms = {"v": get_preprocess()}
+            train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
+            if stage == "fit" or stage is None:
 
-            self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
-                                                  transform=val_transforms,
-                                                  selected_domains=self.selected_domains)
-            self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
-                                                   transform=val_transforms,
-                                                   selected_domains=self.selected_domains)
+                self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
+                                                      transform=val_transforms,
+                                                      selected_domains=self.selected_domains)
+                self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
+                                                       transform=val_transforms,
+                                                       selected_domains=self.selected_domains)
 
-            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
-            len_train_dataset = len(sync_train_set)
-            if self.sync_uses_whole_dataset:
-                unimodal_indices = np.arange(len_train_dataset)
-                sync_indices = np.arange(len_train_dataset)
-            else:
-                unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
-                sync_indices = np.arange(len_train_dataset // 2)
-            sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                 selected_indices=sync_indices,
-                                                 transform=train_transforms,
-                                                 selected_domains=self.selected_domains)
-            self.shapes_train = {}
-            for domain_key, domain in self.selected_domains.items():
-                self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                                                    selected_indices=unimodal_indices,
-                                                                    transform=train_transforms,
-                                                                    selected_domains={domain_key: domain},
-                                                                    output_transform=lambda x, y=domain_key: x[y])
+                sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train")
+                len_train_dataset = len(sync_train_set)
+                if self.sync_uses_whole_dataset:
+                    unimodal_indices = np.arange(len_train_dataset)
+                    sync_indices = np.arange(len_train_dataset)
+                else:
+                    unimodal_indices = np.arange(len_train_dataset // 2, len_train_dataset)
+                    sync_indices = np.arange(len_train_dataset // 2)
+                sync_train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                     selected_indices=sync_indices,
+                                                     transform=train_transforms,
+                                                     selected_domains=self.selected_domains)
+                self.shapes_train = {}
+                for domain_key, domain in self.selected_domains.items():
+                    self.shapes_train[domain_key] = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                                                        selected_indices=unimodal_indices,
+                                                                        transform=train_transforms,
+                                                                        selected_domains={domain_key: domain},
+                                                                        output_transform=lambda x, y=domain_key: x[y])
 
-            if self.split_ood:
-                id_ood_splits, ood_boundaries = create_ood_split(
-                    [sync_train_set, self.shapes_val, self.shapes_test])
-                self.ood_boundaries = ood_boundaries
+                if self.split_ood:
+                    id_ood_splits, ood_boundaries = create_ood_split(
+                        [sync_train_set, self.shapes_val, self.shapes_test])
+                    self.ood_boundaries = ood_boundaries
 
-                target_indices = np.unique(id_ood_splits[0][0])
+                    target_indices = np.unique(id_ood_splits[0][0])
 
-                print("Val set in dist size", len(id_ood_splits[1][0]))
-                print("Val set OOD size", len(id_ood_splits[1][1]))
-                print("Test set in dist size", len(id_ood_splits[2][0]))
-                print("Test set OOD size", len(id_ood_splits[2][1]))
-            else:
-                id_ood_splits = None
-                target_indices = sync_train_set.ids
+                    print("Val set in dist size", len(id_ood_splits[1][0]))
+                    print("Val set OOD size", len(id_ood_splits[1][1]))
+                    print("Test set in dist size", len(id_ood_splits[2][0]))
+                    print("Test set OOD size", len(id_ood_splits[2][1]))
+                else:
+                    id_ood_splits = None
+                    target_indices = sync_train_set.ids
 
-            self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
-            self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
-            self.shapes_train["sync_"] = self.filter_sync_domains(sync_train_set, target_indices)
+                self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
+                self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
+                self.shapes_train["sync_"] = self.filter_sync_domains(sync_train_set, target_indices)
 
-        self.set_validation_examples(
-            self.shapes_val if stage == "fit" else self.shapes_test,
-            self.shapes_train["sync_"]
-        )
+            self.set_validation_examples(
+                self.shapes_val if stage == "fit" else self.shapes_test,
+                self.shapes_train["sync_"]
+            )
 
-        # Use pre saved latents if provided.
-        for shapes_set in [self.shapes_train, self.shapes_val, self.shapes_test]:
-            for dataset in shapes_set.values():
-                if dataset is not None:
-                    if isinstance(dataset, Subset):
-                        dataset = dataset.dataset
-                    dataset.use_pre_saved_latents(self.pre_saved_latent_paths)
+            # Use pre saved latents if provided.
+            for shapes_set in [self.shapes_train, self.shapes_val, self.shapes_test]:
+                for dataset in shapes_set.values():
+                    if dataset is not None:
+                        if isinstance(dataset, Subset):
+                            dataset = dataset.dataset
+                        dataset.use_pre_saved_latents(self.pre_saved_latent_paths)
+        self.is_setup = True
 
     def set_validation_examples(self, test_set, train_set):
         reconstruction_indices = {

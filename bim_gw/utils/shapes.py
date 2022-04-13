@@ -141,19 +141,8 @@ def get_image_specs_from_latents(cls, latents):
 def log_shape_fig(logger, classes, latents, name):
     spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
-    # plt.tight_layout(pad=0)
 
-    if logger is not None:
-        # with io.BytesIO() as io_buf:
-        #     fig.savefig(io_buf, format='raw')
-        #     io_buf.seek(0)
-        #     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-        #                          newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-
-        logger.experiment[name].log(File.as_image(fig))
-    else:
-        # plt.title(name)
-        plt.show()
+    logger.log_image(name, fig)
     plt.close(fig)
 
 
