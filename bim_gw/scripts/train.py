@@ -4,12 +4,12 @@ from pathlib import Path
 import torch
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.loggers import NeptuneLogger
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
 from bim_gw.scripts.utils import get_domains
+from bim_gw.utils.loggers import get_loggers
 
 
 def train_gw(args):
@@ -28,40 +28,24 @@ def train_gw(args):
                                        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
                                        data.domain_examples, args.global_workspace.monitor_grad_norms)
 
-    logger = None
     slurm_job_id = os.getenv("SLURM_JOBID", None)
-    if args.neptune.project_name is not None:
-        tags = None
-        if slurm_job_id is not None:
-            tags = ["calmip", slurm_job_id]
-
-        logger = NeptuneLogger(
-            api_key=args.neptune.api_token,
-            project=args.neptune.project_name,
-            name="train_gw",
-            run=args.neptune.resume,
-            mode=args.neptune.mode,
-            log_model_checkpoints=False,
-            tags=tags,
-            source_files=['../**/*.py', '../readme.md',
-                          '../requirements.txt', '../**/*.yaml']
-        )
-
-        logger.experiment["parameters"] = dict(args)
-        logger.log_model_summary(model=global_workspace, max_depth=-1)
+    tags = None
+    if slurm_job_id is not None:
+        tags = ["calmip", slurm_job_id]
+    source_files = ['../**/*.py', '../readme.md',
+                    '../requirements.txt', '../**/*.yaml']
+    loggers = get_loggers("train_gw", args.loggers, global_workspace, args, tags, source_files)
 
     # Callbacks
     callbacks = []
-    # callbacks = [
-    #     EarlyStopping("val_total_loss", patience=6),
-    # ]
-    if logger is not None:
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+    if len(loggers) and args.checkpoints_dir is not None:
+        logger = loggers[0]
         if slurm_job_id is not None:
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
-            save_dir = Path(args.checkpoints_dir) / logger.name / logger.version / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=1, mode="min", monitor="val_in_dist_total_loss"))
+            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
+        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_in_dist_total_loss"))
 
     trainer = Trainer(
         # default_root_dir=args.checkpoints_dir,
@@ -69,7 +53,7 @@ def train_gw(args):
         accelerator="auto",
         devices=args.gpus,
         strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=logger,
+        logger=loggers,
         callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         max_epochs=args.max_epochs,
@@ -95,36 +79,23 @@ def train_lm(args):
                   domain_examples)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
-    logger = None
-    if args.neptune.project_name is not None:
-        tags = None
-        if slurm_job_id is not None:
-            tags = ["calmip", slurm_job_id]
-
-        logger = NeptuneLogger(
-            api_key=args.neptune.api_token,
-            project=args.neptune.project_name,
-            name="train_lm",
-            run=args.neptune.resume,
-            mode=args.neptune.mode,
-            log_model_checkpoints=False,
-            tags=tags,
-            source_files=['../**/*.py', '../readme.md',
-                          '../requirements.txt', '../**/*.yaml']
-        )
-
-        logger.experiment["parameters"] = dict(args)
-        logger.log_model_summary(model=lm, max_depth=-1)
+    tags = None
+    if slurm_job_id is not None:
+        tags = ["calmip", slurm_job_id]
+    source_files = ['../**/*.py', '../readme.md',
+                    '../requirements.txt', '../**/*.yaml']
+    loggers = get_loggers("train_lm", args.loggers, lm, args, tags, source_files)
 
     # Callbacks
     callbacks = []
-    if logger is not None:
+    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+    if len(loggers) and args.checkpoints_dir is not None:
+        logger = loggers[0]
         if slurm_job_id is not None:
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
-            save_dir = Path(args.checkpoints_dir) / logger.name / logger.version / "checkpoints"
-        callbacks = [ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss")]
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
+        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
 
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,
@@ -132,7 +103,7 @@ def train_lm(args):
         accelerator="auto",
         devices=args.gpus,
         strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=logger,
+        logger=loggers,
         callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         max_epochs=args.max_epochs,
@@ -166,41 +137,28 @@ def train_ae(args):
     # import matplotlib.pyplot as plt
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
-    logger = None
-    if args.neptune.project_name is not None:
-        tags = None
-        if slurm_job_id is not None:
-            tags = ["calmip", slurm_job_id]
-
-        logger = NeptuneLogger(
-            api_key=args.neptune.api_token,
-            project=args.neptune.project_name,
-            name="train_ae",
-            run=args.neptune.resume,
-            mode=args.neptune.mode,
-            log_model_checkpoints=False,
-            tags=tags,
-            source_files=['../**/*.py', '../readme.md',
-                          '../requirements.txt', '../**/*.yaml']
-        )
-
-        logger.experiment["parameters"] = dict(args)
-        logger.log_model_summary(model=ae, max_depth=-1)
+    tags = None
+    if slurm_job_id is not None:
+        tags = ["calmip", slurm_job_id]
+    source_files = ['../**/*.py', '../readme.md',
+                    '../requirements.txt', '../**/*.yaml']
+    loggers = get_loggers("train_ae", args.loggers, ae, args, tags, source_files)
 
     # Callbacks
     callbacks = []
-    if logger is not None:
+    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+    if len(loggers) and args.checkpoints_dir is not None:
+        logger = loggers[0]
         if slurm_job_id is not None:
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
-            save_dir = Path(args.checkpoints_dir) / logger.name / logger.version / "checkpoints"
-        callbacks = [ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss")]
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
+        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
 
     trainer = Trainer(
         # default_root_dir=args.checkpoints_dir,
         fast_dev_run=args.fast_dev_run,
-        gpus=args.gpus, logger=logger, callbacks=callbacks,
+        gpus=args.gpus, logger=loggers, callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
         max_epochs=args.max_epochs, log_every_n_steps=1
@@ -234,36 +192,23 @@ def train_vae(args):
     # import matplotlib.pyplot as plt
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
-    logger = None
-    if args.neptune.project_name is not None:
-        tags = None
-        if slurm_job_id is not None:
-            tags = ["calmip", slurm_job_id]
-
-        logger = NeptuneLogger(
-            api_key=args.neptune.api_token,
-            project=args.neptune.project_name,
-            name="train_vae",
-            run=args.neptune.resume,
-            mode=args.neptune.mode,
-            log_model_checkpoints=False,
-            tags=tags,
-            source_files=['../**/*.py', '../readme.md',
-                          '../requirements.txt', '../**/*.yaml']
-        )
-
-        logger.experiment["parameters"] = dict(args)
-        logger.log_model_summary(model=vae, max_depth=-1)
+    tags = None
+    if slurm_job_id is not None:
+        tags = ["calmip", slurm_job_id]
+    source_files = ['../**/*.py', '../readme.md',
+                    '../requirements.txt', '../**/*.yaml']
+    loggers = get_loggers("train_lm", args.loggers, vae, args, tags, source_files)
 
     # Callbacks
     callbacks = []
-    if logger is not None:
+    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+    if len(loggers) and args.checkpoints_dir is not None:
+        logger = loggers[0]
         if slurm_job_id is not None:
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
-            save_dir = Path(args.checkpoints_dir) / logger.name / logger.version / "checkpoints"
-        callbacks = [ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss")]
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
+        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
 
     trainer = Trainer(
         # default_root_dir=args.checkpoints_dir,
@@ -271,7 +216,7 @@ def train_vae(args):
         accelerator="auto",
         devices=args.gpus,
         strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=logger,
+        logger=loggers,
         callbacks=callbacks,
         resume_from_checkpoint=args.resume_from_checkpoint,
         max_epochs=args.max_epochs,

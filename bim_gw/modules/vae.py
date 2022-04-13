@@ -226,26 +226,39 @@ class VAE(WorkspaceModule):
 
     def validation_epoch_end(self, outputs):
         if self.validation_reconstruction_images is not None:
-            x = self.validation_reconstruction_images
-            _, x_reconstructed = self(x)
+            for logger in self.loggers:
+                x = self.validation_reconstruction_images
+                _, x_reconstructed = self(x)
 
-            if self.current_epoch == 0:
-                log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+                if self.current_epoch == 0:
+                    log_image(logger, x[:self.hparams.n_validation_examples], "val_original_images")
 
-            log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
-            sampled_images = self.decoder(self.validation_sampling_z)
-            log_image(self.logger, sampled_images, "val_sampling")
+                log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
+                sampled_images = self.decoder(self.validation_sampling_z)
+                log_image(logger, sampled_images, "val_sampling")
 
-            # # FID
-            # fid, mse = compute_FID(
-            #     self.trainer.datamodule.inception_stats_path_train,
-            #     self.trainer.datamodule.val_dataloader()[0],
-            #     self, self.z_size, [self.image_size, self.image_size],
-            #     self.device, self.n_FID_samples
-            # )
-            # self.log("val_fid", fid)
-            # # self.print("FID: ", fid)
-            # self.log("val_mse", mse)
+                # # FID
+                # fid, mse = compute_FID(
+                #     self.trainer.datamodule.inception_stats_path_train,
+                #     self.trainer.datamodule.val_dataloader()[0],
+                #     self, self.z_size, [self.image_size, self.image_size],
+                #     self.device, self.n_FID_samples
+                # )
+                # self.log("val_fid", fid)
+                # # self.print("FID: ", fid)
+                # self.log("val_mse", mse)
+
+                #
+                # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
+                # mu_dataset_train = stat_train['mu']
+                # sigma_dataset_train = stat_train['sigma']
+                #
+                # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
+                # mu_dataset_test = stat_test['mu']
+                # sigma_dataset_test = stat_test['sigma']
+                #
+                # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
+                # self.print("FID test: ", fid_value)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,

@@ -90,11 +90,12 @@ class ShapesAttributesLM(WorkspaceModule):
 
         # text
         labels = ["x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        text = []
         for k in range(len(classes)):
-            text = f"c: {str(classes[k].item())}, " + ", ".join(
-                map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist())))
-            logger.experiment[name + "_text"].log(f"{k + 1} - {text}")
-        logger.experiment[name + "_text"].log("-----")
+            text.append(f"{k}  \t- c: {str(classes[k].item())}, " + ", ".join(
+                map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist()))))
+        text.append("----")
+        logger.log_text(name + "_text", text)
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -206,9 +207,9 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        for k in range(len(x)):
-            logger.experiment[name + "_s"].log(f"{k + 1} - {x[k]}")
-        logger.experiment[name + "_s"].log("-----")
+        text = [f"{k + 1} - {x[k]}" for k in range(len(x))]
+        text.append("\n-----")
+        logger.log_text(name + "_s", text)
         encoded_s = self.encode(x)
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples)
@@ -254,24 +255,24 @@ class ShapesLM(WorkspaceModule):
         return total_loss
 
     def validation_epoch_end(self, outputs):
-        if self.logger is not None and self.validation_domain_examples is not None:
-            encoded_s = self.encode(self.validation_domain_examples["t"])
-            predictions = self.classify(encoded_s)
-            sentence_predictions = self.decode(encoded_s)
+        if self.validation_domain_examples is not None:
+            for logger in self.loggers:
+                encoded_s = self.encode(self.validation_domain_examples["t"])
+                predictions = self.classify(encoded_s)
+                sentence_predictions = self.decode(encoded_s)
 
-            for k in range(len(sentence_predictions)):
-                self.logger.experiment["predictions_text"].log(f"{k + 1} - {sentence_predictions[k]}")
-            self.logger.experiment["predictions_text"].log("-----")
+            text = [f"{k + 1} - {sentence_predictions[k]}" for k in range(len(sentence_predictions))]
+            text.append("-----")
+            logger.log_text("predictions_text", text)
 
-            # Images
-            self.shapes_attribute.log_domain(self.logger, self.shapes_attribute.decode(predictions),
-                                             "predictions_reconstruction")
+                # Images
+            self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
+                                                 "predictions_reconstruction")
 
-            if self.current_epoch == 0:
-                self.shapes_attribute.log_domain(self.logger, self.validation_domain_examples["a"],
-                                                 "target_reconstruction")
-                for k in range(len(sentence_predictions)):
-                    self.logger.experiment["target_text"].log(f"{k + 1} - {self.validation_domain_examples['t'][k]}")
+                if self.current_epoch == 0:
+                self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "target_reconstruction")
+                logger.log_text("target_text", [f"{k + 1} - {self.validation_domain_examples['t'][k]}" for k in
+                                                range(len(sentence_predictions))])
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

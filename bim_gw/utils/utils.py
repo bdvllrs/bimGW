@@ -54,14 +54,11 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
     sample_imgs = sample_imgs - sample_imgs.min()
     sample_imgs = sample_imgs / sample_imgs.max()
     img_grid = torchvision.utils.make_grid(sample_imgs, pad_value=1, **kwargs)
-    img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
-    if logger is not None:
-        logger.experiment[name].log(File.as_image(img_grid), step=step)
-    else:
-        plt.imshow(img_grid)
-        plt.title(name)
-        plt.tight_layout(pad=0)
-        plt.show()
+    logger.log_image(name, img_grid, step)
+    #     plt.imshow(img_grid)
+    #     plt.title(name)
+    #     plt.tight_layout(pad=0)
+    #     plt.show()
 
 
 def val_or_default(d, key, default=None):
