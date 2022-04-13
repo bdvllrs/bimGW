@@ -11,6 +11,10 @@
             <excludedPath path="/bimGW/bim_gw.egg-info" />
             <excludedPath path="/bimGW/checkpoints" />
             <excludedPath path="/bimGW/.neptune" />
+            <excludedPath path="/bimGW/scripts/.neptune" />
+            <excludedPath path="/bimGW/scripts/checkpoints" />
+            <excludedPath path="/bimGW/data" />
+            <excludedPath path="/bimGW/tests/.neptune" />
           </excludedPaths>
         </serverdata>
       </paths>

@@ -98,11 +98,20 @@ word_embeddings: null
 dataloader:
   num_workers: 0
 
-neptune:
-  project_name: null
-  api_token: null
-  mode: async
-  resume: null
+loggers:
+  - logger: TensorBoardLogger
+    args:
+      save_dir: "../logs/tensor_board_logger"
+#  - logger: CSVLogger
+#    args:
+#      save_dir: "../logs/csv_logger"
+#  - logger: NeptuneLogger
+#    args:
+#      project: null
+#      api_key: null
+#      mode: async
+#      run: null
+
 
 checkpoints_dir: ???
 resume_from_checkpoint: null
