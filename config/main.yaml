@@ -100,12 +100,15 @@ dataloader:
 
 loggers:
   - logger: TensorBoardLogger
+    save_images: true
     args:
       save_dir: "../logs/tensor_board_logger"
 #  - logger: CSVLogger
+#    save_images: true
 #    args:
 #      save_dir: "../logs/csv_logger"
 #  - logger: NeptuneLogger
+#    save_images: true
 #    args:
 #      project: null
 #      api_key: null
