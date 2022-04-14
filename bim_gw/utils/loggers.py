@@ -169,7 +169,10 @@ def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_f
     logger = TensorBoardLogger(
         **args
     )
-    logger.experiment.add_hparams({"parameters": OmegaConf.to_object(conf), "tags": tags}, {})
+    hparams = {"parameters": OmegaConf.to_object(conf)}
+    if tags is not None:
+        hparams["tags"] = tags
+    logger.experiment.add_hparams(hparams, {})
     # logger.experiment.add_graph(model)
     # TODO: add source_files
     return logger
