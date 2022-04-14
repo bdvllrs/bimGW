@@ -188,6 +188,11 @@ class SimpleShapesDataModule(LightningDataModule):
             if domain != "a":
                 available_domains[domain_name + "_f"] = domain + "_f"
         if self.prop_sync_domains is not None:
+            if "all" not in self.prop_sync_domains:
+                assert sum(self.prop_sync_domains.values()) <= 1.
+                self.prop_sync_domains["all"] = 1. - sum(self.prop_sync_domains.values())
+            else:
+                assert sum(self.prop_sync_domains.values()) == 1.
             last_idx = 0
             for key, prop in self.prop_sync_domains.items():
                 n_items = int(prop * n_targets)

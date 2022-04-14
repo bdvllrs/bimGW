@@ -261,18 +261,18 @@ class ShapesLM(WorkspaceModule):
                 predictions = self.classify(encoded_s)
                 sentence_predictions = self.decode(encoded_s)
 
-            text = [f"{k + 1} - {sentence_predictions[k]}" for k in range(len(sentence_predictions))]
-            text.append("-----")
-            logger.log_text("predictions_text", text)
+                text = [f"{k + 1} - {sentence_predictions[k]}" for k in range(len(sentence_predictions))]
+                text.append("-----")
+                logger.log_text("predictions_text", text)
 
-                # Images
-            self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
-                                                 "predictions_reconstruction")
+                    # Images
+                self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
+                                                     "predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "target_reconstruction")
-                logger.log_text("target_text", [f"{k + 1} - {self.validation_domain_examples['t'][k]}" for k in
-                                                range(len(sentence_predictions))])
+                    self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "target_reconstruction")
+                    logger.log_text("target_text", [f"{k + 1} - {self.validation_domain_examples['t'][k]}" for k in
+                                                    range(len(sentence_predictions))])
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

@@ -172,25 +172,26 @@ class AE(WorkspaceModule):
 
     def validation_epoch_end(self, outputs):
         if self.validation_reconstruction_images is not None:
-            x = self.validation_reconstruction_images
-            _, x_reconstructed = self(x)
+            for logger in self.loggers:
+                x = self.validation_reconstruction_images
+                _, x_reconstructed = self(x)
 
-            if self.current_epoch == 0:
-                log_image(self.logger, x[:self.hparams.n_validation_examples], "val_original_images")
+                if self.current_epoch == 0:
+                    log_image(logger, x[:self.hparams.n_validation_examples], "val_original_images")
 
-            log_image(self.logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
+                log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
 
-            #
-            # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
-            # mu_dataset_train = stat_train['mu']
-            # sigma_dataset_train = stat_train['sigma']
-            #
-            # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
-            # mu_dataset_test = stat_test['mu']
-            # sigma_dataset_test = stat_test['sigma']
-            #
-            # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
-            # self.print("FID test: ", fid_value)
+                #
+                # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
+                # mu_dataset_train = stat_train['mu']
+                # sigma_dataset_train = stat_train['sigma']
+                #
+                # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
+                # mu_dataset_test = stat_test['mu']
+                # sigma_dataset_test = stat_test['sigma']
+                #
+                # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
+                # self.print("FID test: ", fid_value)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
