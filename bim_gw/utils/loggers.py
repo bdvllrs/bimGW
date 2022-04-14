@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional, Union, List
 
@@ -38,13 +39,18 @@ def to_pil_image(image: ImageType):
 
 
 class NeptuneLogger(NeptuneLoggerBase):
-    def __init__(self, **neptune_run_kwargs):
+    def __init__(self, log_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
+
+        self._log_images = log_images
+        if not self._log_images:
+            logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        image = to_pil_image(image)
-        self.experiment[log_name].log(File.as_image(image), step=step)
+        if self._log_images:
+            image = to_pil_image(image)
+            self.experiment[log_name].log(File.as_image(image), step=step)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
@@ -54,14 +60,21 @@ class NeptuneLogger(NeptuneLoggerBase):
 
 
 class TensorBoardLogger(TensorBoardLoggerBase):
+    def __init__(self, *params, log_images=False, **kwargs):
+        super(TensorBoardLogger, self).__init__(*params, **kwargs)
+        self._log_images = log_images
+        if not self._log_images:
+            logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
+
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if isinstance(image, Image.Image):
-            image = torchvision.transforms.ToTensor()(image)
-        if isinstance(image, torch.Tensor):
-            self.experiment.add_image(log_name, image, step)
-        elif isinstance(image, plt.Figure):
-            self.experiment.add_figure(log_name, image, step)
+        if self._log_images:
+            if isinstance(image, Image.Image):
+                image = torchvision.transforms.ToTensor()(image)
+            if isinstance(image, torch.Tensor):
+                self.experiment.add_image(log_name, image, step)
+            elif isinstance(image, plt.Figure):
+                self.experiment.add_figure(log_name, image, step)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
@@ -92,19 +105,25 @@ class MLFlowLogger(MLFlowLoggerBase):
 
 
 class CSVLogger(CSVLoggerBase):
-    def __init__(self, *params, image_location="images", text_location="texts", source_location="sources", **kwargs):
+    def __init__(self, *params, save_images=True, image_location="images", text_location="texts",
+                 source_location="sources", **kwargs):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
         self._source_location = source_location
         self._texts = {}
+        self._images = []
+        self._save_images = save_images
+        if not self._save_images:
+            logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        image = to_pil_image(image)
-        image.save(path)
+        if self._save_images:
+            path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            image = to_pil_image(image)
+            self._images.append((path, image))
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
@@ -123,55 +142,62 @@ class CSVLogger(CSVLoggerBase):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "a") as f:
                 f.write(text)
+        for path, image in self._images:
+            image.save(path)
         self._texts = {}
+        self._images = []
 
 
-def get_neptune_logger(name, args, model, conf, tags, source_files):
+def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
+        log_images=log_args.save_images,
         name=name,
         log_model_checkpoints=False,
         tags=tags,
         source_files=source_files,
-        **OmegaConf.to_object(args)
+        **OmegaConf.to_object(log_args.args)
     )
     logger.experiment["parameters"] = OmegaConf.to_object(conf)
     logger.log_model_summary(model=model, max_depth=-1)
     return logger
 
 
-def get_tensor_board_logger(name, args, model, conf, tags, source_files):
-    args = OmegaConf.to_object(args)
+def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_files):
+    args = OmegaConf.to_object(log_args.args)
     args['name'] = name
+    args['version'] = version
     logger = TensorBoardLogger(
         **args
     )
-    logger.log_hyperparams({"parameters": OmegaConf.to_object(conf)})
-    logger.log_hyperparams({"tags": tags})
+    logger.experiment.add_hparams({"parameters": OmegaConf.to_object(conf), "tags": tags}, {})
     # logger.experiment.add_graph(model)
     # TODO: add source_files
     return logger
 
 
-def get_csv_logger(name, args, model, conf, tags, source_files):
-    args = OmegaConf.to_object(args)
+def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
+    args = OmegaConf.to_object(log_args.args)
     args['name'] = name
+    args['version'] = version
     logger = CSVLogger(
         **args
     )
-    logger.experiment.log_hparams({"parameters": OmegaConf.to_object(conf)})
-    logger.experiment.log_hparams({"tags": tags})
+    logger.experiment.log_hparams({
+        "parameters": OmegaConf.to_object(conf),
+        "tags": tags
+    })
     # TODO: add source_files
     return logger
 
 
-def get_loggers(name, args, model, conf, tags, source_files):
+def get_loggers(name, version, args, model, conf, tags, source_files):
     loggers = []
     for logger in args:
         if logger.logger == "NeptuneLogger":
-            loggers.append(get_neptune_logger(name, logger.args, model, conf, tags, source_files))
+            loggers.append(get_neptune_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "CSVLogger":
-            loggers.append(get_csv_logger(name, logger.args, model, conf, tags, source_files))
+            loggers.append(get_csv_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "TensorBoardLogger":
-            loggers.append(get_tensor_board_logger(name, logger.args, model, conf, tags, source_files))
+            loggers.append(get_tensor_board_logger(name, version, logger, model, conf, tags, source_files))
         # TODO: implement for the other loggers
     return loggers

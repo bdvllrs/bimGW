@@ -1,15 +1,10 @@
-import os
-from pathlib import Path
-
 import torch
-from pytorch_lightning import seed_everything, Trainer
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
-from bim_gw.scripts.utils import get_domains
-from bim_gw.utils.loggers import get_loggers
+from bim_gw.scripts.utils import get_domains, get_trainer
 
 
 def train_gw(args):
@@ -28,39 +23,7 @@ def train_gw(args):
                                        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
                                        data.domain_examples, args.global_workspace.monitor_grad_norms)
 
-    slurm_job_id = os.getenv("SLURM_JOBID", None)
-    tags = None
-    if slurm_job_id is not None:
-        tags = ["calmip", slurm_job_id]
-    source_files = ['../**/*.py', '../readme.md',
-                    '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers("train_gw", args.loggers, global_workspace, args, tags, source_files)
-
-    # Callbacks
-    callbacks = []
-    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-    if len(loggers) and args.checkpoints_dir is not None:
-        logger = loggers[0]
-        if slurm_job_id is not None:
-            save_dir = Path(args.checkpoints_dir) / "checkpoints"
-        else:
-            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_in_dist_total_loss"))
-
-    trainer = Trainer(
-        # default_root_dir=args.checkpoints_dir,
-        fast_dev_run=args.fast_dev_run,
-        accelerator="auto",
-        devices=args.gpus,
-        strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=loggers,
-        callbacks=callbacks,
-        resume_from_checkpoint=args.resume_from_checkpoint,
-        max_epochs=args.max_epochs,
-        # val_check_interval=0.25,
-        multiple_trainloader_mode="min_size",
-    )
-
+    trainer = get_trainer("train_gw", args, global_workspace, monitor_loss="val_in_dist_total_loss")
     trainer.fit(global_workspace, data)
 
 
@@ -78,39 +41,7 @@ def train_lm(args):
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
                   domain_examples)
 
-    slurm_job_id = os.getenv("SLURM_JOBID", None)
-    tags = None
-    if slurm_job_id is not None:
-        tags = ["calmip", slurm_job_id]
-    source_files = ['../**/*.py', '../readme.md',
-                    '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers("train_lm", args.loggers, lm, args, tags, source_files)
-
-    # Callbacks
-    callbacks = []
-    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-    if len(loggers) and args.checkpoints_dir is not None:
-        logger = loggers[0]
-        if slurm_job_id is not None:
-            save_dir = Path(args.checkpoints_dir) / "checkpoints"
-        else:
-            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
-
-    trainer = Trainer(
-        default_root_dir=args.checkpoints_dir,
-        fast_dev_run=args.fast_dev_run,
-        accelerator="auto",
-        devices=args.gpus,
-        strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=loggers,
-        callbacks=callbacks,
-        resume_from_checkpoint=args.resume_from_checkpoint,
-        max_epochs=args.max_epochs,
-        # val_check_interval=0.25,
-        multiple_trainloader_mode="min_size",
-    )
-
+    trainer = get_trainer("train_lm", args, lm, monitor_loss="val_total_loss")
     trainer.fit(lm, data)
 
 
@@ -133,37 +64,7 @@ def train_ae(args):
         data.domain_examples["in_dist"][0]["v"][1]
     )
 
-    # checkpoint = torch.load(args.resume_from_checkpoint)
-    # import matplotlib.pyplot as plt
-
-    slurm_job_id = os.getenv("SLURM_JOBID", None)
-    tags = None
-    if slurm_job_id is not None:
-        tags = ["calmip", slurm_job_id]
-    source_files = ['../**/*.py', '../readme.md',
-                    '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers("train_ae", args.loggers, ae, args, tags, source_files)
-
-    # Callbacks
-    callbacks = []
-    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-    if len(loggers) and args.checkpoints_dir is not None:
-        logger = loggers[0]
-        if slurm_job_id is not None:
-            save_dir = Path(args.checkpoints_dir) / "checkpoints"
-        else:
-            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
-
-    trainer = Trainer(
-        # default_root_dir=args.checkpoints_dir,
-        fast_dev_run=args.fast_dev_run,
-        gpus=args.gpus, logger=loggers, callbacks=callbacks,
-        resume_from_checkpoint=args.resume_from_checkpoint,
-        distributed_backend=(args.distributed_backend if args.gpus > 1 else None),
-        max_epochs=args.max_epochs, log_every_n_steps=1
-    )
-
+    trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss")
     trainer.fit(ae, data)
 
 
@@ -188,42 +89,7 @@ def train_vae(args):
         data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
     )
 
-    # checkpoint = torch.load(args.resume_from_checkpoint)
-    # import matplotlib.pyplot as plt
-
-    slurm_job_id = os.getenv("SLURM_JOBID", None)
-    tags = None
-    if slurm_job_id is not None:
-        tags = ["calmip", slurm_job_id]
-    source_files = ['../**/*.py', '../readme.md',
-                    '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers("train_lm", args.loggers, vae, args, tags, source_files)
-
-    # Callbacks
-    callbacks = []
-    callbacks.append(LearningRateMonitor(logging_interval="epoch"))
-    if len(loggers) and args.checkpoints_dir is not None:
-        logger = loggers[0]
-        if slurm_job_id is not None:
-            save_dir = Path(args.checkpoints_dir) / "checkpoints"
-        else:
-            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor="val_total_loss"))
-
-    trainer = Trainer(
-        # default_root_dir=args.checkpoints_dir,
-        fast_dev_run=args.fast_dev_run,
-        accelerator="auto",
-        devices=args.gpus,
-        strategy=(args.distributed_backend if args.gpus > 1 else None),
-        logger=loggers,
-        callbacks=callbacks,
-        resume_from_checkpoint=args.resume_from_checkpoint,
-        max_epochs=args.max_epochs,
-        # val_check_interval=0.25,
-        multiple_trainloader_mode="min_size",
-    )
-
+    trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss")
     trainer.fit(vae, data)
 
     vae.n_FID_samples = data.val_dataset_size  # all the dataset

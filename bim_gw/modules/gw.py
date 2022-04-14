@@ -462,7 +462,7 @@ class GlobalWorkspace(LightningModule):
                 self.set_unimodal_pass_through(False)
                 if self.current_epoch == 0:
                     if self.trainer.datamodule.ood_boundaries is not None:
-                        self.logger.experiment["ood_boundaries"] = str(self.trainer.datamodule.ood_boundaries)
+                        logger.log_hyperparams({"ood_boundaries": str(self.trainer.datamodule.ood_boundaries)})
                 # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
                 for dist in ["in_dist", "ood"]:
                     if self.domain_examples[dist] is not None:
@@ -514,7 +514,7 @@ class GlobalWorkspace(LightningModule):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {
             "optimizer": optimizer,
-            "lr_scheduler_config": {
+            "lr_scheduler": {
                 "scheduler": scheduler,
                 "interval": scheduler_interval,
                 "frequency": 1
