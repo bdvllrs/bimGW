@@ -185,7 +185,7 @@ class SimpleShapesDataModule(LightningDataModule):
         available_domains = {}
         for domain_name, domain in train_set.selected_domains.items():
             available_domains[domain_name] = domain
-            if domain != "a":
+            if domain != "a" and self.with_actions:
                 available_domains[domain_name + "_f"] = domain + "_f"
         if self.prop_sync_domains is not None:
             if "all" not in self.prop_sync_domains:
