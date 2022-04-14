@@ -105,7 +105,8 @@ class MLFlowLogger(MLFlowLoggerBase):
 
 
 class CSVLogger(CSVLoggerBase):
-    def __init__(self, *params, save_images=True, image_location="images", text_location="texts", source_location="sources", **kwargs):
+    def __init__(self, *params, save_images=True, image_location="images", text_location="texts",
+                 source_location="sources", **kwargs):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
@@ -168,8 +169,7 @@ def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_f
     logger = TensorBoardLogger(
         **args
     )
-    logger.log_hyperparams({"parameters": OmegaConf.to_object(conf)})
-    logger.log_hyperparams({"tags": tags})
+    logger.experiment.add_hparams({"parameters": OmegaConf.to_object(conf), "tags": tags}, {})
     # logger.experiment.add_graph(model)
     # TODO: add source_files
     return logger
@@ -182,8 +182,10 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     logger = CSVLogger(
         **args
     )
-    logger.experiment.log_hparams({"parameters": OmegaConf.to_object(conf)})
-    logger.experiment.log_hparams({"tags": tags})
+    logger.experiment.log_hparams({
+        "parameters": OmegaConf.to_object(conf),
+        "tags": tags
+    })
     # TODO: add source_files
     return logger
 
