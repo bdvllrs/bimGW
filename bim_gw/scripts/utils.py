@@ -75,6 +75,7 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
         # "val_check_interval": 0.25,
         "multiple_trainloader_mode": "min_size",
     }
-    _trainer_args.update(trainer_args)
+    if trainer_args is not None:
+        _trainer_args.update(trainer_args)
 
     return Trainer(**_trainer_args)
