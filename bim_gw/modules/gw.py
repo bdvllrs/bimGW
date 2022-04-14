@@ -512,7 +512,7 @@ class GlobalWorkspace(LightningModule):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {
             "optimizer": optimizer,
-            "lr_scheduler_config": {
+            "lr_scheduler": {
                 "scheduler": scheduler,
                 "interval": scheduler_interval,
                 "frequency": 1

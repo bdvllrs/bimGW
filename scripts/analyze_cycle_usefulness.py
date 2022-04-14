@@ -52,12 +52,12 @@ if __name__ == '__main__':
     log = CSVLog("../data/bim-gw.csv")
     log = log.add_token_column()
     # log = log.filter_between("_token", 609, 846)
-    log = log.filter_between("_token", 1371, 1564)
+    log = log.filter_between("_token", 1678, 1708)
     log = log.add_column("n_images", lambda row: int(row["prop_lab_images"] * 500_000))
 
     alpha = 4
     min_epoch = 95
-    seeds = [0, 1, 2, 3, 4]
+    seeds = [0]
     losses = {"loss": ""}
     # z_size = 4
     log = log.filter_in("parameters/seed", seeds).filter_between('training/epoch (last)', min_epoch)
