@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from typing import Optional, Union, List
 
 import torch
@@ -39,10 +40,10 @@ def to_pil_image(image: ImageType):
 
 
 class NeptuneLogger(NeptuneLoggerBase):
-    def __init__(self, log_images=True, **neptune_run_kwargs):
+    def __init__(self, save_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
 
-        self._log_images = log_images
+        self._log_images = save_images
         if not self._log_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -60,9 +61,9 @@ class NeptuneLogger(NeptuneLoggerBase):
 
 
 class TensorBoardLogger(TensorBoardLoggerBase):
-    def __init__(self, *params, log_images=False, **kwargs):
+    def __init__(self, *params, save_images=True, **kwargs):
         super(TensorBoardLogger, self).__init__(*params, **kwargs)
-        self._log_images = log_images
+        self._log_images = save_images
         if not self._log_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -150,7 +151,7 @@ class CSVLogger(CSVLoggerBase):
 
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
-        log_images=log_args.save_images,
+        save_images=log_args.save_images,
         name=name,
         log_model_checkpoints=False,
         tags=tags,
