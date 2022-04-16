@@ -36,7 +36,7 @@ class GlobalWorkspace(LightningModule):
 
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters(ignore=["domain_mods", "domain_examples"])
-        self.automatic_optimization = False
+        # self.automatic_optimization = False
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -341,27 +341,20 @@ class GlobalWorkspace(LightningModule):
         return total_loss, losses
 
     def training_step(self, batch, batch_idx):
-        opt = self.optimizers()
         # remove the sync batch
         domains = {key: val for key, val in batch.items() if key != "sync_"}
         sync_supervision = batch["sync_"]  # Sparse cross-modal supervision
-
-        opt.zero_grad()
 
         latents = self.encode_uni_modal(domains)
         sync_latents = self.encode_uni_modal(sync_supervision)
 
         total_loss, losses = self.step(latents, sync_latents, sync_supervision, mode="train")
-
-        if self.monitor_grad_norms:
-            grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
-            self.grad_norms_bin.log(grad_norms)
-            for name, grad_norm in grad_norms.items():
-                self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
-        else:
-            self.manual_backward(total_loss)
-
-        opt.step()
+        #
+        # if self.monitor_grad_norms:
+        #     grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
+        #     self.grad_norms_bin.log(grad_norms)
+        #     for name, grad_norm in grad_norms.items():
+        #         self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
 
         return total_loss
 
