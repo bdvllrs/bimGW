@@ -28,7 +28,7 @@ def get_domain(name, domain_name, args, data):
     else:
         raise ValueError(f"{domain_name} is not a valid domain name.")
 
-    if args.global_workspace.use_pre_saved and name in args.global_workspace.load_pre_saved_latents.keys():
+    if args.global_workspace.use_pre_saved and domain_name in args.global_workspace.load_pre_saved_latents.keys():
         domain = PassThroughWM(domain)
 
     domain.eval()

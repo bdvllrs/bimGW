@@ -81,10 +81,10 @@ class ShapesAttributesLM(WorkspaceModule):
     def __init__(self, n_classes, imsize):
         super(ShapesAttributesLM, self).__init__()
         self.n_classes = n_classes
-        self.z_size = 3
+        self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.z_size, 8]
+        self.output_dims = [self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.softmax(x, dim=1),  # shapes

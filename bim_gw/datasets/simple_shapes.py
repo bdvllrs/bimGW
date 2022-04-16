@@ -124,10 +124,10 @@ class SimpleShapesDataset:
 
     def use_pre_saved_latents(self, pre_saved_latent_path):
         if pre_saved_latent_path is not None:
-            for key, path in pre_saved_latent_path.items():
-                if key in self.data_fetchers.keys():
+            for key, domain_key in self.selected_domains.items():
+                if domain_key in pre_saved_latent_path.keys():
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(
-                        self.root_path / "saved_latents" / self.split / path, self.ids)
+                        self.root_path / "saved_latents" / self.split / pre_saved_latent_path[domain_key], self.ids)
 
     def __len__(self):
         return len(self.labels)
