@@ -6,6 +6,7 @@ import torch
 import torchvision
 from PIL import Image
 from matplotlib import pyplot as plt
+from neptune.new.exceptions import MissingFieldException
 from neptune.new.types import File
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import (
@@ -157,7 +158,15 @@ def get_neptune_logger(name, version, log_args, model, conf, tags, source_files)
         source_files=source_files,
         **OmegaConf.to_object(log_args.args)
     )
-    logger.experiment["parameters"] = OmegaConf.to_object(conf)
+
+    for k in range(5):
+        try:
+            logger.experiment["parameters"] = OmegaConf.to_object(conf)
+        except MissingFieldException as e:
+            print("Error, retrying")
+        else:
+            break
+
     logger.log_model_summary(model=model, max_depth=-1)
     return logger
 
