@@ -85,24 +85,29 @@ class TensorBoardLogger(TensorBoardLoggerBase):
 
 
 class MLFlowLogger(MLFlowLoggerBase):
-    def __init__(self, *params, image_location="images", text_location="texts", **kwargs):
+    def __init__(self, *params, image_location="images", text_location="texts", save_images=True, **kwargs):
         super(MLFlowLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
+        self._save_images = save_images
+
+        if not self._save_images:
+            logging.warning("MLFLowLogger will not save the images. Set `save_images' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        path = os.path.join(self._artifact_location, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
-        image = to_pil_image(image)
-        self.experiment.log_image(image, path)
+        if self._save_images:
+            path = f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
+            image = to_pil_image(image)
+            self.experiment.log_image(self.run_id, image, path)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
         if isinstance(text, list):
             text = "  \n".join(text)
-        path = os.path.join(self._artifact_location, f"{self._text_location}/{log_name}/{log_name}.txt")
+        path = f"{self._text_location}/{log_name}/{log_name}.txt"
         text = f"====  \nstep={step}  \n====  \n{text}  \n"
-        self.experiment.log_text(text, path)
+        self.experiment.log_text(self.run_id, text, path)
 
 
 class CSVLogger(CSVLoggerBase):
@@ -201,6 +206,19 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     # TODO: add source_files
     return logger
 
+def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files):
+    logger = MLFlowLogger(
+        save_images=log_args.save_images,
+        run_name=version,
+        experiment_name=name,
+        tags=tags,
+        **OmegaConf.to_object(log_args.args)
+    )
+    logger.log_hyperparams({
+        "parameters": OmegaConf.to_object(conf),
+    })
+    # TODO: add source_files
+    return logger
 
 def get_loggers(name, version, args, model, conf, tags, source_files):
     loggers = []
@@ -211,5 +229,9 @@ def get_loggers(name, version, args, model, conf, tags, source_files):
             loggers.append(get_csv_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "TensorBoardLogger":
             loggers.append(get_tensor_board_logger(name, version, logger, model, conf, tags, source_files))
+        elif logger.logger == "MLFlowLogger":
+            loggers.append(get_ml_flow_logger(name, version, logger, model, conf, tags, source_files))
+        else:
+            raise ValueError(f"Logger: {logger.logger} is not yet available.")
         # TODO: implement for the other loggers
     return loggers
