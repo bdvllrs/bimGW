@@ -27,7 +27,7 @@ class GlobalWorkspace(LightningModule):
     def __init__(
             self, domain_mods, z_size, hidden_size,
             n_classes=1000,
-            loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_supervision=1., loss_coef_cosine=0.,
+            loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_translation=1., loss_coef_cosine=0.,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
             scheduler_step=20, scheduler_gamma=0.5,
             domain_examples: Optional[dict] = None,
@@ -110,7 +110,7 @@ class GlobalWorkspace(LightningModule):
     def project(self, latents, masked_domains=None):
         state = [
             self.encode(latents[domain_name], domain_name)
-            for domain_name in self.domain_names
+            for domain_name in latents.keys()
         ]
         masks = [masked_domains]
         state = torch.stack(state, dim=1)
@@ -174,171 +174,66 @@ class GlobalWorkspace(LightningModule):
         z = self.translate(x, domain_name_start, domain_name_inter)
         return self.translate(z, domain_name_inter, domain_name_start)
 
-    def demi_cycle_loss(self, domains, coef=1.):
-        loss = torch.tensor(0.).to(self.device)
-        losses = {}
-        losses_no_coefs = {}
-        total = len(domains)
-        for name, domain in domains.items():
-            out = self.demi_cycle(domain, name)
-            l = torch.tensor(0.).to(self.device)
-            for k in range(len(domain)):
-                loss_fn = self.loss_fn[f"{name}_{k}"]
-                l += loss_fn(out[k], domain[k]).mean() / total
-            losses[f"loss_demi_cycle_{name}"] = coef * l
-            losses_no_coefs[f"loss_demi_cycle_{name}"] = l
-            loss += losses[f"loss_demi_cycle_{name}"]
-        losses["demi_cycle_loss"] = loss
-        losses_no_coefs["demi_cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        return losses["demi_cycle_loss"], losses, losses_no_coefs
-
-    def cycle_loss(self, domains, coefficients=1.):
-        loss = torch.tensor(0.).to(self.device)
-        losses = {}
-        losses_no_coefs = {}
-        n = len(domains)
-        total = n * (n - 1)
-        for domain_name_start, domain in domains.items():
-            for domain_name_inter in domains.keys():
-                if domain_name_start != domain_name_inter:
-                    token = f"{domain_name_start}_through_{domain_name_inter}"
-                    coef = 1.
-                    if isinstance(coefficients, (int, float)):
-                        coef = coefficients
-                    elif token in coefficients:
-                        coef = coefficients[token]
-
-                    out = self.cycle(domain, domain_name_start, domain_name_inter)
-
-                    l = torch.tensor(0.).to(self.device)
-                    for k in range(len(domain)):
-                        loss_fn = self.loss_fn[f"{domain_name_start}_{k}"]
-                        l += loss_fn(out[k], domain[k]).mean() / total
-                    losses[f"loss_cycle_{token}"] = coef * l
-                    losses_no_coefs[f"loss_cycle_{token}"] = l
-                    loss += losses[f"loss_cycle_{token}"]
-        losses["cycle_loss"] = loss
-        losses_no_coefs["cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        return losses["cycle_loss"], losses, losses_no_coefs
-
-    def supervision_loss(self, sync_domains, coefficients=1.):
-        loss = torch.tensor(0.).to(self.device)
-        losses = {}
-        losses_no_coefs = {}
-        total = 0
-        for domain_name_1, domain_1 in sync_domains.items():
-            for domain_name_2, domain_2 in sync_domains.items():
+    def cosine_loss(self, latents):
+        losses = []
+        indiv_losses = {}
+        states = {
+            domain: self.project({domain: latents[domain]})
+            for domain in self.domain_names
+        }
+        for domain_name_1, latent_domain_1 in states.items():
+            for domain_name_2, latent_domain_2 in states.items():
                 if domain_name_1 != domain_name_2:
                     # project domains into one another
-                    pred_domain_2 = self.translate(domain_1, domain_name_1, domain_name_2)
-
-                    for k in range(len(domain_2)):
-                        if domain_2[k] is not None:
-                            token = f"{domain_name_1}_to_{domain_name_2}_{k}"
-                            coef = 1.
-                            if isinstance(coefficients, (int, float)):
-                                coef = coefficients
-                            elif token in coefficients:
-                                coef = coefficients[token]
-
-                            loss_fn = self.loss_fn[f"{domain_name_2}_{k}"]
-                            l = loss_fn(pred_domain_2[k], domain_2[k]).mean()
-                            losses[f"loss_supervision_{token}"] = coef * l
-                            losses_no_coefs[f"loss_supervision_{token}"] = l
-                            loss += losses[f"loss_supervision_{token}"]
-                            total += 1
-        if total > 0:
-            for name in losses.keys():
-                losses[name] = losses[name] / total
-                losses_no_coefs[name] = losses_no_coefs[name] / total
-            losses["supervision_loss"] = loss / total
-            losses_no_coefs["supervision_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        else:
-            losses["supervision_loss"] = loss
-        return losses["supervision_loss"], losses, losses_no_coefs
-
-    def cosine_loss(self, sync_domains, coefficients=1.):
-        loss = torch.tensor(0.).to(self.device)
-        losses = {}
-        losses_no_coefs = {}
-        cosine_sims = {}
-        total = 0
-        for domain_name_1, domain_1 in sync_domains.items():
-            for domain_name_2, domain_2 in sync_domains.items():
-                if domain_name_1 != domain_name_2:
-                    # project domains into one another
-                    latent_domain_1 = self.encode(domain_1, domain_name_1)
-                    latent_domain_2 = self.encode(domain_2, domain_name_2)
-                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
+                    indiv_losses[f"cosine_similarity_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
                         latent_domain_1, latent_domain_2).mean()
-
-                    token = f"s_{domain_name_1}-s_{domain_name_2}"
-                    coef = 1.
-                    if isinstance(coefficients, (int, float)):
-                        coef = coefficients
-                    elif token in coefficients:
-                        coef = coefficients[token]
 
                     l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
                                                 torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
-                    losses[f"loss_cosine_{token}"] = coef * l
-                    losses_no_coefs[f"loss_cosine_{token}"] = l
-                    loss += losses[f"loss_cosine_{token}"]
-                    total += 1
-        if total > 0:
-            for name in losses.keys():
-                losses[name] = losses[name] / total
-                losses_no_coefs[name] = losses_no_coefs[name] / total
-            losses["cosine_loss"] = loss / total
-            losses_no_coefs["cosine_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        else:
-            losses["cosine_loss"] = loss
-        losses_no_coefs.update(cosine_sims)
-        return losses["cosine_loss"], losses, losses_no_coefs
+                    indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
+                    losses.append(l)
+
+        indiv_losses["cosine"] = torch.tensor(losses).mean()
+        return indiv_losses
+
+    def loss(self, predictions, targets, prefix=""):
+        losses = []
+        indiv_losses = {}
+        for domain_name in predictions.keys():
+            prediction, target = predictions[domain_name], targets[domain_name]
+            loss = 0
+            for k in range(len(prediction)):
+                token = f"{prefix}_domain_{domain_name}_{k}"
+                loss_fn = self.loss_fn[f"{domain_name}_{k}"]
+                l = loss_fn(prediction[k], target[k]).mean()
+                loss += l
+                indiv_losses[token] = l
+            token = f"{prefix}_domain_{domain_name}"
+            indiv_losses[token] = loss
+            losses.append(loss)
+        indiv_losses[prefix] = torch.tensor(losses).mean()
+        return indiv_losses
 
     def step(self, latents, latent_targets, mode="val", prefix=""):
-        losses = dict()
-        loss_no_coef = dict()
+        latent_predictions = self.predict(self.project(latents))
+        latent_cycle_predictions = self.predict(self.project(latent_predictions))
 
-        demi_cycle_loss, l, l_no_coefs = self.demi_cycle_loss(latents, self.hparams.loss_coef_demi_cycles)
-        losses.update(l)
-        loss_no_coef.update(l_no_coefs)
+        demi_cycle_losses = self.loss(latent_predictions, latents, prefix="demi_cycles")
+        cycle_losses = self.loss(latent_cycle_predictions, latents, prefix="cycles")
+        translation_losses = self.loss(latent_predictions, latent_targets, prefix="translation")
+        cosine_losses = self.cosine_loss(latents)
 
-        cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
-        losses.update(l)
-        loss_no_coef.update(l_no_coefs)
-
-        supervision_loss, l, l_no_coefs = self.supervision_loss(latent_targets, self.hparams.loss_coef_supervision)
-        losses.update(l)
-        loss_no_coef.update(l_no_coefs)
-
-        cosine_loss, l, l_no_coefs = self.cosine_loss(latent_targets, self.hparams.loss_coef_cosine)
-        losses.update(l)
-        loss_no_coef.update(l_no_coefs)
-
-        total_loss = demi_cycle_loss + supervision_loss + cycle_loss + cosine_loss
-        total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
-            "supervision_loss"] + loss_no_coef["cosine_loss"]
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **cosine_losses}
+        loss_names = ["demi_cycles", "cycles", "translation", "cosine"]
+        losses["total"] = sum([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name] for loss_name in loss_names])
+        losses["total_no_coefs"] = sum([losses[loss_name] for loss_name in loss_names])
 
         batch_size = latents[list(latents.keys())[0]][0].size(0)
-        for name, loss in loss_no_coef.items():
-            self.log(f"{mode}{prefix}_{name}", loss, logger=True,
+        for name, loss in losses.items():
+            self.log(f"{mode}{prefix}_{name}_loss", loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
-        self.log(f"{mode}{prefix}_total_loss", total_loss_no_coef, logger=True,
-                 add_dataloader_idx=False, batch_size=batch_size)
-        self.log(f"{mode}{prefix}_total_loss_with_coef", total_loss, logger=True,
-                 add_dataloader_idx=False, batch_size=batch_size)
 
-        # compute accuracies
-        for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}{prefix}_accuracy_metrics"),
-                                                            self.accuracy_metrics_order):
-            predicted_t = self.translate(latent_targets[domain_name_start], domain_name_start, domain_name)
-            prediction = self.domain_mods[domain_name].decode(predicted_t)
-            accuracy = self.domain_mods[domain_name].compute_acc(acc_fn, prediction,
-                                                                 latent_targets[domain_name])
-            self.log(f"{mode}{prefix}_acc_{domain_name_start}_to_{domain_name}", accuracy, logger=True,
-                     on_step=(mode != "val"), on_epoch=(mode == "val"), add_dataloader_idx=False)
-        return total_loss, losses
+        return losses["total"], losses
 
     def training_step(self, batch, batch_idx):
         domains, targets = batch[0], batch[1]
