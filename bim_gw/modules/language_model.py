@@ -80,6 +80,8 @@ class SkipGramLM(WorkspaceModule):
 class ShapesAttributesLM(WorkspaceModule):
     def __init__(self, n_classes, imsize):
         super(ShapesAttributesLM, self).__init__()
+        self.save_hyperparameters()
+
         self.n_classes = n_classes
         self.z_size = 8
         self.imsize = imsize
@@ -177,7 +179,7 @@ class ShapesLM(WorkspaceModule):
     ):
 
         super(ShapesLM, self).__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["validation_domain_examples"])
         self.n_classes = n_classes
         self.z_size = z_size
         self.bert_size = 768

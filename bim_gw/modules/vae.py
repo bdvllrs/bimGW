@@ -100,7 +100,7 @@ class VAE(WorkspaceModule):
                  kl_loss_coef=0.):
         # configurations
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["validation_reconstruction_images"])
 
         self.image_size = image_size
         assert channel_num in [1, 3]
