@@ -6,6 +6,7 @@ import torch
 import torchvision
 from PIL import Image
 from matplotlib import pyplot as plt
+from neptune.new.exceptions import MissingFieldException
 from neptune.new.types import File
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import (
@@ -39,10 +40,10 @@ def to_pil_image(image: ImageType):
 
 
 class NeptuneLogger(NeptuneLoggerBase):
-    def __init__(self, log_images=True, **neptune_run_kwargs):
+    def __init__(self, save_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
 
-        self._log_images = log_images
+        self._log_images = save_images
         if not self._log_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -60,9 +61,9 @@ class NeptuneLogger(NeptuneLoggerBase):
 
 
 class TensorBoardLogger(TensorBoardLoggerBase):
-    def __init__(self, *params, log_images=False, **kwargs):
+    def __init__(self, *params, save_images=True, **kwargs):
         super(TensorBoardLogger, self).__init__(*params, **kwargs)
-        self._log_images = log_images
+        self._log_images = save_images
         if not self._log_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -84,24 +85,29 @@ class TensorBoardLogger(TensorBoardLoggerBase):
 
 
 class MLFlowLogger(MLFlowLoggerBase):
-    def __init__(self, *params, image_location="images", text_location="texts", **kwargs):
+    def __init__(self, *params, image_location="images", text_location="texts", save_images=True, **kwargs):
         super(MLFlowLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
+        self._save_images = save_images
+
+        if not self._save_images:
+            logging.warning("MLFLowLogger will not save the images. Set `save_images' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        path = os.path.join(self._artifact_location, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
-        image = to_pil_image(image)
-        self.experiment.log_image(image, path)
+        if self._save_images:
+            path = f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
+            image = to_pil_image(image)
+            self.experiment.log_image(self.run_id, image, path)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
         if isinstance(text, list):
             text = "  \n".join(text)
-        path = os.path.join(self._artifact_location, f"{self._text_location}/{log_name}/{log_name}.txt")
+        path = f"{self._text_location}/{log_name}/{log_name}.txt"
         text = f"====  \nstep={step}  \n====  \n{text}  \n"
-        self.experiment.log_text(text, path)
+        self.experiment.log_text(self.run_id, text, path)
 
 
 class CSVLogger(CSVLoggerBase):
@@ -150,14 +156,22 @@ class CSVLogger(CSVLoggerBase):
 
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
-        log_images=log_args.save_images,
+        save_images=log_args.save_images,
         name=name,
         log_model_checkpoints=False,
         tags=tags,
         source_files=source_files,
         **OmegaConf.to_object(log_args.args)
     )
-    logger.experiment["parameters"] = OmegaConf.to_object(conf)
+
+    for k in range(5):
+        try:
+            logger.experiment["parameters"] = OmegaConf.to_object(conf)
+        except MissingFieldException as e:
+            print("Error, retrying")
+        else:
+            break
+
     logger.log_model_summary(model=model, max_depth=-1)
     return logger
 
@@ -172,7 +186,7 @@ def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_f
     hparams = {"parameters": OmegaConf.to_object(conf)}
     if tags is not None:
         hparams["tags"] = tags
-    logger.log_hyperparams(hparams, {})
+    logger.log_hyperparams(hparams)
     # logger.experiment.add_graph(model)
     # TODO: add source_files
     return logger
@@ -192,6 +206,21 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     # TODO: add source_files
     return logger
 
+def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files):
+    if tags is not None:
+        tags = {tag: 1 for tag in tags}
+    logger = MLFlowLogger(
+        save_images=log_args.save_images,
+        run_name=version,
+        experiment_name=name,
+        tags=tags,
+        **OmegaConf.to_object(log_args.args)
+    )
+    logger.log_hyperparams({
+        "parameters": OmegaConf.to_object(conf),
+    })
+    # TODO: add source_files
+    return logger
 
 def get_loggers(name, version, args, model, conf, tags, source_files):
     loggers = []
@@ -202,5 +231,9 @@ def get_loggers(name, version, args, model, conf, tags, source_files):
             loggers.append(get_csv_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "TensorBoardLogger":
             loggers.append(get_tensor_board_logger(name, version, logger, model, conf, tags, source_files))
+        elif logger.logger == "MLFlowLogger":
+            loggers.append(get_ml_flow_logger(name, version, logger, model, conf, tags, source_files))
+        else:
+            raise ValueError(f"Logger: {logger.logger} is not yet available.")
         # TODO: implement for the other loggers
     return loggers

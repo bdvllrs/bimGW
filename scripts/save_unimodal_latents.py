@@ -35,7 +35,8 @@ if __name__ == '__main__':
         "test": data.test_dataloader()[0]
     }
 
-    for domain_name in domains.keys():
+    for domain_key in domains.keys():
+        domain_name = args.global_workspace.selected_domains[domain_key]
         assert domain_name in args.global_workspace.load_pre_saved_latents, f"Path for domain {domain_name} is not provided."
 
     path = Path(args.simple_shapes_path) / "saved_latents"
@@ -43,15 +44,16 @@ if __name__ == '__main__':
 
     for name, data_loader in data_loaders.items():
         latents = {
-            domain_name: [] for domain_name in domains.keys()
+            args.global_workspace.selected_domains[domain_key]: [] for domain_key in domains.keys()
         }
         print(f"Fetching {name} data.")
         for idx, batch in tqdm(enumerate(data_loader),
                                total=int(len(data_loader.dataset) / data_loader.batch_size)):
-            for domain_name, data in batch.items():
+            for domain_key, data in batch.items():
+                domain_name = args.global_workspace.selected_domains[domain_key]
                 if isinstance(data, torch.Tensor):
                     data = data.to(device)
-                latents[domain_name].append(domains[domain_name].encode(data).cpu().detach().numpy())
+                latents[domain_name].append(domains[domain_key].encode(data).cpu().detach().numpy())
         for domain_name, l in latents.items():
             (path / name).mkdir(exist_ok=True)
             np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.concatenate(l))

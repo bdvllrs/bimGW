@@ -36,7 +36,7 @@ class GlobalWorkspace(LightningModule):
 
         super(GlobalWorkspace, self).__init__()
         self.save_hyperparameters(ignore=["domain_mods", "domain_examples"])
-        self.automatic_optimization = False
+        # self.automatic_optimization = False
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -342,10 +342,7 @@ class GlobalWorkspace(LightningModule):
 
     def training_step(self, batch, batch_idx):
         domains, targets = batch[0], batch[1]
-        opt = self.optimizers()
         # remove the sync batch
-
-        opt.zero_grad()
 
         latents = self.encode_uni_modal(domains)
         latent_targets = self.encode_uni_modal(targets)
@@ -359,8 +356,6 @@ class GlobalWorkspace(LightningModule):
                 self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
         else:
             self.manual_backward(total_loss)
-
-        opt.step()
 
         return total_loss
 
@@ -501,15 +496,17 @@ class GlobalWorkspace(LightningModule):
         scheduler_gamma = self.hparams.scheduler_gamma
         if self.hparams.scheduler_mode == "adaptive":
             # Convert into step interval if adaptive mode.
-            if scheduler_interval == "epoch":
-                size_dataset = len(self.trainer.datamodule.shapes_train)
-                batch_size = self.trainer.datamodule.batch_size
+            size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
+            batch_size = self.trainer.datamodule.batch_size
+            if scheduler_interval == "step":
                 n_step_per_epoch = int(size_dataset / batch_size)
-                scheduler_interval = "step"
-                scheduler_step *= n_step_per_epoch
+                scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
             prop_labelled_image = 1. - self.trainer.datamodule.prop_sync_domains["all"]
-            scheduler_step = int(scheduler_step / prop_labelled_image)
+            steps_per_new_epoch = int(scheduler_step * (size_dataset * prop_labelled_images) / batch_size)
+            scheduler_step = max(1, steps_per_new_epoch)
+            scheduler_interval = "step"
+            print(f"Scheduler will be updated every {scheduler_step} step(s).")
 
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {
