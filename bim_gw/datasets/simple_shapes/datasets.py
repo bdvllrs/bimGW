@@ -16,7 +16,7 @@ class SimpleShapesDataset:
 
     def __init__(self, path, split="train", synced_domain_mapping=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 extend_dataset=True):
+                 extend_dataset=True, with_actions=None):
         """
         Args:
             path:
@@ -35,7 +35,9 @@ class SimpleShapesDataset:
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
-        self.with_actions = 'a' in self.selected_domains.values()
+        self.with_actions = with_actions
+        if with_actions is None:
+            self.with_actions = 'a' in self.selected_domains.values()
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.synced_domain_mapping = synced_domain_mapping
@@ -67,13 +69,8 @@ class SimpleShapesDataset:
             pass
             # self.define_targets()
 
-        self.all_fetchers = {
-            name: fetcher(self.root_path, self.split, self.ids, self.labels, self.transforms) for name, fetcher in
-            self.available_domains.items()
-        }
-
         self.data_fetchers = {
-            domain_key: self.all_fetchers[domain]
+            domain_key: self.available_domains[domain](self.root_path, self.split, self.ids, self.labels, self.transforms)
             for domain_key, domain in self.selected_domains.items()
         }
 
@@ -82,10 +79,10 @@ class SimpleShapesDataset:
 
     def use_pre_saved_latents(self, pre_saved_latent_path):
         if pre_saved_latent_path is not None:
-            for key, path in pre_saved_latent_path.items():
-                if key in self.data_fetchers.keys():
+            for key, domain_key in self.selected_domains.items():
+                if domain_key in pre_saved_latent_path.keys():
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(
-                        self.root_path / "saved_latents" / self.split / path, self.ids)
+                        self.root_path / "saved_latents" / self.split / pre_saved_latent_path[domain_key], self.ids)
 
     def define_targets(self):
         labels = []

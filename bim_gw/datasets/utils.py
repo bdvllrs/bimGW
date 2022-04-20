@@ -6,14 +6,18 @@ def load_dataset(args, local_args, **kwargs):
     if args.visual_dataset == "shapes":
         print("Loading Shapes.")
         pre_saved_latent_paths = None
+        sync_uses_whole_dataset = False
         if "use_pre_saved" in local_args and local_args.use_pre_saved:
             pre_saved_latent_paths = args.global_workspace.load_pre_saved_latents
+        if "sync_uses_whole_dataset" in local_args and local_args.sync_uses_whole_dataset:
+            sync_uses_whole_dataset = True
         return SimpleShapesDataModule(args.simple_shapes_path, local_args.batch_size,
                                       args.dataloader.num_workers, local_args.data_augmentation,
                                       local_args.prop_sync_domains,
                                       args.n_validation_examples, local_args.split_ood,
                                       local_args.selected_domains,
-                                      pre_saved_latent_paths)
+                                      pre_saved_latent_paths,
+                                      sync_uses_whole_dataset)
     else:
         raise ValueError("The requested dataset is not implemented.")
 

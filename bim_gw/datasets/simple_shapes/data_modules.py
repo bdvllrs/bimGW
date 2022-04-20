@@ -18,6 +18,7 @@ class SimpleShapesDataModule(LightningDataModule):
             selected_domains=None,
             pre_saved_latent_paths=None,
             sync_uses_whole_dataset=False,
+            with_actions=None
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
@@ -30,7 +31,9 @@ class SimpleShapesDataModule(LightningDataModule):
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
-        self.with_actions = 'a' in self.selected_domains.values()
+        self.with_actions = with_actions
+        if with_actions is None:
+            self.with_actions = 'a' in self.selected_domains.values()
 
         self.prop_sync_domains = prop_sync_domains
 
@@ -51,12 +54,14 @@ class SimpleShapesDataModule(LightningDataModule):
 
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                       transform=val_transforms,
-                                                      selected_domains=self.selected_domains)
+                                                      selected_domains=self.selected_domains,
+                                                      with_actions=self.with_actions)
                 self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                                        transform=val_transforms,
-                                                       selected_domains=self.selected_domains)
+                                                       selected_domains=self.selected_domains,
+                                                       with_actions=self.with_actions)
 
-                train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False)
+                train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
                 len_train_dataset = len(train_set)
                 if self.sync_uses_whole_dataset:
                     sync_indices = np.arange(len_train_dataset)
@@ -65,7 +70,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                 selected_indices=sync_indices,
                                                 transform=train_transforms,
-                                                selected_domains=self.selected_domains)
+                                                selected_domains=self.selected_domains, with_actions=self.with_actions)
 
                 if self.split_ood:
                     id_ood_splits, ood_boundaries = create_ood_split(
@@ -213,12 +218,13 @@ class SimpleShapesDataModule(LightningDataModule):
             else:
                 domain_mapping.append([])
 
-        print(f"Training using {len(allowed_indices)} examples.")
+        print(f"Loaded {len(allowed_indices)} examples in train set.")
         train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                         domain_mapping,
                                         selected_domains=self.selected_domains,
                                         transform=train_set.transforms,
-                                        output_transform=train_set.output_transform)
+                                        output_transform=train_set.output_transform,
+                                        with_actions=self.with_actions)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):
