@@ -493,14 +493,16 @@ class GlobalWorkspace(LightningModule):
         scheduler_gamma = self.hparams.scheduler_gamma
         if self.hparams.scheduler_mode == "adaptive":
             # Convert into step interval if adaptive mode.
-            if scheduler_interval == "epoch":
-                size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
-                batch_size = self.trainer.datamodule.batch_size
+            size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
+            batch_size = self.trainer.datamodule.batch_size
+            if scheduler_interval == "step":
                 n_step_per_epoch = int(size_dataset / batch_size)
-                scheduler_interval = "step"
-                scheduler_step *= n_step_per_epoch
+                scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
-            scheduler_step = int(scheduler_step / self.trainer.datamodule.prop_labelled_images)
+            steps_per_new_epoch = int(scheduler_step * (size_dataset * self.trainer.datamodule.prop_labelled_images) / batch_size)
+            scheduler_step = max(1, steps_per_new_epoch)
+            scheduler_interval = "step"
+            print(f"Scheduler will be updated every {scheduler_step} step(s).")
 
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
         return {

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 
 from bim_gw.modules import VAE, ShapesLM, ActionModule
 from bim_gw.modules.language_model import ShapesAttributesLM
@@ -53,7 +53,10 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
     loggers = get_loggers(name, slurm_job_id, args.loggers, model, args, tags, source_files)
 
     # Callbacks
-    callbacks = [LearningRateMonitor(logging_interval="epoch")]
+    callbacks = [
+        LearningRateMonitor(logging_interval="epoch"),
+        EarlyStopping(monitor=monitor_loss, patience=5)
+    ]
     if len(loggers) and args.checkpoints_dir is not None:
         logger = loggers[0]
         if slurm_job_id is not None:
@@ -72,7 +75,6 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
         "callbacks": callbacks,
         "resume_from_checkpoint": args.resume_from_checkpoint,
         "max_epochs": args.max_epochs,
-        # "val_check_interval": 0.25,
         "multiple_trainloader_mode": "min_size",
     }
     if trainer_args is not None:
