@@ -17,7 +17,7 @@ def load_dataset(args, local_args, **kwargs):
                                       args.n_validation_examples, local_args.split_ood,
                                       local_args.selected_domains,
                                       pre_saved_latent_paths,
-                                      sync_uses_whole_dataset)
+                                      sync_uses_whole_dataset, **kwargs)
     else:
         raise ValueError("The requested dataset is not implemented.")
 

@@ -16,11 +16,14 @@ if __name__ == '__main__':
 
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
+    args.global_workspace.split_ood = False
     args.global_workspace.sync_uses_whole_dataset = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args.global_workspace.prop_sync_domains = {"all": 1.}
+    args.global_workspace.selected_domains = {domain: domain for domain in args.global_workspace.load_pre_saved_latents.keys()}
 
-    data = load_dataset(args, args.global_workspace)
+    data = load_dataset(args, args.global_workspace, with_actions=True)
     data.prepare_data()
     data.setup(stage="fit")
 
@@ -30,7 +33,7 @@ if __name__ == '__main__':
         domain.eval()
 
     data_loaders = {
-        "train": data.train_dataloader(shuffle=False)["sync_"],
+        "train": data.train_dataloader(shuffle=False),
         "val": data.val_dataloader()[0],  # only keep in dist dataloaders
         "test": data.test_dataloader()[0]
     }
@@ -47,13 +50,19 @@ if __name__ == '__main__':
             args.global_workspace.selected_domains[domain_key]: [] for domain_key in domains.keys()
         }
         print(f"Fetching {name} data.")
-        for idx, batch in tqdm(enumerate(data_loader),
-                               total=int(len(data_loader.dataset) / data_loader.batch_size)):
-            for domain_key, data in batch.items():
+        for idx, (batch, target) in tqdm(enumerate(data_loader),
+                                         total=int(len(data_loader.dataset) / data_loader.batch_size)):
+            for domain_key in domains.keys():
                 domain_name = args.global_workspace.selected_domains[domain_key]
-                if isinstance(data, torch.Tensor):
-                    data = data.to(device)
-                latents[domain_name].append(domains[domain_key].encode(data).cpu().detach().numpy())
+                l = []
+                for t in range(len(batch)):
+                    data = batch[domain_name][t]
+                    for k in range(len(data)):
+                        if isinstance(data[k], torch.Tensor):
+                            data[k] = data[k].to(device)
+                    l.append(domains[domain_name].encode(data)[1].cpu().detach().numpy())
+                l = np.stack(l, axis=1)
+                latents[domain_name].append(l)
         for domain_name, l in latents.items():
             (path / name).mkdir(exist_ok=True)
             np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.concatenate(l))
