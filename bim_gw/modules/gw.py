@@ -99,7 +99,11 @@ class GlobalWorkspace(LightningModule):
                                     self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
+
         print("Global Workspace instantiated.")
+
+    def setup(self, stage=None):
+        self.collate_fn = self.trainer.datamodule.train_dataloader().collate_fn
 
     def encode(self, x, domain_name):
         return self.encoders[domain_name](x)
@@ -107,11 +111,23 @@ class GlobalWorkspace(LightningModule):
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
 
+    def get_null_latent(self, batch_size, domain_name):
+        batch = [self.trainer.datamodule.shapes_train.data_fetchers[domain_name].get_null_item() for k in
+                 range(batch_size)]
+        x = self.collate_fn(batch)
+        return self.encode_uni_modal({domain_name: x})[domain_name]
+
     def project(self, latents, masked_domains=None):
-        state = [
-            self.encode(latents[domain_name], domain_name)
-            for domain_name in latents.keys()
-        ]
+        state = []
+        batch_size = list(latents.values())[0][0].size(0)
+        for domain_name in self.domain_names:
+            latent = None
+            if domain_name in latents:
+                latent = latents[domain_name]
+            else:
+                latent = self.get_null_latent(batch_size, domain_name)
+            state.append(self.encode(latent, domain_name))
+
         masks = [masked_domains]
         state = torch.stack(state, dim=1)
 
