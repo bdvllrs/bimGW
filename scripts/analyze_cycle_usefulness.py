@@ -49,19 +49,19 @@ def cond_losses(*, demi_cycle, cycle, supervision):
 
 
 if __name__ == '__main__':
-    log = CSVLog("../data/bim-gw.csv")
-    log = log.add_token_column()
+    log = CSVLog("../data/runs_2.csv")
+    # log = log.add_token_column()
     # log = log.filter_between("_token", 609, 846)
-    log = log.filter_between("_token", 1678, 1708)
-    log = log.add_column("n_images", lambda row: int(row["prop_lab_images"] * 500_000))
+    # log = log.filter_between("Name", 1678, 1708)
+    log = log.add_column("n_images", lambda row: int(row["parameters/global_workspace/prop_labelled_images"] * 500_000))
 
-    alpha = 4
-    min_epoch = 95
-    seeds = [0]
+    alpha = 10
+    min_epoch = 0
+    seeds = [0, 1]
     losses = {"loss": ""}
     # z_size = 4
-    log = log.filter_in("parameters/seed", seeds).filter_between('training/epoch (last)', min_epoch)
-    log = log.filter_eq('gw_z_size', 12)
+    log = log.filter_in("parameters/seed", seeds).filter_between('epoch', min_epoch)
+    log = log.filter_eq('parameters/global_workspace/z_size', 12)
 
     loss_parts = {
         # "Demi-cycles": cond_losses(demi_cycle=True, cycle=False, supervision=False),
@@ -86,21 +86,21 @@ if __name__ == '__main__':
 
     for used_loss, loss_label in losses.items():
         for k, (label, cond) in enumerate(loss_parts.items()):
-            l = log.filter_neq(f'training/val_in_dist_{loss_name}_{used_loss} (last)', '')
+            l = log.filter_neq(f'val_in_dist_{loss_name}_{used_loss}', '')
             l = l.filter(cond)
             if label != "Supervision":
                 l = l.filter_eq("parameters/losses/coefs/supervision", alpha)
-            lf = l.filter_between('training/epoch (last)', min_epoch)
+            lf = l.filter_between('epoch', min_epoch)
             n_images = sorted(np.unique(lf.values("n_images")))
             x = []
             y = []
             err = []
             n_runs = []
             for n_image in n_images:
-                lf = l.filter_between('training/epoch (last)', min_epoch)
+                lf = l.filter_between('epoch', min_epoch)
                 lf = lf.filter_eq("n_images", n_image)
                 x.append(n_image)
-                values = np.array(lf.values(f'training/val_in_dist_{loss_name}_{used_loss} (last)'))
+                values = np.array(lf.values(f'val_in_dist_{loss_name}_{used_loss}'))
                 # assert values.shape[0] == len(seeds)
                 n_runs.append(values.shape[0])
                 y.append(np.mean(values))
