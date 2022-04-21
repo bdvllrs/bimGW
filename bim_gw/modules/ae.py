@@ -201,6 +201,7 @@ class AE(WorkspaceModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title):
+        is_active, x = x
         log_image(logger, x, title)
 
 

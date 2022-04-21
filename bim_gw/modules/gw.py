@@ -193,7 +193,7 @@ class GlobalWorkspace(LightningModule):
                     indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
                     losses.append(l)
 
-        indiv_losses["cosine"] = torch.tensor(losses).mean()
+        indiv_losses["cosine"] = torch.stack(losses, dim=0).mean()
         return indiv_losses
 
     def loss(self, predictions, targets, prefix=""):
@@ -201,7 +201,7 @@ class GlobalWorkspace(LightningModule):
         indiv_losses = {}
         for domain_name in predictions.keys():
             prediction, target = predictions[domain_name], targets[domain_name]
-            loss = 0
+            loss = torch.tensor(0.).to(prediction[0].device)
             for k in range(len(prediction)):
                 token = f"{prefix}_domain_{domain_name}_{k}"
                 loss_fn = self.loss_fn[f"{domain_name}_{k}"]
@@ -211,7 +211,7 @@ class GlobalWorkspace(LightningModule):
             token = f"{prefix}_domain_{domain_name}"
             indiv_losses[token] = loss
             losses.append(loss)
-        indiv_losses[prefix] = torch.tensor(losses).mean()
+        indiv_losses[prefix] = torch.stack(losses, dim=0).mean()
         return indiv_losses
 
     def step(self, latents, latent_targets, mode="val", prefix=""):
@@ -225,8 +225,9 @@ class GlobalWorkspace(LightningModule):
 
         losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **cosine_losses}
         loss_names = ["demi_cycles", "cycles", "translation", "cosine"]
-        losses["total"] = sum([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name] for loss_name in loss_names])
-        losses["total_no_coefs"] = sum([losses[loss_name] for loss_name in loss_names])
+        losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
+                                       for loss_name in loss_names], dim=0).sum()
+        losses["total_no_coefs"] = torch.stack([losses[loss_name] for loss_name in loss_names], dim=0).sum()
 
         batch_size = latents[list(latents.keys())[0]][0].size(0)
         for name, loss in losses.items():
@@ -243,14 +244,6 @@ class GlobalWorkspace(LightningModule):
         latent_targets = self.encode_uni_modal(targets)
 
         total_loss, losses = self.step(latents, latent_targets, mode="train")
-
-        if self.monitor_grad_norms:
-            grad_norms = self.manual_backward_with_grad_norm_monitoring(losses)
-            self.grad_norms_bin.log(grad_norms)
-            for name, grad_norm in grad_norms.items():
-                self.log(f"grad_norm_{name.replace('@', '_')}", grad_norm, logger=True)
-        else:
-            self.manual_backward(total_loss)
 
         return total_loss
 
@@ -291,60 +284,58 @@ class GlobalWorkspace(LightningModule):
             for domain_name, domain_example in examples.items():
                 self.domain_mods[domain_name].log_domain(logger, domain_example,
                                                          f"{slug}_original_domain_{domain_name}", max_examples)
-                if domain_name == "v":
-                    latent = self.domain_mods[domain_name].encode(domain_example).detach().cpu().numpy()
-                    fig, axes = plt.subplots(1, latent.shape[1])
-                    for k in range(latent.shape[1]):
-                        l = latent[:, k]
-                        axes[k].hist(l, 50, density=True)
-                        x = np.linspace(-0.8, 0.8, 100)
-                        axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                    logger.log_image("original_v_hist", fig)
-                    plt.close(fig)
+                # if domain_name == "v":
+                #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
+                #     fig, axes = plt.subplots(1, latent.shape[1])
+                #     for k in range(latent.shape[1]):
+                #         l = latent[:, k]
+                #         axes[k].hist(l, 50, density=True)
+                #         x = np.linspace(-0.8, 0.8, 100)
+                #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                #     logger.log_image("original_v_hist", fig)
+                #     plt.close(fig)
 
-        if len(self.rotation_error_val):
-            fig = plt.figure()
-            plt.hist(self.rotation_error_val, 50, density=True)
-            logger.log_image("rotation_error_val", fig)
-            plt.close(fig)
-            self.rotation_error_val = []
+        # if len(self.rotation_error_val):
+        #     fig = plt.figure()
+        #     plt.hist(self.rotation_error_val, 50, density=True)
+        #     logger.log_image("rotation_error_val", fig)
+        #     plt.close(fig)
+        #     self.rotation_error_val = []
 
-        for domain_name, domain_example in examples.items():
+        latents = self.encode_uni_modal(examples)
+
+        for domain_name, latent in latents.items():
             # Demi cycles
-            latent_x = self.domain_mods[domain_name].encode(domain_example)
-            latent_reconstructed = self.demi_cycle(latent_x, domain_name)
-            x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+            predictions = self.predict(self.project({domain_name: latent}))
+            x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                      f"{slug}_demi_cycle_{domain_name}", max_examples)
 
-            for domain_name_2, domain_example_2 in examples.items():
+            for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     # Full cycles
-                    latent_x = self.domain_mods[domain_name].encode(domain_example)
-                    latent_reconstructed = self.cycle(latent_x, domain_name, domain_name_2)
-                    x_reconstructed = self.domain_mods[domain_name].decode(latent_reconstructed)
+                    cycle_predictions = self.predict(self.project({domain_name_2: predictions[domain_name_2]}))
+                    x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                              f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
                                                              max_examples)
 
                     # Translations
-                    latent_start = self.domain_mods[domain_name].encode(domain_example)
-                    latent_end = self.translate(latent_start, domain_name, domain_name_2)
-                    domain_end_pred = self.domain_mods[domain_name_2].decode(latent_end)
+                    domain_end_pred = self.domain_mods[domain_name_2].decode(predictions[domain_name_2])
                     self.domain_mods[domain_name_2].log_domain(
                         logger, domain_end_pred,
                         f"{slug}_translation_{domain_name}_to_{domain_name_2}",
                         max_examples
                     )
-                    if domain_name == "t" and domain_name_2 == "v":
-                        fig, axes = plt.subplots(1, latent_end.size(1))
-                        for k in range(latent_end.size(1)):
-                            l = latent_end.detach().cpu().numpy()[:, k]
-                            x = np.linspace(-0.8, 0.8, 100)
-                            axes[k].hist(l, 50, density=True)
-                            axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                        logger.log_image("decoded_v_hist", fig)
-                        plt.close(fig)
+                    # if domain_name == "t" and domain_name_2 == "v":
+                    #     fig, axes = plt.subplots(1, latent_end.size(1))
+                    #     for k in range(latent_end.size(1)):
+                    #         l = latent_end.detach().cpu().numpy()[:, k]
+                    #         x = np.linspace(-0.8, 0.8, 100)
+                    #         axes[k].hist(l, 50, density=True)
+                    #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+                    #     logger.log_image("decoded_v_hist", fig)
+                    #     plt.close(fig)
 
     def validation_epoch_end(self, outputs):
         if self.domain_examples is not None:
@@ -352,7 +343,7 @@ class GlobalWorkspace(LightningModule):
                 self.set_unimodal_pass_through(False)
                 if self.current_epoch == 0:
                     if self.trainer.datamodule.ood_boundaries is not None:
-                        logger.log_hyperparams({"ood_boundaries": str(self.trainer.datamodule.ood_boundaries)})
+                        logger.log_hyperparams({"ood_boundaries": self.trainer.datamodule.ood_boundaries})
                 # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
                 for dist in ["in_dist", "ood"]:
                     if self.domain_examples[dist] is not None:
@@ -397,7 +388,7 @@ class GlobalWorkspace(LightningModule):
                 n_step_per_epoch = int(size_dataset / batch_size)
                 scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
-            prop_labelled_image = 1. - self.trainer.datamodule.prop_sync_domains["all"]
+            prop_labelled_images = 1. - self.trainer.datamodule.prop_sync_domains["all"]
             steps_per_new_epoch = int(scheduler_step * (size_dataset * prop_labelled_images) / batch_size)
             scheduler_step = max(1, steps_per_new_epoch)
             scheduler_interval = "step"
@@ -418,42 +409,3 @@ class GlobalWorkspace(LightningModule):
         predicted_t = self.translate(domain_start_data, domain_start, domain_end)
         prediction = self.domain_mods[domain_end].decode(predicted_t)
         return self.domain_mods[domain_end].compute_acc(acc_fn, prediction, targets)
-
-    def manual_backward_with_grad_norm_monitoring(self, losses):
-        """
-        Args:
-            losses: Different losses to monitor separately.
-
-        Returns: Gradient norms for each loss / sub-model couple.
-        """
-        grad_norms = {}
-        last_grads = {}  # we need them to infer grad norm of each loss (and not accumulated gradients)
-        for name, loss in losses.items():
-            if name not in ["supervision_loss", "cycle_loss", "demi_cycle_loss"]:
-                self.manual_backward(loss, retain_graph=True)
-                for model_name in ["encoders", "decoders"]:
-                    model = getattr(self, model_name)
-                    for modality in model.keys():
-                        param_group = f"{model_name}_{modality}"
-
-                        grad_norms[f"{name}@{param_group}"] = torch.tensor(0.).type_as(loss) + sum([
-                            # remove the already saved gradient that have already been counted in.
-                            (p.grad.detach() - val_or_default(last_grads, f"{param_group}@{param_name}", 0)).norm()
-                            for param_name, p in model[modality].named_parameters()
-                            if p.grad is not None
-                        ])
-                        # assert grad_norms[f"{name}@{param_group}"] >= 0
-                        if torch.isnan(grad_norms[f"{name}@{param_group}"]):
-                            print(grad_norms)
-                            print(f"{name}@{param_group}")
-                            # print(grad_norms[f"{name}@{param_group}"])
-                            # print(last_grads)
-
-                        # Keep track of the value of the gradients to avoid counting
-                        # them multiple times because of accumulation.
-                        for param_name, p in model[modality].named_parameters():
-                            if param_name not in last_grads:
-                                last_grads[f"{param_group}@{param_name}"] = 0
-                            if p.grad is not None:
-                                last_grads[f"{param_group}@{param_name}"] += p.grad.detach()
-        return grad_norms

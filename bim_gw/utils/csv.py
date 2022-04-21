@@ -30,8 +30,8 @@ class CSVLog:
                     row = self._get_dict_row(row)
                     # if row["metrics/val_supervision_loss (last)"] == '':
                     #     row["metrics/val_supervision_loss (last)"] = np.inf
-                    if row["metrics/epoch (last)"] == '':
-                        row["metrics/epoch (last)"] = '0'
+                    if row["epoch"] == '':
+                        row["epoch"] = '0'
                     row = {key: _set_float(val) for key, val in row.items()}
                     self.data.append(row)
 

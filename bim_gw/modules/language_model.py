@@ -78,8 +78,8 @@ class ShapesAttributesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
-        classes = x[0][:max_examples].detach().cpu().numpy()
-        latents = x[1][:max_examples].detach().cpu().numpy()
+        classes = x[1][:max_examples].detach().cpu().numpy()
+        latents = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
@@ -209,6 +209,7 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None):
+        is_active, x = x
         text = [f"{k + 1} - {x[k]}" for k in range(len(x))]
         text.append("\n-----")
         logger.log_text(name + "_s", text)

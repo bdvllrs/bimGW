@@ -268,6 +268,7 @@ class VAE(WorkspaceModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None):
+        is_active, x = x
         log_image(logger, x[:max_examples], title)
 
 
