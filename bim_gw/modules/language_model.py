@@ -7,8 +7,7 @@ from transformers import BertTokenizer, BertModel
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
-from bim_gw.utils.text_composer.composer import Composer
-from bim_gw.utils.text_composer.writers import writers
+from bim_gw.utils.text_composer.composer import composer
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -125,7 +124,7 @@ class ShapesLM(WorkspaceModule):
 
         self.tokenizer = BertTokenizer.from_pretrained(bert_path)
 
-        self.text_composer = Composer(writers)
+        self.text_composer = composer
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
         self.shapes_attribute.freeze()

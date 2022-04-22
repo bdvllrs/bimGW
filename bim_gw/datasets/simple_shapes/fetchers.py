@@ -2,8 +2,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from bim_gw.utils.text_composer.composer import Composer
-from bim_gw.utils.text_composer.writers import writers
+from bim_gw.utils.text_composer.composer import composer
 
 
 def transform(data, transformation):
@@ -116,7 +115,7 @@ class TextDataFetcher(DataFetcher):
         super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
 
         self.sentences = {}
-        self.text_composer = Composer(writers)
+        self.text_composer = composer
 
     def get_item(self, item):
         label = self.labels[item]
