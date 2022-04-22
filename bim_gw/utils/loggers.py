@@ -107,6 +107,8 @@ class MLFlowLogger(MLFlowLoggerBase):
             path = f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
             image = to_pil_image(image)
             self.experiment.log_image(self.run_id, image, path)
+            path = f"{self._image_location}/{log_name}/{log_name}_step=last.png"
+            self.experiment.log_image(self.run_id, image, path)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
@@ -148,6 +150,8 @@ class CSVLogger(CSVLoggerBase):
             path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
             os.makedirs(os.path.dirname(path), exist_ok=True)
             image = to_pil_image(image)
+            self._images.append((path, image))
+            path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step=last.png")
             self._images.append((path, image))
 
     @rank_zero_only
