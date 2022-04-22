@@ -29,14 +29,20 @@ class GlobalWorkspace(LightningModule):
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_supervision=1., loss_coef_cosine=0.,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
-            scheduler_step=20, scheduler_gamma=0.5,
+            scheduler_step=20, scheduler_gamma=0.5, loss_schedules=None,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
 
         super(GlobalWorkspace, self).__init__()
-        self.save_hyperparameters(ignore=["domain_mods", "domain_examples"])
+        self.save_hyperparameters(ignore=["domain_mods", "domain_examples", "loss_schedules"])
         # self.automatic_optimization = False
+
+        self.loss_coef_demi_cycles = loss_coef_demi_cycles
+        self.loss_coef_cycles = loss_coef_cycles
+        self.loss_coef_supervision = loss_coef_supervision
+        self.loss_coef_cosine = loss_coef_cosine
+        self.loss_schedules = loss_schedules if loss_schedules is not None else {}
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -152,6 +158,13 @@ class GlobalWorkspace(LightningModule):
     def cycle(self, x, domain_name_start, domain_name_inter):
         z = self.translate(x, domain_name_start, domain_name_inter)
         return self.translate(z, domain_name_inter, domain_name_start)
+
+    def schedule_loss_coef_step(self):
+        for loss_name in ["demi_cycles", "cycles", "supervision", "cosine"]:
+            if loss_name in self.loss_schedules:
+                coef = getattr(self, f"loss_coef_{loss_name}")
+                if (self.current_epoch != 0) and (self.current_epoch % self.loss_schedules[loss_name]["step"] == 0):
+                    setattr(self, f"loss_coef_{loss_name}", coef * self.loss_schedules[loss_name]["gamma"])
 
     def demi_cycle_loss(self, domains, coefficients=1.):
         loss = torch.tensor(0.).to(self.device)
@@ -300,19 +313,19 @@ class GlobalWorkspace(LightningModule):
         losses = dict()
         loss_no_coef = dict()
 
-        demi_cycle_loss, l, l_no_coefs = self.demi_cycle_loss(latents, self.hparams.loss_coef_demi_cycles)
+        demi_cycle_loss, l, l_no_coefs = self.demi_cycle_loss(latents, self.loss_coef_demi_cycles)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.hparams.loss_coef_cycles)
+        cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.loss_coef_cycles)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.hparams.loss_coef_supervision)
+        supervision_loss, l, l_no_coefs = self.supervision_loss(sync_latents, self.loss_coef_supervision)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        cosine_loss, l, l_no_coefs = self.cosine_loss(sync_latents, self.hparams.loss_coef_cosine)
+        cosine_loss, l, l_no_coefs = self.cosine_loss(sync_latents, self.loss_coef_cosine)
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
@@ -328,6 +341,11 @@ class GlobalWorkspace(LightningModule):
                  add_dataloader_idx=False, batch_size=batch_size)
         self.log(f"{mode}{prefix}_total_loss_with_coef", total_loss, logger=True,
                  add_dataloader_idx=False, batch_size=batch_size)
+
+        if mode == "train":
+            for coef_name in ["demi_cycles", "cycles", "supervision", "cosine"]:
+                self.log(f"loss_coef_{coef_name}", getattr(self, f"loss_coef_{coef_name}"), add_dataloader_idx=False,
+                         batch_size=batch_size)
 
         # compute accuracies
         for acc_fn, (domain_name_start, domain_name) in zip(getattr(self, f"{mode}{prefix}_accuracy_metrics"),
@@ -476,6 +494,7 @@ class GlobalWorkspace(LightningModule):
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()
+        self.schedule_loss_coef_step()
 
     def configure_optimizers(self):
         params = []
@@ -499,7 +518,8 @@ class GlobalWorkspace(LightningModule):
                 n_step_per_epoch = int(size_dataset / batch_size)
                 scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
-            steps_per_new_epoch = int(scheduler_step * (size_dataset * self.trainer.datamodule.prop_labelled_images) / batch_size)
+            steps_per_new_epoch = int(
+                scheduler_step * (size_dataset * self.trainer.datamodule.prop_labelled_images) / batch_size)
             scheduler_step = max(1, steps_per_new_epoch)
             scheduler_interval = "step"
             print(f"Scheduler will be updated every {scheduler_step} step(s).")
