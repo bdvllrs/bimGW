@@ -2,8 +2,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from bim_gw.utils.text_composer.composer import Composer
-from bim_gw.utils.text_composer.writers import writers
+from bim_gw.utils.text_composer.composer import composer
 
 
 class VisualDataFetcher:
@@ -53,7 +52,7 @@ class TextDataFetcher:
         self.labels = labels
         self.transforms = transforms["t"]
         self.sentences = {}
-        self.text_composer = Composer(writers)
+        self.text_composer = composer
 
     def __getitem__(self, item):
         label = self.labels[item]
