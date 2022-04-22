@@ -119,11 +119,12 @@ class VAE(WorkspaceModule):
         ]
         self.losses = [
             F.binary_cross_entropy,
-            lambda x, y: (
-                F.mse_loss(x, y) +
-                mmd_loss_coef * mmd_loss(x, y) +
-                kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
-            )
+            F.mse_loss
+            # lambda x, y: (
+            #     F.mse_loss(x, y)
+            #     + mmd_loss_coef * mmd_loss(x, y)
+            #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
+            # )
         ]
 
         # val sampling

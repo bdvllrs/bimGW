@@ -112,28 +112,32 @@ class GlobalWorkspace(LightningModule):
         return self.decoders[domain_name](z)
 
     def get_null_latent(self, batch_size, domain_name):
-        batch = [self.trainer.datamodule.shapes_train.data_fetchers[domain_name].get_null_item() for k in
-                 range(batch_size)]
+        items = list(self.trainer.datamodule.shapes_train.data_fetchers[domain_name].get_null_item())
+        batch = [items for k in range(batch_size)]
         x = self.collate_fn(batch)
+        for k in range(len(x)):
+            if isinstance(x[k], torch.Tensor):
+                x[k] = x[k].to(self.device)
         return self.encode_uni_modal({domain_name: x})[domain_name]
 
-    def project(self, latents, masked_domains=None):
+    def project(self, latents, masked_domains=None, keep_domains=None):
+        if keep_domains is None:
+            keep_domains = list(latents.keys())
+        if masked_domains is None:
+            batch_size = list(latents.values())[0][0].size(0)
+            masked_domains = torch.zeros(batch_size, len(self.domain_names)).to(self.device, torch.bool)
+
         state = []
-        batch_size = list(latents.values())[0][0].size(0)
-        for domain_name in self.domain_names:
-            latent = None
-            if domain_name in latents:
-                latent = latents[domain_name]
-            else:
-                latent = self.get_null_latent(batch_size, domain_name)
+        for k, domain_name in enumerate(self.domain_names):
+            latent = latents[domain_name]
+            masked_domains[:, k] = torch.logical_or(masked_domains[:, k], 1 - latent[0][:, 0])
+            if domain_name not in keep_domains:
+                masked_domains[:, k] = True
+
             state.append(self.encode(latent, domain_name))
 
-        masks = [masked_domains]
         state = torch.stack(state, dim=1)
-
-        if masked_domains is not None:
-            masks = torch.cat(masks, dim=1)
-            state[masks, :] = 0.
+        state[masked_domains, :] = 0.
         return torch.sigmoid(state.sum(dim=1))
 
     def predict(self, state):
@@ -194,7 +198,7 @@ class GlobalWorkspace(LightningModule):
         losses = []
         indiv_losses = {}
         states = {
-            domain: self.project({domain: latents[domain]})
+            domain: self.project(latents, keep_domains=[domain])
             for domain in self.domain_names
         }
         for domain_name_1, latent_domain_1 in states.items():
@@ -322,7 +326,7 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name, latent in latents.items():
             # Demi cycles
-            predictions = self.predict(self.project({domain_name: latent}))
+            predictions = self.predict(self.project(latents, keep_domains=[domain_name]))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                      f"{slug}_demi_cycle_{domain_name}", max_examples)
@@ -330,7 +334,7 @@ class GlobalWorkspace(LightningModule):
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     # Full cycles
-                    cycle_predictions = self.predict(self.project({domain_name_2: predictions[domain_name_2]}))
+                    cycle_predictions = self.predict(self.project(predictions, keep_domains=[domain_name_2]))
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                              f"{slug}_cycle_{domain_name}_through_{domain_name_2}",
