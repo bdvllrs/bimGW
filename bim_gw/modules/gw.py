@@ -29,14 +29,20 @@ class GlobalWorkspace(LightningModule):
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_translation=1., loss_coef_cosine=0.,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
-            scheduler_step=20, scheduler_gamma=0.5,
+            scheduler_step=20, scheduler_gamma=0.5, loss_schedules=None,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False
     ):
 
         super(GlobalWorkspace, self).__init__()
-        self.save_hyperparameters(ignore=["domain_mods", "domain_examples"])
+        self.save_hyperparameters(ignore=["domain_mods", "domain_examples", "loss_schedules"])
         # self.automatic_optimization = False
+
+        self.loss_coef_demi_cycles = loss_coef_demi_cycles
+        self.loss_coef_cycles = loss_coef_cycles
+        self.loss_coef_supervision = loss_coef_supervision
+        self.loss_coef_cosine = loss_coef_cosine
+        self.loss_schedules = loss_schedules if loss_schedules is not None else {}
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -194,6 +200,21 @@ class GlobalWorkspace(LightningModule):
         z = self.translate(x, domain_name_start, domain_name_inter)
         return self.translate(z, domain_name_inter, domain_name_start)
 
+    def schedule_loss_coef_step(self):
+        for loss_name in ["demi_cycles", "cycles", "supervision", "cosine"]:
+            if loss_name in self.loss_schedules:
+                coef = getattr(self, f"loss_coef_{loss_name}")
+                if (self.current_epoch != 0) and (self.current_epoch % self.loss_schedules[loss_name]["step"] == 0):
+                    setattr(self, f"loss_coef_{loss_name}", coef * self.loss_schedules[loss_name]["gamma"])
+
+    def cosine_loss(self, sync_domains, coefficients=1.):
+        loss = torch.tensor(0.).to(self.device)
+        losses = {}
+        losses_no_coefs = {}
+        cosine_sims = {}
+        total = 0
+        for domain_name_1, domain_1 in sync_domains.items():
+            for domain_name_2, domain_2 in sync_domains.items():
     def cosine_loss(self, latents):
         losses = []
         indiv_losses = {}
@@ -253,6 +274,11 @@ class GlobalWorkspace(LightningModule):
         for name, loss in losses.items():
             self.log(f"{mode}{prefix}_{name}_loss", loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
+
+        if mode == "train":
+            for coef_name in ["demi_cycles", "cycles", "supervision", "cosine"]:
+                self.log(f"loss_coef_{coef_name}", getattr(self, f"loss_coef_{coef_name}"), add_dataloader_idx=False,
+                         batch_size=batch_size)
 
         return losses["total"], losses
 
@@ -385,6 +411,7 @@ class GlobalWorkspace(LightningModule):
 
     def on_train_epoch_start(self):
         self.domain_mods.eval()
+        self.schedule_loss_coef_step()
 
     def configure_optimizers(self):
         params = []
