@@ -90,6 +90,8 @@ class MLFlowLogger(MLFlowLoggerBase):
         self._image_location = image_location
         self._text_location = text_location
         self._save_images = save_images
+        self._image_last_step = {}
+        self._text_last_step = {}
 
         if not self._save_images:
             logging.warning("MLFLowLogger will not save the images. Set `save_images' to true to log them.")
@@ -97,12 +99,22 @@ class MLFlowLogger(MLFlowLoggerBase):
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
         if self._save_images:
+            if step is None:
+                if log_name not in self._image_last_step:
+                    self._image_last_step[log_name] = 0
+                step = self._image_last_step[log_name]
+                self._image_last_step[log_name] += 1
             path = f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
             image = to_pil_image(image)
             self.experiment.log_image(self.run_id, image, path)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
+        if step is None:
+            if log_name not in self._text_last_step:
+                self._text_last_step[log_name] = 0
+            step = self._text_last_step[log_name]
+            self._text_last_step[log_name] += 1
         if isinstance(text, list):
             text = "  \n".join(text)
         path = f"{self._text_location}/{log_name}/{log_name}.txt"
@@ -120,12 +132,19 @@ class CSVLogger(CSVLoggerBase):
         self._texts = {}
         self._images = []
         self._save_images = save_images
+        self._image_last_step = {}
+        self._text_last_step = {}
         if not self._save_images:
             logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
         if self._save_images:
+            if step is None:
+                if log_name not in self._image_last_step:
+                    self._image_last_step[log_name] = 0
+                step = self._image_last_step[log_name]
+                self._image_last_step[log_name] += 1
             path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
             os.makedirs(os.path.dirname(path), exist_ok=True)
             image = to_pil_image(image)
@@ -133,6 +152,11 @@ class CSVLogger(CSVLoggerBase):
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
+        if step is None:
+            if log_name not in self._text_last_step:
+                self._text_last_step[log_name] = 0
+            step = self._text_last_step[log_name]
+            self._text_last_step[log_name] += 1
         if isinstance(text, list):
             text = "\n".join(text)
         path = os.path.join(self.log_dir, f"{self._text_location}/{log_name}/{log_name}.txt")
