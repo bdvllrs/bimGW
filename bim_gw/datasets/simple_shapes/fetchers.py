@@ -205,6 +205,7 @@ class PreSavedLatentDataFetcher:
         self.root_path = root_path
         self.ids = ids
         self.data = np.load(str(self.root_path))[self.ids]
+        assert self.data.ndim == 3, "PreSavedLatent format is incorrect. It seems like you are using the version without the world model."
 
     def __len__(self):
         return self.data.shape[0]
