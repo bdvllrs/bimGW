@@ -166,7 +166,7 @@ class GlobalWorkspace(LightningModule):
                 if (self.current_epoch != 0) and (self.current_epoch % self.loss_schedules[loss_name]["step"] == 0):
                     setattr(self, f"loss_coef_{loss_name}", coef * self.loss_schedules[loss_name]["gamma"])
 
-    def demi_cycle_loss(self, domains, coefficients=1.):
+    def demi_cycle_loss(self, domains, coefficients=1., suffix=""):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
         losses_no_coefs = {}
@@ -189,14 +189,14 @@ class GlobalWorkspace(LightningModule):
             for k in range(len(domain)):
                 loss_fn = self.loss_fn[f"{name}_{k}"]
                 l += loss_fn(out[k], domain[k]).mean() / total
-            losses[f"loss_demi_cycle_{name}"] = coef * l
-            losses_no_coefs[f"loss_demi_cycle_{name}"] = l
-            loss += losses[f"loss_demi_cycle_{name}"]
-        losses["demi_cycle_loss"] = loss
-        losses_no_coefs["demi_cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        return losses["demi_cycle_loss"], losses, losses_no_coefs
+            losses[f"loss_demi_cycle_{name}{suffix}"] = coef * l
+            losses_no_coefs[f"loss_demi_cycle_{name}{suffix}"] = l
+            loss += losses[f"loss_demi_cycle_{name}{suffix}"]
+        losses[f"demi_cycle_loss{suffix}"] = loss
+        losses_no_coefs[f"demi_cycle_loss{suffix}"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        return losses[f"demi_cycle_loss{suffix}"], losses, losses_no_coefs
 
-    def cycle_loss(self, domains, coefficients=1.):
+    def cycle_loss(self, domains, coefficients=1., suffix=""):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
         losses_no_coefs = {}
@@ -205,7 +205,7 @@ class GlobalWorkspace(LightningModule):
         for domain_name_start, domain in domains.items():
             for domain_name_inter in domains.keys():
                 if domain_name_start != domain_name_inter:
-                    token = f"{domain_name_start}_through_{domain_name_inter}"
+                    token = f"{domain_name_start}_through_{domain_name_inter}{suffix}"
                     coef = 1.
                     if isinstance(coefficients, (int, float)):
                         coef = coefficients
@@ -226,11 +226,11 @@ class GlobalWorkspace(LightningModule):
                     losses[f"loss_cycle_{token}"] = coef * l
                     losses_no_coefs[f"loss_cycle_{token}"] = l
                     loss += losses[f"loss_cycle_{token}"]
-        losses["cycle_loss"] = loss
-        losses_no_coefs["cycle_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
-        return losses["cycle_loss"], losses, losses_no_coefs
+        losses[f"cycle_loss{suffix}"] = loss
+        losses_no_coefs[f"cycle_loss{suffix}"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+        return losses[f"cycle_loss{suffix}"], losses, losses_no_coefs
 
-    def supervision_loss(self, sync_domains, coefficients=1.):
+    def supervision_loss(self, sync_domains, coefficients=1., suffix=""):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
         losses_no_coefs = {}
@@ -247,7 +247,7 @@ class GlobalWorkspace(LightningModule):
                         pred_domain_2 = (pred_domain_2,)
                     for k in range(len(domain_2)):
                         if domain_2[k] is not None:
-                            token = f"{domain_name_1}_to_{domain_name_2}_{k}"
+                            token = f"{domain_name_1}_to_{domain_name_2}_{k}{suffix}"
                             coef = 1.
                             if isinstance(coefficients, (int, float)):
                                 coef = coefficients
@@ -264,13 +264,13 @@ class GlobalWorkspace(LightningModule):
             for name in losses.keys():
                 losses[name] = losses[name] / total
                 losses_no_coefs[name] = losses_no_coefs[name] / total
-            losses["supervision_loss"] = loss / total
-            losses_no_coefs["supervision_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+            losses[f"supervision_loss{suffix}"] = loss / total
+            losses_no_coefs[f"supervision_loss{suffix}"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
         else:
-            losses["supervision_loss"] = loss
-        return losses["supervision_loss"], losses, losses_no_coefs
+            losses[f"supervision_loss{suffix}"] = loss
+        return losses[f"supervision_loss{suffix}"], losses, losses_no_coefs
 
-    def cosine_loss(self, sync_domains, coefficients=1.):
+    def cosine_loss(self, sync_domains, coefficients=1., suffix=""):
         loss = torch.tensor(0.).to(self.device)
         losses = {}
         losses_no_coefs = {}
@@ -282,10 +282,10 @@ class GlobalWorkspace(LightningModule):
                     # project domains into one another
                     latent_domain_1 = self.encode(domain_1, domain_name_1)
                     latent_domain_2 = self.encode(domain_2, domain_name_2)
-                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
+                    cosine_sims[f"cosine_sim_s_{domain_name_1}-s_{domain_name_2}{suffix}"] = torch.cosine_similarity(
                         latent_domain_1, latent_domain_2).mean()
 
-                    token = f"s_{domain_name_1}-s_{domain_name_2}"
+                    token = f"s_{domain_name_1}-s_{domain_name_2}{suffix}"
                     coef = 1.
                     if isinstance(coefficients, (int, float)):
                         coef = coefficients
@@ -302,12 +302,12 @@ class GlobalWorkspace(LightningModule):
             for name in losses.keys():
                 losses[name] = losses[name] / total
                 losses_no_coefs[name] = losses_no_coefs[name] / total
-            losses["cosine_loss"] = loss / total
-            losses_no_coefs["cosine_loss"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
+            losses[f"cosine_loss{suffix}"] = loss / total
+            losses_no_coefs[f"cosine_loss{suffix}"] = torch.mean(torch.stack(list(losses_no_coefs.values())))
         else:
-            losses["cosine_loss"] = loss
+            losses[f"cosine_loss{suffix}"] = loss
         losses_no_coefs.update(cosine_sims)
-        return losses["cosine_loss"], losses, losses_no_coefs
+        return losses[f"cosine_loss{suffix}"], losses, losses_no_coefs
 
     def step(self, latents, sync_latents, sync_supervision, mode="val", prefix=""):
         losses = dict()
@@ -317,7 +317,15 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
+        demi_cycle_loss_sync, l, l_no_coefs = self.demi_cycle_loss(sync_latents, self.loss_coef_demi_cycles, "_sync")
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
         cycle_loss, l, l_no_coefs = self.cycle_loss(latents, self.loss_coef_cycles)
+        losses.update(l)
+        loss_no_coef.update(l_no_coefs)
+
+        cycle_loss_sync, l, l_no_coefs = self.cycle_loss(sync_latents, self.loss_coef_cycles, "_sync")
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
@@ -329,9 +337,11 @@ class GlobalWorkspace(LightningModule):
         losses.update(l)
         loss_no_coef.update(l_no_coefs)
 
-        total_loss = demi_cycle_loss + supervision_loss + cycle_loss + cosine_loss
-        total_loss_no_coef = loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] + loss_no_coef[
-            "supervision_loss"] + loss_no_coef["cosine_loss"]
+        total_loss = (0.5 * (demi_cycle_loss + demi_cycle_loss_sync +
+                             cycle_loss + cycle_loss_sync) + supervision_loss + cosine_loss)
+        total_loss_no_coef = (0.5 * (loss_no_coef["demi_cycle_loss"] + loss_no_coef["cycle_loss"] +
+                                    loss_no_coef["demi_cycle_loss_sync"] + loss_no_coef["cycle_loss_sync"])
+                              + loss_no_coef["supervision_loss"] + loss_no_coef["cosine_loss"])
 
         batch_size = latents[list(latents.keys())[0]].size(0)
         for name, loss in loss_no_coef.items():

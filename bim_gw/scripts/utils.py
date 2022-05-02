@@ -55,7 +55,7 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
     # Callbacks
     callbacks = [
         LearningRateMonitor(logging_interval="epoch"),
-        EarlyStopping(monitor=monitor_loss, patience=20)
+        # EarlyStopping(monitor=monitor_loss, patience=20)
     ]
     if len(loggers) and args.checkpoints_dir is not None:
         logger = loggers[0]
