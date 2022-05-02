@@ -39,6 +39,11 @@ def to_pil_image(image: ImageType):
         return image
 
 
+class NullLogger:
+    def __init__(self, *params, **kwarg):
+        raise ValueError("This Logger is not available. Please install the associated package to use this logger.")
+
+
 class NeptuneLogger(NeptuneLoggerBase):
     def __init__(self, save_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
@@ -182,6 +187,36 @@ class CSVLogger(CSVLoggerBase):
         self._images = []
 
 
+try:
+    from aim.pytorch_lightning import AimLogger as AimLoggerBase
+    from aim import Image as AimImage
+    from aim import Text as AimText
+except ImportError:
+    AimLoggerBase = NullLogger
+
+
+class AimLogger(AimLoggerBase):
+    def __init__(self, *aim_params, save_images=True, **aim_run_kwargs):
+        super().__init__(*aim_params, **aim_run_kwargs)
+
+        self._log_images = save_images
+        if not self._log_images:
+            logging.warning("AimLogger will not save the images. Set `save_images' to true to log them.")
+
+    @rank_zero_only
+    def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
+        if self._log_images:
+            image = AimImage(image)
+            self.experiment.track(image, name=log_name, step=step)
+
+    @rank_zero_only
+    def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
+        if isinstance(text, list):
+            text = "\n".join(text)
+        text = AimText(text)
+        self.experiment.track(text, name=log_name, step=step)
+
+
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
         save_images=log_args.save_images,
@@ -234,6 +269,7 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     # TODO: add source_files
     return logger
 
+
 def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files):
     if tags is not None:
         tags = {tag: 1 for tag in tags}
@@ -250,6 +286,19 @@ def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files)
     # TODO: add source_files
     return logger
 
+def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
+    logger = AimLogger(
+        save_images=log_args.save_images,
+        experiment=name,
+        **OmegaConf.to_object(log_args.args)
+    )
+    if tags is not None:
+        for tag in tags:
+            logger.experiment.add_tag(tag)
+
+    logger.experiment["parameters"] = OmegaConf.to_object(conf)
+    return logger
+
 def get_loggers(name, version, args, model, conf, tags, source_files):
     loggers = []
     for logger in args:
@@ -261,6 +310,8 @@ def get_loggers(name, version, args, model, conf, tags, source_files):
             loggers.append(get_tensor_board_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "MLFlowLogger":
             loggers.append(get_ml_flow_logger(name, version, logger, model, conf, tags, source_files))
+        elif logger.logger == "AimLogger":
+            loggers.append(get_aim_logger(name, version, logger, model, conf, tags, source_files))
         else:
             raise ValueError(f"Logger: {logger.logger} is not yet available.")
         # TODO: implement for the other loggers

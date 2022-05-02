@@ -7,6 +7,8 @@ import numpy as np
 
 
 def _set_float(val):
+    if type(val) is str and val[0] == '"' and val[-1] == '"':
+        val = val[1:-1]
     try:
         return float(val)
     except ValueError as e:
@@ -30,8 +32,8 @@ class CSVLog:
                     row = self._get_dict_row(row)
                     # if row["metrics/val_supervision_loss (last)"] == '':
                     #     row["metrics/val_supervision_loss (last)"] = np.inf
-                    if row["metrics/epoch (last)"] == '':
-                        row["metrics/epoch (last)"] = '0'
+                    # if row["metrics/epoch (last)"] == '':
+                    #     row["metrics/epoch (last)"] = '0'
                     row = {key: _set_float(val) for key, val in row.items()}
                     self.data.append(row)
 
@@ -72,21 +74,21 @@ class CSVLog:
         return new_log
 
     def filter_eq(self, key, val):
-        cond = lambda row: row[key] == val
+        cond = lambda row: key in row and row[key] == val
         return self.filter(cond)
 
     def filter_neq(self, key, val):
-        cond = lambda row: row[key] != val
+        cond = lambda row: key not in row or row[key] != val
         return self.filter(cond)
 
     def filter_between(self, key, mini=None, maxi=None):
         mini = mini if mini is not None else -np.inf
         maxi = maxi if maxi is not None else np.inf
-        cond = lambda row: mini <= row[key] <= maxi
+        cond = lambda row: key in row and mini <= row[key] <= maxi
         return self.filter(cond)
 
     def filter_in(self, key, values):
-        cond = lambda row: row[key] in values
+        cond = lambda row: key in row and row[key] in values
         return self.filter(cond)
 
     def zip(self, keys, sort=False):
