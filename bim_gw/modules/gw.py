@@ -1,19 +1,14 @@
 from typing import Optional
 
-import numpy as np
-import scipy
 import torch
 import torch.nn.functional as F
 import torchmetrics
-from matplotlib import pyplot as plt
-from neptune.new.types import File
 from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.modules.utils import DomainDecoder, DomainEncoder
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
-from bim_gw.utils.utils import val_or_default
 
 
 def check_domains_eq(domains_ori, domains_comp):
