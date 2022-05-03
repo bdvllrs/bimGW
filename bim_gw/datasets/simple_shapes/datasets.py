@@ -1,4 +1,5 @@
 import itertools
+import math
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +15,7 @@ class SimpleShapesDataset:
         "a": ActionDataFetcher,
     }
 
-    def __init__(self, path, split="train", synced_domain_mapping=None, selected_indices=None,
+    def __init__(self, path, split="train", synced_domain_mapping=None, domain_map=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
                  extend_dataset=True, with_actions=None):
         """
@@ -41,6 +42,10 @@ class SimpleShapesDataset:
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.synced_domain_mapping = synced_domain_mapping
+        self.domain_map = domain_map
+        if self.synced_domain_mapping is not None and self.domain_map is None:
+            raise ValueError("`domain_map` should be provided when `synced_domain_mapping` is provided.")
+
         self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
         self.ids = np.arange(len(self.labels))
         if selected_indices is not None:
@@ -57,10 +62,14 @@ class SimpleShapesDataset:
                     domain_mapping_to_remove.append(k)
             self.ids = np.array(ids)
             self.labels = self.labels[self.ids]
+        self.inverse_ids = {idx: k for k, idx in enumerate(self.ids)}
 
         # Remove empty elements
         for idx in reversed(domain_mapping_to_remove):
             del self.synced_domain_mapping[idx]
+
+        self.mapping = np.arange(len(self.labels))
+        self.set_rows()
 
         self.input_domains = self.synced_domain_mapping
         self.target_domains = self.synced_domain_mapping
@@ -84,6 +93,17 @@ class SimpleShapesDataset:
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(
                         self.root_path / "saved_latents" / self.split / pre_saved_latent_path[domain_key], self.ids)
 
+    def set_rows(self):
+        if self.synced_domain_mapping is not None:
+            max_len = max(map(len, self.domain_map.values()))
+            for domains in self.domain_map.keys():
+                n_tiles = math.ceil(max_len / len(self.domain_map[domains]))
+                # TODO: randomize dropped items
+                indices = np.tile(self.domain_map[domains], n_tiles)[:max_len]
+                self.domain_map[domains] = indices
+            mapping = np.sort(np.concatenate(list(self.domain_map.values())))
+            self.mapping = mapping
+
     def define_targets(self):
         labels = []
         ids = []
@@ -106,9 +126,10 @@ class SimpleShapesDataset:
         self.labels = self.labels[self.ids]
 
     def __len__(self):
-        return len(self.labels)
+        return self.mapping.shape[0]
 
     def __getitem__(self, item):
+        item = self.inverse_ids[self.mapping[item]]
         items = []
         for mapping in [self.input_domains, self.target_domains]:
             selected_domains = {}

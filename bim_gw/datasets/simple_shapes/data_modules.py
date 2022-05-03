@@ -221,6 +221,7 @@ class SimpleShapesDataModule(LightningDataModule):
         print(f"Loaded {len(allowed_indices)} examples in train set.")
         train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                         domain_mapping,
+                                        sampler_domain_map,
                                         selected_domains=self.selected_domains,
                                         transform=train_set.transforms,
                                         output_transform=train_set.output_transform,
