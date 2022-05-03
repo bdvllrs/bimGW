@@ -13,7 +13,8 @@ from pytorch_lightning.loggers import (
     NeptuneLogger as NeptuneLoggerBase,
     TensorBoardLogger as TensorBoardLoggerBase,
     MLFlowLogger as MLFlowLoggerBase,
-    CSVLogger as CSVLoggerBase
+    CSVLogger as CSVLoggerBase,
+    WandbLogger as WandbLoggerBase
 )
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -37,6 +38,14 @@ def to_pil_image(image: ImageType):
         return fig2img(image)
     elif isinstance(image, Image.Image):
         return image
+
+
+def text_from_table(columns, data):
+    text = ""
+    for k in range(len(data)):
+        text += f"{k + 1} - " + ", ".join(map(lambda x: f"{x[0]}: {x[1]: .4f}", zip(columns, data[k]))) + "\n"
+    text += "---- \n"
+    return text
 
 
 class NullLogger:
@@ -64,6 +73,36 @@ class NeptuneLogger(NeptuneLoggerBase):
             text = [text]
         self.experiment[log_name].log(text)
 
+    @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        self.log_text(log_name, text_from_table(columns, data), step)
+
+
+class WandbLogger(WandbLoggerBase):
+    def __init__(self, *params, save_images=True, **kwargs):
+        super().__init__(*params, **kwargs)
+
+        self._log_images = save_images
+        if not self._log_images:
+            logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
+
+    @rank_zero_only
+    def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
+        if self._log_images:
+            super(WandbLogger, self).log_image(key=log_name, images=[image], step=step)
+
+    @rank_zero_only
+    def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
+        if not isinstance(text, list):
+            text = [[text]]
+        else:
+            text = list(map(lambda x: [x], text))
+        super(WandbLogger, self).log_text(key=log_name, columns=["text"], data=text, step=step)
+
+    @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
+
 
 class TensorBoardLogger(TensorBoardLoggerBase):
     def __init__(self, *params, save_images=True, **kwargs):
@@ -87,6 +126,10 @@ class TensorBoardLogger(TensorBoardLoggerBase):
         if isinstance(text, list):
             text = "  \n".join(text)
         self.experiment.add_text(log_name, text, step)
+
+    @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        self.log_text(log_name, text_from_table(columns, data), step)
 
 
 class MLFlowLogger(MLFlowLoggerBase):
@@ -127,6 +170,10 @@ class MLFlowLogger(MLFlowLoggerBase):
         path = f"{self._text_location}/{log_name}/{log_name}.txt"
         text = f"====  \nstep={step}  \n====  \n{text}  \n"
         self.experiment.log_text(self.run_id, text, path)
+
+    @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        self.log_text(log_name, text_from_table(columns, data), step)
 
 
 class CSVLogger(CSVLoggerBase):
@@ -175,6 +222,10 @@ class CSVLogger(CSVLoggerBase):
         self._texts[path] += text
 
     @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        self.log_text(log_name, text_from_table(columns, data), step)
+
+    @rank_zero_only
     def save(self) -> None:
         super().save()
         for path, text in self._texts.items():
@@ -216,6 +267,10 @@ class AimLogger(AimLoggerBase):
         text = AimText(text)
         self.experiment.track(text, name=log_name, step=step)
 
+    @rank_zero_only
+    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+        self.log_text(log_name, text_from_table(columns, data), step)
+
 
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
@@ -236,6 +291,20 @@ def get_neptune_logger(name, version, log_args, model, conf, tags, source_files)
             break
 
     logger.log_model_summary(model=model, max_depth=-1)
+    return logger
+
+
+def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
+    logger = WandbLogger(
+        save_images=log_args.save_images,
+        tags=tags,
+        **OmegaConf.to_object(log_args.args)
+    )
+    logger.experiment.log_code("../",
+                               include_fn=lambda path: path.endswith(".py") or path.endswith(".yaml") or path.endswith(
+                                   ".txt"))
+    conf["_script_name"] = name
+    logger.log_hyperparams(OmegaConf.to_object(conf))
     return logger
 
 
@@ -286,6 +355,7 @@ def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files)
     # TODO: add source_files
     return logger
 
+
 def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
     logger = AimLogger(
         save_images=log_args.save_images,
@@ -299,11 +369,14 @@ def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
     logger.experiment["parameters"] = OmegaConf.to_object(conf)
     return logger
 
+
 def get_loggers(name, version, args, model, conf, tags, source_files):
     loggers = []
     for logger in args:
         if logger.logger == "NeptuneLogger":
             loggers.append(get_neptune_logger(name, version, logger, model, conf, tags, source_files))
+        elif logger.logger == "WandbLogger":
+            loggers.append(get_wandb_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "CSVLogger":
             loggers.append(get_csv_logger(name, version, logger, model, conf, tags, source_files))
         elif logger.logger == "TensorBoardLogger":
@@ -314,5 +387,4 @@ def get_loggers(name, version, args, model, conf, tags, source_files):
             loggers.append(get_aim_logger(name, version, logger, model, conf, tags, source_files))
         else:
             raise ValueError(f"Logger: {logger.logger} is not yet available.")
-        # TODO: implement for the other loggers
     return loggers

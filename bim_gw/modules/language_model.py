@@ -90,13 +90,11 @@ class ShapesAttributesLM(WorkspaceModule):
         )
 
         # text
-        labels = ["x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
         text = []
         for k in range(len(classes)):
-            text.append(f"{k}  \t- c: {str(classes[k].item())}, " + ", ".join(
-                map(lambda a: f"{a[0]}: {a[1]:.4f}", zip(labels, latents[k].tolist()))))
-        text.append("----")
-        logger.log_text(name + "_text", text)
+            text.append([classes[k].item()] + latents[k].tolist())
+        logger.log_table(name + "_text", columns=labels, data=text)
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -209,9 +207,8 @@ class ShapesLM(WorkspaceModule):
 
     def log_domain(self, logger, x, name, max_examples=None):
         is_active, x = x
-        text = [f"{k + 1} - {x[k]}" for k in range(len(x))]
-        text.append("\n-----")
-        logger.log_text(name + "_s", text)
+        text = [[x[k]] for k in range(len(x))]
+        logger.log_table(name + "_s", columns=["Text"], data=text)
         encoded_s = self.encode(x)
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples)
@@ -263,9 +260,9 @@ class ShapesLM(WorkspaceModule):
                 predictions = self.classify(encoded_s)
                 sentence_predictions = self.decode(encoded_s)
 
-                text = [f"{k + 1} - {sentence_predictions[k]}" for k in range(len(sentence_predictions))]
-                text.append("-----")
-                logger.log_text("predictions_text", text)
+                text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
+
+                logger.log_table("predictions_text", columns=["Text"], data=text)
 
                     # Images
                 self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
@@ -273,7 +270,7 @@ class ShapesLM(WorkspaceModule):
 
                 if self.current_epoch == 0:
                     self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "target_reconstruction")
-                    logger.log_text("target_text", [f"{k + 1} - {self.validation_domain_examples['t'][k]}" for k in
+                    logger.log_table("target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][k]] for k in
                                                     range(len(sentence_predictions))])
 
     def configure_optimizers(self):
