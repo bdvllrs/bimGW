@@ -24,7 +24,7 @@ def train_gw(args):
                                        args.losses.schedules, data.domain_examples,
                                        args.global_workspace.monitor_grad_norms)
 
-    trainer = get_trainer("train_gw", args, global_workspace, monitor_loss="val_in_dist_total_loss", trainer_args={
+    trainer = get_trainer("train_gw", args, global_workspace, monitor_loss="val/in_dist/total_loss", trainer_args={
         # "val_check_interval": args.global_workspace.prop_labelled_images
     })
     trainer.fit(global_workspace, data)
@@ -44,7 +44,7 @@ def train_lm(args):
                   args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
                   domain_examples)
 
-    trainer = get_trainer("train_lm", args, lm, monitor_loss="val_total_loss")
+    trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss")
     trainer.fit(lm, data)
 
 

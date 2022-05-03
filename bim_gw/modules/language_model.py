@@ -238,9 +238,9 @@ class ShapesLM(WorkspaceModule):
             losses.append(group_loss)
             total_loss += group_loss
 
-            self.log(f"{mode}_loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
+            self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
 
-        self.log(f"{mode}_total_loss", total_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
+        self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
@@ -262,15 +262,15 @@ class ShapesLM(WorkspaceModule):
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
 
-                logger.log_table("predictions_text", columns=["Text"], data=text)
+                logger.log_table("val/predictions_text", columns=["Text"], data=text)
 
                     # Images
                 self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
-                                                     "predictions_reconstruction")
+                                                     "val/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "target_reconstruction")
-                    logger.log_table("target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][k]] for k in
+                    self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "val/target_reconstruction")
+                    logger.log_table("val/target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][k]] for k in
                                                     range(len(sentence_predictions))])
 
     def configure_optimizers(self):
