@@ -203,13 +203,9 @@ class GlobalWorkspace(LightningModule):
                 if (self.current_epoch != 0) and (self.current_epoch % self.loss_schedules[loss_name]["step"] == 0):
                     setattr(self, f"loss_coef_{loss_name}", coef * self.loss_schedules[loss_name]["gamma"])
 
-    def cosine_loss(self, latents):
+    def cosine_loss(self, states):
         losses = []
         indiv_losses = {}
-        states = {
-            domain: self.project(latents, keep_domains=[domain])
-            for domain in self.domain_names
-        }
         for domain_name_1, latent_domain_1 in states.items():
             for domain_name_2, latent_domain_2 in states.items():
                 if domain_name_1 != domain_name_2:
@@ -247,13 +243,44 @@ class GlobalWorkspace(LightningModule):
         return indiv_losses
 
     def step(self, latents, latent_targets, mode="val", prefix=""):
+        latent_demi_cycle_predictions = {}
+        latent_demi_cycle_target = {}
+        latent_cycle_predictions = {}
+        latent_cycle_target = {}
+        latent_translation_predictions = {}
+        latent_translation_target = {}
+        states = {}
+        for domain_name, latent in latents.items():
+            # Demi-cycles
+            state = self.project(latents, keep_domains=[domain_name])
+            states[domain_name] = state
+            predictions = self.predict(state)
+            latent_demi_cycle_predictions[f"{domain_name}-u"] = predictions[domain_name]
+            latent_demi_cycle_target[f"{domain_name}-u"] = latent
+            for domain_name_target, latent_target in latents.items():
+                if domain_name_target != domain_name:
+                    # Translation
+                    latent_translation_predictions[f"{domain_name_target}-{domain_name}"] = predictions[
+                        domain_name_target]
+                    latent_translation_target[f"{domain_name_target}-{domain_name}"] = latent_target
+                    # Cycles
+                    cycle_state = self.project(predictions, keep_domains=[domain_name_target])
+                    latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = self.decode(cycle_state,
+                                                                                                  domain_name)
+                    latent_cycle_target[f"{domain_name}-{domain_name_target}"] = latent
+
         latent_prediction = self.predict(self.project(latents))
         latent_cycle = self.predict(self.project(latent_prediction))
 
-        demi_cycle_losses = self.loss(latent_prediction, latents, prefix="demi_cycles")
-        cycle_losses = self.loss(latent_cycle, latents, prefix="cycles")
-        translation_losses = self.loss(latent_prediction, latent_targets, prefix="translation")
-        cosine_losses = self.cosine_loss(latents)
+        latent_demi_cycle_predictions = {**latent_demi_cycle_predictions, **latent_prediction}
+        latent_demi_cycle_target = {**latent_demi_cycle_target, **latents}
+        latent_cycle_predictions = {**latent_cycle_predictions, **latent_cycle}
+        latent_cycle_target = {**latent_cycle_target, **latents}
+
+        demi_cycle_losses = self.loss(latent_demi_cycle_predictions, latent_demi_cycle_target, prefix="demi_cycles")
+        cycle_losses = self.loss(latent_cycle_predictions, latent_cycle_target, prefix="cycles")
+        translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
+        cosine_losses = self.cosine_loss(states)
 
         losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **cosine_losses}
         loss_names = ["demi_cycles", "cycles", "translation", "cosine"]
