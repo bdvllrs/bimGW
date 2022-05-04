@@ -21,8 +21,9 @@ class DomainDecoder(torch.nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden_size),
-            # nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU()
         )
 
         self.encoder_head = nn.ModuleList([
@@ -56,9 +57,10 @@ class DomainEncoder(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims), self.hidden_size),
-            # nn.BatchNorm1d(self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.out_dim),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.out_dim)
         )
 
     def forward(self, x):
@@ -66,4 +68,4 @@ class DomainEncoder(nn.Module):
             assert len(x) == len(self.in_dims), "Not enough values as input."
         x = torch.cat(x, dim=-1)
         out = self.encoder(x)
-        return torch.tanh(out)
+        return out

@@ -126,12 +126,13 @@ class GlobalWorkspace(LightningModule):
             keep_domains = list(latents.keys())
         if masked_domains is None:
             batch_size = list(latents.values())[0][0].size(0)
-            masked_domains = torch.zeros(batch_size, len(self.domain_names)).to(self.device, torch.bool)
+            masked_domains = torch.ones(batch_size, len(self.domain_names)).to(self.device)
 
         state = []
         for k, domain_name in enumerate(self.domain_names):
             latent = latents[domain_name]
-            masked_domains[:, k] = torch.logical_or(masked_domains[:, k], 1 - latent[0][:, 0])
+            latent_mask = latent[0][:, 0] < 0.5
+            masked_domains[:, k] = torch.logical_or(masked_domains[:, k], latent_mask)
             if domain_name not in keep_domains:
                 masked_domains[:, k] = True
 
@@ -139,7 +140,7 @@ class GlobalWorkspace(LightningModule):
 
         state = torch.stack(state, dim=1)
         state[masked_domains, :] = 0.
-        return torch.sigmoid(state.sum(dim=1))
+        return torch.tanh(state.sum(dim=1))
 
     def predict(self, state):
         return {
@@ -232,7 +233,10 @@ class GlobalWorkspace(LightningModule):
             loss = torch.tensor(0.).to(prediction[0].device)
             for k in range(len(prediction)):
                 token = f"{prefix}/domain_{domain_name}_{k}"
-                loss_fn = self.loss_fn[f"{domain_name}_{k}"]
+                loss_domain = domain_name
+                if "-" in domain_name:
+                    loss_domain = domain_name.split("-")[0]
+                loss_fn = self.loss_fn[f"{loss_domain}_{k}"]
                 l = loss_fn(prediction[k], target[k]).mean()
                 loss += l
                 indiv_losses[token] = l
@@ -243,12 +247,12 @@ class GlobalWorkspace(LightningModule):
         return indiv_losses
 
     def step(self, latents, latent_targets, mode="val", prefix=""):
-        latent_predictions = self.predict(self.project(latents))
-        latent_cycle_predictions = self.predict(self.project(latent_predictions))
+        latent_prediction = self.predict(self.project(latents))
+        latent_cycle = self.predict(self.project(latent_prediction))
 
-        demi_cycle_losses = self.loss(latent_predictions, latents, prefix="demi_cycles")
-        cycle_losses = self.loss(latent_cycle_predictions, latents, prefix="cycles")
-        translation_losses = self.loss(latent_predictions, latent_targets, prefix="translation")
+        demi_cycle_losses = self.loss(latent_prediction, latents, prefix="demi_cycles")
+        cycle_losses = self.loss(latent_cycle, latents, prefix="cycles")
+        translation_losses = self.loss(latent_prediction, latent_targets, prefix="translation")
         cosine_losses = self.cosine_loss(latents)
 
         losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **cosine_losses}
@@ -342,7 +346,7 @@ class GlobalWorkspace(LightningModule):
             predictions = self.predict(self.project(latents, keep_domains=[domain_name]))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
-                                                     f"{slug}/demi_cycle/{domain_name}", max_examples)
+                                                     f"{slug}/demi_cycles/{domain_name}", max_examples)
 
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
@@ -350,7 +354,7 @@ class GlobalWorkspace(LightningModule):
                     cycle_predictions = self.predict(self.project(predictions, keep_domains=[domain_name_2]))
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
-                                                             f"{slug}/cycle/{domain_name}_through_{domain_name_2}",
+                                                             f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
                                                              max_examples)
 
                     # Translations
