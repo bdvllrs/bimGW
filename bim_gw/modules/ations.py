@@ -45,15 +45,18 @@ class ActionModule(WorkspaceModule):
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return is_active.reshape(-1, 1).type_as(latents), torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents), out_latents
+        return is_active.reshape(-1, 1).type_as(latents), torch.nn.functional.one_hot(cls, self.n_classes).type_as(
+            latents), out_latents
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
 
-    def log_domain(self, logger, x, name, max_examples=None):
+    def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[1][:max_examples].detach().cpu().numpy()
         latents = x[2][:max_examples].detach().cpu().numpy()
 
-        for k in range(classes.shape[0]):
-            text = ", ".join(map(str, [classes[k].item()] + latents[k].tolist()))
-            logger.experiment[name + "_text"].log(text)
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        text = []
+        for k in range(len(classes)):
+            text.append([classes[k].item()] + latents[k].tolist())
+        logger.log_table(name + "_text", columns=labels, data=text, step=step)

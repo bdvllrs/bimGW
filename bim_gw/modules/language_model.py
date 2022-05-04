@@ -76,7 +76,7 @@ class ShapesAttributesLM(WorkspaceModule):
         )
         return labels
 
-    def log_domain(self, logger, x, name, max_examples=None):
+    def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[1][:max_examples].detach().cpu().numpy()
         latents = x[2][:max_examples].detach().cpu().numpy()
 
@@ -86,7 +86,8 @@ class ShapesAttributesLM(WorkspaceModule):
             classes,
             # rotations,
             latents,
-            name + "_vis"
+            name + "_vis",
+            step
         )
 
         # text
@@ -94,7 +95,7 @@ class ShapesAttributesLM(WorkspaceModule):
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
-        logger.log_table(name + "_text", columns=labels, data=text)
+        logger.log_table(name + "_text", columns=labels, data=text, step=step)
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -205,13 +206,13 @@ class ShapesLM(WorkspaceModule):
         })
         return labels
 
-    def log_domain(self, logger, x, name, max_examples=None):
+    def log_domain(self, logger, x, name, max_examples=None, step=None):
         is_active, x = x
         text = [[x[k]] for k in range(len(x))]
-        logger.log_table(name + "_s", columns=["Text"], data=text)
+        logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
         encoded_s = self.encode(x)
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
-        self.shapes_attribute.log_domain(logger, predictions, name, max_examples)
+        self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
         prediction = self.classifier(z)

@@ -316,7 +316,7 @@ class GlobalWorkspace(LightningModule):
         if self.current_epoch == 0:
             for domain_name, domain_example in examples.items():
                 self.domain_mods[domain_name].log_domain(logger, domain_example,
-                                                         f"{slug}/original/domain_{domain_name}", max_examples)
+                                                         f"{slug}/original/domain_{domain_name}", max_examples, step=self.current_epoch)
                 # if domain_name == "v":
                 #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
                 #     fig, axes = plt.subplots(1, latent.shape[1])
@@ -342,7 +342,7 @@ class GlobalWorkspace(LightningModule):
             predictions = self.predict(self.project(latents, keep_domains=[domain_name]))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
-                                                     f"{slug}/demi_cycle/{domain_name}", max_examples)
+                                                     f"{slug}/demi_cycle/{domain_name}", max_examples, step=self.current_epoch)
 
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
@@ -351,14 +351,15 @@ class GlobalWorkspace(LightningModule):
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                              f"{slug}/cycle/{domain_name}_through_{domain_name_2}",
-                                                             max_examples)
+                                                             max_examples, step=self.current_epoch)
 
                     # Translations
                     domain_end_pred = self.domain_mods[domain_name_2].decode(predictions[domain_name_2])
                     self.domain_mods[domain_name_2].log_domain(
                         logger, domain_end_pred,
                         f"{slug}/translation/{domain_name}_to_{domain_name_2}",
-                        max_examples
+                        max_examples,
+                        step=self.current_epoch
                     )
                     # if domain_name == "t" and domain_name_2 == "v":
                     #     fig, axes = plt.subplots(1, latent_end.size(1))

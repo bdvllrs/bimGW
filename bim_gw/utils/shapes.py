@@ -138,11 +138,11 @@ def get_image_specs_from_latents(cls, latents):
     return output
 
 
-def log_shape_fig(logger, classes, latents, name):
+def log_shape_fig(logger, classes, latents, name, step=None):
     spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
 
-    logger.log_image(name, fig)
+    logger.log_image(name, fig, step=step)
     plt.close(fig)
 
 

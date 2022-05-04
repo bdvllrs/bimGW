@@ -20,7 +20,7 @@ class WorkspaceModule(LightningModule):
     def decode(self, z):
         raise NotImplementedError
 
-    def log_domain(self, logger, x, title, max_examples=None):
+    def log_domain(self, logger, x, title, max_examples=None, step=None):
         raise NotImplementedError
 
     def compute_acc(self, acc_metric, predictions, targets):
@@ -52,5 +52,5 @@ class PassThroughWM(WorkspaceModule):
             return z
         return self.workspace_module.decode(z)
 
-    def log_domain(self, logger, x, title, max_examples=None):
-        return self.workspace_module.log_domain(logger, x, title, max_examples)
+    def log_domain(self, logger, x, title, max_examples=None, step=None):
+        return self.workspace_module.log_domain(logger, x, title, max_examples, step=step)
