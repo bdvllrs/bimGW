@@ -23,13 +23,13 @@ class ShapesAttributesLM(WorkspaceModule):
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             torch.sigmoid,
-            lambda x: torch.softmax(x, dim=1),  # shapes
+            lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
         ]
 
         self.losses = [
             F.binary_cross_entropy,
-            lambda x, y: nll_loss(x.log(), y),  # shapes
+            lambda x, y: nll_loss(x, y),  # shapes
             F.mse_loss  # rest
         ]
 

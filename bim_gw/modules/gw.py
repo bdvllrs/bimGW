@@ -6,7 +6,7 @@ import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
 
-from bim_gw.modules.utils import DomainDecoder, DomainEncoder
+from bim_gw.modules.utils import DomainDecoder, DomainEncoder, mask_predictions
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 
@@ -126,7 +126,7 @@ class GlobalWorkspace(LightningModule):
             keep_domains = list(latents.keys())
         if masked_domains is None:
             batch_size = list(latents.values())[0][0].size(0)
-            masked_domains = torch.ones(batch_size, len(self.domain_names)).to(self.device)
+            masked_domains = torch.zeros(batch_size, len(self.domain_names)).to(self.device, torch.bool)
 
         state = []
         for k, domain_name in enumerate(self.domain_names):
@@ -259,14 +259,15 @@ class GlobalWorkspace(LightningModule):
             latent_demi_cycle_target[f"{domain_name}-u"] = latent
             for domain_name_target, latent_target in latents.items():
                 if domain_name_target != domain_name:
+                    latent_mask = latent_target[0][:] < 0.5
                     # Translation
-                    latent_translation_predictions[f"{domain_name_target}-{domain_name}"] = predictions[
-                        domain_name_target]
+                    latent_translation_predictions[f"{domain_name_target}-{domain_name}"] = mask_predictions(
+                        predictions[domain_name_target], latent_target, latent_mask
+                    )
                     latent_translation_target[f"{domain_name_target}-{domain_name}"] = latent_target
                     # Cycles
                     cycle_state = self.project(predictions, keep_domains=[domain_name_target])
-                    latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = self.decode(cycle_state,
-                                                                                                  domain_name)
+                    latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = self.decode(cycle_state, domain_name)
                     latent_cycle_target[f"{domain_name}-{domain_name_target}"] = latent
 
         latent_prediction = self.predict(self.project(latents))
