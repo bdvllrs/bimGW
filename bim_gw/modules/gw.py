@@ -20,7 +20,7 @@ def check_domains_eq(domains_ori, domains_comp):
 
 class GlobalWorkspace(LightningModule):
     def __init__(
-            self, domain_mods, z_size, hidden_size,
+            self, domain_mods, z_size, hidden_size, n_layers_encoder, n_layers_decoder, n_layers_decoder_head,
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_translation=1., loss_coef_cosine=0.,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed", scheduler_interval="epoch",
@@ -41,6 +41,9 @@ class GlobalWorkspace(LightningModule):
 
         self.z_size = z_size
         self.hidden_size = hidden_size
+        self.n_layers_encoder = n_layers_encoder
+        self.n_layers_decoder = n_layers_decoder
+        self.n_layers_decoder_head = n_layers_decoder_head
         self.monitor_grad_norms = monitor_grad_norms
 
         for mod in domain_mods.values():
@@ -51,9 +54,11 @@ class GlobalWorkspace(LightningModule):
         self.validation_example_list = None
 
         # Define encoders for translation
-        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size, self.z_size)
+        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size,
+                                                           self.z_size, self.n_layers_encoder)
                                        for item, mod in domain_mods.items()})
         self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
+                                                            self.n_layers_decoder, self.n_layers_decoder_head,
                                                             mod.output_dims, mod.decoder_activation_fn))
                                        for item, mod in domain_mods.items()})
 

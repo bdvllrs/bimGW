@@ -61,6 +61,10 @@ global_workspace:
 
   z_size: 20
   hidden_size: 512
+  n_layers:
+    encoder: 0
+    decoder: 0
+    decoder_head: 0
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: ???

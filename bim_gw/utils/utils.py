@@ -28,7 +28,7 @@ def get_args(debug=False, additional_config_files=None):
         debug_args = OmegaConf.load(str((config_path / "debug.yaml").resolve()))
     else:
         debug_args = {}
-    cli_args = OmegaConf.from_cli()
+    cli_args = OmegaConf.from_dotlist(list(map(lambda x: x.replace("--", ""), sys.argv[1:])))
     if (config_path / "local.yaml").exists():
         local_args = OmegaConf.load(str((config_path / "local.yaml").resolve()))
     else:
@@ -46,6 +46,8 @@ def get_args(debug=False, additional_config_files=None):
     print(OmegaConf.to_yaml(cli_args))
     print("Complete args")
     print(OmegaConf.to_yaml(args))
+
+    args.debug = args.debug or debug
     return args
 
 

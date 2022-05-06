@@ -2,11 +2,23 @@ import torch
 from torch import nn
 
 
+def get_n_layers(n_layers, hidden_size):
+    layers = []
+    for k in range(n_layers):
+        layers.extend([
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU()
+        ])
+    return layers
+
+
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_size, out_dims=0, activation_fn=None):
+    def __init__(self, in_dim, hidden_size, n_layers, n_layers_head, out_dims=0, activation_fn=None):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.hidden_size = hidden_size
+        self.n_layers = n_layers
+        self.n_layers_head = n_layers_head
 
         if isinstance(out_dims, int):
             out_dims = [out_dims]
@@ -22,14 +34,12 @@ class DomainDecoder(torch.nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU()
+            *get_n_layers(n_layers, self.hidden_size)
         )
 
         self.encoder_head = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(self.hidden_size, self.hidden_size),
-                nn.ReLU(),
+                *get_n_layers(n_layers_head, self.hidden_size),
                 nn.Linear(self.hidden_size, pose_dim),
             )
             for pose_dim in self.out_dims
@@ -47,19 +57,19 @@ class DomainDecoder(torch.nn.Module):
 
 
 class DomainEncoder(nn.Module):
-    def __init__(self, in_dims, hidden_size, out_dim):
+    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
         super(DomainEncoder, self).__init__()
         if isinstance(in_dims, int):
             in_dims = [in_dims]
         self.in_dims = in_dims
         self.out_dim = out_dim
         self.hidden_size = hidden_size
+        self.n_layers = n_layers
 
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims), self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
+            *get_n_layers(n_layers, self.hidden_size),
             nn.Linear(self.hidden_size, self.out_dim)
         )
 
