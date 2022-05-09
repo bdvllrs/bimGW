@@ -13,7 +13,7 @@ from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 class SimpleShapesDataModule(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, use_data_augmentation=False, prop_sync_domains=None,
+            num_workers=0, use_data_augmentation=False, prop_labelled_images =None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
@@ -35,7 +35,7 @@ class SimpleShapesDataModule(LightningDataModule):
         if with_actions is None:
             self.with_actions = 'a' in self.selected_domains.values()
 
-        self.prop_sync_domains = prop_sync_domains
+        self.prop_labelled_images = prop_labelled_images
 
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
@@ -61,8 +61,8 @@ class SimpleShapesDataModule(LightningDataModule):
                                                        selected_domains=self.selected_domains,
                                                        with_actions=self.with_actions)
 
-                train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
-                len_train_dataset = len(train_set)
+                # train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
+                len_train_dataset = 1_000_000
                 if self.sync_uses_whole_dataset:
                     sync_indices = np.arange(len_train_dataset)
                 else:
@@ -182,50 +182,21 @@ class SimpleShapesDataModule(LightningDataModule):
                             self.domain_examples[used_dist][p][domain] = self.domain_examples[used_dist][p][domain][0]
 
     def filter_sync_domains(self, train_set, allowed_indices):
-        # Unlabel randomly some elements
-        n_targets = len(allowed_indices)
-        np.random.shuffle(allowed_indices)
-        sync_domain_mapping = {}
-        sampler_domain_map = {}
-        available_domains = {}
-        for domain_name, domain in train_set.selected_domains.items():
-            available_domains[domain_name] = domain
-            if domain != "a" and self.with_actions:
-                available_domains[domain_name + "_f"] = domain + "_f"
-        if self.prop_sync_domains is not None:
-            if "all" not in self.prop_sync_domains:
-                assert sum(self.prop_sync_domains.values()) <= 1.
-                self.prop_sync_domains["all"] = 1. - sum(self.prop_sync_domains.values())
-            else:
-                assert sum(self.prop_sync_domains.values()) == 1.
-            last_idx = 0
-            for key, prop in self.prop_sync_domains.items():
-                n_items = int(prop * n_targets)
-                sampled_domains = sample_domains(available_domains, key, n_items)
-                for k, idx in enumerate(allowed_indices[last_idx:last_idx + n_items]):
-                    domain_key = str(sorted(sampled_domains[k]))
-                    if domain_key not in sampler_domain_map.keys():
-                        sampler_domain_map[domain_key] = []
-                    sync_domain_mapping[idx] = list(sampled_domains[k])
-                    sampler_domain_map[domain_key].append(idx)
-
-                last_idx += n_items
-
-        domain_mapping = []
-        for k in range(len(train_set)):
-            if k in sync_domain_mapping.keys():
-                domain_mapping.append(sync_domain_mapping[k])
-            else:
-                domain_mapping.append([])
-
-        print(f"Loaded {len(allowed_indices)} examples in train set.")
-        train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                        domain_mapping,
-                                        sampler_domain_map,
-                                        selected_domains=self.selected_domains,
-                                        transform=train_set.transforms,
-                                        output_transform=train_set.output_transform,
-                                        with_actions=self.with_actions)
+        if self.prop_labelled_images < 1.:
+            # Unlabel randomly some elements
+            n_targets = len(train_set)
+            np.random.shuffle(allowed_indices)
+            num_labelled = int(self.prop_labelled_images * n_targets)
+            labelled_elems = allowed_indices[:num_labelled]
+            unlabelled_elems = allowed_indices[num_labelled:]
+            print(f"Loaded {len(allowed_indices)} examples in train set.")
+            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                            labelled_indices=labelled_elems,
+                                            unlabelled_indices=unlabelled_elems,
+                                            selected_domains=self.selected_domains,
+                                            transform=train_set.transforms,
+                                            output_transform=train_set.output_transform,
+                                            with_actions=self.with_actions)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):

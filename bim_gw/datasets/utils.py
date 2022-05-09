@@ -13,7 +13,7 @@ def load_dataset(args, local_args, **kwargs):
             sync_uses_whole_dataset = True
         return SimpleShapesDataModule(args.simple_shapes_path, local_args.batch_size,
                                       args.dataloader.num_workers, local_args.data_augmentation,
-                                      local_args.prop_sync_domains,
+                                      local_args.prop_labelled_images,
                                       args.n_validation_examples, local_args.split_ood,
                                       local_args.selected_domains,
                                       pre_saved_latent_paths,
