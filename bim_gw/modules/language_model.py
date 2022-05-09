@@ -19,16 +19,14 @@ class ShapesAttributesLM(WorkspaceModule):
         self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [1, self.n_classes, self.z_size]
+        self.output_dims = [self.n_classes, self.z_size]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
-            torch.sigmoid,
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
         ]
 
         self.losses = [
-            F.binary_cross_entropy,
             lambda x, y: nll_loss(x, y),  # shapes
             F.mse_loss  # rest
         ]
@@ -37,21 +35,21 @@ class ShapesAttributesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, x):
-        is_active, logits, latent = x
+        logits, latent = x
         out_latents = (latent.clone() + 1) / 2
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        return (is_active, torch.argmax(logits, dim=-1),
+        return (torch.argmax(logits, dim=-1),
                 out_latents)
 
     def forward(self, x: list):
-        is_active, cls, latents = x
+        cls, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return (is_active, torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+        return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
                 out_latents * 2 - 1)
 
@@ -77,8 +75,8 @@ class ShapesAttributesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        classes = x[1][:max_examples].detach().cpu().numpy()
-        latents = x[2][:max_examples].detach().cpu().numpy()
+        classes = x[0][:max_examples].detach().cpu().numpy()
+        latents = x[1][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
@@ -143,23 +141,20 @@ class ShapesLM(WorkspaceModule):
 
         self.validation_domain_examples = validation_domain_examples
 
-        self.output_dims = [1, self.z_size]
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            torch.sigmoid,
             None
         ]
 
         self.losses = [
-            F.binary_cross_entropy,
             F.mse_loss
         ]
 
     def encode(self, x):
-        is_active, x = x
-        return is_active, self(x)
+        return self(x[0])
 
     def decode(self, text_latent):
-        is_active, text_latent = text_latent
+        text_latent = text_latent[0]
         predictions = self.classify(text_latent)
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
@@ -176,7 +171,7 @@ class ShapesLM(WorkspaceModule):
             "size": attributes[k, 2],
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
-        return is_active, sentence_predictions
+        return [sentence_predictions]
 
     def get_bert_latent(self, sentences):
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
@@ -185,7 +180,7 @@ class ShapesLM(WorkspaceModule):
 
     def forward(self, sentences):
         bert_latent = self.get_bert_latent(sentences)
-        return self.projection(bert_latent)
+        return [self.projection(bert_latent)]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -207,10 +202,9 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        is_active, x = x
-        text = [[x[k]] for k in range(len(x))]
+        text = [[x[k]] for k in range(len(x[0]))]
         logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        encoded_s = self.encode(x)
+        encoded_s = self.encode(x)[0]
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
@@ -228,7 +222,7 @@ class ShapesLM(WorkspaceModule):
         sentences, targets = batch["t"][1], batch["a"][1]
         bs = len(sentences)
         targets = self.shapes_attribute.encode(targets)
-        z = self.encode(sentences)
+        z = self.encode([sentences])[0]
         predictions = self.classify(z)
         losses = []
         total_loss = 0

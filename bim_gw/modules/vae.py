@@ -112,13 +112,11 @@ class VAE(WorkspaceModule):
         self.vae_type = vae_type
         self.n_FID_samples = n_FID_samples
 
-        self.output_dims = [1, self.z_size]
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            torch.sigmoid,
             None
         ]
         self.losses = [
-            F.binary_cross_entropy,
             F.mse_loss
             # lambda x, y: (
             #     F.mse_loss(x, y)
@@ -165,15 +163,15 @@ class VAE(WorkspaceModule):
         return mean_z, var_z
 
     def encode(self, x: torch.Tensor):
-        is_active, x = x
+        x = x[0]
         mean_z, _ = self.encode_stats(x)
 
         # z = reparameterize(mean_z, var_z)
-        return is_active, mean_z
+        return [mean_z]
 
     def decode(self, z: torch.Tensor):
-        is_active, z = z
-        return is_active, self.decoder(z)
+        z = z[0]
+        return [self.decoder(z)]
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)
@@ -269,8 +267,7 @@ class VAE(WorkspaceModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
-        is_active, x = x
-        log_image(logger, x[:max_examples], title, step)
+        log_image(logger, x[0][:max_examples], title, step)
 
 
 class CEncoderV2(nn.Module):

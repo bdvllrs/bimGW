@@ -50,7 +50,7 @@ def cond_losses(*, demi_cycle, cycle, supervision):
 
 
 if __name__ == '__main__':
-    log = CSVLog("../data/runs_3.csv")
+    log = CSVLog("../data/runs-16_09_53-6-May-22.csv")
     # log = log.add_token_column()
     # log = log.filter_between("_token", 609, 846)
     # log = log.filter_between("_token", 1678, 1708)
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 
     alpha = 4
     min_epoch = 1
-    schedule_supervision = ['-', 1, 2, 0.5]
-    seeds = [0, 1, 2, 3, 4]
+    schedule_supervision = [1, 2, 0.5]
+    seeds = [0]
     losses = {"loss": ""}
     # z_size = 4
     log = log.filter_between('epoch_', min_epoch)

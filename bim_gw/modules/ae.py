@@ -101,12 +101,11 @@ class AE(WorkspaceModule):
         self.ae_size = ae_size
         self.z_size = z_size
 
-        self.output_dims = [1, self.z_size]
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            torch.sigmoid,
             None
         ]
-        self.losses = [F.binary_cross_entropy, F.mse_loss]
+        self.losses = [F.mse_loss]
 
         # val sampling
         if validation_reconstruction_images is not None:
@@ -131,12 +130,10 @@ class AE(WorkspaceModule):
         self.decoder = CDecoderV2(channel_num, image_size, ae_size=ae_size, z_size=self.z_size, batchnorm=True)
 
     def encode(self, x: torch.Tensor):
-        is_active, x = x
-        return is_active, self.q_mean(self.encoder(x))
+        return self.q_mean(self.encoder(x[0])),
 
     def decode(self, z: torch.Tensor):
-        is_active, z = z
-        return is_active, self.decoder(z)
+        return self.decoder(z[0]),
 
     def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         z = self.encode(x)
@@ -201,8 +198,7 @@ class AE(WorkspaceModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, step=None):
-        is_active, x = x
-        log_image(logger, x, title, step)
+        log_image(logger, x[0], title, step)
 
 
 class CEncoderV2(nn.Module):

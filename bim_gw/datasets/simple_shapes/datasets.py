@@ -98,8 +98,7 @@ class SimpleShapesDataset:
             max_len = max(map(len, self.domain_map.values()))
             for domains in self.domain_map.keys():
                 n_tiles = math.ceil(max_len / len(self.domain_map[domains]))
-                # TODO: randomize dropped items
-                indices = np.tile(self.domain_map[domains], n_tiles)[:max_len]
+                indices = np.tile(self.domain_map[domains], n_tiles)
                 self.domain_map[domains] = indices
             mapping = np.sort(np.concatenate(list(self.domain_map.values())))
             self.mapping = mapping
