@@ -13,4 +13,4 @@ scriptName=$2
 #  fi
 #fi
 
-bash ~/submitJob.sh "${BIM_ENV}" "${jobName}" "${BIM_WORKDIR}" "${RUN_WORKDIR}/BIM" "bimGW/scripts/${scriptName}.py" "${@:3}"
+bash ~/submitJob.sh "${BIM_ENV}" "${jobName}" "${BIM_WORKDIR}" "${RUN_WORKDIR}/BIM" "bimGW/scripts" "${scriptName}" "${@:3}"
