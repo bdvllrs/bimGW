@@ -301,13 +301,13 @@ class GlobalWorkspace(LightningModule):
                             latent[k][available_domains[domain_name], :] for k in range(len(latent))
                         ]
 
-        # latent_prediction = self.predict(self.project(latents, available_domains))
-        # latent_cycle = self.predict(self.project(latent_prediction))
-        #
-        # latent_demi_cycle_predictions = {**latent_demi_cycle_predictions, **latent_prediction}
-        # latent_demi_cycle_target = {**latent_demi_cycle_target, **latents}
-        # latent_cycle_predictions = {**latent_cycle_predictions, **latent_cycle}
-        # latent_cycle_target = {**latent_cycle_target, **latents}
+        latent_prediction = self.predict(self.project(latents, available_domains))
+        latent_cycle = self.predict(self.project(latent_prediction))
+
+        latent_demi_cycle_predictions = {**latent_demi_cycle_predictions, **latent_prediction}
+        latent_demi_cycle_target = {**latent_demi_cycle_target, **latents}
+        latent_cycle_predictions = {**latent_cycle_predictions, **latent_cycle}
+        latent_cycle_target = {**latent_cycle_target, **latents}
 
         demi_cycle_losses = self.loss(latent_demi_cycle_predictions, latent_demi_cycle_target, prefix="demi_cycles")
         cycle_losses = self.loss(latent_cycle_predictions, latent_cycle_target, prefix="cycles")
