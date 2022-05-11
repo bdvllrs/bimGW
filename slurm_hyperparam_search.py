@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     for combination in all_combinations:
         name = "_".join([f"{p.split('.')[-1]}_{v}" for p, v in zip(keys, combination)])
-        command = ["bash", "submitSLURMScript.sh", f"bim_gw_{name}", "train", "1", "12:00:00", "1", "90000",
+        command = ["bash", "submitSLURMScript.sh", f"bim_gw_{name}", "train.py", "1", "12:00:00", "1", "90000",
                    "benjam.devillers@gmail.com"]
         for name, val in zip(keys, combination):
             command.append(f"{name}={val}")
