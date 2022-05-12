@@ -21,8 +21,6 @@ slurm:
   "--gres": "gpu:${gpus}"
   "--time": "12:00:00"
   "--mem": 5000
-  "--mail-user": ???
-  "--mail-type": END
 
 vae:
   batch_size: 128
