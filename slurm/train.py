@@ -11,10 +11,6 @@ if __name__ == '__main__':
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     OmegaConf.resolve(args)
-    args = OmegaConf.merge(args.slurm, {
-        "work_directory": str(work_dir.absolute()),
-        "script_location": script_location
-    })
 
     handler = ExperimentHandler(
         script_location,
@@ -29,7 +25,7 @@ if __name__ == '__main__':
         ]
     )
 
-    sbatch = SBatch(args, handler)
+    sbatch = SBatch(args.slurm, handler)
     sbatch.add_command('export WANDB_MODE="offline"')
     sbatch()
 
