@@ -10,6 +10,8 @@ if __name__ == '__main__':
     script_location = "scripts/train.py"
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    cli_args = OmegaConf.from_cli()
+    args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 
     handler = ExperimentHandler(
