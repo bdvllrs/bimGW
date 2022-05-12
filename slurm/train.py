@@ -11,7 +11,6 @@ if __name__ == '__main__':
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     cli_args = OmegaConf.from_cli()
-    args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 
     handler = ExperimentHandler(
@@ -27,7 +26,10 @@ if __name__ == '__main__':
         ]
     )
 
-    sbatch = SBatch(args.slurm, handler)
+    args = args.slurm
+    args = OmegaConf.merge(args, cli_args)
+
+    sbatch = SBatch(args, handler)
     sbatch.add_command('export WANDB_MODE="offline"')
     sbatch()
 
