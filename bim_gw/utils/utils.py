@@ -17,7 +17,7 @@ def has_internet_connection(host='https://google.com'):
         return False
 
 
-def get_args(debug=False, additional_config_files=None):
+def get_args(debug=False, additional_config_files=None, cli=True):
     print("Cli args")
     print(sys.argv)
 
@@ -28,7 +28,11 @@ def get_args(debug=False, additional_config_files=None):
         debug_args = OmegaConf.load(str((config_path / "debug.yaml").resolve()))
     else:
         debug_args = {}
-    cli_args = OmegaConf.from_dotlist(list(map(lambda x: x.replace("--", ""), sys.argv[1:])))
+
+    if cli:
+        cli_args = OmegaConf.from_dotlist(list(map(lambda x: x.replace("--", ""), sys.argv[1:])))
+    else:
+        cli_args = OmegaConf.create()
     if (config_path / "local.yaml").exists():
         local_args = OmegaConf.load(str((config_path / "local.yaml").resolve()))
     else:
