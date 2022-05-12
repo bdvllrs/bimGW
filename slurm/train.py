@@ -7,7 +7,7 @@ from bim_gw.utils import get_args
 
 if __name__ == '__main__':
     work_dir = Path(__file__).parent.parent
-    script_location = work_dir.name + "scripts/train.py"
+    script_location = work_dir.name + "/scripts/train.py"
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     OmegaConf.resolve(args)
