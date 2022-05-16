@@ -142,7 +142,11 @@ def log_shape_fig(logger, classes, latents, name, step=None):
     spec = get_image_specs_from_latents(classes, latents)
     fig = get_fig_from_specs(**spec)
 
-    logger.log_image(name, fig, step=step)
+    if logger is not None:
+        logger.log_image(name, fig, step=step)
+    else:
+        plt.title(name)
+        plt.show()
     plt.close(fig)
 
 

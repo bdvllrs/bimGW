@@ -185,6 +185,9 @@ class GlobalWorkspace(LightningModule):
             out[domain_name] = z
         return out
 
+    def adapt(self, latents):
+        return {domain: self.domain_mods[domain].adapt(latent) for domain, latent in latents.items()}
+
     def forward(self, domains):
         """
         Projects from latent version of unimodal vectors to the global workspace.
@@ -292,7 +295,7 @@ class GlobalWorkspace(LightningModule):
                                 latent_target[k][mask, :] for k in range(len(latent_target))
                             ]
                         # Cycles
-                        cycle_state = self.project(predictions, keep_domains=[domain_name_target])
+                        cycle_state = self.project(self.adapt(predictions), keep_domains=[domain_name_target])
                         cycle_prediction = self.decode(cycle_state, domain_name)
                         latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = [
                             cycle_prediction[k][available_domains[domain_name], :] for k in range(len(cycle_prediction))
@@ -302,7 +305,7 @@ class GlobalWorkspace(LightningModule):
                         ]
 
         latent_prediction = self.predict(self.project(latents, available_domains))
-        latent_cycle = self.predict(self.project(latent_prediction))
+        latent_cycle = self.predict(self.project(self.adapt(latent_prediction)))
 
         latent_demi_cycle_predictions = {**latent_demi_cycle_predictions, **latent_prediction}
         latent_demi_cycle_target = {**latent_demi_cycle_target, **latents}

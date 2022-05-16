@@ -20,6 +20,9 @@ class WorkspaceModule(LightningModule):
     def decode(self, z):
         raise NotImplementedError
 
+    def adapt(self, z):
+        return z
+
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         raise NotImplementedError
 
@@ -51,6 +54,11 @@ class PassThroughWM(WorkspaceModule):
         if self.use_pass_through:
             return z
         return self.workspace_module.decode(z)
+
+    def adapt(self, z):
+        if self.use_pass_through:
+            return z
+        return self.workspace_module.adapt(z)
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         return self.workspace_module.log_domain(logger, x, title, max_examples, step=step)

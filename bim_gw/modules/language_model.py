@@ -43,6 +43,9 @@ class ShapesAttributesLM(WorkspaceModule):
         return (torch.argmax(logits, dim=-1),
                 out_latents)
 
+    def adapt(self, x):
+        return x[0].exp(), x[1]
+
     def forward(self, x: list):
         cls, latents = x
         out_latents = latents.clone()
@@ -93,7 +96,11 @@ class ShapesAttributesLM(WorkspaceModule):
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
-        logger.log_table(name + "_text", columns=labels, data=text, step=step)
+        if logger is not None:
+            logger.log_table(name + "_text", columns=labels, data=text, step=step)
+        else:
+            print(labels)
+            print(text)
 
 
 def make_causal_mask_prog(input_dec, encod_out):
