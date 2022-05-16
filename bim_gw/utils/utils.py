@@ -2,7 +2,6 @@ import sys
 
 import torchvision
 from matplotlib import pyplot as plt
-from neptune.new.types import File
 from omegaconf import OmegaConf
 
 from bim_gw.utils import PROJECT_DIR
