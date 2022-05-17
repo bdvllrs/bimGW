@@ -39,8 +39,8 @@ if __name__ == '__main__':
     state_v = global_workspace.project(latents, available_domains, keep_domains=["v"])
     state_t = global_workspace.project(latents, available_domains, keep_domains=["t"])
 
-    predictions_from_v = global_workspace.predict(state_v)
-    predictions_from_t = global_workspace.predict(state_t)
+    predictions_from_v = global_workspace.adapt(global_workspace.predict(state_v))
+    predictions_from_t = global_workspace.adapt(global_workspace.predict(state_t))
     noisy_v = [predictions_from_t["v"][0] + torch.randn_like(predictions_from_t["v"][0]) * 0.1]
 
     visual_model.log_domain(None, visual_model.decode(predictions_from_v["v"]), "Demi-cycle v")

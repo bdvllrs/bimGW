@@ -412,7 +412,7 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name, latent in latents.items():
             # Demi cycles
-            predictions = self.predict(self.project(latents, available_domains, keep_domains=[domain_name]))
+            predictions = self.adapt(self.predict(self.project(latents, available_domains, keep_domains=[domain_name])))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                      f"{slug}/demi_cycles/{domain_name}", max_examples)

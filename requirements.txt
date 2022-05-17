@@ -10,3 +10,4 @@ torchmetrics==0.7.2
 transformers==4.17.0
 opencv-python==4.5.5.64
 attributes-to-language@git+https://github.com/bdvllrs/attributes-to-language.git@v0.1.1#egg=attributes-to-language
+auto-sbatch@git+https://github.com/bdvllrs/auto-sbatch.git@v0.1.0#egg=auto-sbatch
