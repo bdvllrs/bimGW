@@ -55,10 +55,12 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
     loggers = get_loggers(name, version, args.loggers, model, args, tags, source_files)
 
     # Callbacks
-    callbacks = [
-        LearningRateMonitor(logging_interval="epoch"),
+    callbacks = []
+    if len(loggers):
+        callbacks.append(
+            LearningRateMonitor(logging_interval="epoch")
+        )
         # EarlyStopping(monitor=monitor_loss, patience=20)
-    ]
     if len(loggers) and args.checkpoints_dir is not None:
         logger = loggers[0]
         if slurm_job_id is not None:
