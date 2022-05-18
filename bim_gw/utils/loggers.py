@@ -312,7 +312,7 @@ def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
     #                            include_fn=lambda path: path.endswith(".py") or path.endswith(".yaml") or path.endswith(
     #                                ".txt"))
     conf["_script_name"] = name
-    logger.log_hyperparams(OmegaConf.to_object(conf))
+    logger.log_hyperparams({"parameters": OmegaConf.to_object(conf)})
     if "watch_model" in log_args and log_args.watch_model:
         logger.experiment.watch(model)
     return logger
