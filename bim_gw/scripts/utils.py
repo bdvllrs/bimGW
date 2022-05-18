@@ -46,11 +46,13 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
     tags = None
+    version = None
     if slurm_job_id is not None:
-        tags = ["calmip", slurm_job_id]
+        tags = ["slurm", slurm_job_id]
+        version = "-".join(tags)
     source_files = ['../**/*.py', '../readme.md',
                     '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers(name, slurm_job_id, args.loggers, model, args, tags, source_files)
+    loggers = get_loggers(name, version, args.loggers, model, args, tags, source_files)
 
     # Callbacks
     callbacks = [

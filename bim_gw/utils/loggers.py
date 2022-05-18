@@ -307,7 +307,7 @@ def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
         **OmegaConf.to_object(log_args.args)
     )
     if version is not None:
-        logger.experiment.run.name = version
+        logger.experiment.name = version
     # logger.experiment.log_code("../",
     #                            include_fn=lambda path: path.endswith(".py") or path.endswith(".yaml") or path.endswith(
     #                                ".txt"))
