@@ -79,12 +79,15 @@ class NeptuneLogger(NeptuneLoggerBase):
 
 
 class WandbLogger(WandbLoggerBase):
-    def __init__(self, *params, save_images=True, **kwargs):
+    def __init__(self, *params, save_images=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
         self._log_images = save_images
+        self._log_tables = save_tables
         if not self._log_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
+        if not self._log_tables:
+            logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
@@ -93,15 +96,17 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
-        if not isinstance(text, list):
-            text = [[text]]
-        else:
-            text = list(map(lambda x: [x], text))
-        super(WandbLogger, self).log_text(key=log_name, columns=["text"], data=text, step=step)
+        if self._log_tables:
+            if not isinstance(text, list):
+                text = [[text]]
+            else:
+                text = list(map(lambda x: [x], text))
+            super(WandbLogger, self).log_text(key=log_name, columns=["text"], data=text, step=step)
 
     @rank_zero_only
     def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
-        super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
+        if self._log_tables:
+            super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
 
 
 class TensorBoardLogger(TensorBoardLoggerBase):
@@ -297,12 +302,15 @@ def get_neptune_logger(name, version, log_args, model, conf, tags, source_files)
 def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
     logger = WandbLogger(
         save_images=log_args.save_images,
+        save_tables=log_args.save_tables if "save_tables" in log_args else True,
         tags=tags,
         **OmegaConf.to_object(log_args.args)
     )
-    logger.experiment.log_code("../",
-                               include_fn=lambda path: path.endswith(".py") or path.endswith(".yaml") or path.endswith(
-                                   ".txt"))
+    if version is not None:
+        logger.experiment.run.name = version
+    # logger.experiment.log_code("../",
+    #                            include_fn=lambda path: path.endswith(".py") or path.endswith(".yaml") or path.endswith(
+    #                                ".txt"))
     conf["_script_name"] = name
     logger.log_hyperparams(OmegaConf.to_object(conf))
     if "watch_model" in log_args and log_args.watch_model:

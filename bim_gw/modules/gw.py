@@ -232,9 +232,10 @@ class GlobalWorkspace(LightningModule):
                                                 torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
                     indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
                     losses.append(l)
-
-        indiv_losses["cosine"] = torch.stack(losses, dim=0).mean()
-        return indiv_losses
+        if len(losses):
+            indiv_losses["cosine"] = torch.stack(losses, dim=0).mean()
+            return indiv_losses
+        return {"cosine": torch.tensor(0.).to(self.device)}
 
     def loss(self, predictions, targets, prefix=""):
         losses = []
@@ -254,8 +255,10 @@ class GlobalWorkspace(LightningModule):
             token = f"{prefix}/domain_{domain_name}"
             indiv_losses[token] = loss
             losses.append(loss)
-        indiv_losses[prefix] = torch.stack(losses, dim=0).mean()
-        return indiv_losses
+        if len(losses):
+            indiv_losses[prefix] = torch.stack(losses, dim=0).mean()
+            return indiv_losses
+        return {prefix: torch.tensor(0.).to(self.device)}
 
     def step(self, available_domains, latents, latent_targets, mode="val", prefix=""):
         prop_sync = torch.min(available_domains['v'], available_domains['t']).sum() / available_domains['v'].size(0)
