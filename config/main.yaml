@@ -19,7 +19,7 @@ n_validation_examples: 32
 slurm:
   slurm:
     "-N": 1
-    "--gres": "gpu:${gpus}"
+    "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
 
