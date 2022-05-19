@@ -1,4 +1,5 @@
-gpus: 1
+devices: 1
+accelerator: gpu
 distributed_backend: ddp
 seed: 0
 debug: false
