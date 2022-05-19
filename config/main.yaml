@@ -16,10 +16,11 @@ img_size: 32
 n_validation_examples: 32
 
 slurm:
-  "-N": 1
-  "--gres": "gpu:${gpus}"
-  "--time": "12:00:00"
-  "--mem": 5000
+  slurm:
+    "-N": 1
+    "--gres": "gpu:${gpus}"
+    "--time": "12:00:00"
+    "--mem": 5000
 
 vae:
   batch_size: 128
