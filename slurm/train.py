@@ -28,8 +28,10 @@ if __name__ == '__main__':
 
     args = args.slurm
     args = OmegaConf.merge(args, cli_args)
+    slurm_args = args.slurm
+    del args.slurm
 
-    sbatch = SBatch(args, handler)
+    sbatch = SBatch(slurm_args, args, handler)
     sbatch.add_command('export WANDB_MODE="offline"')
     sbatch()
 
