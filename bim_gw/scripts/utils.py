@@ -72,9 +72,9 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
     _trainer_args = {
         "default_root_dir": args.checkpoints_dir,
         "fast_dev_run": args.fast_dev_run,
-        "accelerator": "auto",
-        "devices": args.gpus,
-        "strategy": (args.distributed_backend if args.gpus > 1 else None),
+        "accelerator": args.accelerator,
+        "devices": args.devices,
+        "strategy": (args.distributed_backend if args.devices > 1 else None),
         "logger": loggers,
         "callbacks": callbacks,
         "resume_from_checkpoint": args.resume_from_checkpoint,
