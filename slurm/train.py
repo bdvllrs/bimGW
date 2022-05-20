@@ -32,5 +32,5 @@ if __name__ == '__main__':
     del args.slurm
 
     sbatch = SBatch(slurm_args, args, handler)
-    sbatch('python "{script_name}" "devices={num_gpus}" {all_params} "checkpoints_dir=\'{checkpoints_path}\'"')
+    sbatch('python "{script_name}" "devices={num_gpus}" {all_params} "checkpoints_dir=\'{checkpoints_dir}\'"')
 
