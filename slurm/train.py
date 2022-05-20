@@ -32,6 +32,5 @@ if __name__ == '__main__':
     del args.slurm
 
     sbatch = SBatch(slurm_args, args, handler)
-    sbatch.add_command('export WANDB_MODE="offline"')
-    sbatch()
+    sbatch('python "{script_name}" "devices={num_gpus}" {all_params} "checkpoints_dir=\'{checkpoints_path}\'"')
 
