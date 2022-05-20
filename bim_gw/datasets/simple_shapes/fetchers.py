@@ -201,10 +201,8 @@ class ActionDataFetcher(DataFetcher):
 
 
 class PreSavedLatentDataFetcher:
-    def __init__(self, root_path, ids):
-        self.root_path = root_path
-        self.ids = ids
-        self.data = np.load(str(self.root_path))[self.ids]
+    def __init__(self, data):
+        self.data = data
         assert self.data.ndim == 3, "PreSavedLatent format is incorrect. It seems like you are using the version without the world model."
 
     def __len__(self):
