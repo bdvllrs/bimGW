@@ -143,7 +143,7 @@ class ShapesLM(WorkspaceModule):
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims) - 1)
+            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
         )
 
         self.validation_domain_examples = validation_domain_examples
@@ -209,7 +209,7 @@ class ShapesLM(WorkspaceModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        text = [[x[k]] for k in range(len(x[0]))]
+        text = [[x[0][k]] for k in range(len(x[0]))]
         logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
         encoded_s = self.encode(x)[0]
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
