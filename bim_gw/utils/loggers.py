@@ -40,10 +40,17 @@ def to_pil_image(image: ImageType):
         return image
 
 
+def text_from_column_data(x):
+    column, data = x
+    if isinstance(data, float):
+        return f"{x[0]}: {x[1]: .4f}"
+    return f"{x[0]}: {x[1]}"
+
+
 def text_from_table(columns, data):
     text = ""
     for k in range(len(data)):
-        text += f"{k + 1} - " + ", ".join(map(lambda x: f"{x[0]}: {x[1]: .4f}", zip(columns, data[k]))) + "\n"
+        text += f"{k + 1} - " + ", ".join(map(text_from_column_data, zip(columns, data[k]))) + "\n"
     text += "---- \n"
     return text
 
