@@ -100,10 +100,11 @@ global_workspace:
 
 losses:
   coefs:
-    demi_cycles: 1.
-    cycles: 1.
+    demi_cycles: 0.
+    cycles: 0.
     supervision: 1.
     cosine: 0.
+    contrastive: 1.3
 
 gensim_model_path: ???
 word_embeddings: null
