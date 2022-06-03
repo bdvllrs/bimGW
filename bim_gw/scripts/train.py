@@ -34,6 +34,11 @@ def train_gw(args):
     })
     trainer.fit(global_workspace, data)
 
+    for logger in trainer.loggers:
+        logger.save_images(True)
+    trainer.validate(global_workspace, data)
+
+
 
 def train_lm(args):
     seed_everything(args.seed)

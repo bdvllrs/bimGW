@@ -60,17 +60,26 @@ class NullLogger:
         raise ValueError("This Logger is not available. Please install the associated package to use this logger.")
 
 
+class LoggerBase:
+    def __init__(self, *params, save_images=True, save_tables=True, **kwargs):
+        self._save_images = save_images
+        self._save_tables = save_tables
+
+
 class NeptuneLogger(NeptuneLoggerBase):
     def __init__(self, save_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
 
-        self._log_images = save_images
-        if not self._log_images:
+        self._save_images = save_images
+        if not self._save_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
+
+    def save_images(self, mode=True):
+        self._save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._log_images:
+        if self._save_images:
             image = to_pil_image(image)
             self.experiment[log_name].log(File.as_image(image), step=step)
 
@@ -89,16 +98,19 @@ class WandbLogger(WandbLoggerBase):
     def __init__(self, *params, save_images=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
-        self._log_images = save_images
+        self._save_images = save_images
         self._log_tables = save_tables
-        if not self._log_images:
+        if not self._save_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
         if not self._log_tables:
             logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
+    def save_images(self, mode=True):
+        self._save_images = mode
+
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._log_images:
+        if self._save_images:
             super(WandbLogger, self).log_image(key=log_name, images=[image], step=step)
 
     @rank_zero_only
@@ -119,13 +131,16 @@ class WandbLogger(WandbLoggerBase):
 class TensorBoardLogger(TensorBoardLoggerBase):
     def __init__(self, *params, save_images=True, **kwargs):
         super(TensorBoardLogger, self).__init__(*params, **kwargs)
-        self._log_images = save_images
-        if not self._log_images:
+        self._save_images = save_images
+        if not self._save_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
+
+    def save_images(self, mode=True):
+        self._save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._log_images:
+        if self._save_images:
             if isinstance(image, Image.Image):
                 image = torchvision.transforms.ToTensor()(image)
             if isinstance(image, torch.Tensor):
@@ -155,6 +170,9 @@ class MLFlowLogger(MLFlowLoggerBase):
 
         if not self._save_images:
             logging.warning("MLFLowLogger will not save the images. Set `save_images' to true to log them.")
+
+    def save_images(self, mode=True):
+        self._save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
@@ -202,6 +220,9 @@ class CSVLogger(CSVLoggerBase):
         self._text_last_step = {}
         if not self._save_images:
             logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
+
+    def save_images(self, mode=True):
+        self._save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
@@ -262,13 +283,16 @@ class AimLogger(AimLoggerBase):
     def __init__(self, *aim_params, save_images=True, **aim_run_kwargs):
         super().__init__(*aim_params, **aim_run_kwargs)
 
-        self._log_images = save_images
-        if not self._log_images:
+        self._save_images = save_images
+        if not self._save_images:
             logging.warning("AimLogger will not save the images. Set `save_images' to true to log them.")
+
+    def save_images(self, mode=True):
+        self._save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._log_images:
+        if self._save_images:
             image = AimImage(image)
             self.experiment.track(image, name=log_name, step=step)
 

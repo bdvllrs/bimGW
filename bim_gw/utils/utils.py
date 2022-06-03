@@ -1,5 +1,6 @@
 import sys
 
+import numpy as np
 import torchvision
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
@@ -51,6 +52,10 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     print(OmegaConf.to_yaml(args))
 
     args.debug = args.debug or debug
+
+    if args.seed == "random":
+        args.seed = np.random.randint(0, 100_000)
+
     return args
 
 
