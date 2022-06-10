@@ -19,8 +19,8 @@ if __name__ == '__main__':
         args.slurm.run_work_directory,
         args.slurm.python_environment,
         args.slurm.run_registry_path,
-        pre_modules=["python/3.8.5"],
-        run_modules=["python/3.8.5", "cuda/11.5"],
+        pre_modules=args.slurm.pre_modules,
+        run_modules=args.slurm.run_modules,
         setup_experiment=False
     )
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     sbatch = SBatch(slurm_args, args, handler)
     sbatch(
-        'python "{script_name}" "devices={num_gpus}" {all_params} "checkpoints_dir=\'{checkpoints_dir}\'"',
+        args.command,
         schedule_all_tasks=True
     )
 
