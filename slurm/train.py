@@ -21,9 +21,7 @@ if __name__ == '__main__':
         args.slurm.run_registry_path,
         pre_modules=["python/3.8.5"],
         run_modules=["python/3.8.5", "cuda/11.5"],
-        additional_scripts=[
-            "pip install torch==1.11.0+cu115 torchvision==0.12.0+cu115 -f https://download.pytorch.org/whl/torch_stable.html"
-        ]
+        setup_experiment=False
     )
 
     args = args.slurm
