@@ -53,7 +53,6 @@ class GlobalWorkspace(LightningModule):
         self.n_layers_decoder_head = n_layers_decoder_head
         self.monitor_grad_norms = monitor_grad_norms
 
-
         for mod in domain_mods.values():
             mod.freeze()  # insures that all modules are frozen
 
@@ -140,32 +139,35 @@ class GlobalWorkspace(LightningModule):
                 x[k] = x[k].to(self.device)
         return self.encode_uni_modal({domain_name: x})[domain_name]
 
-    def project(self, latents, available_domains=None, keep_domains=None):
-        if keep_domains is None:
-            keep_domains = list(latents.keys())
-        if available_domains is None:
-            available_domains = {
-                domain_name: torch.ones(latents[domain_name][0].size(0)).to(self.device, torch.float)
-                for domain_name in self.domain_names
-            }
+    def project(self, latents, keep_domain):
+        return self.encode(latents[keep_domain], keep_domain)
 
-        states = []
-        sum_available_domains = torch.zeros(latents[keep_domains[0]][0].size(0)).to(self.device, torch.float)
-        for k, domain_name in enumerate(self.domain_names):
-            latent = latents[domain_name]
-            available_domain = available_domains[domain_name].clone()
-            if domain_name not in keep_domains:
-                available_domain[:] = 0.
-            sum_available_domains += available_domain
-            state = self.encode(latent, domain_name) * available_domain[:, None]
-            states.append(state)
-
-        assert (sum_available_domains <= 1).all(), "Several domains are provided!"
-
-        states = torch.stack(states, dim=1)
-        state = states.sum(dim=1)  # only keeps one, if assert is verified
-        # state = torch.tanh(state)
-        return state
+    # def project(self, latents, available_domains=None, keep_domains=None):
+    #     if keep_domains is None:
+    #         keep_domains = list(latents.keys())
+    #     if available_domains is None:
+    #         available_domains = {
+    #             domain_name: torch.ones(latents[domain_name][0].size(0)).to(self.device, torch.float)
+    #             for domain_name in self.domain_names
+    #         }
+    #
+    #     states = []
+    #     sum_available_domains = torch.zeros(latents[keep_domains[0]][0].size(0)).to(self.device, torch.float)
+    #     for k, domain_name in enumerate(self.domain_names):
+    #         latent = latents[domain_name]
+    #         available_domain = available_domains[domain_name].clone()
+    #         if domain_name not in keep_domains:
+    #             available_domain[:] = 0.
+    #         sum_available_domains += available_domain
+    #         state = self.encode(latent, domain_name) * available_domain[:, None]
+    #         states.append(state)
+    #
+    #     assert (sum_available_domains <= 1).all(), "Several domains are provided!"
+    #
+    #     states = torch.stack(states, dim=1)
+    #     state = states.sum(dim=1)  # only keeps one, if assert is verified
+    #     # state = torch.tanh(state)
+    #     return state
 
     def predict(self, state):
         return {
@@ -312,7 +314,7 @@ class GlobalWorkspace(LightningModule):
         for domain_name, latent in latents.items():
             if available_domains[domain_name].any():
                 # Demi-cycles
-                state = self.project(latents, available_domains, keep_domains=[domain_name])
+                state = self.project(latents, domain_name)
                 predictions = self.predict(state)
                 latent_demi_cycle_predictions[f"{domain_name}-u"] = [
                     predictions[domain_name][k][available_domains[domain_name], :] for k in
@@ -335,7 +337,7 @@ class GlobalWorkspace(LightningModule):
                                 latent_target[k][mask, :] for k in range(len(latent_target))
                             ]
                         # Cycles
-                        cycle_state = self.project(self.adapt(predictions), keep_domains=[domain_name_target])
+                        cycle_state = self.project(self.adapt(predictions), domain_name_target)
                         cycle_prediction = self.decode(cycle_state, domain_name)
                         latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = [
                             cycle_prediction[k][available_domains[domain_name], :] for k in range(len(cycle_prediction))
@@ -453,7 +455,7 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name, latent in latents.items():
             # Demi cycles
-            predictions = self.adapt(self.predict(self.project(latents, available_domains, keep_domains=[domain_name])))
+            predictions = self.adapt(self.predict(self.project(latents, domain_name)))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                      f"{slug}/demi_cycles/{domain_name}", max_examples)
@@ -461,7 +463,7 @@ class GlobalWorkspace(LightningModule):
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     # Full cycles
-                    cycle_predictions = self.predict(self.project(predictions, keep_domains=[domain_name_2]))
+                    cycle_predictions = self.predict(self.project(predictions, domain_name_2))
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                              f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
