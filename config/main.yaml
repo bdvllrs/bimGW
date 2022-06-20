@@ -6,9 +6,9 @@ debug: false
 fast_dev_run: false
 max_epochs: 100
 
-image_net_path: ???
-cifar10_path: ???
-simple_shapes_path: ???
+image_net_path: null
+cifar10_path: null
+simple_shapes_path: null
 
 visual_dataset: "shapes"
 
@@ -58,7 +58,7 @@ global_workspace:
   monitor_grad_norms: false  # if true, training is a bit slower.
   batch_size: 128
   data_augmentation: false
-  selected_domains: ???
+  selected_domains: null
   sync_uses_whole_dataset: false
 
   use_pre_saved: false
@@ -75,8 +75,8 @@ global_workspace:
     decoder_head: 0
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   classes_labelled_images: null  # null is all classes
-  vae_checkpoint: ???
-  lm_checkpoint: ???
+  vae_checkpoint: null
+  lm_checkpoint: null
   vae_mmd_loss_coef: 0.
   vae_kl_loss_coef: 0.
 
@@ -106,7 +106,7 @@ losses:
     cosine: 0.
     contrastive: 1.3
 
-gensim_model_path: ???
+gensim_model_path: null
 word_embeddings: null
 
 dataloader:
