@@ -83,7 +83,7 @@ location_writer_bins = Bins2dWriter(
     labels=[
         [["top left", "upper left"], "top", "top right"],
         ["left", "middle", "right"],
-        ["bottom left", "bot", "bottom right"]
+        ["bottom left", "bottom", "bottom right"]
     ],
 )
 
