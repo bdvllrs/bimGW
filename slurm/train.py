@@ -7,11 +7,12 @@ from bim_gw.utils import get_args
 
 if __name__ == '__main__':
     work_dir = Path(__file__).absolute().parent.parent
-    script_location = "scripts/train.py"
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False)
     cli_args = OmegaConf.from_cli()
     OmegaConf.resolve(args)
+
+    script_location = f"scripts/{args.slurm.script}.py"
 
     handler = ExperimentHandler(
         script_location,

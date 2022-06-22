@@ -17,6 +17,7 @@ img_size: 32
 n_validation_examples: 32
 
 slurm:
+  script: train
   slurm:
     "-N": 1
     "--gres": "gpu:${devices}"
