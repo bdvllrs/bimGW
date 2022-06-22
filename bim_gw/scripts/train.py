@@ -39,7 +39,6 @@ def train_gw(args):
     trainer.validate(global_workspace, data)
 
 
-
 def train_lm(args):
     seed_everything(args.seed)
 
@@ -56,6 +55,7 @@ def train_lm(args):
 
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss")
     trainer.fit(lm, data)
+    trainer.validate(lm, data)
 
 
 def train_ae(args):
@@ -79,6 +79,7 @@ def train_ae(args):
 
     trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss")
     trainer.fit(ae, data)
+    trainer.validate(ae, data)
 
 
 def train_vae(args):
@@ -93,17 +94,19 @@ def train_vae(args):
 
     data.prepare_data()
     data.setup(stage="fit")
-    data.compute_inception_statistics(32, torch.device("cuda" if args.gpus >= 1 else "cpu"))
+    data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
 
-    vae = VAE(
-        data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
-        args.n_validation_examples,
-        args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
-    )
+    if args.checkpoint:
+        vae = VAE.load_from_checkpoint(args.checkpoint)
+    else:
+        vae = VAE(
+            data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
+            args.n_validation_examples,
+            args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
+            data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
+        )
 
     trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss")
-    # trainer.fit(vae, data)
-    #
+    trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
-    trainer.validate(data.val_dataloader())
+    trainer.validate(vae, data)
