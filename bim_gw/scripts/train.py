@@ -84,7 +84,7 @@ def train_ae(args):
 def train_vae(args):
     seed_everything(args.seed)
 
-    args.vae.prop_sync_domains = {"all": 1.}
+    args.vae.prop_labelled_images = 1.
 
     args.vae.split_ood = False
     args.vae.selected_domains = {"v": "v"}
@@ -103,7 +103,7 @@ def train_vae(args):
     )
 
     trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss")
-    trainer.fit(vae, data)
-
-    vae.n_FID_samples = data.val_dataset_size  # all the dataset
+    # trainer.fit(vae, data)
+    #
+    # vae.n_FID_samples = data.val_dataset_size  # all the dataset
     trainer.validate(data.val_dataloader())
