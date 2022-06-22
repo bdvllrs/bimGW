@@ -96,7 +96,7 @@ def train_vae(args):
     data.setup(stage="fit")
     data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
 
-    if args.checkpoint:
+    if "checkpoint" in args:
         vae = VAE.load_from_checkpoint(args.checkpoint)
     else:
         vae = VAE(
