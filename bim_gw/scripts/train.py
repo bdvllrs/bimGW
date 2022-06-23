@@ -97,7 +97,9 @@ def train_vae(args):
     data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
 
     if "checkpoint" in args:
-        vae = VAE.load_from_checkpoint(args.checkpoint)
+        vae = VAE.load_from_checkpoint(args.checkpoint, strict=False,
+                                       n_validation_examples=args.n_validation_examples,
+                                       validation_reconstruction_images=data.domain_examples["in_dist"][0]["v"][1])
     else:
         vae = VAE(
             data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
