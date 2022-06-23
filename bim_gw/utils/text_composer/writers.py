@@ -99,7 +99,7 @@ color_sparse_writer = QuantizedWriter(
 
 writers = {
     "shape": [shapes_writer],
-    "rotation": [corner_rotation_writer, cardinal_rotation_writer, continuous_rotation_writer],
+    "rotation": [corner_rotation_writer, cardinal_rotation_writer],
     "size": [size_writer],
     "color": [color_large_set_writer],
     "location": [location_writer]
