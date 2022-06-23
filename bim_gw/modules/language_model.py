@@ -158,7 +158,7 @@ class ShapesLM(WorkspaceModule):
         ]
 
     def encode(self, x):
-        return self(x[0])
+        return self(x)
 
     def decode(self, text_latent):
         text_latent = text_latent[0]
@@ -186,7 +186,7 @@ class ShapesLM(WorkspaceModule):
         return x
 
     def forward(self, sentences):
-        bert_latent = self.get_bert_latent(sentences)
+        bert_latent = self.get_bert_latent(sentences[0])
         return [self.projection(bert_latent)]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
@@ -226,7 +226,7 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["t"][1], batch["a"][1]
+        sentences, targets = batch["t"][1], batch["a"][1:]
         bs = len(sentences)
         targets = self.shapes_attribute.encode(targets)
         z = self.encode([sentences])[0]
@@ -259,7 +259,7 @@ class ShapesLM(WorkspaceModule):
         if self.validation_domain_examples is not None:
             for logger in self.loggers:
                 encoded_s = self.encode(self.validation_domain_examples["t"])
-                predictions = self.classify(encoded_s)
+                predictions = self.classify(encoded_s[0])
                 sentence_predictions = self.decode(encoded_s)
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
