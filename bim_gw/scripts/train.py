@@ -42,16 +42,26 @@ def train_gw(args):
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = SimpleShapesDataModule(args.simple_shapes_path, args.lm.batch_size, args.dataloader.num_workers, False,
-                                  {"all": 1.}, args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
+    args.lm.prop_labelled_images = 1.
+
+    args.lm.split_ood = False
+    args.lm.selected_domains = {"a": "attr", "t": "t"}
+    args.lm.data_augmentation = False
+
+    data = load_dataset(args, args.lm)
     data.prepare_data()
     data.setup(stage="fit")
 
-    domain_examples = {d: data.domain_examples["in_dist"][0][d][1] for d in data.domain_examples["in_dist"][0].keys()}
+    domain_examples = {d: data.domain_examples["in_dist"][0][d][1:] for d in data.domain_examples["in_dist"][0].keys()}
 
-    lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
-                  args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
-                  domain_examples)
+    if "checkpoint" in args:
+        lm = ShapesLM.load_from_checkpoint(args.checkpoint, strict=False,
+                                           bert_path=args.global_workspace.bert_path,
+                                           validation_domain_examples=domain_examples)
+    else:
+        lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
+                      args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
+                      domain_examples)
 
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss")
     trainer.fit(lm, data)
