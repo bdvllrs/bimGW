@@ -68,7 +68,14 @@ class SimpleShapesDataset:
             for key, domain_key in self.selected_domains.items():
                 if domain_key in pre_saved_latent_path.keys():
                     root_path = self.root_path / "saved_latents" / self.split / pre_saved_latent_path[domain_key]
-                    self.pre_saved_data[domain_key] = np.load(str(root_path))[self.ids]
+                    data = np.load(str(root_path))
+                    if data.ndim == 1 and isinstance(data[0], np.str):
+                        d = []
+                        for path in data:
+                            d.append(np.load(str(self.root_path / "saved_latents" / self.split / path))[self.ids])
+                        self.pre_saved_data[domain_key] = d
+                    else:
+                        self.pre_saved_data[domain_key] = [data[self.ids]]
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
 
     def set_rows(self):

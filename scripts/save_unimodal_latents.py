@@ -20,7 +20,6 @@ if __name__ == '__main__':
     args.global_workspace.sync_uses_whole_dataset = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.global_workspace.prop_sync_domains = {"all": 1.}
     args.global_workspace.selected_domains = {domain: domain for domain in args.global_workspace.load_pre_saved_latents.keys()}
 
     data = load_dataset(args, args.global_workspace, with_actions=True)
@@ -47,22 +46,35 @@ if __name__ == '__main__':
 
     for name, data_loader in data_loaders.items():
         latents = {
-            args.global_workspace.selected_domains[domain_key]: [] for domain_key in domains.keys()
+            args.global_workspace.selected_domains[domain_key]: None for domain_key in domains.keys()
         }
         print(f"Fetching {name} data.")
         for idx, (batch, target) in tqdm(enumerate(data_loader),
                                          total=int(len(data_loader.dataset) / data_loader.batch_size)):
             for domain_key in domains.keys():
                 domain_name = args.global_workspace.selected_domains[domain_key]
-                l = []
-                for t in range(len(batch)):
-                    data = batch[domain_name][t]
+                l = None
+                for t in range(len(batch[domain_name])):
+                    data = batch[domain_name][t][1:]
                     for k in range(len(data)):
                         if isinstance(data[k], torch.Tensor):
                             data[k] = data[k].to(device)
-                    l.append(domains[domain_name].encode(data)[1].cpu().detach().numpy())
-                l = np.stack(l, axis=1)
-                latents[domain_name].append(l)
+                    encoded = domains[domain_name].encode(data)
+                    if l is None:
+                        l = [[] for k in range(len(encoded))]
+                    for k in range(len(encoded)):
+                        l[k].append(encoded[k].cpu().detach().numpy())
+                if latents[domain_name] is None:
+                    latents[domain_name] = [[] for k in range(len(l))]
+                for k in range(len(l)):
+                    latents[domain_name][k].append(np.stack(l[k], axis=1))
         for domain_name, l in latents.items():
             (path / name).mkdir(exist_ok=True)
-            np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.concatenate(l))
+            paths = []
+            for k in range(len(l)):
+                x = np.concatenate(l[k])
+                p = path / name / args.global_workspace.load_pre_saved_latents[domain_name]
+                p = path.with_stem(p.stem + f".{k}")
+                paths.append(p.name)
+                np.save(str(p), x)
+            np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.array(paths))

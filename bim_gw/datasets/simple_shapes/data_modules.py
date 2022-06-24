@@ -6,7 +6,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 
 from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
-from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_odd_sets, sample_domains
+from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_ood_sets, sample_domains
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
@@ -87,8 +87,8 @@ class SimpleShapesDataModule(LightningDataModule):
                     id_ood_splits = None
                     target_indices = train_set.ids
 
-                self.shapes_val = split_odd_sets(self.shapes_val, id_ood_splits)
-                self.shapes_test = split_odd_sets(self.shapes_test, id_ood_splits)
+                self.shapes_val = split_ood_sets(self.shapes_val, id_ood_splits)
+                self.shapes_test = split_ood_sets(self.shapes_test, id_ood_splits)
                 self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
             self.set_validation_examples(

@@ -144,7 +144,7 @@ def create_ood_split(datasets):
     return out_datasets, ood_boundaries
 
 
-def split_odd_sets(dataset, id_ood_split=None):
+def split_ood_sets(dataset, id_ood_split=None):
     return {
         "in_dist": torch.utils.data.Subset(dataset, id_ood_split[1][0]) if id_ood_split is not None else dataset,
         "ood": torch.utils.data.Subset(dataset, id_ood_split[1][1]) if id_ood_split is not None else None,

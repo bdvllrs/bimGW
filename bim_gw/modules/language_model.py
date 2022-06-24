@@ -148,21 +148,25 @@ class ShapesLM(WorkspaceModule):
 
         self.validation_domain_examples = validation_domain_examples
 
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            None
-        ]
-
-        self.losses = [
-            F.mse_loss
-        ]
+        # self.output_dims = [self.z_size]
+        # self.decoder_activation_fn = [
+        #     None
+        # ]
+        #
+        # self.losses = [
+        #     F.mse_loss
+        # ]
+        self.output_dims = self.shapes_attribute.output_dims
+        self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
+        self.losses = self.shapes_attribute.losses
 
     def encode(self, x):
         return self(x)
 
     def decode(self, text_latent):
-        text_latent = text_latent[0]
-        predictions = self.classify(text_latent)
+        # text_latent = text_latent[0]
+        # predictions = self.classify(text_latent)
+        predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -187,7 +191,8 @@ class ShapesLM(WorkspaceModule):
 
     def forward(self, sentences):
         bert_latent = self.get_bert_latent(sentences[0])
-        return [self.projection(bert_latent)]
+        attr = self.classify(self.projection(bert_latent))
+        return attr
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -211,8 +216,9 @@ class ShapesLM(WorkspaceModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         text = [[x[0][k]] for k in range(len(x[0]))]
         logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        encoded_s = self.encode(x)[0]
-        predictions = self.shapes_attribute.decode(self.classify(encoded_s))
+        encoded_s = self.encode(x)
+        # predictions = self.shapes_attribute.decode(self.classify(encoded_s[0]))
+        predictions = self.shapes_attribute.decode(encoded_s)
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):

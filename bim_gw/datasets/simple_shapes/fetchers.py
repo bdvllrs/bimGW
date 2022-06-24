@@ -203,19 +203,18 @@ class ActionDataFetcher(DataFetcher):
 class PreSavedLatentDataFetcher:
     def __init__(self, data):
         self.data = data
-        assert self.data.ndim == 3, "PreSavedLatent format is incorrect. It seems like you are using the version without the world model."
 
     def __len__(self):
-        return self.data.shape[0]
+        return self.data[0].shape[0]
 
     def get_null_item(self):
-        return torch.tensor(0.).float(), np.zeros_like(self.data[0][0])
+        return [torch.tensor(0.).float()] + [np.zeros_like(self.data[k][0][0]) for k in range(len(self.data))]
 
     def get_item(self, item):
-        return torch.tensor(1.).float(), self.data[item][0]
+        return [torch.tensor(1.).float()] + [self.data[k][item][0] for k in range(len(self.data))]
 
     def get_transformed_item(self, item):
-        return torch.tensor(1.).float(), self.data[item][1]
+        return [torch.tensor(1.).float()] + [self.data[k][item][1] for k in range(len(self.data))]
 
     def get_items(self, item, time_steps):
         return [
