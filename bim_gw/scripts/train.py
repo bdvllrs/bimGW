@@ -1,3 +1,5 @@
+import os
+
 import torch
 from pytorch_lightning import seed_everything
 
@@ -41,6 +43,8 @@ def train_gw(args):
 
 def train_lm(args):
     seed_everything(args.seed)
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "1"
 
     args.lm.prop_labelled_images = 1.
 
