@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from transformers import BertTokenizer, BertModel
+from transformers import BertModel, BertTokenizerFast
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
@@ -126,7 +126,7 @@ class ShapesLM(WorkspaceModule):
         for p in self.transformer.parameters():
             p.requires_grad_(False)
 
-        self.tokenizer = BertTokenizer.from_pretrained(bert_path)
+        self.tokenizer = BertTokenizerFast.from_pretrained(bert_path)
 
         self.text_composer = composer
 
@@ -164,9 +164,9 @@ class ShapesLM(WorkspaceModule):
         return self(x)
 
     def decode(self, text_latent):
-        # text_latent = text_latent[0]
-        # predictions = self.classify(text_latent)
-        predictions = text_latent
+        text_latent = text_latent[0]
+        predictions = self.classify(text_latent)
+        # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -191,7 +191,7 @@ class ShapesLM(WorkspaceModule):
 
     def forward(self, sentences):
         bert_latent = self.get_bert_latent(sentences[0])
-        attr = self.classify(self.projection(bert_latent))
+        attr = [self.projection(bert_latent)]
         return attr
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
