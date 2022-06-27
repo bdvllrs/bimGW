@@ -74,7 +74,7 @@ if __name__ == '__main__':
             for k in range(len(l)):
                 x = np.concatenate(l[k])
                 p = path / name / args.global_workspace.load_pre_saved_latents[domain_name]
-                p = path.with_stem(p.stem + f".{k}")
+                p = p.with_stem(p.stem + f"_part_{k}")
                 paths.append(p.name)
                 np.save(str(p), x)
             np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.array(paths))
