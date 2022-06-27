@@ -15,18 +15,24 @@ shapes_writer = OptionsWriter(
 )
 cardinal_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
+         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
+         15 * np.pi / 8]),
     caption="{rotated} {val}",
     variants={
         "of_image": ["", "of the image"],
         "rotated": ["pointing to the", "pointing towards the", "pointing"]
     },
-    labels=["north", "north-west", "west", "south-west", "south", "south-east", "east", "north-east"]
+    labels=["north", "north-northwest", "northwest", "west-northwest", "west", "west-southwest",
+            "southwest", "south-southwest", "south", "south-southeast", "southeast", "east-southeast", "east",
+            "east-northeast", "northeast", "north-northeast"]
 )
 
 corner_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
+         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
+         15 * np.pi / 8]),
     caption="{rotated} the {val}",
     variants={
         "of_image": ["", "of the image"],
@@ -34,8 +40,10 @@ corner_rotation_writer = QuantizedWriter(
         "corner": ["", " corner"],
         "side": ["", " side"]
     },
-    labels=["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}",
-            "right{side}", "top-right{corner}"],
+    labels=["top", "top top-left{corner}", "top-left{corner}", "left top-left{corner}",
+            "left{side}", "left bottom-left{corner}", "bottom-left{corner}", "bottom bottom-left{corner}",
+            "bottom", "bottom bottom-right{corner}", "bottom-right{corner}", "right bottom-right{corner}",
+            "right{side}", "right top-right{corner}", "top-right{corner}", "top top-right{corner}"],
 )
 
 continuous_rotation_writer = ContinuousAngleWriter(
@@ -87,6 +95,76 @@ location_writer_bins = Bins2dWriter(
     ],
 )
 
+location_precision_writer_bins = Bins2dWriter(
+    bins=np.array([[9, 12, 14, 18, 20, 23],
+                   [9, 12, 14, 18, 20, 23]]),
+    labels=[
+        [
+            ["very top right, near the sides", "very upper right, near the sides"],
+            ["very top right", "very upper right"],
+            ["very top center, slightly left", "very top, slightly left"],
+            ["very top center", "very top"],
+            ["very top center, slightly left", "very top, slightly left"],
+            ["very top left", "very upper left"],
+            ["very top left, near the sides", "very upper left, near the sides"],
+        ],
+        [
+            ["top right, near the right side", "upper right, near the right side"],
+            ["top right", "upper right"],
+            ["top center, slightly left", "top, slightly left"],
+            ["top center", "top"],
+            ["top center, slightly left", "top, slightly left"],
+            ["top left", "upper left"],
+            ["top left, near the left side", "upper left, near the left side"],
+        ],
+        [
+            ["slightly top right, near the right side", "slightly upper right, near the right side"],
+            ["slightly top right", "slightly upper right"],
+            ["slightly top center, slightly left", "slightly top, slightly left"],
+            ["slightly top center", "slightly top"],
+            ["slightly top center, slightly left", "slightly top, slightly left"],
+            ["slightly top left", "slightly upper left"],
+            ["slightly top left, near the left side", "slightly upper left, near the left side"],
+        ],
+        [
+            ["middle right, near the right side", "center right, near the right side"],
+            ["middle right", "center right"],
+            ["center, slightly right", "middle, slightly right"],
+            ["center", "middle"],
+            ["center, slightly left", "middle, slightly left"],
+            ["middle left", "center left"],
+            ["middle left, near the left side", "center left, near the left side"],
+        ],
+        [
+            ["slightly bottom right, near the right side", "slightly lower right, near the right side"],
+            ["slightly bottom right", "slightly lower right"],
+            ["slightly bottom center, slightly right", "slightly bottom, slightly right"],
+            ["slightly bottom center", "slightly bottom"],
+            ["slightly bottom center, slightly left", "slightly bottom, slightly left"],
+            ["slightly bottom left", "slightly lower left"],
+            ["slightly bottom left, near the left side", "slightly lower left, near the left side"],
+        ],
+        [
+            ["bottom right, near the right side", "lower right, near the right side"],
+            ["bottom right", "lower right"],
+            ["bottom center, slightly right", "bottom, slightly right"],
+            ["bottom center", "bottom"],
+            ["bottom center, slightly left", "bottom, slightly left"],
+            ["bottom left", "lower left"],
+            ["bottom left, near the left side", "lower left, near the left side"],
+        ],
+        [
+            ["very bottom right, near the sides", "very lower right, near the sides"],
+            ["very bottom right", "very lower right"],
+            ["very bottom, slightly right"],
+            ["very bottom, at the center", "very bottom"],
+            ["very bottom, slightly left"],
+            ["very bottom left", "very lower left"],
+            ["very bottom left, near the sides", "very lower left, near the sides"],
+        ],
+    ],
+)
+
 color_large_set_writer = QuantizedWriter(
     quantized_values=COLORS_LARGE_SET["rgb"],
     labels=COLORS_LARGE_SET["labels"]
@@ -102,7 +180,7 @@ writers = {
     "rotation": [corner_rotation_writer, cardinal_rotation_writer],
     "size": [size_writer],
     "color": [color_large_set_writer],
-    "location": [location_writer]
+    "location": [location_precision_writer_bins]
 }
 
 
@@ -137,12 +215,13 @@ def test_colors(writer):
 
 
 if __name__ == '__main__':
-    test_rotation_writer(cardinal_rotation_writer)
-    test_rotation_writer(corner_rotation_writer)
-    test_rotation_writer(continuous_rotation_writer)
-    test_shapes_writer(shapes_writer)
-    test_size_writer(size_writer)
-    test_location_writer(location_writer)
-    test_location_writer(location_writer_bins)
-    test_colors(color_large_set_writer)
-    test_colors(color_sparse_writer)
+    test_location_writer(location_precision_writer_bins)
+    # test_rotation_writer(cardinal_rotation_writer)
+    # test_rotation_writer(corner_rotation_writer)
+    # test_rotation_writer(continuous_rotation_writer)
+    # test_shapes_writer(shapes_writer)
+    # test_size_writer(size_writer)
+    # test_location_writer(location_writer)
+    # test_location_writer(location_writer_bins)
+    # test_colors(color_large_set_writer)
+    # test_colors(color_sparse_writer)
