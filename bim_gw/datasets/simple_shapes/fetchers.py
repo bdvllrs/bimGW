@@ -168,6 +168,26 @@ class TextDataFetcher(DataFetcher):
         return torch.tensor(0.).float(), ""
 
 
+class BertFeaturesDataFetcher(DataFetcher):
+    modality = "b"
+
+    def __init__(self, root_path, split, ids, labels, transforms=None):
+        super().__init__(root_path, split, ids, labels, transforms)
+
+        self.data = np.load(root_path / "saved_latents" / split / "bert-base-uncased.npy")
+
+    def get_item(self, item):
+        return (
+            torch.tensor(1.).float(),
+            torch.from_numpy(self.data[item])
+        )
+
+    def get_null_item(self):
+        _, x = self.get_item(0)
+        x[:] = 0.
+        return torch.tensor(0.).float(), x
+
+
 class ActionDataFetcher(DataFetcher):
     modality = "a"
 

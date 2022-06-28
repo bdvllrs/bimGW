@@ -197,6 +197,7 @@ class SimpleShapesDataModule(LightningDataModule):
                                             transform=train_set.transforms,
                                             output_transform=train_set.output_transform,
                                             with_actions=self.with_actions)
+            train_set.set_rows(extend=True)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):
