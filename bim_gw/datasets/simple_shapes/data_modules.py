@@ -184,7 +184,7 @@ class SimpleShapesDataModule(LightningDataModule):
     def filter_sync_domains(self, train_set, allowed_indices):
         if self.prop_labelled_images < 1.:
             # Unlabel randomly some elements
-            n_targets = len(train_set)
+            n_targets = len(train_set) // 3
             np.random.shuffle(allowed_indices)
             num_labelled = int(self.prop_labelled_images * n_targets)
             labelled_elems = allowed_indices[:num_labelled]
@@ -197,7 +197,6 @@ class SimpleShapesDataModule(LightningDataModule):
                                             transform=train_set.transforms,
                                             output_transform=train_set.output_transform,
                                             with_actions=self.with_actions)
-            train_set.set_rows(extend=True)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):

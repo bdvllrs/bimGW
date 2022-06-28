@@ -54,7 +54,7 @@ class SimpleShapesDataset:
 
         self.mapping = None
         self.available_domains_mapping = []
-        self.set_rows(False)
+        self.set_rows()
 
         self.data_fetchers = {
             domain_key: self.available_domains[domain](self.root_path, self.split, self.ids, self.labels, self.transforms)
@@ -80,7 +80,7 @@ class SimpleShapesDataset:
                         self.pre_saved_data[domain_key] = [data[self.ids]]
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
 
-    def set_rows(self, extend=True):
+    def set_rows(self):
         self.mapping = []
         domains = list(self.selected_domains.keys())
         original_size = len(self.labelled_indices) + len(self.unlabelled_indices)
@@ -88,13 +88,13 @@ class SimpleShapesDataset:
             n_repeats = (original_size // len(self.labelled_indices) +
                          1 * int(original_size % len(self.labelled_indices) > 0))
             labelled_indices = np.tile(self.labelled_indices, n_repeats)
-            if self.split == "train" and extend:
+            if self.split == "train":
                 for domain in domains:
                     self.available_domains_mapping.extend([[domain]] * len(self.labelled_indices))
                     self.mapping.extend(self.labelled_indices)
             self.available_domains_mapping.extend([domains] * len(labelled_indices))
             self.mapping.extend(labelled_indices)
-        if self.split == "train" and extend:
+        if self.split == "train":
             for domain in domains:
                 self.available_domains_mapping.extend([[domain]] * len(self.unlabelled_indices))
                 self.mapping.extend(self.unlabelled_indices)
