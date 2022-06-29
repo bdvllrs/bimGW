@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from transformers import BertModel, BertTokenizerFast
+from transformers import BertModel, BertTokenizerFast, BertTokenizer
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
@@ -122,12 +122,6 @@ class ShapesLM(WorkspaceModule):
         self.bert_size = 768
         self.imsize = imsize
 
-        self.transformer = BertModel.from_pretrained(bert_path)
-        for p in self.transformer.parameters():
-            p.requires_grad_(False)
-
-        self.tokenizer = BertTokenizerFast.from_pretrained(bert_path)
-
         self.text_composer = composer
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
@@ -148,17 +142,14 @@ class ShapesLM(WorkspaceModule):
 
         self.validation_domain_examples = validation_domain_examples
 
-        # self.output_dims = [self.z_size]
-        # self.decoder_activation_fn = [
-        #     None
-        # ]
-        #
-        # self.losses = [
-        #     F.mse_loss
-        # ]
-        self.output_dims = self.shapes_attribute.output_dims
-        self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
-        self.losses = self.shapes_attribute.losses
+        self.output_dims = [self.z_size]
+        self.decoder_activation_fn = [
+            None
+        ]
+
+        self.losses = [
+            F.mse_loss
+        ]
 
     def encode(self, x):
         return self(x)
@@ -166,7 +157,6 @@ class ShapesLM(WorkspaceModule):
     def decode(self, text_latent):
         text_latent = text_latent[0]
         predictions = self.classify(text_latent)
-        # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -190,9 +180,7 @@ class ShapesLM(WorkspaceModule):
         return x
 
     def forward(self, sentences):
-        bert_latent = self.get_bert_latent(sentences[0])
-        attr = [self.projection(bert_latent)]
-        return attr
+        return [self.projection(sentences[0])]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -216,9 +204,8 @@ class ShapesLM(WorkspaceModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         text = [[x[0][k]] for k in range(len(x[0]))]
         logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        encoded_s = self.encode(x)
-        # predictions = self.shapes_attribute.decode(self.classify(encoded_s[0]))
-        predictions = self.shapes_attribute.decode(encoded_s)
+        encoded_s = self.encode(x)[0]
+        predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
@@ -232,7 +219,7 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["t"][1], batch["a"][1:]
+        sentences, targets = batch["b"][1], batch["a"][1:]
         bs = len(sentences)
         targets = self.shapes_attribute.encode(targets)
         z = self.encode([sentences])[0]
@@ -264,7 +251,7 @@ class ShapesLM(WorkspaceModule):
     def validation_epoch_end(self, outputs):
         if self.validation_domain_examples is not None:
             for logger in self.loggers:
-                encoded_s = self.encode(self.validation_domain_examples["t"])
+                encoded_s = self.encode([self.validation_domain_examples["b"][0].to(self.device)])
                 predictions = self.classify(encoded_s[0])
                 sentence_predictions = self.decode(encoded_s)
 

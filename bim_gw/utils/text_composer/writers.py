@@ -13,7 +13,19 @@ shapes_writer = OptionsWriter(
             "deformed square shape"],
     }
 )
+
 cardinal_rotation_writer = QuantizedWriter(
+    quantized_values=np.array(
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+    caption="{rotated} {val}",
+    variants={
+        "of_image": ["", "of the image"],
+        "rotated": ["pointing to the", "pointing towards the", "pointing"]
+    },
+    labels=["north", "northwest", "west", "southwest", "south", "southeast", "east", "northeast"]
+)
+
+cardinal_rotation_preicions_writer = QuantizedWriter(
     quantized_values=np.array(
         [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
          np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
@@ -29,6 +41,20 @@ cardinal_rotation_writer = QuantizedWriter(
 )
 
 corner_rotation_writer = QuantizedWriter(
+    quantized_values=np.array(
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+    caption="{rotated} the {val}",
+    variants={
+        "of_image": ["", "of the image"],
+        "rotated": ["pointing to", "pointing towards"],
+        "corner": ["", " corner"],
+        "side": ["", " side"]
+    },
+    labels=["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}",
+            "right{side}", "top-right{corner}"],
+)
+
+corner_rotation_precision_writer = QuantizedWriter(
     quantized_values=np.array(
         [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
          np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
@@ -98,71 +124,78 @@ location_writer_bins = Bins2dWriter(
 location_precision_writer_bins = Bins2dWriter(
     bins=np.array([[9, 12, 14, 18, 20, 23],
                    [9, 12, 14, 18, 20, 23]]),
-    labels=[
+    variants={
+        "bottom": ["bottom", "lower side"],
+        "middle": ["middle", "center"],
+        "top": ["top", "upper side"],
+        "on": ["on", "at"],
+        "side?": [" side", ""]
+    },
+    labels=np.array([
         [
-            ["very top right, near the sides", "very upper right, near the sides"],
-            ["very top right", "very upper right"],
-            ["very top center, slightly left", "very top, slightly left"],
-            ["very top center", "very top"],
-            ["very top center, slightly left", "very top, slightly left"],
-            ["very top left", "very upper left"],
-            ["very top left, near the sides", "very upper left, near the sides"],
+            "very {bottom}, {on} the very left{side?}",
+            "very {bottom}, {on} the left{side?}",
+            "very {bottom}, slightly left",
+            "very {bottom}, at the {middle}",
+            "very {bottom}, slightly right",
+            "very {bottom}, {on} the right{side?}",
+            "very {bottom}, {on} the very right{side?}",
         ],
         [
-            ["top right, near the right side", "upper right, near the right side"],
-            ["top right", "upper right"],
-            ["top center, slightly left", "top, slightly left"],
-            ["top center", "top"],
-            ["top center, slightly left", "top, slightly left"],
-            ["top left", "upper left"],
-            ["top left, near the left side", "upper left, near the left side"],
+            "{bottom}, {on} the very left{side?}",
+            "{bottom}, {on} the left{side?}",
+            "{bottom}, slightly left",
+            "{bottom} {middle}",
+            "{bottom}, slightly right",
+            "{bottom}, {on} the right{side?}",
+            "{bottom} right, {on} the very right{side?}",
         ],
         [
-            ["slightly top right, near the right side", "slightly upper right, near the right side"],
-            ["slightly top right", "slightly upper right"],
-            ["slightly top center, slightly left", "slightly top, slightly left"],
-            ["slightly top center", "slightly top"],
-            ["slightly top center, slightly left", "slightly top, slightly left"],
-            ["slightly top left", "slightly upper left"],
-            ["slightly top left, near the left side", "slightly upper left, near the left side"],
+            "slightly {bottom}, {on} the very left{side?}",
+            "slightly {bottom}, {on} the left{side?}",
+            "slightly {bottom}, slightly left",
+            "slightly {bottom}, at the {middle}",
+            "slightly {bottom}, slightly right",
+            "slightly {bottom}, {on} the right{side?}",
+            "slightly {bottom}, {on} the very right{side?}",
         ],
         [
-            ["middle right, near the right side", "center right, near the right side"],
-            ["middle right", "center right"],
-            ["center, slightly right", "middle, slightly right"],
-            ["center", "middle"],
-            ["center, slightly left", "middle, slightly left"],
-            ["middle left", "center left"],
-            ["middle left, near the left side", "center left, near the left side"],
+            "{middle}, {on} the very left {side?}",
+            "{middle}, {on} the left{side?}",
+            "{middle}, slightly left",
+            "{middle}",
+            "{middle}, slightly right",
+            "{middle}, {on} the right{side?}",
+            "{middle} right, {on} the very right{side?}",
         ],
         [
-            ["slightly bottom right, near the right side", "slightly lower right, near the right side"],
-            ["slightly bottom right", "slightly lower right"],
-            ["slightly bottom center, slightly right", "slightly bottom, slightly right"],
-            ["slightly bottom center", "slightly bottom"],
-            ["slightly bottom center, slightly left", "slightly bottom, slightly left"],
-            ["slightly bottom left", "slightly lower left"],
-            ["slightly bottom left, near the left side", "slightly lower left, near the left side"],
+            "slightly {top} left, {on} the very left{side?}",
+            "slightly {top}, {on} the left{side?}",
+            "slightly {top}, slightly left",
+            "slightly {top}, at the {middle}",
+            "slightly {top}, slightly right",
+            "slightly {top}, {on} the right{side?}",
+            "slightly {top}, {on} the very right{side?}",
         ],
         [
-            ["bottom right, near the right side", "lower right, near the right side"],
-            ["bottom right", "lower right"],
-            ["bottom center, slightly right", "bottom, slightly right"],
-            ["bottom center", "bottom"],
-            ["bottom center, slightly left", "bottom, slightly left"],
-            ["bottom left", "lower left"],
-            ["bottom left, near the left side", "lower left, near the left side"],
+            "{top} left, {on} the very left{side?}",
+            "{top}, {on} the left{side?}",
+            "{top}, slightly left",
+            "{top} {middle}",
+            "{top}, slightly right",
+            "{top}, {on} the right{side?}",
+            "{top} right, {on} the very right{side?}",
         ],
         [
-            ["very bottom right, near the sides", "very lower right, near the sides"],
-            ["very bottom right", "very lower right"],
-            ["very bottom, slightly right"],
-            ["very bottom, at the center", "very bottom"],
-            ["very bottom, slightly left"],
-            ["very bottom left", "very lower left"],
-            ["very bottom left, near the sides", "very lower left, near the sides"],
+            "very {top} left, {on} the very left{side?}",
+            "very {top}, {on} the left{side?}",
+            "very {top}, slightly left",
+            "very {top}, at the {middle}",
+            "very {top}, slightly right",
+            "very {top}, {on} the right{side?}",
+            "very {top}, {on} the very right{side?}",
         ],
-    ],
+    ]).transpose()
 )
 
 color_large_set_writer = QuantizedWriter(
@@ -177,7 +210,7 @@ color_sparse_writer = QuantizedWriter(
 
 writers = {
     "shape": [shapes_writer],
-    "rotation": [corner_rotation_writer, cardinal_rotation_writer],
+    "rotation": [corner_rotation_precision_writer, cardinal_rotation_preicions_writer],
     "size": [size_writer],
     "color": [color_large_set_writer],
     "location": [location_precision_writer_bins]
@@ -207,7 +240,7 @@ def test_location_writer(writer):
     for k in range(5):
         for i in range(0, 32, 6):
             for j in range(0, 32, 6):
-                print(writer(i, j))
+                print(i, j, writer(i, j))
 
 
 def test_colors(writer):

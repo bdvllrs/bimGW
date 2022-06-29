@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
-from transformers import BertTokenizerFast, BertModel
+from transformers import BertTokenizerFast, BertModel, BertTokenizer
 
 from bim_gw.datasets import load_dataset
 from bim_gw.scripts.utils import get_domains
@@ -24,15 +24,16 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.global_workspace.selected_domains = {"t": "t"}
 
-    data = load_dataset(args, args.global_workspace, with_actions=True)
+    data = load_dataset(args, args.global_workspace, with_actions=True, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")
 
     transformer = BertModel.from_pretrained(args.global_workspace.bert_path)
+    transformer.eval()
     transformer.to(device)
     for p in transformer.parameters():
         p.requires_grad_(False)
-    tokenizer = BertTokenizerFast.from_pretrained(args.global_workspace.bert_path)
+    tokenizer = BertTokenizer.from_pretrained(args.global_workspace.bert_path)
 
     data_loaders = [
         ("train", data.train_dataloader(shuffle=False)),
@@ -54,4 +55,4 @@ if __name__ == '__main__':
             x = transformer(**tokens)["last_hidden_state"][:, 0]
             latents.append(x.cpu().numpy())
         (path / name).mkdir(exist_ok=True)
-        np.save(str(path / name / (args.global_workspace.bert_path + ".npy")), np.concatenate(latents, axis=0))
+        np.save(str(path / name / (args.global_workspace.bert_path + "_2.npy")), np.concatenate(latents, axis=0))

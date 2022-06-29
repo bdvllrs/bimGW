@@ -44,15 +44,15 @@ def train_gw(args):
 def train_lm(args):
     seed_everything(args.seed)
 
-    os.environ["TOKENIZERS_PARALLELISM"] = "1"
+    os.environ["TOKENIZERS_PARALLELISM"] = "0"
 
     args.lm.prop_labelled_images = 1.
 
     args.lm.split_ood = False
-    args.lm.selected_domains = {"a": "attr", "t": "t"}
+    args.lm.selected_domains = {"a": "attr", "t": "t", "b": "b"}
     args.lm.data_augmentation = False
 
-    data = load_dataset(args, args.lm)
+    data = load_dataset(args, args.lm, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")
 

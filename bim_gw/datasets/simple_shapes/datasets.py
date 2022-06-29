@@ -19,7 +19,7 @@ class SimpleShapesDataset:
 
     def __init__(self, path, split="train", labelled_indices=None, unlabelled_indices=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 extend_dataset=True, with_actions=None):
+                 add_unimodal=True, with_actions=None):
         """
         Args:
             path:
@@ -38,6 +38,7 @@ class SimpleShapesDataset:
         self.split = split
         self.img_size = 32
         self.with_actions = with_actions
+        self.add_unimodal = add_unimodal
         if with_actions is None:
             self.with_actions = 'a' in self.selected_domains.values()
 
@@ -88,13 +89,13 @@ class SimpleShapesDataset:
             n_repeats = (original_size // len(self.labelled_indices) +
                          1 * int(original_size % len(self.labelled_indices) > 0))
             labelled_indices = np.tile(self.labelled_indices, n_repeats)
-            if self.split == "train":
+            if self.split == "train" and self.add_unimodal:
                 for domain in domains:
                     self.available_domains_mapping.extend([[domain]] * len(self.labelled_indices))
                     self.mapping.extend(self.labelled_indices)
             self.available_domains_mapping.extend([domains] * len(labelled_indices))
             self.mapping.extend(labelled_indices)
-        if self.split == "train":
+        if self.split == "train" and self.add_unimodal:
             for domain in domains:
                 self.available_domains_mapping.extend([[domain]] * len(self.unlabelled_indices))
                 self.mapping.extend(self.unlabelled_indices)
