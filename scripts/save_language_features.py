@@ -55,4 +55,4 @@ if __name__ == '__main__':
             x = transformer(**tokens)["last_hidden_state"][:, 0]
             latents.append(x.cpu().numpy())
         (path / name).mkdir(exist_ok=True)
-        np.save(str(path / name / (args.global_workspace.bert_path + "_simple.npy")), np.concatenate(latents, axis=0))
+        np.save(str(path / name / args.fetchers.t.bert_latents), np.concatenate(latents, axis=0))
