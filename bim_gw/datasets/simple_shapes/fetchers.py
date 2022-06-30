@@ -174,8 +174,7 @@ class BertFeaturesDataFetcher(DataFetcher):
     def __init__(self, root_path, split, ids, labels, transforms=None):
         super().__init__(root_path, split, ids, labels, transforms)
 
-        self.data = np.load(root_path / "saved_latents" / split / "bert-base-uncased_2.npy")[ids]
-        pass
+        self.data = np.load(root_path / "saved_latents" / split / "bert-base-uncased_simple.npy")[ids]
 
     def get_item(self, item):
         return (
