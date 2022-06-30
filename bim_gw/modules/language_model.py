@@ -180,7 +180,8 @@ class ShapesLM(WorkspaceModule):
         return x
 
     def forward(self, sentences):
-        return [self.projection(sentences[0])]
+        bert_latents, sentences = sentences
+        return [self.projection(bert_latents)]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -219,10 +220,10 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["b"][1], batch["a"][1:]
-        bs = len(sentences)
+        sentences, targets = batch["t"][1:], batch["a"][1:]
+        bs = sentences[0].size(0)
         targets = self.shapes_attribute.encode(targets)
-        z = self.encode([sentences])[0]
+        z = self.encode(sentences)[0]
         predictions = self.classify(z)
         losses = []
         total_loss = 0
@@ -251,7 +252,10 @@ class ShapesLM(WorkspaceModule):
     def validation_epoch_end(self, outputs):
         if self.validation_domain_examples is not None:
             for logger in self.loggers:
-                encoded_s = self.encode([self.validation_domain_examples["b"][0].to(self.device)])
+                encoded_s = self.encode([
+                    self.validation_domain_examples["t"][0].to(self.device),
+                    self.validation_domain_examples["t"][1]
+                ])
                 predictions = self.classify(encoded_s[0])
                 sentence_predictions = self.decode(encoded_s)
 
@@ -265,7 +269,7 @@ class ShapesLM(WorkspaceModule):
 
                 if self.current_epoch == 0:
                     self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "val/target_reconstruction")
-                    logger.log_table("val/target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][k]] for k in
+                    logger.log_table("val/target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][1][k]] for k in
                                                     range(len(sentence_predictions))])
 
     def configure_optimizers(self):

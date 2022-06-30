@@ -24,6 +24,10 @@ slurm:
     "--time": "12:00:00"
     "--mem": 5000
 
+fetchers:
+  t:
+    bert_latents: bert-base-uncased_simple.npy
+
 vae:
   batch_size: 128
   data_augmentation: true

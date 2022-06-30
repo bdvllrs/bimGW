@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
-    PreSavedLatentDataFetcher, ActionDataFetcher, BertFeaturesDataFetcher
+    PreSavedLatentDataFetcher, ActionDataFetcher
 
 
 class SimpleShapesDataset:
@@ -13,13 +13,12 @@ class SimpleShapesDataset:
         "v": VisualDataFetcher,
         "attr": AttributesDataFetcher,
         "t": TextDataFetcher,
-        "a": ActionDataFetcher,
-        "b": BertFeaturesDataFetcher
+        "a": ActionDataFetcher
     }
 
     def __init__(self, path, split="train", labelled_indices=None, unlabelled_indices=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 add_unimodal=True, with_actions=None):
+                 add_unimodal=True, with_actions=None, fetcher_params=None):
         """
         Args:
             path:
@@ -57,8 +56,15 @@ class SimpleShapesDataset:
         self.available_domains_mapping = []
         self.set_rows()
 
+        if fetcher_params is None:
+            fetcher_params = dict()
+        for domain in self.available_domains.keys():
+            if domain not in fetcher_params:
+                fetcher_params[domain] = dict()
+
         self.data_fetchers = {
-            domain_key: self.available_domains[domain](self.root_path, self.split, self.ids, self.labels, self.transforms)
+            domain_key: self.available_domains[domain](
+                self.root_path, self.split, self.ids, self.labels, self.transforms, **fetcher_params[domain])
             for domain_key, domain in self.selected_domains.items()
         }
 

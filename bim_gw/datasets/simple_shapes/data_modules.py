@@ -19,7 +19,8 @@ class SimpleShapesDataModule(LightningDataModule):
             pre_saved_latent_paths=None,
             sync_uses_whole_dataset=False,
             with_actions=None,
-            add_unimodal=True
+            add_unimodal=True,
+            fetcher_params=None
     ):
         super().__init__()
         self.simple_shapes_folder = Path(simple_shapes_folder)
@@ -34,6 +35,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
         self.with_actions = with_actions
         self.add_unimodal = add_unimodal
+        self.fetcher_params = fetcher_params
         if with_actions is None:
             self.with_actions = 'a' in self.selected_domains.values()
 
@@ -42,7 +44,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
-        ds = SimpleShapesDataset(simple_shapes_folder, "val", add_unimodal=False)
+        ds = SimpleShapesDataset(simple_shapes_folder, "val", add_unimodal=False, fetcher_params=self.fetcher_params)
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
         self.n_time_steps = 2
@@ -57,11 +59,13 @@ class SimpleShapesDataModule(LightningDataModule):
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                       transform=val_transforms,
                                                       selected_domains=self.selected_domains,
-                                                      with_actions=self.with_actions)
+                                                      with_actions=self.with_actions,
+                                                      fetcher_params=self.fetcher_params)
                 self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                                        transform=val_transforms,
                                                        selected_domains=self.selected_domains,
-                                                       with_actions=self.with_actions)
+                                                       with_actions=self.with_actions,
+                                                       fetcher_params=self.fetcher_params)
 
                 # train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
                 len_train_dataset = 1_000_000
@@ -73,7 +77,8 @@ class SimpleShapesDataModule(LightningDataModule):
                                                 selected_indices=sync_indices,
                                                 transform=train_transforms,
                                                 selected_domains=self.selected_domains, with_actions=self.with_actions,
-                                                add_unimodal=self.add_unimodal)
+                                                add_unimodal=self.add_unimodal,
+                                                fetcher_params=self.fetcher_params)
 
                 if self.split_ood:
                     id_ood_splits, ood_boundaries = create_ood_split(
@@ -200,22 +205,26 @@ class SimpleShapesDataModule(LightningDataModule):
                                             transform=train_set.transforms,
                                             output_transform=train_set.output_transform,
                                             with_actions=self.with_actions,
-                                            add_unimodal=self.add_unimodal)
+                                            add_unimodal=self.add_unimodal,
+                                            fetcher_params=self.fetcher_params)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                        transform={"v": get_preprocess(self.use_data_augmentation)},
                                        selected_domains={"v": "v"},
-                                       output_transform=lambda d: d["v"][1])
+                                       output_transform=lambda d: d["v"][1],
+                                       fetcher_params=self.fetcher_params)
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                      transform={"v": get_preprocess(self.use_data_augmentation)},
                                      selected_domains={"v": "v"},
-                                     output_transform=lambda d: d["v"][1])
+                                     output_transform=lambda d: d["v"][1],
+                                     fetcher_params=self.fetcher_params)
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                       transform={"v": get_preprocess(self.use_data_augmentation)},
                                       selected_domains={"v": "v"},
-                                      output_transform=lambda d: d["v"][1])
+                                      output_transform=lambda d: d["v"][1],
+                                      fetcher_params=self.fetcher_params)
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,
                                                                      "shapes_train",
                                                                      batch_size, device)
