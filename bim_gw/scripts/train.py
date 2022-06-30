@@ -49,7 +49,7 @@ def train_lm(args):
     args.lm.prop_labelled_images = 1.
 
     args.lm.split_ood = False
-    args.lm.selected_domains = {"a": "attr", "t": "t", "b": "b"}
+    args.lm.selected_domains = {"a": "attr", "t": "t"}
     args.lm.data_augmentation = False
 
     data = load_dataset(args, args.lm, add_unimodal=False)
