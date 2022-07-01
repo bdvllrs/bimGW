@@ -16,6 +16,8 @@ if __name__ == '__main__':
     assert args.global_workspace.load_pre_saved_latents is not None, "Pre-saved latent path should be defined."
 
     args.seed = 0
+    bert_latents = args.fetchers.t.bert_latents
+    args.fetchers.t.bert_latents = None
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
     args.global_workspace.split_ood = False
@@ -55,4 +57,4 @@ if __name__ == '__main__':
             x = transformer(**tokens)["last_hidden_state"][:, 0]
             latents.append(x.cpu().numpy())
         (path / name).mkdir(exist_ok=True)
-        np.save(str(path / name / args.fetchers.t.bert_latents), np.concatenate(latents, axis=0))
+        np.save(str(path / name / bert_latents), np.concatenate(latents, axis=0))

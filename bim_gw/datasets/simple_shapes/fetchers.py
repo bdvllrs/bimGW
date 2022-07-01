@@ -115,7 +115,9 @@ class TextDataFetcher(DataFetcher):
         super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
 
         # self.bert_data = np.load(root_path / "saved_latents" / split / "bert-base-uncased_simple.npy")[ids]
-        self.bert_data = np.load(root_path / "saved_latents" / split / bert_latents)[ids]
+        self.bert_data = None
+        if bert_latents is not None:
+            self.bert_data = np.load(root_path / "saved_latents" / split / bert_latents)[ids]
 
         self.sentences = {}
         self.text_composer = composer
@@ -141,7 +143,10 @@ class TextDataFetcher(DataFetcher):
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
-        return torch.tensor(1.).float(), torch.from_numpy(self.bert_data[item]), sentence
+        bert = torch.zeros(768).float()
+        if self.bert_data is not None:
+            bert = self.bert_data[item]
+        return torch.tensor(1.).float(), bert, sentence
 
     def get_transformed_item(self, item):
         raise ValueError("The bert latent are not available for the transformed items.")
@@ -169,8 +174,7 @@ class TextDataFetcher(DataFetcher):
         return torch.tensor(1.).float(), sentence
 
     def get_null_item(self):
-        _, x, _ = self.get_item(0)
-        x[:] = 0.
+        x = torch.zeros(768).float()
         return torch.tensor(0.).float(), x, ""
 
 

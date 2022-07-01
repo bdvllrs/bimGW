@@ -8,18 +8,22 @@ from bim_gw.utils.text_composer.writers import writers
 # or from a kwargs given to the composer method.
 script_structures = [
     "{start} {size}{link}{color}{link}{shape}{link}{location}{link}{rotation}.",
+    "{start} {color}{link}{size}{link}{shape}{link}{location}{link}{rotation}.",
+    "{start} {size}{link}{shape}{link}{color}{link}{location}{link}{rotation}.",
+    "{start} {size}{link}{shape}{link}{location}{link}{color}{link}{rotation}.",
+    "{start} {shape}{link}{location}{link}{size}{link}{color}{link}{rotation}.",
 ]
 
 # Elements in the list of each variant is randomly chosen.
 variants = {
     "start": ["", "It is", "A kind of", "This is", "There is",
               "The image is", "The image represents", "The image contains"],
-    "link": [". It is ", ", and is ", ", ", " ", ", it's ", ". It's "],
+    "link": [". It is ", ", and is ", ", ", " ", " ", " ", " ", ", it's ", ". It's "],
 }
 
 modifiers = [
-    DeleteModifier(0.3, 3),
-    MixModifier(1.)
+    DeleteModifier(0.2, 3),
+    MixModifier(0.2)
 ]
 
 composer = Composer(script_structures, variants, writers, modifiers)

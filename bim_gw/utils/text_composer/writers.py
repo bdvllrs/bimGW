@@ -5,10 +5,7 @@ from attributes_to_language.writers import QuantizedWriter, Writer, OptionsWrite
     ContinuousAngleWriter
 
 shapes_writer = OptionsWriter(
-    caption="{a}{val}",
-    variants={
-        "a": ["", "a "]
-    },
+    caption="a {val}",
     choices={
         2: ["isosceles triangle", "triangle"],
         1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
@@ -126,7 +123,7 @@ location_writer_bins = Bins2dWriter(
 )
 
 location_precision_writer_bins = Bins2dWriter(
-    caption="{located?}{in_the?}{val}",
+    caption="{located?}{val}",
     bins=np.array([[9, 12, 14, 18, 20, 23],
                    [9, 12, 14, 18, 20, 23]]),
     variants={
@@ -135,8 +132,7 @@ location_precision_writer_bins = Bins2dWriter(
         "top": ["top", "upper side"],
         "on": ["on", "at"],
         "side?": [" side", ""],
-        "located?": ["", "located "],
-        "in_the?": ["in the ", "at the ", ""]
+        "located?": ["in the ", "located ", "at the ", "located in the ", "located at the "],
     },
     labels=np.array([
         [
