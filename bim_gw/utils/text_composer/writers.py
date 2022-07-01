@@ -1,7 +1,7 @@
 import numpy as np
 
-from attributes_to_language.utils import COLORS_LARGE_SET, COLORS_SPARSE
-from attributes_to_language.writers import QuantizedWriter, Writer, OptionsWriter, BinsWriter, Bins2dWriter, \
+from attributes_to_language.utils import COLORS_LARGE_SET, COLORS_XKCD, COLORS_SPARSE
+from attributes_to_language.writers import QuantizedWriter, OptionsWriter, BinsWriter, Bins2dWriter, \
     ContinuousAngleWriter
 
 shapes_writer = OptionsWriter(
@@ -211,6 +211,16 @@ color_large_set_writer = QuantizedWriter(
     labels=COLORS_LARGE_SET["labels"]
 )
 
+color_xkcd_writer = QuantizedWriter(
+    caption="{in?}{val}{color?}",
+    variants={
+        "in?": ["", "in "],
+        "color?": ["", " color", " colored"]
+    },
+    quantized_values=COLORS_XKCD["rgb"],
+    labels=COLORS_XKCD["labels"]
+)
+
 color_sparse_writer = QuantizedWriter(
     caption="{in?}{val}{color?}",
     variants={
@@ -231,10 +241,11 @@ color_sparse_writer = QuantizedWriter(
 
 writers = {
     "shape": [shapes_writer],
-    "rotation": [corner_rotation_precision_writer, cardinal_rotation_preicions_writer],
+    "rotation": [corner_rotation_writer, cardinal_rotation_writer,
+                 corner_rotation_precision_writer, cardinal_rotation_preicions_writer],
     "size": [size_writer],
-    "color": [color_large_set_writer],
-    "location": [location_precision_writer_bins]
+    "color": [color_large_set_writer, color_xkcd_writer],
+    "location": [location_precision_writer_bins, location_writer]
 }
 
 
