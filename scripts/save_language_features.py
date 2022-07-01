@@ -50,7 +50,7 @@ if __name__ == '__main__':
         for idx, (batch, target) in tqdm(enumerate(data_loader),
                                          total=int(len(data_loader.dataset) / data_loader.batch_size)):
 
-            sentences = batch["t"][0][1]
+            sentences = batch["t"][0][2]
             tokens = tokenizer(sentences, return_tensors='pt', padding=True).to(device)
             x = transformer(**tokens)["last_hidden_state"][:, 0]
             latents.append(x.cpu().numpy())

@@ -1,29 +1,28 @@
 import numpy as np
 
 from attributes_to_language.composer import Composer
+
+from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 
 # or from a kwargs given to the composer method.
 script_structures = [
-    "{start} {size} {color} {shape}, {located} {in_the} {location}{link} {rotation}.",
-    "{start} {color} {size} {shape}, {located} {in_the} {location}{link} {rotation}.",
-    "{start} {size} {shape} in {color} color, {located} {in_the} {location}{link} {rotation}.",
-    "{start} {size} {shape} in {color} color{link} {located} {in_the} {location} and {is?}{rotation}.",
-    "{start} {size} {color} {shape}{link} {located} {in_the} {location} and {is?}{rotation}.",
-    "{start} {color} {size} {shape}{link} {located} {in_the} {location} and {is?}{rotation}.",
+    "{start} {size}{link}{color}{link}{shape}{link}{location}{link}{rotation}.",
 ]
 
 # Elements in the list of each variant is randomly chosen.
 variants = {
-    "start": ["A", "It is a", "A kind of", "This is a", "There is a",
-              "The image is a", "The image represents a", "The image contains a"],
-    "located": ["", "located"],
-    "in_the": ["in the", "at the"],
-    "link": [". It is", ", and is"],
-    "is?": ["", "is "]
+    "start": ["", "It is", "A kind of", "This is", "There is",
+              "The image is", "The image represents", "The image contains"],
+    "link": [". It is ", ", and is ", ", ", " ", ", it's ", ". It's "],
 }
 
-composer = Composer(script_structures, variants, writers)
+modifiers = [
+    DeleteModifier(0.3, 3),
+    MixModifier(1.)
+]
+
+composer = Composer(script_structures, variants, writers, modifiers)
 
 if __name__ == '__main__':
     for k in range(5):

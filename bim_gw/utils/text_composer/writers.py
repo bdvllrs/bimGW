@@ -5,6 +5,10 @@ from attributes_to_language.writers import QuantizedWriter, Writer, OptionsWrite
     ContinuousAngleWriter
 
 shapes_writer = OptionsWriter(
+    caption="{a}{val}",
+    variants={
+        "a": ["", "a "]
+    },
     choices={
         2: ["isosceles triangle", "triangle"],
         1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
@@ -122,6 +126,7 @@ location_writer_bins = Bins2dWriter(
 )
 
 location_precision_writer_bins = Bins2dWriter(
+    caption="{located?}{in_the?}{val}",
     bins=np.array([[9, 12, 14, 18, 20, 23],
                    [9, 12, 14, 18, 20, 23]]),
     variants={
@@ -129,7 +134,9 @@ location_precision_writer_bins = Bins2dWriter(
         "middle": ["middle", "center"],
         "top": ["top", "upper side"],
         "on": ["on", "at"],
-        "side?": [" side", ""]
+        "side?": [" side", ""],
+        "located?": ["", "located "],
+        "in_the?": ["in the ", "at the ", ""]
     },
     labels=np.array([
         [
@@ -199,11 +206,21 @@ location_precision_writer_bins = Bins2dWriter(
 )
 
 color_large_set_writer = QuantizedWriter(
+    caption="{in?}{val}{color?}",
+    variants={
+        "in?": ["", "in "],
+        "color?": ["", " color", " colored"]
+    },
     quantized_values=COLORS_LARGE_SET["rgb"],
     labels=COLORS_LARGE_SET["labels"]
 )
 
 color_sparse_writer = QuantizedWriter(
+    caption="{in?}{val}{color?}",
+    variants={
+        "in?": ["", "in "],
+        "color?": ["", " color", " colored"]
+    },
     quantized_values=COLORS_SPARSE["rgb"],
     labels=COLORS_SPARSE["labels"]
 )
