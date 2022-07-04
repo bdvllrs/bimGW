@@ -44,7 +44,8 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
 
-        ds = SimpleShapesDataset(simple_shapes_folder, "val", add_unimodal=False, fetcher_params=self.fetcher_params)
+        ds = SimpleShapesDataset(simple_shapes_folder, selected_domains=self.selected_domains,
+                                 "val", add_unimodal=False, fetcher_params=self.fetcher_params)
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
         self.n_time_steps = 2
