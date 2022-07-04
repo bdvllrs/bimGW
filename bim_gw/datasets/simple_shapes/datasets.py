@@ -117,6 +117,8 @@ class SimpleShapesDataset:
         items = []
         for mapping in [domains, domains]:
             selected_domains = {}
+            n_domains = 0
+
             for domain_key, fetcher in self.data_fetchers.items():
                 time_steps = []
                 if domain_key in mapping:
@@ -124,10 +126,12 @@ class SimpleShapesDataset:
                 if self.with_actions and (domain_key + "_f" in mapping):
                     time_steps.append(1)
                 fetched_items =  fetcher.get_items(idx, time_steps)
+                n_domains += fetched_items[0][0].item()
                 if not self.with_actions:
                     fetched_items = fetched_items[0]
                 selected_domains[domain_key] = fetched_items
-
+            if n_domains == len(self.data_fetchers.keys()):
+                assert idx in self.labelled_indices
             if self.output_transform is not None:
                 return self.output_transform(selected_domains)
             items.append(selected_domains)

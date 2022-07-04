@@ -193,10 +193,14 @@ class SimpleShapesDataModule(LightningDataModule):
         if self.prop_labelled_images < 1.:
             # Unlabel randomly some elements
             n_targets = len(train_set)
+            assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
             np.random.shuffle(allowed_indices)
             num_labelled = int(self.prop_labelled_images * n_targets)
             labelled_elems = allowed_indices[:num_labelled]
             unlabelled_elems = allowed_indices[num_labelled:]
+            assert len(labelled_elems) + len(unlabelled_elems) == 500_000
+            assert len(labelled_elems) / 500_000 == self.prop_labelled_images
+            assert np.intersect1d(labelled_elems, unlabelled_elems).shape[0] == 0
             print(f"Loaded {len(allowed_indices)} examples in train set.")
             train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                             labelled_indices=labelled_elems,
