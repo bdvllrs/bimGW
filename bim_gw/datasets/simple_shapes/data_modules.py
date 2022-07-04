@@ -77,7 +77,7 @@ class SimpleShapesDataModule(LightningDataModule):
                                                 selected_indices=sync_indices,
                                                 transform=train_transforms,
                                                 selected_domains=self.selected_domains, with_actions=self.with_actions,
-                                                add_unimodal=self.add_unimodal,
+                                                add_unimodal=False,
                                                 fetcher_params=self.fetcher_params)
 
                 if self.split_ood:
@@ -192,7 +192,7 @@ class SimpleShapesDataModule(LightningDataModule):
     def filter_sync_domains(self, train_set, allowed_indices):
         if self.prop_labelled_images < 1.:
             # Unlabel randomly some elements
-            n_targets = len(train_set) // 3
+            n_targets = len(train_set)
             np.random.shuffle(allowed_indices)
             num_labelled = int(self.prop_labelled_images * n_targets)
             labelled_elems = allowed_indices[:num_labelled]
