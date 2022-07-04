@@ -21,9 +21,10 @@ variants = {
     "link": [". It is ", ", and is ", ", ", " ", " ", " ", " ", ", it's ", ". It's "],
 }
 
+# modifiers = None
 modifiers = [
-    DeleteModifier(0.4, 3),
-    MixModifier(0.4)
+    DeleteModifier(0.2, 3),
+    MixModifier(0.2)
 ]
 
 composer = Composer(script_structures, variants, writers, modifiers)

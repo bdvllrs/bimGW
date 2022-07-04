@@ -204,13 +204,12 @@ class GlobalWorkspace(LightningModule):
         return {domain: self.domain_mods[domain].adapt(latent) for domain, latent in latents.items()}
 
     def forward(self, domains):
-        """
-        Projects from latent version of unimodal vectors to the global workspace.
-        """
-        out = dict()
-        for domain_name, x in domains.items():
-            out[domain_name] = self.encode(x, domain_name)
-        return out
+        latents = self.encode_uni_modal(domains)
+        result = {}
+        for domain in latents.keys():
+            result[domain] = self.project(latents, domain)
+        return result
+
 
     def translate(self, x, domain_name_start, domain_name_target):
         """

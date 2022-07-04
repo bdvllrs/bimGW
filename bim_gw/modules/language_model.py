@@ -120,9 +120,14 @@ class ShapesLM(WorkspaceModule):
         self.n_classes = n_classes
         self.z_size = z_size
         self.bert_size = 768
+        assert self.z_size != self.bert_size, "Cannot have z_size and bert_size the same."
         self.imsize = imsize
+        self.bert_path = bert_path
 
         self.text_composer = composer
+
+        self.transformer = None
+        self.tokenizer = None
 
         self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
         self.shapes_attribute.freeze()
@@ -172,9 +177,17 @@ class ShapesLM(WorkspaceModule):
             "size": attributes[k, 2],
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
-        return [sentence_predictions]
+        return [text_latent, sentence_predictions]
 
     def get_bert_latent(self, sentences):
+        if self.transformer is None:
+            self.transformer = BertModel.from_pretrained(self.bert_path)
+            self.transformer.eval()
+            self.transformer.to(self.device)
+            for p in self.transformer.parameters():
+                p.requires_grad_(False)
+            self.tokenizer = BertTokenizer.from_pretrained(self.bert_path)
+
         tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
         x = self.transformer(**tokens)["last_hidden_state"][:, 0]
         return x
@@ -204,9 +217,14 @@ class ShapesLM(WorkspaceModule):
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         if logger is not None:
-            text = [[x[1][k]] for k in range(len(x[0]))]
+            text = [[x[1][k]] for k in range(len(x[1]))]
             logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        encoded_s = self.encode(x)[0]
+        if x[0].size(1) == self.bert_size:
+            encoded_s = self.encode(x)[0]
+        elif x[0].size(1) == self.z_size:
+            encoded_s = x[0]
+        else:
+            raise ValueError()
         predictions = self.shapes_attribute.decode(self.classify(encoded_s))
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
@@ -258,7 +276,7 @@ class ShapesLM(WorkspaceModule):
                     self.validation_domain_examples["t"][1]
                 ])
                 predictions = self.classify(encoded_s[0])
-                sentence_predictions = self.decode(encoded_s)
+                sentence_predictions = self.decode(encoded_s)[1]
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
 
@@ -271,7 +289,7 @@ class ShapesLM(WorkspaceModule):
                 if self.current_epoch == 0:
                     self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "val/target_reconstruction")
                     logger.log_table("val/target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][1][k]] for k in
-                                                    range(len(sentence_predictions[0]))])
+                                                    range(len(self.validation_domain_examples['t'][1]))])
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
