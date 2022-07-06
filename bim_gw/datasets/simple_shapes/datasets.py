@@ -95,12 +95,12 @@ class SimpleShapesDataset:
             n_repeats = (original_size // len(self.labelled_indices) +
                          1 * int(original_size % len(self.labelled_indices) > 0))
             labelled_indices = np.tile(self.labelled_indices, n_repeats)
-            if self.split == "train" and self.add_unimodal:
-                for domain in domains:
-                    self.available_domains_mapping.extend([[domain]] * len(labelled_indices))
-                    self.mapping.extend(labelled_indices)
             self.available_domains_mapping.extend([domains] * len(labelled_indices))
             self.mapping.extend(labelled_indices)
+            if self.split == "train" and self.add_unimodal:
+                for domain in domains:
+                    self.available_domains_mapping.extend([[domain]] * len(self.labelled_indices))
+                    self.mapping.extend(self.labelled_indices)
         if self.split == "train" and self.add_unimodal:
             for domain in domains:
                 self.available_domains_mapping.extend([[domain]] * len(self.unlabelled_indices))
