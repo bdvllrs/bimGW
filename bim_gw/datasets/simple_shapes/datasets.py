@@ -92,7 +92,7 @@ class SimpleShapesDataset:
         domains = list(self.selected_domains.keys())
         original_size = len(self.labelled_indices) + len(self.unlabelled_indices)
         if len(self.labelled_indices):
-            n_repeats = (original_size // len(self.labelled_indices) +
+            n_repeats = ((len(domains) * original_size) // len(self.labelled_indices) +
                          1 * int(original_size % len(self.labelled_indices) > 0))
             labelled_indices = np.tile(self.labelled_indices, n_repeats)
             self.available_domains_mapping.extend([domains] * len(labelled_indices))
