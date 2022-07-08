@@ -42,7 +42,7 @@ def get_domains(args, data):
     }
 
 
-def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=None):
+def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping_patience=None, trainer_args=None):
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
     tags = None
@@ -60,7 +60,8 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", trainer_args=N
         callbacks.append(
             LearningRateMonitor(logging_interval="epoch")
         )
-        callbacks.append(EarlyStopping(monitor=monitor_loss, patience=20))
+        if early_stopping_patience is not None:
+            callbacks.append(EarlyStopping(monitor=monitor_loss, patience=early_stopping_patience))
     if len(loggers) and args.checkpoints_dir is not None:
         logger = loggers[0]
         if slurm_job_id is not None:

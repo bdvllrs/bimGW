@@ -31,7 +31,10 @@ def train_gw(args):
                                        args.losses.schedules, data.domain_examples,
                                        args.global_workspace.monitor_grad_norms)
 
-    trainer = get_trainer("train_gw", args, global_workspace, monitor_loss="val/in_dist/total_loss", trainer_args={
+    trainer = get_trainer("train_gw", args, global_workspace,
+                          monitor_loss="val/in_dist/total_loss",
+                          early_stopping_patience=args.global_workspace.early_stopping_patience,
+                          trainer_args={
         # "val_check_interval": args.global_workspace.prop_labelled_images
     })
     trainer.fit(global_workspace, data)
@@ -67,7 +70,8 @@ def train_lm(args):
                       args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
                       domain_examples)
 
-    trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss")
+    trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
+                          early_stopping_patience=args.lm.early_stopping_patience)
     trainer.fit(lm, data)
     trainer.validate(lm, data)
 
@@ -91,7 +95,8 @@ def train_ae(args):
         data.domain_examples["in_dist"][0]["v"][1]
     )
 
-    trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss")
+    trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss",
+                          early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(ae, data)
     trainer.validate(ae, data)
 
@@ -122,7 +127,8 @@ def train_vae(args):
             data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
         )
 
-    trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss")
+    trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss",
+                          early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
     trainer.validate(vae, data)
