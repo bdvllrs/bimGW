@@ -367,7 +367,11 @@ class GlobalWorkspace(LightningModule):
 
         batch_size = latents[list(latents.keys())[0]][0].size(0)
         for name, loss in losses.items():
-            self.log(f"{mode}/{prefix}{name}_loss", loss, logger=True,
+            loss_name = f"{mode}/{prefix}{name}_loss"
+            if mode == "val" and self.trainer.global_step == 0:
+                for logger in self.loggers:
+                    logger.set_summary(loss_name, "min")
+            self.log(loss_name, loss, logger=True,
                      add_dataloader_idx=False, batch_size=batch_size)
 
         if mode == "train":

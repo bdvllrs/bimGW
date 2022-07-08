@@ -4,6 +4,7 @@ from typing import Optional, Union, List
 
 import torch
 import torchvision
+import wandb
 from PIL import Image
 from matplotlib import pyplot as plt
 from neptune.new.exceptions import MissingFieldException
@@ -74,6 +75,9 @@ class NeptuneLogger(NeptuneLoggerBase):
         if not self._save_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
+    def set_summary(self, name, mode="max"):
+        pass
+
     def save_images(self, mode=True):
         self._save_images = mode
 
@@ -105,6 +109,9 @@ class WandbLogger(WandbLoggerBase):
         if not self._log_tables:
             logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
+    def set_summary(self, name, mode="min"):
+        wandb.define_metric(name, summary=mode)
+
     def save_images(self, mode=True):
         self._save_images = mode
 
@@ -135,6 +142,9 @@ class TensorBoardLogger(TensorBoardLoggerBase):
         if not self._save_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
 
+    def set_summary(self, name, mode="max"):
+        pass
+
     def save_images(self, mode=True):
         self._save_images = mode
 
@@ -158,7 +168,6 @@ class TensorBoardLogger(TensorBoardLoggerBase):
     def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
         self.log_text(log_name, text_from_table(columns, data), step)
 
-
 class MLFlowLogger(MLFlowLoggerBase):
     def __init__(self, *params, image_location="images", text_location="texts", save_images=True, **kwargs):
         super(MLFlowLogger, self).__init__(*params, **kwargs)
@@ -170,6 +179,9 @@ class MLFlowLogger(MLFlowLoggerBase):
 
         if not self._save_images:
             logging.warning("MLFLowLogger will not save the images. Set `save_images' to true to log them.")
+
+    def set_summary(self, name, mode="max"):
+        pass
 
     def save_images(self, mode=True):
         self._save_images = mode
@@ -220,6 +232,9 @@ class CSVLogger(CSVLoggerBase):
         self._text_last_step = {}
         if not self._save_images:
             logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
+
+    def set_summary(self, name, mode="max"):
+        pass
 
     def save_images(self, mode=True):
         self._save_images = mode
@@ -286,6 +301,9 @@ class AimLogger(AimLoggerBase):
         self._save_images = save_images
         if not self._save_images:
             logging.warning("AimLogger will not save the images. Set `save_images' to true to log them.")
+
+    def set_summary(self, name, mode="max"):
+        pass
 
     def save_images(self, mode=True):
         self._save_images = mode
