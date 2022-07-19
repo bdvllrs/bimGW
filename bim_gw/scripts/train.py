@@ -42,6 +42,7 @@ def train_gw(args):
     for logger in trainer.loggers:
         logger.save_images(True)
     trainer.validate(global_workspace, data)
+    trainer.test(global_workspace, data)
 
 
 def train_lm(args):
@@ -59,21 +60,22 @@ def train_lm(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    domain_examples = {d: data.domain_examples["in_dist"][0][d][1:] for d in data.domain_examples["in_dist"][0].keys()}
+    # domain_examples = {d: data.n_domain_examples["in_dist"][0][d][1:] for d in data.n_domain_examples["in_dist"][0].keys()}
 
     if "checkpoint" in args:
         lm = ShapesLM.load_from_checkpoint(args.checkpoint, strict=False,
                                            bert_path=args.global_workspace.bert_path,
-                                           validation_domain_examples=domain_examples)
+                                           domain_examples=data.domain_examples)
     else:
         lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                       args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
-                      domain_examples)
+                      data.domain_examples)
 
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
                           early_stopping_patience=args.lm.early_stopping_patience)
     trainer.fit(lm, data)
     trainer.validate(lm, data)
+    trainer.test(lm, data)
 
 
 def train_ae(args):
@@ -92,13 +94,14 @@ def train_ae(args):
         data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
         args.n_validation_examples,
         args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.domain_examples["in_dist"][0]["v"][1]
+        data.domain_examples["val"][0][0]["v"][1]
     )
 
     trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss",
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(ae, data)
     trainer.validate(ae, data)
+    trainer.test(ae, data)
 
 
 def train_vae(args):
@@ -118,13 +121,13 @@ def train_vae(args):
     if "checkpoint" in args:
         vae = VAE.load_from_checkpoint(args.checkpoint, strict=False,
                                        n_validation_examples=args.n_validation_examples,
-                                       validation_reconstruction_images=data.domain_examples["in_dist"][0]["v"][1])
+                                       validation_reconstruction_images=data.domain_examples["val"][0][0]["v"][1])
     else:
         vae = VAE(
             data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
             args.n_validation_examples,
             args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-            data.domain_examples["in_dist"][0]["v"][1], args.vae.n_FID_samples
+            data.domain_examples["val"][0][0]["v"][1], args.vae.n_FID_samples
         )
 
     trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss",
@@ -132,3 +135,4 @@ def train_vae(args):
     trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
     trainer.validate(vae, data)
+    trainer.test(vae, data)

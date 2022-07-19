@@ -13,7 +13,7 @@ from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 class SimpleShapesDataModule(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, use_data_augmentation=False, prop_labelled_images =None,
+            num_workers=0, use_data_augmentation=False, prop_labelled_images=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
@@ -28,7 +28,8 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.img_size = 32
         self.split_ood = split_ood
-        self.domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
+        self.n_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
+        self.domain_examples = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
@@ -101,8 +102,9 @@ class SimpleShapesDataModule(LightningDataModule):
                 self.shapes_train = self.filter_sync_domains(train_set, target_indices)
 
             self.set_validation_examples(
-                self.shapes_val if stage == "fit" else self.shapes_test,
-                self.shapes_train
+                self.shapes_train,
+                self.shapes_val,
+                self.shapes_test
             )
 
             # Use pre saved latents if provided.
@@ -115,80 +117,83 @@ class SimpleShapesDataModule(LightningDataModule):
 
         self.is_setup = True
 
-    def set_validation_examples(self, test_set, train_set):
+    def set_validation_examples(self, train_set, val_set, test_set):
         reconstruction_indices = {
-            "train": torch.randint(len(train_set), size=(self.domain_examples,)),
-            "in_dist": torch.randint(len(test_set["in_dist"]), size=(self.domain_examples,)),
-            "ood": None,
+            "train": [torch.randint(len(train_set), size=(self.n_domain_examples,)), None],
+            "val": [torch.randint(len(val_set["in_dist"]), size=(self.n_domain_examples,)), None],
+            "test": [torch.randint(len(test_set["in_dist"]), size=(self.n_domain_examples,)), None]
         }
 
+        if val_set["ood"] is not None:
+            reconstruction_indices["val"][1] = torch.randint(len(val_set["ood"]),
+                                                             size=(self.n_domain_examples,))
         if test_set["ood"] is not None:
-            reconstruction_indices["ood"] = torch.randint(len(test_set["ood"]),
-                                                          size=(self.domain_examples,))
+            reconstruction_indices["test"][1] = torch.randint(len(test_set["ood"]),
+                                                              size=(self.n_domain_examples,))
 
         self.domain_examples = {
-            "train": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
-                      for p in range(2)],
-            "in_dist": [{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
-                        for p in range(2)],
-            "ood": None,
+            "train": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
+                      for p in range(2)], None],
+            "val": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
+                     for p in range(2)], None],
+            "test": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
+                      for p in range(2)], None],
         }
 
-        used_dists = ["train", "in_dist"]
-
         if self.split_ood:
-            self.domain_examples["ood"] = [
-                {domain: [[] for _ in range(self.n_time_steps)] for domain in
-                 self.selected_domains.keys()} for p in range(2)
-            ]
-            used_dists.append("ood")
+            for set_name in ["val", "test"]:
+                self.domain_examples[set_name][1] = [
+                    {domain: [[] for _ in range(self.n_time_steps)] for domain in
+                     self.selected_domains.keys()} for p in range(2)
+                ]
 
         # add t examples
-        for used_dist in used_dists:
-            used_set = train_set if used_dist == "train" else test_set[used_dist]
-            if reconstruction_indices[used_dist] is not None:
-                for p in range(2):  # input or target
-                    for domain in self.selected_domains.keys():
-                        example_item = used_set[0][p][domain]
-                        if not self.with_actions:
-                            example_item = [example_item]
-                        for t in range(len(example_item)):
-                            if not isinstance(example_item[t], tuple):
-                                examples = []
-                                for i in reconstruction_indices[used_dist]:
-                                    example = used_set[i][p][domain]
-                                    if self.with_actions:
-                                        example = example[t]
-                                    examples.append(example)
-                                if isinstance(example_item[t], (int, float)):
-                                    self.domain_examples[used_dist][p][domain][t] = torch.tensor(examples)
-                                elif isinstance(example_item[t], torch.Tensor):
-                                    self.domain_examples[used_dist][p][domain][t] = torch.stack(examples, dim=0)
-                                else:
-                                    self.domain_examples[used_dist][p][domain][t] = examples
-                            else:
-                                for k in range(len(example_item[t])):
+        for set_name, used_set in [("train", {"in_dist": train_set}), ("val", val_set), ("test", test_set)]:
+            for used_dist in range(2):
+                used_dist_name = "in_dist" if used_dist == 0 else "ood"
+                if reconstruction_indices[set_name][used_dist] is not None:
+                    for p in range(2):  # input or target
+                        for domain in self.selected_domains.keys():
+                            example_item = used_set[used_dist_name][0][p][domain]
+                            if not self.with_actions:
+                                example_item = [example_item]
+                            for t in range(len(example_item)):
+                                if not isinstance(example_item[t], tuple):
                                     examples = []
-                                    for i in reconstruction_indices[used_dist]:
+                                    for i in reconstruction_indices[set_name][used_dist]:
+                                        example = used_set[used_dist_name][i][p][domain]
                                         if self.with_actions:
-                                            example = used_set[i][p][domain][t][k]
-                                        else:
-                                            example = used_set[i][p][domain][k]
+                                            example = example[t]
                                         examples.append(example)
-                                    if isinstance(example_item[t][k], (int, float)):
-                                        self.domain_examples[used_dist][p][domain][t].append(
-                                            torch.tensor(examples)
-                                        )
-                                    elif isinstance(example_item[t][k], torch.Tensor):
-                                        self.domain_examples[used_dist][p][domain][t].append(
-                                            torch.stack(examples, dim=0)
-                                        )
+                                    if isinstance(example_item[t], (int, float)):
+                                        self.domain_examples[set_name][used_dist][p][domain][t] = torch.tensor(examples)
+                                    elif isinstance(example_item[t], torch.Tensor):
+                                        self.domain_examples[set_name][used_dist][p][domain][t] = torch.stack(examples, dim=0)
                                     else:
-                                        self.domain_examples[used_dist][p][domain][t].append(examples)
-                                self.domain_examples[used_dist][p][domain][t] = tuple(
-                                    self.domain_examples[used_dist][p][domain][t])
-                        if not self.with_actions:
-                            self.domain_examples[used_dist][p][domain] = self.domain_examples[used_dist][p][domain][0]
+                                        self.domain_examples[set_name][used_dist][p][domain][t] = examples
+                                else:
+                                    for k in range(len(example_item[t])):
+                                        examples = []
+                                        for i in reconstruction_indices[set_name][used_dist]:
+                                            if self.with_actions:
+                                                example = used_set[used_dist_name][i][p][domain][t][k]
+                                            else:
+                                                example = used_set[used_dist_name][i][p][domain][k]
+                                            examples.append(example)
+                                        if isinstance(example_item[t][k], (int, float)):
+                                            self.domain_examples[set_name][used_dist][p][domain][t].append(
+                                                torch.tensor(examples)
+                                            )
+                                        elif isinstance(example_item[t][k], torch.Tensor):
+                                            self.domain_examples[set_name][used_dist][p][domain][t].append(
+                                                torch.stack(examples, dim=0)
+                                            )
+                                        else:
+                                            self.domain_examples[set_name][used_dist][p][domain][t].append(examples)
+                                    self.domain_examples[set_name][used_dist][p][domain][t] = tuple(
+                                        self.domain_examples[set_name][used_dist][p][domain][t])
+                            if not self.with_actions:
+                                self.domain_examples[set_name][used_dist][p][domain] = self.domain_examples[set_name][used_dist][p][domain][0]
 
     def filter_sync_domains(self, train_set, allowed_indices):
         if self.prop_labelled_images < 1.:

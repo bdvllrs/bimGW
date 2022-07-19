@@ -112,11 +112,11 @@ class ShapesLM(WorkspaceModule):
     def __init__(
             self, z_size, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
-            validation_domain_examples=None,
+            domain_examples=None,
     ):
 
         super(ShapesLM, self).__init__()
-        self.save_hyperparameters(ignore=["validation_domain_examples"])
+        self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
         self.z_size = z_size
         self.bert_size = 768
@@ -145,7 +145,7 @@ class ShapesLM(WorkspaceModule):
             nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
         )
 
-        self.validation_domain_examples = validation_domain_examples
+        self.domain_examples = domain_examples
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
@@ -242,6 +242,8 @@ class ShapesLM(WorkspaceModule):
         sentences, targets = batch["t"][1:], batch["a"][1:]
         bs = sentences[0].size(0)
         targets = self.shapes_attribute.encode(targets)
+        if mode == "train":
+            sentences = (sentences[0] * (1 / np.sqrt(sentences[0].size(1))) * torch.randn_like(sentences[0]), sentences[1])
         z = self.encode(sentences)[0]
         predictions = self.classify(z)
         losses = []
@@ -269,11 +271,12 @@ class ShapesLM(WorkspaceModule):
         return total_loss
 
     def validation_epoch_end(self, outputs):
-        if self.validation_domain_examples is not None:
+        if self.domain_examples is not None and "val" in self.domain_examples:
+            domain_examples = self.domain_examples["val"][0][0] # only keep in dist
             for logger in self.loggers:
                 encoded_s = self.encode([
-                    self.validation_domain_examples["t"][0].to(self.device),
-                    self.validation_domain_examples["t"][1]
+                    domain_examples["t"][1].to(self.device),
+                    domain_examples["t"][2]
                 ])
                 predictions = self.classify(encoded_s[0])
                 sentence_predictions = self.decode(encoded_s)[1]
@@ -287,9 +290,9 @@ class ShapesLM(WorkspaceModule):
                                                      "val/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, self.validation_domain_examples["a"], "val/target_reconstruction")
-                    logger.log_table("val/target_text", columns=["Text"], data=[[self.validation_domain_examples['t'][1][k]] for k in
-                                                    range(len(self.validation_domain_examples['t'][1]))])
+                    self.shapes_attribute.log_domain(logger, domain_examples["a"][1:], "val/target_reconstruction")
+                    logger.log_table("val/target_text", columns=["Text"], data=[[domain_examples['t'][2][k]] for k in
+                                                    range(len(domain_examples['t'][2]))])
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

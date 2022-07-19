@@ -105,17 +105,19 @@ class GlobalWorkspace(LightningModule):
         self.domain_examples = domain_examples
         if domain_examples is not None:
             self.validation_example_list = dict()
-            for dist, example_dist_vecs in domain_examples.items():
-                if example_dist_vecs is not None:
-                    for key, example_vecs in example_dist_vecs[0].items():
-                        assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
-                        if example_vecs is not None:
-                            self.validation_example_list[key] = len(example_vecs)
-                            for k, example_vec in enumerate(example_vecs):
-                                if type(example_vec) is list:
-                                    setattr(self, f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
-                                else:
-                                    self.register_buffer(f"validation_{dist}_examples_domain_{key}_{k}", example_vec)
+            for set_name, example_dist_vecs in domain_examples.items():
+                for dist in range(2):
+                    dist_name = "in_dist" if dist == 0 else "ood"
+                    if example_dist_vecs[dist] is not None:
+                        for key, example_vecs in example_dist_vecs[dist][0].items():
+                            assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
+                            if example_vecs is not None:
+                                self.validation_example_list[key] = len(example_vecs)
+                                for k, example_vec in enumerate(example_vecs):
+                                    if type(example_vec) is list:
+                                        setattr(self, f"{set_name}_{dist_name}_examples_domain_{key}_{k}", example_vec)
+                                    else:
+                                        self.register_buffer(f"{set_name}_{dist_name}_examples_domain_{key}_{k}", example_vec)
 
         self.rotation_error_val = []
 
@@ -419,11 +421,11 @@ class GlobalWorkspace(LightningModule):
         total_loss, losses = self.step(latents, latents, domains, mode="test")
         return total_loss
 
-    def get_validation_examples(self, dist):
+    def get_domain_examples(self, set_name, dist):
         domain_examples = {}
         for domain_name, n_items in self.validation_example_list.items():
             domain_example = [
-                getattr(self, f"validation_{dist}_examples_domain_{domain_name}_{k}") for k in range(n_items)
+                getattr(self, f"{set_name}_{dist}_examples_domain_{domain_name}_{k}") for k in range(n_items)
             ]
             if len(domain_example) == 1:
                 domain_example = domain_example[0]
@@ -493,22 +495,23 @@ class GlobalWorkspace(LightningModule):
                     #     plt.close(fig)
 
     def validation_epoch_end(self, outputs):
-        if self.domain_examples is not None:
+        domain_examples = self.domain_examples["val"]
+        if domain_examples is not None:
             for logger in self.loggers:
                 self.set_unimodal_pass_through(False)
                 if self.current_epoch == 0:
                     if self.trainer.datamodule.ood_boundaries is not None:
                         logger.log_hyperparams({"ood_boundaries": self.trainer.datamodule.ood_boundaries})
                 # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
-                for dist in ["in_dist", "ood"]:
-                    if self.domain_examples[dist] is not None:
-                        validation_examples = self.get_validation_examples(dist)
+                for k, dist in enumerate(["in_dist", "ood"]):
+                    if domain_examples[k] is not None:
+                        validation_examples = self.get_domain_examples("val", dist)
 
                         if self.validation_example_list is not None:
                             self.log_images(logger, validation_examples, f"val/{dist}")
 
-                if self.domain_examples["train"] is not None:
-                    train_examples = self.get_validation_examples("train")
+                if "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
+                    train_examples = self.get_domain_examples("train", "in_dist")
                     self.log_images(logger, train_examples, "train")
 
                 self.set_unimodal_pass_through(True)

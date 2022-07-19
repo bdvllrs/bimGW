@@ -111,6 +111,7 @@ class WandbLogger(WandbLoggerBase):
 
     def set_summary(self, name, mode="min"):
         wandb.define_metric(name, summary=mode)
+        # pass
 
     def save_images(self, mode=True):
         self._save_images = mode

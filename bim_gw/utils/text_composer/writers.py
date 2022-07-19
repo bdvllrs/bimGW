@@ -244,7 +244,7 @@ writers = {
     "rotation": [corner_rotation_writer, cardinal_rotation_writer,
                  corner_rotation_precision_writer, cardinal_rotation_preicions_writer],
     "size": [size_writer],
-    "color": [color_xkcd_writer],
+    "color": [color_large_set_writer],
     "location": [location_precision_writer_bins, location_writer]
 }
 

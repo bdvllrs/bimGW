@@ -18,14 +18,14 @@ script_structures = [
 variants = {
     "start": ["", "It is", "A kind of", "This is", "There is",
               "The image is", "The image represents", "The image contains"],
-    "link": [". It is ", ", and is ", ", ", " ", " ", " ", " ", ", it's ", ". It's "],
+    "link": [". It is ", ", and is ", " ", ", it's ", ". It's "],
 }
 
-# modifiers = None
-modifiers = [
-    DeleteModifier(0.2, 3),
-    MixModifier(0.2)
-]
+modifiers = None
+# modifiers = [
+#     DeleteModifier(0.2, 3),
+#     MixModifier(0.2)
+# ]
 
 composer = Composer(script_structures, variants, writers, modifiers)
 
