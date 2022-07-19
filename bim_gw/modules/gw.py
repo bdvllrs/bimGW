@@ -494,9 +494,9 @@ class GlobalWorkspace(LightningModule):
                     #     logger.log_image("decoded_v_hist", fig)
                     #     plt.close(fig)
 
-    def validation_epoch_end(self, outputs):
-        domain_examples = self.domain_examples["val"]
-        if domain_examples is not None:
+    def epoch_end(self, mode="val", log_train=True):
+        domain_examples = self.domain_examples[mode]
+        if self.domain_examples is not None:
             for logger in self.loggers:
                 self.set_unimodal_pass_through(False)
                 if self.current_epoch == 0:
@@ -505,16 +505,22 @@ class GlobalWorkspace(LightningModule):
                 # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
                 for k, dist in enumerate(["in_dist", "ood"]):
                     if domain_examples[k] is not None:
-                        validation_examples = self.get_domain_examples("val", dist)
+                        validation_examples = self.get_domain_examples(mode, dist)
 
                         if self.validation_example_list is not None:
-                            self.log_images(logger, validation_examples, f"val/{dist}")
+                            self.log_images(logger, validation_examples, f"{mode}/{dist}")
 
-                if "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
+                if log_train and "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
                     train_examples = self.get_domain_examples("train", "in_dist")
                     self.log_images(logger, train_examples, "train")
 
                 self.set_unimodal_pass_through(True)
+
+    def validation_epoch_end(self, outputs):
+        self.epoch_end("val", log_train=True)
+
+    def test_epoch_end(self, outputs):
+        self.epoch_end("test", log_train=False)
 
     def set_unimodal_pass_through(self, mode=True):
         for domain_mod in self.domain_mods.values():

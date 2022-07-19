@@ -41,8 +41,8 @@ def train_gw(args):
 
     for logger in trainer.loggers:
         logger.save_images(True)
-    trainer.validate(global_workspace, data)
-    trainer.test(global_workspace, data)
+    trainer.validate(global_workspace, data, "best")
+    trainer.test(global_workspace, data, "best")
 
 
 def train_lm(args):
@@ -74,8 +74,8 @@ def train_lm(args):
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
                           early_stopping_patience=args.lm.early_stopping_patience)
     trainer.fit(lm, data)
-    trainer.validate(lm, data)
-    trainer.test(lm, data)
+    trainer.validate(lm, data, "best")
+    trainer.test(lm, data, "best")
 
 
 def train_ae(args):
@@ -100,8 +100,7 @@ def train_ae(args):
     trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss",
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(ae, data)
-    trainer.validate(ae, data)
-    trainer.test(ae, data)
+    trainer.validate(ae, data, "best")
 
 
 def train_vae(args):
@@ -134,5 +133,4 @@ def train_vae(args):
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
-    trainer.validate(vae, data)
-    trainer.test(vae, data)
+    trainer.validate(vae, data, "best")

@@ -255,9 +255,9 @@ class ShapesLM(WorkspaceModule):
             losses.append(group_loss)
             total_loss += group_loss
 
-            self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
+            self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
 
-        self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode == "val"), batch_size=bs)
+        self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
@@ -270,9 +270,14 @@ class ShapesLM(WorkspaceModule):
         predictions, losses, total_loss = self.step(batch, batch_idx, "val")
         return total_loss
 
-    def validation_epoch_end(self, outputs):
-        if self.domain_examples is not None and "val" in self.domain_examples:
-            domain_examples = self.domain_examples["val"][0][0] # only keep in dist
+    def test_step(self, batch, batch_idx):
+        batch, target = batch
+        predictions, losses, total_loss = self.step(batch, batch_idx, "test")
+        return total_loss
+
+    def epoch_end(self, mode="val"):
+        if self.domain_examples is not None and mode in self.domain_examples:
+            domain_examples = self.domain_examples[mode][0][0] # only keep in dist
             for logger in self.loggers:
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
@@ -283,16 +288,22 @@ class ShapesLM(WorkspaceModule):
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
 
-                logger.log_table("val/predictions_text", columns=["Text"], data=text)
+                logger.log_table(f"{mode}/predictions_text", columns=["Text"], data=text)
 
                     # Images
                 self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
-                                                     "val/predictions_reconstruction")
+                                                     f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, domain_examples["a"][1:], "val/target_reconstruction")
-                    logger.log_table("val/target_text", columns=["Text"], data=[[domain_examples['t'][2][k]] for k in
+                    self.shapes_attribute.log_domain(logger, domain_examples["a"][1:], f"{mode}/target_reconstruction")
+                    logger.log_table(f"{mode}/target_text", columns=["Text"], data=[[domain_examples['t'][2][k]] for k in
                                                     range(len(domain_examples['t'][2]))])
+
+    def validation_epoch_end(self, outputs):
+        self.epoch_end("val")
+
+    def test_epoch_end(self, outputs):
+        self.epoch_end("test")
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
