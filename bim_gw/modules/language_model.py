@@ -243,7 +243,7 @@ class ShapesLM(WorkspaceModule):
         bs = sentences[0].size(0)
         targets = self.shapes_attribute.encode(targets)
         if mode == "train":
-            sentences = (sentences[0] * (1 / np.sqrt(sentences[0].size(1))) * torch.randn_like(sentences[0]), sentences[1])
+            sentences = (sentences[0] + (1 / np.sqrt(sentences[0].size(1))) * torch.randn_like(sentences[0]), sentences[1])
         z = self.encode(sentences)[0]
         predictions = self.classify(z)
         losses = []
