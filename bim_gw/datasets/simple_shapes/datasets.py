@@ -6,6 +6,7 @@ import numpy as np
 
 from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
     PreSavedLatentDataFetcher, ActionDataFetcher
+from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 
 
 class SimpleShapesDataset:
@@ -76,15 +77,8 @@ class SimpleShapesDataset:
         if pre_saved_latent_path is not None:
             for key, domain_key in self.selected_domains.items():
                 if domain_key in pre_saved_latent_path.keys():
-                    root_path = self.root_path / "saved_latents" / self.split / pre_saved_latent_path[domain_key]
-                    data = np.load(str(root_path))
-                    if data.ndim == 1 and isinstance(data[0], np.str):
-                        d = []
-                        for path in data:
-                            d.append(np.load(str(self.root_path / "saved_latents" / self.split / path))[self.ids])
-                        self.pre_saved_data[domain_key] = d
-                    else:
-                        self.pre_saved_data[domain_key] = [data[self.ids]]
+                    self.pre_saved_data[domain_key] = load_pre_saved_latent(
+                        self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids)
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
 
     def set_rows(self):
@@ -125,7 +119,7 @@ class SimpleShapesDataset:
                     time_steps.append(0)
                 if self.with_actions and (domain_key + "_f" in mapping):
                     time_steps.append(1)
-                fetched_items =  fetcher.get_items(idx, time_steps)
+                fetched_items = fetcher.get_items(idx, time_steps)
                 n_domains += fetched_items[0][0].item()
                 if not self.with_actions:
                     fetched_items = fetched_items[0]

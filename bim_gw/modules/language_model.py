@@ -147,21 +147,25 @@ class ShapesLM(WorkspaceModule):
 
         self.domain_examples = domain_examples
 
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            None
-        ]
-
-        self.losses = [
-            F.mse_loss
-        ]
+        # self.output_dims = [self.z_size]
+        # self.decoder_activation_fn = [
+        #     None
+        # ]
+        #
+        # self.losses = [
+        #     F.mse_loss
+        # ]
+        self.output_dims = self.shapes_attribute.output_dims
+        self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
+        self.losses = self.shapes_attribute.losses
 
     def encode(self, x):
         return self(x)
 
     def decode(self, text_latent):
-        text_latent = text_latent[0]
-        predictions = self.classify(text_latent)
+        # text_latent = text_latent[0]
+        # predictions = self.classify(text_latent)
+        predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -194,7 +198,7 @@ class ShapesLM(WorkspaceModule):
 
     def forward(self, sentences):
         bert_latents, sentences = sentences
-        return [self.projection(bert_latents)]
+        return self.classify(self.projection(bert_latents))
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -219,13 +223,12 @@ class ShapesLM(WorkspaceModule):
         if logger is not None:
             text = [[x[1][k]] for k in range(len(x[1]))]
             logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        if x[0].size(1) == self.bert_size:
-            encoded_s = self.encode(x)[0]
-        elif x[0].size(1) == self.z_size:
+        if type(x[0]) == list:
             encoded_s = x[0]
         else:
-            raise ValueError()
-        predictions = self.shapes_attribute.decode(self.classify(encoded_s))
+            encoded_s = self.encode(x)
+        # predictions = self.shapes_attribute.decode(self.classify(encoded_s))
+        predictions = self.shapes_attribute.decode(encoded_s)
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
@@ -277,7 +280,7 @@ class ShapesLM(WorkspaceModule):
 
     def epoch_end(self, mode="val"):
         if self.domain_examples is not None and mode in self.domain_examples:
-            domain_examples = self.domain_examples[mode][0][0] # only keep in dist
+            domain_examples = self.domain_examples[mode][0][0]  # only keep in dist
             for logger in self.loggers:
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
@@ -290,14 +293,15 @@ class ShapesLM(WorkspaceModule):
 
                 logger.log_table(f"{mode}/predictions_text", columns=["Text"], data=text)
 
-                    # Images
+                # Images
                 self.shapes_attribute.log_domain(logger, self.shapes_attribute.decode(predictions),
-                                                     f"{mode}/predictions_reconstruction")
+                                                 f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
                     self.shapes_attribute.log_domain(logger, domain_examples["a"][1:], f"{mode}/target_reconstruction")
-                    logger.log_table(f"{mode}/target_text", columns=["Text"], data=[[domain_examples['t'][2][k]] for k in
-                                                    range(len(domain_examples['t'][2]))])
+                    logger.log_table(f"{mode}/target_text", columns=["Text"],
+                                     data=[[domain_examples['t'][2][k]] for k in
+                                           range(len(domain_examples['t'][2]))])
 
     def validation_epoch_end(self, outputs):
         self.epoch_end("val")

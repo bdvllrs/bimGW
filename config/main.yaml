@@ -137,6 +137,13 @@ loggers:
 #      mode: async
 #      run: null
 
+odd_image:
+  batch_size: 512
+  encoder_path: null
+
+  optimizer:
+    lr: 1e-3
+    weight_decay: 1e-5
 
 checkpoints_dir: ???
 resume_from_checkpoint: null
