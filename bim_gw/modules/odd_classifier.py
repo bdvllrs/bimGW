@@ -15,7 +15,9 @@ class OddClassifier(LightningModule):
         self.val_acc = torchmetrics.Accuracy()
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.z_size * 3, 3)
+            nn.Linear(self.z_size * 3, 16),
+            nn.ReLU(),
+            nn.Linear(16, 3)
         )
 
     def step(self, batch, mode="train"):
