@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -43,6 +44,12 @@ def get_csv_data(df, args):
     #     supervision_coef = row['parameters/losses/coefs/supervision']
 
 
+def find_best_epoch(ckpt_folder):
+    ckpt_folder = Path(ckpt_folder)
+    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:])) for p in ckpt_folder.iterdir()]
+    return sorted(files, key=lambda x: x[0], reverse=True)[0][0]
+    # epochs = [int(filename[6:-5]) for filename in ckpt_files]  # 'epoch={int}.ckpt' filename format
+    # return max(epochs)
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -61,7 +68,8 @@ if __name__ == "__main__":
             for p in encoder.parameters():
                 p.requires_grad_(False)
     else:
-        global_workspace = GlobalWorkspace.load_from_checkpoint(args.odd_image.encoder_path,
+        path = find_best_epoch(args.odd_image.encoder_path)
+        global_workspace = GlobalWorkspace.load_from_checkpoint(path,
                                                                 domain_mods=get_domains(args, data), strict=False)
         global_workspace.freeze()
         global_workspace.eval()
