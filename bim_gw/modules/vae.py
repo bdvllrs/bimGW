@@ -131,6 +131,7 @@ class VAE(WorkspaceModule):
         if validation_reconstruction_images is not None:
             self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
         else:
+            self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
             self.validation_reconstruction_images = None
 
         if self.vae_type == "sigma":
@@ -204,6 +205,9 @@ class VAE(WorkspaceModule):
 
     def step(self, batch, mode="train"):
         x = batch[0]["v"][1]
+        # x[:, 0][x[:, 0] != 0] = 1
+        # x[:, 1][x[:, 1] != 0] = 0
+        # x[:, 2][x[:, 2] != 0] = 0
 
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
