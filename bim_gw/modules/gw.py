@@ -117,7 +117,8 @@ class GlobalWorkspace(LightningModule):
                                     if type(example_vec) is list:
                                         setattr(self, f"{set_name}_{dist_name}_examples_domain_{key}_{k}", example_vec)
                                     else:
-                                        self.register_buffer(f"{set_name}_{dist_name}_examples_domain_{key}_{k}", example_vec)
+                                        self.register_buffer(f"{set_name}_{dist_name}_examples_domain_{key}_{k}",
+                                                             example_vec)
 
         self.rotation_error_val = []
 
@@ -126,8 +127,11 @@ class GlobalWorkspace(LightningModule):
     def setup(self, stage=None):
         self.collate_fn = self.trainer.datamodule.train_dataloader().collate_fn
 
-    def encode(self, x, domain_name):
-        return self.encoders[domain_name](x)
+    def encode(self, x, domain_name, add_tanh=True):
+        pre_act = self.encoders[domain_name](x)
+        if add_tanh:
+            return torch.tanh(pre_act)
+        return pre_act
 
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
@@ -141,8 +145,12 @@ class GlobalWorkspace(LightningModule):
                 x[k] = x[k].to(self.device)
         return self.encode_uni_modal({domain_name: x})[domain_name]
 
-    def project(self, latents, keep_domain):
-        return self.encode(latents[keep_domain], keep_domain)
+    def project(self, latents, keep_domains):
+        pre_act = torch.zeros()
+        assert len(keep_domains), "Must project at least one domain"
+        for domain in keep_domains:
+            pre_act += self.encode(latents[domain], domain, add_tanh=False)
+        return torch.tanh(pre_act)
 
     # def project(self, latents, available_domains=None, keep_domains=None):
     #     if keep_domains is None:
@@ -207,11 +215,7 @@ class GlobalWorkspace(LightningModule):
 
     def forward(self, domains):
         latents = self.encode_uni_modal(domains)
-        result = {}
-        for domain in latents.keys():
-            result[domain] = self.project(latents, domain)
-        return result
-
+        return self.project(latents, list(latents.keys()))
 
     def translate(self, x, domain_name_start, domain_name_target):
         """
@@ -315,7 +319,7 @@ class GlobalWorkspace(LightningModule):
         for domain_name, latent in latents.items():
             if available_domains[domain_name].any():
                 # Demi-cycles
-                state = self.project(latents, domain_name)
+                state = self.project(latents, [domain_name])
                 predictions = self.predict(state)
                 latent_demi_cycle_predictions[f"{domain_name}-u"] = [
                     predictions[domain_name][k][available_domains[domain_name], :] for k in
@@ -338,7 +342,7 @@ class GlobalWorkspace(LightningModule):
                                 latent_target[k][mask, :] for k in range(len(latent_target))
                             ]
                         # Cycles
-                        cycle_state = self.project(self.adapt(predictions), domain_name_target)
+                        cycle_state = self.project(self.adapt(predictions), [domain_name_target])
                         cycle_prediction = self.decode(cycle_state, domain_name)
                         latent_cycle_predictions[f"{domain_name}-{domain_name_target}"] = [
                             cycle_prediction[k][available_domains[domain_name], :] for k in range(len(cycle_prediction))
@@ -441,16 +445,16 @@ class GlobalWorkspace(LightningModule):
                 self.domain_mods[domain_name].log_domain(logger, domain_example,
                                                          f"{slug}/original/domain_{domain_name}", max_examples)
             logger.save_images(save_images)
-                # if domain_name == "v":
-                #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
-                #     fig, axes = plt.subplots(1, latent.shape[1])
-                #     for k in range(latent.shape[1]):
-                #         l = latent[:, k]
-                #         axes[k].hist(l, 50, density=True)
-                #         x = np.linspace(-0.8, 0.8, 100)
-                #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                #     logger.log_image("original_v_hist", fig)
-                #     plt.close(fig)
+            # if domain_name == "v":
+            #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
+            #     fig, axes = plt.subplots(1, latent.shape[1])
+            #     for k in range(latent.shape[1]):
+            #         l = latent[:, k]
+            #         axes[k].hist(l, 50, density=True)
+            #         x = np.linspace(-0.8, 0.8, 100)
+            #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
+            #     logger.log_image("original_v_hist", fig)
+            #     plt.close(fig)
 
         # if len(self.rotation_error_val):
         #     fig = plt.figure()
@@ -463,7 +467,7 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name, latent in latents.items():
             # Demi cycles
-            predictions = self.adapt(self.predict(self.project(latents, domain_name)))
+            predictions = self.adapt(self.predict(self.project(latents, [domain_name])))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
             self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                      f"{slug}/demi_cycles/{domain_name}", max_examples)
@@ -471,7 +475,7 @@ class GlobalWorkspace(LightningModule):
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     # Full cycles
-                    cycle_predictions = self.predict(self.project(predictions, domain_name_2))
+                    cycle_predictions = self.predict(self.project(predictions, [domain_name_2]))
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
                     self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
                                                              f"{slug}/cycles/{domain_name}_through_{domain_name_2}",

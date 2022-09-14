@@ -62,8 +62,8 @@ if __name__ == "__main__":
                               args.odd_image.batch_size, args.dataloader.num_workers)
 
     if args.odd_image.encoder_path is None or args.odd_image.encoder_path == "random":
-        encoder = DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
-                                args.global_workspace.n_layers.encoder)
+        encoder = nn.Sequential(DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
+                                args.global_workspace.n_layers.encoder), nn.Tanh())
         if args.odd_image.encoder_path == "random":
             encoder.eval()
             for p in encoder.parameters():
@@ -76,7 +76,7 @@ if __name__ == "__main__":
                                                                 domain_mods=get_domains(args, data), strict=False)
         global_workspace.freeze()
         global_workspace.eval()
-        encoder = global_workspace.encoders["v"]
+        encoder = nn.Sequential(global_workspace.encoders["v"], nn.Tanh())
 
     model = OddClassifier(encoder, args.global_workspace.z_size,
                 args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)

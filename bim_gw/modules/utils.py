@@ -78,7 +78,7 @@ class DomainEncoder(nn.Module):
             assert len(x) == len(self.in_dims), "Not enough values as input."
         x = torch.cat(x, dim=-1)
         out = self.encoder(x)
-        return torch.tanh(out)
+        return out
 
 
 def mask_predictions(predictions, targets, mask):
