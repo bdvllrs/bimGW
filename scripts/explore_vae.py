@@ -16,12 +16,12 @@ def explore_vae(args):
 
     device = torch.device('cuda')
 
-    vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint).to(device).eval()
+    vae = VAE.load_from_checkpoint(args.global_workspace.vae_checkpoint, strict=False).to(device).eval()
     vae.freeze()
 
     print("Z size", vae.z_size)
 
-    n = 13
+    n = 15
     start = -3
     end = 3
     imsize = vae.image_size + 2
@@ -38,7 +38,8 @@ def explore_vae(args):
             # dim_i = 0
             # dim_j = 2
 
-            z = torch.zeros(n, n, vae.z_size).to(device)
+            z = torch.randn(vae.z_size).unsqueeze(0).unsqueeze(0).expand(n, n, -1).to(device)
+            # z = torch.randn(n, n, vae.z_size).to(device)
             # z[:, :, 1] = 3
             for i in range(n):
                 step = start + (end - start) * float(i) / float(n-1)
@@ -60,6 +61,8 @@ def explore_vae(args):
             ax.set_xticklabels(list(map(lambda x: f"{x:.1f}", np.linspace(start, end, n))))
             ax.set_yticks(imsize * np.arange(n) + imsize // 2)
             ax.set_yticklabels(list(map(lambda x: f"{x:.1f}", np.linspace(start, end, n))))
+
+    plt.savefig("../data/vae_exploration.pdf")
     plt.show()
 
 if __name__ == "__main__":

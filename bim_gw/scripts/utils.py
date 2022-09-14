@@ -16,6 +16,7 @@ def get_domain(name, domain_name, args, data):
             args.global_workspace.vae_checkpoint,
             mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
             kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
+            strict=False
         )
     elif domain_name in ["t", "t_f"]:
         domain = ShapesLM.load_from_checkpoint(

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+from torch import nn
 
 from bim_gw.modules.gw import GlobalWorkspace
 from pytorch_lightning import Trainer
@@ -67,6 +68,8 @@ if __name__ == "__main__":
             encoder.eval()
             for p in encoder.parameters():
                 p.requires_grad_(False)
+    elif args.odd_image.encoder_path == "identity":
+        encoder = lambda x: x[0]
     else:
         path = find_best_epoch(args.odd_image.encoder_path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
