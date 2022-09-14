@@ -17,7 +17,7 @@ class SimpleShapesDataset:
         "a": ActionDataFetcher
     }
 
-    def __init__(self, path, split="train", labelled_indices=None, unlabelled_indices=None, selected_indices=None,
+    def __init__(self, path, split="train", mapping=None, domain_mapping=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
                  add_unimodal=True, with_actions=None, fetcher_params=None):
         """
@@ -49,13 +49,14 @@ class SimpleShapesDataset:
             self.labels = self.labels[selected_indices]
             self.ids = self.ids[selected_indices]
 
-        self.labelled_indices = labelled_indices if labelled_indices is not None else self.ids
-        self.unlabelled_indices = unlabelled_indices if unlabelled_indices is not None else []
         self.selected_indices = selected_indices
 
-        self.mapping = None
-        self.available_domains_mapping = []
-        self.set_rows()
+        self.mapping = mapping if mapping is not None else self.ids
+        self.mapping = np.array(self.mapping)
+        self.available_domains_mapping = domain_mapping
+        if self.available_domains_mapping is None:
+            domains = list(self.selected_domains.keys())
+            self.available_domains_mapping = [[domains]] * self.mapping.shape[0]
 
         if fetcher_params is None:
             fetcher_params = dict()
@@ -80,26 +81,6 @@ class SimpleShapesDataset:
                     self.pre_saved_data[domain_key] = load_pre_saved_latent(
                         self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids)
                     self.data_fetchers[key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
-
-    def set_rows(self):
-        self.mapping = []
-        domains = list(self.selected_domains.keys())
-        original_size = len(self.labelled_indices) + len(self.unlabelled_indices)
-        if len(self.labelled_indices):
-            n_repeats = ((len(domains) * original_size) // len(self.labelled_indices) +
-                         1 * int(original_size % len(self.labelled_indices) > 0))
-            labelled_indices = np.tile(self.labelled_indices, n_repeats)
-            self.available_domains_mapping.extend([domains] * len(labelled_indices))
-            self.mapping.extend(labelled_indices)
-            if self.split == "train" and self.add_unimodal:
-                for domain in domains:
-                    self.available_domains_mapping.extend([[domain]] * len(self.labelled_indices))
-                    self.mapping.extend(self.labelled_indices)
-        if self.split == "train" and self.add_unimodal:
-            for domain in domains:
-                self.available_domains_mapping.extend([[domain]] * len(self.unlabelled_indices))
-                self.mapping.extend(self.unlabelled_indices)
-        self.mapping = np.array(self.mapping)
 
     def __len__(self):
         return self.mapping.shape[0]

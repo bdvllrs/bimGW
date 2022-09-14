@@ -107,6 +107,7 @@ def train_vae(args):
     seed_everything(args.seed)
 
     args.vae.prop_labelled_images = 1.
+    raise Exception("Change this to fit new prop_sync")
 
     args.vae.split_ood = False
     args.vae.selected_domains = {"v": "v"}

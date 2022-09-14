@@ -10,10 +10,25 @@ from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
+def split_indices_prop(allowed_indices, prop):
+    # Unlabel randomly some elements
+    n_targets = len(allowed_indices)
+    assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
+    np.random.shuffle(allowed_indices)
+    num_labelled = int(prop * n_targets)
+    selected = allowed_indices[:num_labelled]
+    rest = allowed_indices[num_labelled:]
+    assert len(selected) + len(rest) == len(allowed_indices)
+    assert len(selected) / len(allowed_indices) == prop
+    assert np.intersect1d(selected, rest).shape[0] == 0
+    return selected, rest
+
+
 class SimpleShapesDataModule(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
             num_workers=0, use_data_augmentation=False, prop_labelled_images=None,
+            removed_sync_domains=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
@@ -41,6 +56,8 @@ class SimpleShapesDataModule(LightningDataModule):
             self.with_actions = 'a' in self.selected_domains.values()
 
         self.prop_labelled_images = prop_labelled_images
+        # Remove sync for some combination of domains
+        self.remove_sync_domains = removed_sync_domains
 
         self.num_channels = 3
         self.use_data_augmentation = use_data_augmentation
@@ -57,7 +74,6 @@ class SimpleShapesDataModule(LightningDataModule):
             val_transforms = {"v": get_preprocess()}
             train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
             if stage == "fit" or stage is None:
-
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                       transform=val_transforms,
                                                       selected_domains=self.selected_domains,
@@ -196,27 +212,44 @@ class SimpleShapesDataModule(LightningDataModule):
                                 self.domain_examples[set_name][used_dist][p][domain] = self.domain_examples[set_name][used_dist][p][domain][0]
 
     def filter_sync_domains(self, train_set, allowed_indices):
-        if self.prop_labelled_images < 1.:
-            # Unlabel randomly some elements
-            n_targets = len(allowed_indices)
-            assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
-            np.random.shuffle(allowed_indices)
-            num_labelled = int(self.prop_labelled_images * n_targets)
-            labelled_elems = allowed_indices[:num_labelled]
-            unlabelled_elems = allowed_indices[num_labelled:]
-            assert len(labelled_elems) + len(unlabelled_elems) == len(allowed_indices)
-            assert len(labelled_elems) / len(allowed_indices) == self.prop_labelled_images
-            assert np.intersect1d(labelled_elems, unlabelled_elems).shape[0] == 0
-            print(f"Loaded {len(allowed_indices)} examples in train set.")
-            train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                            labelled_indices=labelled_elems,
-                                            unlabelled_indices=unlabelled_elems,
-                                            selected_domains=self.selected_domains,
-                                            transform=train_set.transforms,
-                                            output_transform=train_set.output_transform,
-                                            with_actions=self.with_actions,
-                                            add_unimodal=self.add_unimodal,
-                                            fetcher_params=self.fetcher_params)
+        prop_2_domains = self.prop_labelled_images[0]
+        # prop_3_domains = self.prop_labelled_images[1]
+        # assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
+        # labelled_elems, rest_elems = self.split_indices_prop(allowed_indices, prop_3_domains)
+        mapping = None
+        domain_mapping = None
+        if prop_2_domains < 1:
+            domains = list(self.selected_domains.keys())
+            original_size = len(allowed_indices)
+            labelled_size = int(original_size * prop_2_domains)
+            n_repeats = ((len(domains) * original_size) // labelled_size +
+                         1 * int(original_size % labelled_size > 0))
+            mapping = []
+            domain_mapping = []
+            done = [] if self.remove_sync_domains is None else self.remove_sync_domains
+            # Add sync domains
+            for domain_1 in domains:
+                mapping.extend(allowed_indices[:])
+                domain_mapping.extend([[domain_1]] * original_size)
+
+                for domain_2 in domains:
+                    if domain_1 != domain_2 and (domain_2, domain_1) not in done and (domain_1, domain_2) not in done:
+                        done.append((domain_1, domain_2))
+                        domain_items, _ = split_indices_prop(allowed_indices, prop_2_domains)
+                        domain_items = np.tile(domain_items, n_repeats)
+                        mapping.extend(domain_items)
+                        domain_mapping.extend([[domain_1, domain_2]] * len(domain_items))
+
+        print(f"Loaded {len(allowed_indices)} examples in train set.")
+        train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
+                                        mapping=mapping,
+                                        domain_mapping=domain_mapping,
+                                        selected_domains=self.selected_domains,
+                                        transform=train_set.transforms,
+                                        output_transform=train_set.output_transform,
+                                        with_actions=self.with_actions,
+                                        add_unimodal=self.add_unimodal,
+                                        fetcher_params=self.fetcher_params)
         return train_set
 
     def compute_inception_statistics(self, batch_size, device):
