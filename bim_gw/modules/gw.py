@@ -146,7 +146,7 @@ class GlobalWorkspace(LightningModule):
         return self.encode_uni_modal({domain_name: x})[domain_name]
 
     def project(self, latents, keep_domains):
-        pre_act = torch.zeros()
+        pre_act = 0
         assert len(keep_domains), "Must project at least one domain"
         for domain in keep_domains:
             pre_act += self.encode(latents[domain], domain, add_tanh=False)
@@ -241,17 +241,18 @@ class GlobalWorkspace(LightningModule):
     def cosine_loss(self, states):
         losses = []
         indiv_losses = {}
-        for domain_name_1, latent_domain_1 in states.items():
-            for domain_name_2, latent_domain_2 in states.items():
-                if domain_name_1 != domain_name_2:
-                    # project domains into one another
-                    indiv_losses[f"cosine_similarity_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
-                        latent_domain_1, latent_domain_2).mean()
+        for domain_name in states.keys():
+            domain_name_1, domain_name_2 = domain_name.split("-")
+            latent_domain_1 = states[domain_name]
+            latent_domain_2 = states[f"{domain_name_2}-{domain_name_1}"]
+            # project domains into one another
+            indiv_losses[f"cosine_similarity_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
+                latent_domain_1, latent_domain_2).mean()
 
-                    l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
-                                                torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
-                    indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
-                    losses.append(l)
+            l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
+                                        torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
+            indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
+            losses.append(l)
         if len(losses):
             indiv_losses["cosine"] = torch.stack(losses, dim=0).mean()
             return indiv_losses
@@ -260,22 +261,22 @@ class GlobalWorkspace(LightningModule):
     def contrastive_loss(self, states):
         losses = []
         indiv_losses = {}
-        for i, domain_name_1 in enumerate(self.domain_names):
-            for j, domain_name_2 in enumerate(self.domain_names):
-                if i < j and domain_name_1 in states and domain_name_2 in states:
-                    latent_domain_1 = states[domain_name_1]
-                    latent_domain_2 = states[domain_name_2]
-                    # project domains into one another
-                    latent_features_d1 = latent_domain_1 / latent_domain_1.norm(dim=1, keepdim=True)
-                    latent_features_d2 = latent_domain_2 / latent_domain_2.norm(dim=1, keepdim=True)
-                    logit_scale = self.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
-                    logits = logit_scale * latent_features_d1 @ latent_features_d2.t()
-                    labels = torch.arange(latent_domain_1.size(0)).to(logits.device)
-                    loss_d1 = F.cross_entropy(logits, labels)
-                    loss_d2 = F.cross_entropy(logits.t(), labels)
-                    loss = .5 * (loss_d1 + loss_d2)
-                    indiv_losses[f"contrastive_s_{domain_name_1}-s_{domain_name_2}"] = loss
-                    losses.append(loss)
+        for domain_name in states.keys():
+            if domain_name in self.contrastive_logit_scale.keys():
+                domain_name_1, domain_name_2 = domain_name.split("-")
+                latent_domain_1 = states[domain_name]
+                latent_domain_2 = states[f"{domain_name_2}-{domain_name_1}"]
+                # project domains into one another
+                latent_features_d1 = latent_domain_1 / latent_domain_1.norm(dim=1, keepdim=True)
+                latent_features_d2 = latent_domain_2 / latent_domain_2.norm(dim=1, keepdim=True)
+                logit_scale = self.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
+                logits = logit_scale * latent_features_d1 @ latent_features_d2.t()
+                labels = torch.arange(latent_domain_1.size(0)).to(logits.device)
+                loss_d1 = F.cross_entropy(logits, labels)
+                loss_d2 = F.cross_entropy(logits.t(), labels)
+                loss = .5 * (loss_d1 + loss_d2)
+                indiv_losses[f"contrastive_s_{domain_name_1}-s_{domain_name_2}"] = loss
+                losses.append(loss)
         if len(losses):
             indiv_losses["contrastive"] = torch.stack(losses, dim=0).mean()
             return indiv_losses
@@ -333,7 +334,7 @@ class GlobalWorkspace(LightningModule):
                         # Translation
                         mask = torch.logical_and(available_domains[domain_name], available_domains[domain_name_target])
                         if mask.any():
-                            states[domain_name] = state[mask]
+                            states[f"{domain_name}-{domain_name_target}"] = state[mask]
                             latent_translation_predictions[f"{domain_name_target}-{domain_name}"] = [
                                 predictions[domain_name_target][k][mask, :] for k in
                                 range(len(predictions[domain_name_target]))
@@ -421,8 +422,14 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
+        domains, targets = domains[0], domains[1]
+
+        available_domains, domains = split_domains_available_domains(domains)
+        _, targets = split_domains_available_domains(targets)
+
         latents = self.encode_uni_modal(domains)
-        total_loss, losses = self.step(latents, latents, domains, mode="test")
+        prefix = "in_dist/" if dataset_idx == 0 else "ood/"
+        total_loss, losses = self.step(available_domains, latents, latents, mode="test", prefix=prefix)
         return total_loss
 
     def get_domain_examples(self, set_name, dist):

@@ -56,7 +56,7 @@ class SimpleShapesDataset:
         self.available_domains_mapping = domain_mapping
         if self.available_domains_mapping is None:
             domains = list(self.selected_domains.keys())
-            self.available_domains_mapping = [[domains]] * self.mapping.shape[0]
+            self.available_domains_mapping = [domains] * self.mapping.shape[0]
 
         if fetcher_params is None:
             fetcher_params = dict()
@@ -105,8 +105,7 @@ class SimpleShapesDataset:
                 if not self.with_actions:
                     fetched_items = fetched_items[0]
                 selected_domains[domain_key] = fetched_items
-            if n_domains == len(self.data_fetchers.keys()):
-                assert idx in self.labelled_indices
+            assert n_domains == len(domains)
             if self.output_transform is not None:
                 return self.output_transform(selected_domains)
             items.append(selected_domains)
