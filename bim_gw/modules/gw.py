@@ -33,7 +33,8 @@ class GlobalWorkspace(LightningModule):
             loss_coef_contrastive=0., optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed",
             scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5, loss_schedules=None,
             domain_examples: Optional[dict] = None,
-            monitor_grad_norms: bool = False
+            monitor_grad_norms: bool = False,
+            remove_sync_domains=None
     ):
 
         super(GlobalWorkspace, self).__init__()
@@ -44,6 +45,7 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_translation = loss_coef_translation
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
+        self.remove_sync_domains = remove_sync_domains
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -331,7 +333,9 @@ class GlobalWorkspace(LightningModule):
                     latent[k][available_domains[domain_name], :] for k in range(len(latent))
                 ]
                 for domain_name_target, latent_target in latents.items():
-                    if domain_name_target != domain_name:
+                    if (domain_name_target != domain_name and
+                            [domain_name, domain_name_target] not in self.remove_sync_domains and
+                            [domain_name_target, domain_name] not in self.remove_sync_domains):
                         # Translation
                         mask = torch.logical_and(available_domains[domain_name], available_domains[domain_name_target])
                         if mask.any():

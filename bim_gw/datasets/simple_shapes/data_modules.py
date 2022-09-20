@@ -212,23 +212,23 @@ class SimpleShapesDataModule(LightningDataModule):
                                 self.domain_examples[set_name][used_dist][p][domain] = self.domain_examples[set_name][used_dist][p][domain][0]
 
     def filter_sync_domains(self, train_set, allowed_indices):
-        prop_2_domains = self.prop_labelled_images[0]
-        prop_3_domains = self.prop_labelled_images[1]
-        assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
+        prop_2_domains = self.prop_labelled_images
+        # prop_3_domains = self.prop_labelled_images[1]
+        # assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
         mapping = None
         domain_mapping = None
-        if prop_3_domains < 1:
+        if prop_2_domains < 1:
             domains = list(self.selected_domains.keys())
             original_size = len(allowed_indices)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
-                         1 * int(original_size % labelled_size > 0))
+                         int(original_size % labelled_size > 0))
             mapping = []
             domain_mapping = []
 
             # labelled_elems, rest_elems = split_indices_prop(allowed_indices, prop_3_domains)
 
-            done = [] if self.remove_sync_domains is None else self.remove_sync_domains
+            done = [] if self.remove_sync_domains is None else self.remove_sync_domains[:]
             # Add sync domains
             for domain_1 in domains:
                 mapping.extend(allowed_indices[:])

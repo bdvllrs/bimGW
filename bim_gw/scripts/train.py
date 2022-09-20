@@ -29,7 +29,8 @@ def train_gw(args):
                                        args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
                                        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
                                        args.losses.schedules, data.domain_examples,
-                                       args.global_workspace.monitor_grad_norms)
+                                       args.global_workspace.monitor_grad_norms,
+                                       args.global_workspace.remove_sync_domains)
 
     trainer = get_trainer("train_gw", args, global_workspace,
                           monitor_loss="val/in_dist/total_loss",
