@@ -37,7 +37,6 @@ class GlobalWorkspace(LightningModule):
     ):
 
         super(GlobalWorkspace, self).__init__()
-        self.save_hyperparameters(ignore=["domain_mods", "domain_examples", "loss_schedules"])
         # self.automatic_optimization = False
 
         self.loss_coef_demi_cycles = loss_coef_demi_cycles
@@ -60,12 +59,13 @@ class GlobalWorkspace(LightningModule):
         self.domain_names = list(domain_mods.keys())
         self.validation_example_list = None
 
-        self.contrastive_logit_scale = nn.ParameterDict({
-            f"{n1}-{n2}": nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        self.hparams["contrastive_logit_scale"] = {
+            f"{n1}-{n2}": torch.ones([]) * np.log(1 / 0.07)
             for i, n1 in enumerate(self.domain_names)
             for j, n2 in enumerate(self.domain_names)
             if i < j
-        })
+        }
+
         # Define encoders for translation
         self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size,
                                                            self.z_size, self.n_layers_encoder)
@@ -122,6 +122,7 @@ class GlobalWorkspace(LightningModule):
 
         self.rotation_error_val = []
 
+        self.save_hyperparameters(ignore=["domain_mods", "domain_examples", "loss_schedules"])
         print("Global Workspace instantiated.")
 
     def setup(self, stage=None):
@@ -262,14 +263,14 @@ class GlobalWorkspace(LightningModule):
         losses = []
         indiv_losses = {}
         for domain_name in states.keys():
-            if domain_name in self.contrastive_logit_scale.keys():
+            if domain_name in self.hparams.contrastive_logit_scale.keys():
                 domain_name_1, domain_name_2 = domain_name.split("-")
                 latent_domain_1 = states[domain_name]
                 latent_domain_2 = states[f"{domain_name_2}-{domain_name_1}"]
                 # project domains into one another
                 latent_features_d1 = latent_domain_1 / latent_domain_1.norm(dim=1, keepdim=True)
                 latent_features_d2 = latent_domain_2 / latent_domain_2.norm(dim=1, keepdim=True)
-                logit_scale = self.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
+                logit_scale = self.hparams.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
                 logits = logit_scale * latent_features_d1 @ latent_features_d2.t()
                 labels = torch.arange(latent_domain_1.size(0)).to(logits.device)
                 loss_d1 = F.cross_entropy(logits, labels)
@@ -363,11 +364,11 @@ class GlobalWorkspace(LightningModule):
         demi_cycle_losses = self.loss(latent_demi_cycle_predictions, latent_demi_cycle_target, prefix="demi_cycles")
         cycle_losses = self.loss(latent_cycle_predictions, latent_cycle_target, prefix="cycles")
         translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
-        cosine_losses = self.cosine_loss(states)
+        # cosine_losses = self.cosine_loss(states)
         contrastive_losses = self.contrastive_loss(states)
 
-        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **cosine_losses, **contrastive_losses}
-        loss_names = ["demi_cycles", "cycles", "translation", "cosine", "contrastive"]
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses}
+        loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
         losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
                                        for loss_name in loss_names], dim=0).sum()
         losses["total_no_coefs"] = torch.stack([losses[loss_name] for loss_name in loss_names], dim=0).sum()
