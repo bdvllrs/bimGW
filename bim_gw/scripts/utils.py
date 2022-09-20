@@ -69,7 +69,7 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
             save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=2, mode="min", monitor=monitor_loss))
+        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=1, mode="min", monitor=monitor_loss))
 
     _trainer_args = {
         "default_root_dir": args.checkpoints_dir,
