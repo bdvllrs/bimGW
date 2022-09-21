@@ -29,6 +29,25 @@ modifiers = None
 
 composer = Composer(script_structures, variants, writers, modifiers)
 
+script_structures = [
+    "{start} {size} {color} {shape}, {location}{link2} {rotation}.",
+    "{start} {color} {size} {shape}, {location}{link2} {rotation}.",
+    "{start} {size} {shape} in {color} color, {location}{link2} {rotation}.",
+    "{start} {size} {shape} in {color} color{link} {location}{link2} {rotation}.",
+    "{start} {size} {color} {shape}{link} {location}{link2} {rotation}.",
+    "{start} {color} {size} {shape}{link} {location}{link2} {rotation}.",
+]
+
+# Elements in the list of each variant is randomly chosen.
+variants = {
+    "start": ["A", "It is a", "A kind of", "This is a", "There is a",
+              "The image is a", "The image represents a", "The image contains a"],
+    "link": [". It is", ", it is", ", and is"],
+    "link2": [", and is", ", and", ". It is", ", it is"]
+}
+
+val_composer = Composer(script_structures, variants, writers, modifiers)
+
 if __name__ == '__main__':
     for k in range(5):
         print(composer({
