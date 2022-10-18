@@ -5,13 +5,13 @@ from attributes_to_language.writers import QuantizedWriter, OptionsWriter, BinsW
     ContinuousAngleWriter
 
 shapes_writer = OptionsWriter(
-    caption="a {val}",
+    caption="{val}",
     choices={
-        2: ["isosceles triangle", "triangle"],
-        1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
-            "oval shaped structure", "triangle-like shape with rounded vertices", "guitar pick"],
-        0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
-            "deformed square shape"],
+        2: ["an isosceles triangle", "a triangle"],
+        1: ["an egg", "a water droplet", "an isosceles triangle that has round corners", "a bullet",
+            "an oval shaped structure", "a triangle-like shape with rounded vertices", "a guitar pick"],
+        0: ["a diamond", "a trapezoidal shape", "a four-sided shape", "a kite", "a quadrilateral", "an arrow-shaped polygon",
+            "a deformed square shape"],
     }
 )
 

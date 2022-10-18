@@ -46,6 +46,7 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
         self.remove_sync_domains = remove_sync_domains if remove_sync_domains is not None else []
+        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for n1, n2 in self.remove_sync_domains]
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -318,6 +319,8 @@ class GlobalWorkspace(LightningModule):
         latent_cycle_target = {}
         latent_translation_predictions = {}
         latent_translation_target = {}
+        latent_translation_predictions_2 = {}
+        latent_translation_target_2 = {}
         states = {}
 
         for domain_name, latent in latents.items():
@@ -333,18 +336,22 @@ class GlobalWorkspace(LightningModule):
                     latent[k][available_domains[domain_name], :] for k in range(len(latent))
                 ]
                 for domain_name_target, latent_target in latents.items():
-                    if (domain_name_target != domain_name and
-                            [domain_name, domain_name_target] not in self.remove_sync_domains and
-                            [domain_name_target, domain_name] not in self.remove_sync_domains):
+                    if domain_name_target != domain_name:
                         # Translation
                         mask = torch.logical_and(available_domains[domain_name], available_domains[domain_name_target])
                         if mask.any():
                             states[f"{domain_name}-{domain_name_target}"] = state[mask]
-                            latent_translation_predictions[f"{domain_name_target}-{domain_name}"] = [
+                            pred = latent_translation_predictions
+                            target = latent_translation_target
+                            if f"{domain_name}-{domain_name_target}" in self.remove_sync_domains_names:
+                                pred = latent_translation_predictions_2
+                                target = latent_translation_target_2
+
+                            pred[f"{domain_name_target}-{domain_name}"] = [
                                 predictions[domain_name_target][k][mask, :] for k in
                                 range(len(predictions[domain_name_target]))
                             ]
-                            latent_translation_target[f"{domain_name_target}-{domain_name}"] = [
+                            target[f"{domain_name_target}-{domain_name}"] = [
                                 latent_target[k][mask, :] for k in range(len(latent_target))
                             ]
                         # Cycles
@@ -367,11 +374,15 @@ class GlobalWorkspace(LightningModule):
 
         demi_cycle_losses = self.loss(latent_demi_cycle_predictions, latent_demi_cycle_target, prefix="demi_cycles")
         cycle_losses = self.loss(latent_cycle_predictions, latent_cycle_target, prefix="cycles")
-        translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
         # cosine_losses = self.cosine_loss(states)
         contrastive_losses = self.contrastive_loss(states)
 
-        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses}
+        translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
+        translation_losses_2 = {}
+        if mode == "val":
+            translation_losses_2 = self.loss(latent_translation_predictions_2, latent_translation_target_2, prefix="translation-non-op")
+
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses, **translation_losses_2}
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
         losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
                                        for loss_name in loss_names], dim=0).sum()

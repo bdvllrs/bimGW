@@ -15,6 +15,8 @@ class OddImageDataModule(LightningDataModule):
 
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.classes = [0, 1, 2]
+        self.img_size = 32
 
     def setup(self, stage=None):
         self.train_set = OddImageDataset(self.root_path, "train", self.pre_saved_latent_path)
