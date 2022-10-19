@@ -112,7 +112,7 @@ class GlobalWorkspace(LightningModule):
                 for dist in range(2):
                     dist_name = "in_dist" if dist == 0 else "ood"
                     if example_dist_vecs[dist] is not None:
-                        for key, example_vecs in example_dist_vecs[dist][0].items():
+                        for key, example_vecs in example_dist_vecs[dist].items():
                             assert key in self.domain_names, f"{key} is not a valid domain for validation examples."
                             if example_vecs is not None:
                                 self.validation_example_list[key] = len(example_vecs)
@@ -309,7 +309,7 @@ class GlobalWorkspace(LightningModule):
             return indiv_losses
         return {prefix: torch.tensor(0.).to(self.device)}
 
-    def step(self, available_domains, latents, latent_targets, mode="val", prefix=""):
+    def step(self, available_domains, latents, mode="val", prefix=""):
         prop_sync = torch.min(available_domains['v'], available_domains['t']).sum() / available_domains['v'].size(0)
         self.log(f"{mode}/{prefix}prop_sync_batch", prop_sync, on_step=True, on_epoch=False)
 
@@ -404,28 +404,23 @@ class GlobalWorkspace(LightningModule):
 
         return losses["total"], losses
 
-    def training_step(self, batch, batch_idx):
-        domains, targets = batch[0], batch[1]
+    def training_step(self, domains, batch_idx):
         # remove the sync batch
         available_domains, domains = split_domains_available_domains(domains)
-        _, targets = split_domains_available_domains(targets)
 
         latents = self.encode_uni_modal(domains)
-        latent_targets = self.encode_uni_modal(targets)
 
-        total_loss, losses = self.step(available_domains, latents, latent_targets, mode="train")
+        total_loss, losses = self.step(available_domains, latents, mode="train")
 
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
-        domains, targets = domains[0], domains[1]
 
         available_domains, domains = split_domains_available_domains(domains)
-        _, targets = split_domains_available_domains(targets)
 
         latents = self.encode_uni_modal(domains)
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
-        total_loss, losses = self.step(available_domains, latents, latents, mode="val", prefix=prefix)
+        total_loss, losses = self.step(available_domains, latents, mode="val", prefix=prefix)
 
         # latent_start = self.domain_mods["v"].encode(domains["v"])
         # latent_end = self.translate(latent_start, "v", "t")
@@ -438,14 +433,12 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
-        domains, targets = domains[0], domains[1]
 
         available_domains, domains = split_domains_available_domains(domains)
-        _, targets = split_domains_available_domains(targets)
 
         latents = self.encode_uni_modal(domains)
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
-        total_loss, losses = self.step(available_domains, latents, latents, mode="test", prefix=prefix)
+        total_loss, losses = self.step(available_domains, latents, mode="test", prefix=prefix)
         return total_loss
 
     def get_domain_examples(self, set_name, dist):

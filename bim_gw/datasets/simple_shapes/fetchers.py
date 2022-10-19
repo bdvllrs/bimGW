@@ -27,15 +27,9 @@ class DataFetcher:
     def get_item(self, item):
         raise NotImplementedError
 
-    def get_transformed_item(self, item):
-        raise NotImplementedError
-
-    def get_items(self, item, time_steps):
-        items = [
-            self.get_item(item) if 0 in time_steps else self.get_null_item(),
-            self.get_transformed_item(item) if 1 in time_steps else self.get_null_item(),
-        ]
-        return [transform(item, self.transforms) for item in items]
+    def get_items(self, item):
+        item = self.get_item(item) if item is not None else self.get_null_item()
+        return transform(item, self.transforms)
 
 
 class VisualDataFetcher(DataFetcher):
@@ -63,9 +57,6 @@ class VisualDataFetcher(DataFetcher):
             img = img.convert('RGB')
         return torch.tensor(1.).float(), img
 
-    def get_transformed_item(self, item):
-        return self.get_item(item, self.root_path / "transformed")
-
 
 class AttributesDataFetcher(DataFetcher):
     modality = "attr"
@@ -74,22 +65,6 @@ class AttributesDataFetcher(DataFetcher):
         _, cls, attr = self.get_item(0)
         attr[:] = 0.
         return torch.tensor(0.).float(), 0, attr
-
-    def get_transformed_item(self, item):
-        label = self.labels[item]
-        cls = int(label[11])
-        x, y = label[1] + label[12], label[2] + label[13]
-        size = label[3] + label[14]
-        rotation = label[4] + label[15]
-        r, g, b = (label[5] + label[16]) / 255, (label[6] + label[17]) / 255, (label[7] + label[18]) / 255
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
-
-        return (
-            torch.tensor(1.).float(),
-            cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-        )
 
     def get_item(self, item):
         label = self.labels[item]
@@ -148,66 +123,9 @@ class TextDataFetcher(DataFetcher):
             bert = torch.from_numpy(self.bert_data[item])
         return torch.tensor(1.).float(), bert, sentence
 
-    def get_transformed_item(self, item):
-        raise ValueError("The bert latent are not available for the transformed items.")
-        label = self.labels[item]
-        if item in self.sentences:
-            sentence = self.sentences[item]
-        else:
-            cls = int(label[11])
-            x, y = label[1] + label[12], label[2] + label[13]
-            size = label[3] + label[14]
-            rotation = label[4] + label[15]
-            r, g, b = label[5] + label[16], label[6] + label[17], label[7] + label[18]
-
-            sentence = self.text_composer({
-                "shape": cls,
-                "rotation": rotation,
-                "color": (r, g, b),
-                "size": size,
-                "location": (x, y)
-            })
-            self.sentences[item] = sentence
-
-        if self.transforms is not None:
-            sentence = self.transforms(sentence)
-        return torch.tensor(1.).float(), sentence
-
     def get_null_item(self):
         x = torch.zeros(768).float()
         return torch.tensor(0.).float(), x, ""
-
-
-class ActionDataFetcher(DataFetcher):
-    modality = "a"
-
-    def get_item(self, item):
-        label = self.labels[item]
-        orig_cls = int(label[0])
-        cls = int(label[11])
-        # predict 4 classes: no transformation (label 0), or transform to 1 of 3 classes
-        cls = 0 if cls == orig_cls else int(label[11]) + 1
-        d_x, d_y = label[12], label[13]
-        d_size = label[14]
-        d_rotation = label[15]
-        d_r, d_g, d_b = label[16] / 255, label[17] / 255, label[18] / 255
-        d_rotation_x = np.cos(d_rotation)
-        d_rotation_y = np.sin(d_rotation)
-
-        return (
-            torch.tensor(1.).float(),
-            cls,
-            torch.tensor([d_x, d_y, d_size, d_rotation_x, d_rotation_y, d_r, d_g, d_b], dtype=torch.float),
-        )
-
-    def get_null_item(self):
-        _, _, x = self.get_item(0)
-        x[:] = 0.
-        return torch.tensor(0.).float(), 0, x
-
-    def get_items(self, item, time_steps):
-        item = self.get_item(item) if 0 in time_steps else self.get_null_item(),
-        return [transform(item, self.transforms)]
 
 
 class PreSavedLatentDataFetcher:
@@ -223,11 +141,6 @@ class PreSavedLatentDataFetcher:
     def get_item(self, item):
         return [torch.tensor(1.).float()] + [self.data[k][item][0] for k in range(len(self.data))]
 
-    def get_transformed_item(self, item):
-        return [torch.tensor(1.).float()] + [self.data[k][item][1] for k in range(len(self.data))]
+    def get_items(self, item):
+        return self.get_item(item) if item is not None else self.get_null_item()
 
-    def get_items(self, item, time_steps):
-        return [
-            self.get_item(item) if 0 in time_steps else self.get_null_item(),
-            self.get_transformed_item(item) if 1 in time_steps else self.get_null_item(),
-        ]
