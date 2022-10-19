@@ -264,17 +264,14 @@ class ShapesLM(WorkspaceModule):
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
-        batch, target = batch
         predictions, losses, total_loss = self.step(batch, batch_idx, "train")
         return total_loss
 
     def validation_step(self, batch, batch_idx):
-        batch, target = batch
         predictions, losses, total_loss = self.step(batch, batch_idx, "val")
         return total_loss
 
     def test_step(self, batch, batch_idx):
-        batch, target = batch
         predictions, losses, total_loss = self.step(batch, batch_idx, "test")
         return total_loss
 

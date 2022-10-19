@@ -204,7 +204,7 @@ class VAE(WorkspaceModule):
         return self.decode(samples)
 
     def step(self, batch, mode="train"):
-        x = batch[0]["v"][1]
+        x = batch["v"][1]
         # x[:, 0][x[:, 0] != 0] = 1
         # x[:, 1][x[:, 1] != 0] = 0
         # x[:, 2][x[:, 2] != 0] = 0

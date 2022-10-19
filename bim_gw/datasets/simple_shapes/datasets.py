@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
-    PreSavedLatentDataFetcher, ActionDataFetcher
+    PreSavedLatentDataFetcher
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 
 
@@ -14,12 +14,11 @@ class SimpleShapesDataset:
         "v": VisualDataFetcher,
         "attr": AttributesDataFetcher,
         "t": TextDataFetcher,
-        "a": ActionDataFetcher
     }
 
     def __init__(self, path, split="train", mapping=None, domain_mapping=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 add_unimodal=True, with_actions=None, fetcher_params=None):
+                 add_unimodal=True, fetcher_params=None):
         """
         Args:
             path:
@@ -37,10 +36,7 @@ class SimpleShapesDataset:
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
-        self.with_actions = with_actions
         self.add_unimodal = add_unimodal
-        if with_actions is None:
-            self.with_actions = 'a' in self.selected_domains.values()
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
@@ -87,26 +83,19 @@ class SimpleShapesDataset:
 
     def __getitem__(self, item):
         idx = self.mapping[item]
-        domains = self.available_domains_mapping[item]
+        mapping = self.available_domains_mapping[item]
 
-        items = []
-        for mapping in [domains, domains]:
-            selected_domains = {}
-            n_domains = 0
+        selected_domains = {}
+        n_domains = 0
 
-            for domain_key, fetcher in self.data_fetchers.items():
-                time_steps = []
-                if domain_key in mapping:
-                    time_steps.append(0)
-                if self.with_actions and (domain_key + "_f" in mapping):
-                    time_steps.append(1)
-                fetched_items = fetcher.get_items(idx, time_steps)
-                n_domains += fetched_items[0][0].item()
-                if not self.with_actions:
-                    fetched_items = fetched_items[0]
-                selected_domains[domain_key] = fetched_items
-            assert n_domains == len(domains)
-            if self.output_transform is not None:
-                return self.output_transform(selected_domains)
-            items.append(selected_domains)
-        return items
+        for domain_key, fetcher in self.data_fetchers.items():
+            if domain_key in mapping:
+                fetched_items = fetcher.get_items(idx)
+            else:
+                fetched_items = fetcher.get_items(None)
+            n_domains += fetched_items[0].item()
+            selected_domains[domain_key] = fetched_items
+        assert n_domains == len(mapping)
+        if self.output_transform is not None:
+            return self.output_transform(selected_domains)
+        return selected_domains

@@ -33,7 +33,6 @@ class SimpleShapesDataModule(LightningDataModule):
             selected_domains=None,
             pre_saved_latent_paths=None,
             sync_uses_whole_dataset=False,
-            with_actions=None,
             add_unimodal=True,
             fetcher_params=None
     ):
@@ -49,11 +48,8 @@ class SimpleShapesDataModule(LightningDataModule):
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
-        self.with_actions = with_actions
         self.add_unimodal = add_unimodal
         self.fetcher_params = fetcher_params
-        if with_actions is None:
-            self.with_actions = 'a' in self.selected_domains.values()
 
         self.prop_labelled_images = prop_labelled_images
         # Remove sync for some combination of domains
@@ -66,7 +62,6 @@ class SimpleShapesDataModule(LightningDataModule):
                                  add_unimodal=False, fetcher_params=self.fetcher_params)
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
-        self.n_time_steps = 2
         self.is_setup = False
 
     def setup(self, stage=None):
@@ -77,12 +72,10 @@ class SimpleShapesDataModule(LightningDataModule):
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                       transform=val_transforms,
                                                       selected_domains=self.selected_domains,
-                                                      with_actions=self.with_actions,
                                                       fetcher_params=self.fetcher_params)
                 self.shapes_test = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                                        transform=val_transforms,
                                                        selected_domains=self.selected_domains,
-                                                       with_actions=self.with_actions,
                                                        fetcher_params=self.fetcher_params)
 
                 # train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
@@ -94,7 +87,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                                 selected_indices=sync_indices,
                                                 transform=train_transforms,
-                                                selected_domains=self.selected_domains, with_actions=self.with_actions,
+                                                selected_domains=self.selected_domains,
                                                 add_unimodal=False,
                                                 fetcher_params=self.fetcher_params)
 
@@ -148,68 +141,52 @@ class SimpleShapesDataModule(LightningDataModule):
                                                               size=(self.n_domain_examples,))
 
         self.domain_examples = {
-            "train": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
-                      for p in range(2)], None],
-            "val": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
-                     for p in range(2)], None],
-            "test": [[{domain: [[] for _ in range(self.n_time_steps)] for domain in self.selected_domains.keys()}
-                      for p in range(2)], None],
+            "train": [{domain: [] for domain in self.selected_domains.keys()}, None],
+            "val": [{domain: [] for domain in self.selected_domains.keys()}, None],
+            "test": [{domain: [] for domain in self.selected_domains.keys()}, None],
         }
 
         if self.split_ood:
             for set_name in ["val", "test"]:
-                self.domain_examples[set_name][1] = [
-                    {domain: [[] for _ in range(self.n_time_steps)] for domain in
-                     self.selected_domains.keys()} for p in range(2)
-                ]
+                self.domain_examples[set_name][1] = {domain: [[] for _ in range(self.n_time_steps)] for domain in
+                                                     self.selected_domains.keys()}
 
         # add t examples
         for set_name, used_set in [("train", {"in_dist": train_set}), ("val", val_set), ("test", test_set)]:
             for used_dist in range(2):
                 used_dist_name = "in_dist" if used_dist == 0 else "ood"
                 if reconstruction_indices[set_name][used_dist] is not None:
-                    for p in range(2):  # input or target
-                        for domain in self.selected_domains.keys():
-                            example_item = used_set[used_dist_name][0][p][domain]
-                            if not self.with_actions:
-                                example_item = [example_item]
-                            for t in range(len(example_item)):
-                                if not isinstance(example_item[t], tuple):
-                                    examples = []
-                                    for i in reconstruction_indices[set_name][used_dist]:
-                                        example = used_set[used_dist_name][i][p][domain]
-                                        if self.with_actions:
-                                            example = example[t]
-                                        examples.append(example)
-                                    if isinstance(example_item[t], (int, float)):
-                                        self.domain_examples[set_name][used_dist][p][domain][t] = torch.tensor(examples)
-                                    elif isinstance(example_item[t], torch.Tensor):
-                                        self.domain_examples[set_name][used_dist][p][domain][t] = torch.stack(examples, dim=0)
-                                    else:
-                                        self.domain_examples[set_name][used_dist][p][domain][t] = examples
+                    for domain in self.selected_domains.keys():
+                        example_item = used_set[used_dist_name][0][domain]
+                        if not isinstance(example_item, tuple):
+                            examples = []
+                            for i in reconstruction_indices[set_name][used_dist]:
+                                example = used_set[used_dist_name][i][domain]
+                                examples.append(example)
+                            if isinstance(example_item, (int, float)):
+                                self.domain_examples[set_name][used_dist][domain] = torch.tensor(examples)
+                            elif isinstance(example_item, torch.Tensor):
+                                self.domain_examples[set_name][used_dist][domain] = torch.stack(examples, dim=0)
+                            else:
+                                self.domain_examples[set_name][used_dist][domain] = examples
+                        else:
+                            for k in range(len(example_item)):
+                                examples = []
+                                for i in reconstruction_indices[set_name][used_dist]:
+                                    example = used_set[used_dist_name][i][domain][k]
+                                    examples.append(example)
+                                if isinstance(example_item[k], (int, float)):
+                                    self.domain_examples[set_name][used_dist][domain].append(
+                                        torch.tensor(examples)
+                                    )
+                                elif isinstance(example_item[k], torch.Tensor):
+                                    self.domain_examples[set_name][used_dist][domain].append(
+                                        torch.stack(examples, dim=0)
+                                    )
                                 else:
-                                    for k in range(len(example_item[t])):
-                                        examples = []
-                                        for i in reconstruction_indices[set_name][used_dist]:
-                                            if self.with_actions:
-                                                example = used_set[used_dist_name][i][p][domain][t][k]
-                                            else:
-                                                example = used_set[used_dist_name][i][p][domain][k]
-                                            examples.append(example)
-                                        if isinstance(example_item[t][k], (int, float)):
-                                            self.domain_examples[set_name][used_dist][p][domain][t].append(
-                                                torch.tensor(examples)
-                                            )
-                                        elif isinstance(example_item[t][k], torch.Tensor):
-                                            self.domain_examples[set_name][used_dist][p][domain][t].append(
-                                                torch.stack(examples, dim=0)
-                                            )
-                                        else:
-                                            self.domain_examples[set_name][used_dist][p][domain][t].append(examples)
-                                    self.domain_examples[set_name][used_dist][p][domain][t] = tuple(
-                                        self.domain_examples[set_name][used_dist][p][domain][t])
-                            if not self.with_actions:
-                                self.domain_examples[set_name][used_dist][p][domain] = self.domain_examples[set_name][used_dist][p][domain][0]
+                                    self.domain_examples[set_name][used_dist][domain].append(examples)
+                            self.domain_examples[set_name][used_dist][domain] = tuple(
+                                self.domain_examples[set_name][used_dist][domain])
 
     def filter_sync_domains(self, train_set, allowed_indices):
         prop_2_domains = self.prop_labelled_images
@@ -249,7 +226,6 @@ class SimpleShapesDataModule(LightningDataModule):
                                         selected_domains=self.selected_domains,
                                         transform=train_set.transforms,
                                         output_transform=train_set.output_transform,
-                                        with_actions=self.with_actions,
                                         add_unimodal=self.add_unimodal,
                                         fetcher_params=self.fetcher_params)
         return train_set
