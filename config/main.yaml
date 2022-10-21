@@ -148,4 +148,4 @@ odd_image:
 
 checkpoints_dir: ???
 resume_from_checkpoint: null
-_code_version: master
+_code_version: fusion
