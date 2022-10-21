@@ -44,6 +44,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.split_ood = split_ood
         self.n_domain_examples = n_validation_domain_examples if n_validation_domain_examples is not None else batch_size
         self.domain_examples = None
+        self.null_items = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
         self.pre_saved_latent_paths = pre_saved_latent_paths
@@ -144,6 +145,11 @@ class SimpleShapesDataModule(LightningDataModule):
             "train": [{domain: [] for domain in self.selected_domains.keys()}, None],
             "val": [{domain: [] for domain in self.selected_domains.keys()}, None],
             "test": [{domain: [] for domain in self.selected_domains.keys()}, None],
+        }
+
+        self.null_items = {
+            domain: self.shapes_train.data_fetchers[domain].get_items(None)
+            for domain in self.selected_domains.keys()
         }
 
         if self.split_ood:

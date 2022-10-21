@@ -4,7 +4,6 @@ import torch
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
-from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
 from bim_gw.scripts.utils import get_domains, get_trainer
 
@@ -30,7 +29,8 @@ def train_gw(args):
                                        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
                                        args.losses.schedules, data.domain_examples,
                                        args.global_workspace.monitor_grad_norms,
-                                       args.global_workspace.remove_sync_domains)
+                                       args.global_workspace.remove_sync_domains,
+                                       data.null_items)
 
     trainer = get_trainer("train_gw", args, global_workspace,
                           monitor_loss="val/in_dist/total_loss",
