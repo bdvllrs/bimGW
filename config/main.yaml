@@ -79,7 +79,7 @@ global_workspace:
     encoder: 0
     decoder: 0
     decoder_head: 0
-  prop_labelled_images: 1.  # of the allowed classes to be labelled.
+  prop_labelled_images: [1., 1.]  # of the allowed classes to be labelled.
   remove_sync_domains: null
   classes_labelled_images: null  # null is all classes
   vae_checkpoint: null

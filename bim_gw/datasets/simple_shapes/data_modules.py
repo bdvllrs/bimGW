@@ -19,7 +19,7 @@ def split_indices_prop(allowed_indices, prop):
     selected = allowed_indices[:num_labelled]
     rest = allowed_indices[num_labelled:]
     assert len(selected) + len(rest) == len(allowed_indices)
-    assert len(selected) / len(allowed_indices) == prop
+    # assert ceil(len(selected) / prop)  == len(allowed_indices)
     assert np.intersect1d(selected, rest).shape[0] == 0
     return selected, rest
 
@@ -195,23 +195,29 @@ class SimpleShapesDataModule(LightningDataModule):
                                 self.domain_examples[set_name][used_dist][domain])
 
     def filter_sync_domains(self, train_set, allowed_indices):
-        prop_2_domains = self.prop_labelled_images
-        # prop_3_domains = self.prop_labelled_images[1]
-        # assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
+        prop_3_domains = self.prop_labelled_images[1]
+        prop_2_domains = self.prop_labelled_images[0]
+        assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
         mapping = None
         domain_mapping = None
         if prop_2_domains < 1:
+            prop_2_domains = (1 - prop_3_domains) * prop_2_domains  # count the ones in prop_3_domains as 2 domains and 3 domains
             domains = list(self.selected_domains.keys())
             original_size = len(allowed_indices)
-            labelled_size = int(original_size * prop_2_domains)
+            labelled_size = int(original_size * (prop_3_domains + prop_2_domains))
             n_repeats = ((len(domains) * original_size) // labelled_size +
                          int(original_size % labelled_size > 0))
             mapping = []
             domain_mapping = []
-
-            # labelled_elems, rest_elems = split_indices_prop(allowed_indices, prop_3_domains)
-
             done = [] if self.remove_sync_domains is None else self.remove_sync_domains[:]
+
+            rest_elems = allowed_indices[:]
+            if len(domains) == 3:
+                labelled_3_elems, rest_elems = split_indices_prop(allowed_indices, prop_3_domains)
+                labelled_3_elems = np.tile(labelled_3_elems, n_repeats)
+                mapping.extend(labelled_3_elems)
+                domain_mapping.extend([domains] * len(labelled_3_elems))
+
             # Add sync domains
             for domain_1 in domains:
                 mapping.extend(allowed_indices[:])
@@ -220,10 +226,14 @@ class SimpleShapesDataModule(LightningDataModule):
                 for domain_2 in domains:
                     if domain_1 != domain_2 and (domain_2, domain_1) not in done and (domain_1, domain_2) not in done:
                         done.append((domain_1, domain_2))
-                        domain_items, _ = split_indices_prop(allowed_indices, prop_2_domains)
+                        domain_items, _ = split_indices_prop(rest_elems, prop_2_domains)
                         domain_items = np.tile(domain_items, n_repeats)
                         mapping.extend(domain_items)
                         domain_mapping.extend([[domain_1, domain_2]] * len(domain_items))
+                        if len(domains) == 3:
+                            # Add 3 elem as 2
+                            mapping.extend(labelled_3_elems)
+                            domain_mapping.extend([[domain_1, domain_2]] * len(labelled_3_elems))
 
         print(f"Loaded {len(allowed_indices)} examples in train set.")
         train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",
