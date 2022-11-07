@@ -7,11 +7,12 @@ from bim_gw.datasets.odd_image.dataset import OddImageDataset
 
 
 class OddImageDataModule(LightningDataModule):
-    def __init__(self, root_path, pre_saved_latent_path, batch_size, num_workers):
+    def __init__(self, root_path, pre_saved_latent_path, batch_size, num_workers, selected_domains):
         super(OddImageDataModule, self).__init__()
 
         self.root_path = Path(root_path)
         self.pre_saved_latent_path = pre_saved_latent_path
+        self.selected_domains = selected_domains
 
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -19,9 +20,9 @@ class OddImageDataModule(LightningDataModule):
         self.img_size = 32
 
     def setup(self, stage=None):
-        self.train_set = OddImageDataset(self.root_path, "train", self.pre_saved_latent_path)
-        self.val_set = OddImageDataset(self.root_path, "val", self.pre_saved_latent_path)
-        self.test_set = OddImageDataset(self.root_path, "test", self.pre_saved_latent_path)
+        self.train_set = OddImageDataset(self.root_path, "train", self.pre_saved_latent_path, self.selected_domains)
+        self.val_set = OddImageDataset(self.root_path, "val", self.pre_saved_latent_path, self.selected_domains)
+        self.test_set = OddImageDataset(self.root_path, "test", self.pre_saved_latent_path, self.selected_domains)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(self.train_set,
