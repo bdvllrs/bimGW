@@ -47,7 +47,9 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
         self.remove_sync_domains = remove_sync_domains if remove_sync_domains is not None else []
-        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for n1, n2 in self.remove_sync_domains]
+        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for
+                                                                                                  n1, n2 in
+                                                                                                  self.remove_sync_domains]
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -249,22 +251,22 @@ class GlobalWorkspace(LightningModule):
         losses = []
         indiv_losses = {}
         for domain_name_1 in states.keys():
-                for domain_name_2 in states.keys():
-                    if f"{domain_name_1}-{domain_name_2}" in self.hparams.contrastive_logit_scale.keys() and domain_name_2 != domain_name_1:
-                        mask = torch.logical_and(masks[domain_name_1], masks[domain_name_2])
-                        latent_domain_1 = states[domain_name_1][mask]
-                        latent_domain_2 = states[domain_name_2][mask]
-                        # project domains into one another
-                        latent_features_d2 = latent_domain_2 / latent_domain_2.norm(dim=1, keepdim=True)
-                        latent_features_d1 = latent_domain_1 / latent_domain_1.norm(dim=1, keepdim=True)
-                        logit_scale = self.hparams.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
-                        logits = logit_scale * latent_features_d1 @ latent_features_d2.t()
-                        labels = torch.arange(latent_domain_1.size(0)).to(logits.device)
-                        loss_d1 = F.cross_entropy(logits, labels)
-                        loss_d2 = F.cross_entropy(logits.t(), labels)
-                        loss = .5 * (loss_d1 + loss_d2)
-                        indiv_losses[f"contrastive_s_{domain_name_1}-s_{domain_name_2}"] = loss
-                        losses.append(loss)
+            for domain_name_2 in states.keys():
+                if f"{domain_name_1}-{domain_name_2}" in self.hparams.contrastive_logit_scale.keys() and domain_name_2 != domain_name_1:
+                    mask = torch.logical_and(masks[domain_name_1], masks[domain_name_2])
+                    latent_domain_1 = states[domain_name_1][mask]
+                    latent_domain_2 = states[domain_name_2][mask]
+                    # project domains into one another
+                    latent_features_d2 = latent_domain_2 / latent_domain_2.norm(dim=1, keepdim=True)
+                    latent_features_d1 = latent_domain_1 / latent_domain_1.norm(dim=1, keepdim=True)
+                    logit_scale = self.hparams.contrastive_logit_scale[f"{domain_name_1}-{domain_name_2}"].exp()
+                    logits = logit_scale * latent_features_d1 @ latent_features_d2.t()
+                    labels = torch.arange(latent_domain_1.size(0)).to(logits.device)
+                    loss_d1 = F.cross_entropy(logits, labels)
+                    loss_d2 = F.cross_entropy(logits.t(), labels)
+                    loss = .5 * (loss_d1 + loss_d2)
+                    indiv_losses[f"contrastive_s_{domain_name_1}-s_{domain_name_2}"] = loss
+                    losses.append(loss)
         if len(losses):
             indiv_losses["contrastive"] = torch.stack(losses, dim=0).mean()
             return indiv_losses
@@ -299,59 +301,77 @@ class GlobalWorkspace(LightningModule):
 
         latent_predictions = {
             "tr": {},
-            "cy": [],
+            "cy": {},
+            "dcy": {}
         }
-        latent_targets = {
-            "tr": {},
-            "cy": []
-        }
+        latent_targets = {}
         states = {}
         masks = {}
         null_latents = {domain_name: self.get_null_latent(available_domains["v"].size(0), domain_name)
                         for domain_name in available_domains.keys()}
 
         last_latents = latents.copy()
-        for i in range(2):
-            latent_targets["cy"].append(last_latents)
-            state_domain = self.project(last_latents)
-            state = self.combine(state_domain)
-            last_latents = self.predict(state)
-            latent_predictions["cy"].append(last_latents)
 
         for domain_name_target, latent_target in latents.items():
+            mask = available_domains[domain_name_target]
+            masks[domain_name_target] = mask
+            if mask.any():
+                latent_targets[domain_name_target] = [latents[domain_name_target][k][mask]
+                                                      for k in range(len(latents[domain_name_target]))]
+
+                # Demi-cycles
+                masked_latents = {
+                    domain_name: ([last_latents[domain_name][k][mask] for k in range(len(last_latents[domain_name]))]
+                                  if domain_name != domain_name_target
+                                  else [null_latents[domain_name][k][mask]
+                                        for k in range(len(last_latents[domain_name]))])
+                    for domain_name in last_latents.keys()
+                }
+                state_domain = self.project(masked_latents)
+                state = self.combine(state_domain)
+                last_latents = self.predict(state)
+                latent_predictions["dcy"][domain_name_target] = last_latents[domain_name_target]
+
+                # Cycle
+                masked_latents = {
+                    domain_name: ([last_latents[domain_name][k][mask] for k in range(len(last_latents[domain_name]))]
+                                  if domain_name != domain_name_target
+                                  else [null_latents[domain_name][k][mask]
+                                        for k in range(len(last_latents[domain_name]))])
+                    for domain_name in last_latents.keys()
+                }
+                state_domain = self.project(masked_latents)
+                state = self.combine(state_domain)
+                latent_predictions["cy"][domain_name_target] = self.predict(state)[domain_name_target]
+
                 # Translation
-                mask = available_domains[domain_name_target]
-                masks[domain_name_target] = mask
-                if mask.any():
-                    masked_latents = {
-                        domain_name: ([latents[domain_name][k][mask] for k in range(len(latents[domain_name]))]
-                                      if domain_name != domain_name_target
-                                      else [null_latents[domain_name][k][mask]
-                                            for k in range(len(latents[domain_name]))])
-                        for domain_name in latents.keys()
-                    }
-                    state = self.combine(self.project(masked_latents))
-                    predictions = self.predict(state)
-                    latent_targets["tr"][domain_name_target] = [latents[domain_name_target][k][mask]
-                                                                for k in range(len(latents[domain_name_target]))]
-                    latent_predictions["tr"][domain_name_target] = predictions[domain_name_target]
+                masked_latents = {
+                    domain_name: ([latents[domain_name][k][mask] for k in range(len(latents[domain_name]))]
+                                  if domain_name != domain_name_target
+                                  else [null_latents[domain_name][k][mask]
+                                        for k in range(len(latents[domain_name]))])
+                    for domain_name in latents.keys()
+                }
+                state = self.combine(self.project(masked_latents))
+                predictions = self.predict(state)
+                latent_predictions["tr"][domain_name_target] = predictions[domain_name_target]
 
-                    masked_latents = {
-                        domain_name: ([latents[domain_name][k]
-                                       for k in range(len(latents[domain_name]))]
-                                      if domain_name == domain_name_target
-                                      else [null_latents[domain_name][k]
-                                            for k in range(len(latents[domain_name]))])
-                        for domain_name in latents.keys()
-                    }
-                    states[domain_name_target] = self.combine(self.project(masked_latents))
+                masked_latents = {
+                    domain_name: ([latents[domain_name][k]
+                                   for k in range(len(latents[domain_name]))]
+                                  if domain_name == domain_name_target
+                                  else [null_latents[domain_name][k]
+                                        for k in range(len(latents[domain_name]))])
+                    for domain_name in latents.keys()
+                }
+                states[domain_name_target] = self.combine(self.project(masked_latents))
 
-        demi_cycle_losses = self.loss(latent_predictions['cy'][0], latent_targets['cy'][0], prefix="demi_cycles")
-        cycle_losses = self.loss(latent_predictions['cy'][1], latent_targets['cy'][1], prefix="cycles")
+        demi_cycle_losses = self.loss(latent_predictions['dcy'], latent_targets, prefix="demi_cycles")
+        cycle_losses = self.loss(latent_predictions['cy'], latent_targets, prefix="cycles")
         # cosine_losses = self.cosine_loss(states)
         contrastive_losses = self.contrastive_loss(states, masks)
 
-        translation_losses = self.loss(latent_predictions['tr'], latent_targets['tr'], prefix="translation")
+        translation_losses = self.loss(latent_predictions['tr'], latent_targets, prefix="translation")
 
         losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses}
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
@@ -458,9 +478,9 @@ class GlobalWorkspace(LightningModule):
             # Demi cycles
             masked_latents = {
                 domain_name_target: ([latents[domain_name_target][k] for k in range(len(latents[domain_name_target]))]
-                              if domain_name != domain_name_target
-                              else [null_latents[domain_name_target][k]
-                                    for k in range(len(latents[domain_name_target]))])
+                                     if domain_name != domain_name_target
+                                     else [null_latents[domain_name_target][k]
+                                           for k in range(len(latents[domain_name_target]))])
                 for domain_name_target in latents.keys()
             }
             predictions = self.adapt(self.predict(self.combine(self.project(masked_latents))))
@@ -471,10 +491,11 @@ class GlobalWorkspace(LightningModule):
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     masked_predictions = {
-                        domain_name_target: ([predictions[domain_name_target][k] for k in range(len(predictions[domain_name_target]))]
-                                      if domain_name_2 != domain_name_target
-                                      else [null_latents[domain_name_target][k]
-                                            for k in range(len(latents[domain_name_target]))])
+                        domain_name_target: (
+                            [predictions[domain_name_target][k] for k in range(len(predictions[domain_name_target]))]
+                            if domain_name_2 != domain_name_target
+                            else [null_latents[domain_name_target][k]
+                                  for k in range(len(latents[domain_name_target]))])
                         for domain_name_target in latents.keys()
                     }
                     # Full cycles
