@@ -52,14 +52,20 @@ def find_best_epoch(ckpt_folder):
     # epochs = [int(filename[6:-5]) for filename in ckpt_files]  # 'epoch={int}.ckpt' filename format
     # return max(epochs)
 
+class IdentityModule(nn.Module):
+    def forward(self, x):
+        return x[0]
+
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
-    args.odd_image.slurm_id = item['name'].split("-")[1]
+    # item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
+    # args.odd_image.slurm_id = item['name'].split("-")[1]
 
     data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
-                              args.odd_image.batch_size, args.dataloader.num_workers)
+                              args.odd_image.batch_size, args.dataloader.num_workers,
+                              args.global_workspace.selected_domains)
+    load_domains = []
 
     if args.odd_image.encoder_path is None or args.odd_image.encoder_path == "random":
         encoder = nn.Sequential(DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
@@ -68,17 +74,24 @@ if __name__ == "__main__":
             encoder.eval()
             for p in encoder.parameters():
                 p.requires_grad_(False)
+        load_domains = ["v"]
+        encoders = {name: encoder for name in load_domains}
     elif args.odd_image.encoder_path == "identity":
-        encoder = lambda x: x[0]
+        encoder = IdentityModule()
+        load_domains = ["v"]
+        encoders = {name: encoder for name in load_domains}
     else:
-        path = find_best_epoch(args.odd_image.encoder_path)
+        # path = find_best_epoch(args.odd_image.encoder_path)
+        path = args.odd_image.encoder_path
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
                                                                 domain_mods=get_domains(args, data), strict=False)
+        load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
-        encoder = nn.Sequential(global_workspace.encoders["v"], nn.Tanh())
+        encoders = {name: nn.Sequential(global_workspace.encoders[name], nn.Tanh()) for name in load_domains}
 
-    model = OddClassifier(encoder, args.global_workspace.z_size,
+    args.global_workspace.selected_domains = {name: name for name in load_domains}
+    model = OddClassifier(get_domains(args, data), encoders, args.global_workspace.z_size,
                 args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
