@@ -321,11 +321,11 @@ class GlobalWorkspace(LightningModule):
 
                 # Demi-cycles
                 masked_latents = {
-                    domain_name: ([last_latents[domain_name][k][mask] for k in range(len(last_latents[domain_name]))]
+                    domain_name: ([latents[domain_name][k][mask] for k in range(len(latents[domain_name]))]
                                   if domain_name != domain_name_target
                                   else [null_latents[domain_name][k][mask]
-                                        for k in range(len(last_latents[domain_name]))])
-                    for domain_name in last_latents.keys()
+                                        for k in range(len(latents[domain_name]))])
+                    for domain_name in latents.keys()
                 }
                 state_domain = self.project(masked_latents)
                 state = self.combine(state_domain)
@@ -334,7 +334,7 @@ class GlobalWorkspace(LightningModule):
 
                 # Cycle
                 masked_latents = {
-                    domain_name: ([last_latents[domain_name][k][mask] for k in range(len(last_latents[domain_name]))]
+                    domain_name: ([last_latents[domain_name][k] for k in range(len(last_latents[domain_name]))]
                                   if domain_name != domain_name_target
                                   else [null_latents[domain_name][k][mask]
                                         for k in range(len(last_latents[domain_name]))])
