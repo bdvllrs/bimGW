@@ -59,8 +59,9 @@ class IdentityModule(nn.Module):
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    # item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
-    # args.odd_image.slurm_id = item['name'].split("-")[1]
+    if args.odd_image.csv_ids is not None:
+        item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
+        args.odd_image.slurm_id = item['name'].split("-")[1]
 
     data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
                               args.odd_image.batch_size, args.dataloader.num_workers,
@@ -81,8 +82,9 @@ if __name__ == "__main__":
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
     else:
-        # path = find_best_epoch(args.odd_image.encoder_path)
         path = args.odd_image.encoder_path
+        if not os.path.isfile(path) and os.path.isdir(path):
+            path = find_best_epoch(path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
                                                                 domain_mods=get_domains(args, data), strict=False)
         load_domains = global_workspace.domain_names

@@ -140,7 +140,8 @@ loggers:
 
 odd_image:
   batch_size: 512
-  encoder_path: null
+  encoder_path: null  # path to checkpoint
+  csv_ids: null
 
   optimizer:
     lr: 1e-3
