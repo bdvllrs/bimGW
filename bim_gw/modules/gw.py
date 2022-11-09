@@ -162,10 +162,15 @@ class GlobalWorkspace(LightningModule):
             projected_domains[domain] = self.encode(latents[domain], domain, add_tanh=False)
         return projected_domains
 
-    def combine(self, states):
-        pre_act = 0
+    def combine(self, states, selected_domains=None):
+        pre_act = None
         for domain in states.keys():
-            pre_act += states[domain]
+            if selected_domains is None or domain in selected_domains:
+                if pre_act is None:
+                    pre_act = states[domain]
+                else:
+                    pre_act += states[domain]
+        assert pre_act is not None
         return torch.tanh(pre_act)
 
     def predict(self, state):
@@ -310,8 +315,6 @@ class GlobalWorkspace(LightningModule):
         null_latents = {domain_name: self.get_null_latent(available_domains["v"].size(0), domain_name)
                         for domain_name in available_domains.keys()}
 
-        last_latents = latents.copy()
-
         for domain_name_target, latent_target in latents.items():
             mask = available_domains[domain_name_target]
             masks[domain_name_target] = mask
@@ -322,7 +325,7 @@ class GlobalWorkspace(LightningModule):
                 # Demi-cycles
                 masked_latents = {
                     domain_name: ([latents[domain_name][k][mask] for k in range(len(latents[domain_name]))]
-                                  if domain_name != domain_name_target
+                                  if domain_name == domain_name_target
                                   else [null_latents[domain_name][k][mask]
                                         for k in range(len(latents[domain_name]))])
                     for domain_name in latents.keys()

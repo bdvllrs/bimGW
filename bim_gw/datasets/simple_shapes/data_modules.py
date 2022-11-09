@@ -226,7 +226,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 for domain_2 in domains:
                     if domain_1 != domain_2 and (domain_2, domain_1) not in done and (domain_1, domain_2) not in done:
                         done.append((domain_1, domain_2))
-                        domain_items, rest_elems = split_indices_prop(rest_elems, prop_2_domains)
+                        domain_items, _ = split_indices_prop(rest_elems, prop_2_domains)
                         domain_items = np.tile(domain_items, n_repeats)
                         mapping.extend(domain_items)
                         domain_mapping.extend([[domain_1, domain_2]] * len(domain_items))
