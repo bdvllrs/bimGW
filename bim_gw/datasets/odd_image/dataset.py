@@ -2,13 +2,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from bim_gw.datasets.simple_shapes.fetchers import PreSavedLatentDataFetcher, AttributesDataFetcher
+from bim_gw.datasets.simple_shapes.fetchers import PreSavedLatentDataFetcher, AttributesDataFetcher, TextDataFetcher
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 
 
 class OddImageDataset:
-    def __init__(self, root_path, split, pre_saved_latent_path, selected_domains):
+    def __init__(self, root_path, split, pre_saved_latent_path, selected_domains, bert_latent):
         self.root_path = Path(root_path)
         self.split = split
         self.selected_domains = selected_domains
@@ -30,8 +30,7 @@ class OddImageDataset:
                 # from the train set
                 load_pre_saved_latent(self.root_path, "train", pre_saved_latent_path, "v")),
             "attr": AttributesDataFetcher(self.root_path, "train", ids, labels, {"attr": None}),
-            "t": PreSavedLatentDataFetcher(
-                load_pre_saved_latent(self.root_path, "train", pre_saved_latent_path, "t")),
+            "t": TextDataFetcher(self.root_path, "train", ids, labels, {"t": None}, bert_latent),
         }
         self.fetchers = {name: fetchers[name] for name in selected_domains.values()}
 

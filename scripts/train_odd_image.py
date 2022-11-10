@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
                               args.odd_image.batch_size, args.dataloader.num_workers,
-                              args.global_workspace.selected_domains)
+                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
     load_domains = []
 
     if args.odd_image.encoder_path is None or args.odd_image.encoder_path == "random":
