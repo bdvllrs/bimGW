@@ -81,6 +81,7 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
         "callbacks": callbacks,
         "resume_from_checkpoint": args.resume_from_checkpoint,
         "max_epochs": args.max_epochs,
+        "max_steps": args.max_steps,
         "multiple_trainloader_mode": "min_size",
     }
     if trainer_args is not None:
