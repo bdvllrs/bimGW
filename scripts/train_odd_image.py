@@ -59,13 +59,14 @@ class IdentityModule(nn.Module):
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
+    data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
+                              args.odd_image.batch_size, args.dataloader.num_workers,
+                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
+
     if args.odd_image.csv_ids is not None:
         item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
         args.odd_image.slurm_id = item['name'].split("-")[1]
 
-    data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
-                              args.odd_image.batch_size, args.dataloader.num_workers,
-                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
     load_domains = []
 
     if args.odd_image.encoder_path is None or args.odd_image.encoder_path == "random":
@@ -93,8 +94,23 @@ if __name__ == "__main__":
         encoders = {name: nn.Sequential(global_workspace.encoders[name], nn.Tanh()) for name in load_domains}
 
     args.global_workspace.selected_domains = {name: name for name in load_domains}
-    model = OddClassifier(get_domains(args, data), encoders, args.global_workspace.z_size,
-                args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
+
+    if args.odd_image.resume_csv is not None:
+        item = get_csv_data(pd.read_csv(args.odd_image.resume_csv), args)
+        args.odd_image.slurm_id = item['Name'].split("-")[1]
+        path = args.odd_image.encoder_path
+        if not os.path.isfile(path) and os.path.isdir(path):
+            path = find_best_epoch(path)
+        model = OddClassifier.load_from_checkpoint(path,
+                                                   unimodal_encoders=get_domains(args, data),
+                                                   encoders=encoders)
+        for logger in args.loggers:
+            logger.args.version = item['ID']
+            logger.args.id = item['ID']
+            logger.args.resume = True
+    else:
+        model = OddClassifier(get_domains(args, data), encoders, args.global_workspace.z_size,
+                    args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
