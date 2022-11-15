@@ -200,40 +200,39 @@ class SimpleShapesDataModule(LightningDataModule):
         assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
         mapping = None
         domain_mapping = None
-        if prop_2_domains < 1:
-            prop_2_domains = (1 - prop_3_domains) * prop_2_domains  # count the ones in prop_3_domains as 2 domains and 3 domains
-            domains = list(self.selected_domains.keys())
-            original_size = len(allowed_indices)
-            labelled_size = int(original_size * (prop_3_domains + prop_2_domains))
-            n_repeats = ((len(domains) * original_size) // labelled_size +
-                         int(original_size % labelled_size > 0))
-            mapping = []
-            domain_mapping = []
-            done = [] if self.remove_sync_domains is None else self.remove_sync_domains[:]
+        prop_2_domains = (1 - prop_3_domains) * prop_2_domains  # count the ones in prop_3_domains as 2 domains and 3 domains
+        domains = list(self.selected_domains.keys())
+        original_size = len(allowed_indices)
+        labelled_size = int(original_size * (prop_3_domains + prop_2_domains))
+        n_repeats = (original_size // labelled_size +
+                     int(original_size % labelled_size > 0))
+        mapping = []
+        domain_mapping = []
+        done = [] if self.remove_sync_domains is None else self.remove_sync_domains[:]
 
-            rest_elems = allowed_indices[:]
-            if len(domains) == 3:
-                labelled_3_elems, rest_elems = split_indices_prop(allowed_indices, prop_3_domains)
-                labelled_3_elems = np.tile(labelled_3_elems, n_repeats)
-                mapping.extend(labelled_3_elems)
-                domain_mapping.extend([domains] * len(labelled_3_elems))
+        rest_elems = allowed_indices[:]
+        if len(domains) == 3:
+            labelled_3_elems, rest_elems = split_indices_prop(allowed_indices, prop_3_domains)
+            labelled_3_elems = np.tile(labelled_3_elems, n_repeats)
+            mapping.extend(labelled_3_elems)
+            domain_mapping.extend([domains] * len(labelled_3_elems))
 
-            # Add sync domains
-            for domain_1 in domains:
-                mapping.extend(allowed_indices[:])
-                domain_mapping.extend([[domain_1]] * original_size)
+        # Add sync domains
+        for domain_1 in domains:
+            mapping.extend(allowed_indices[:])
+            domain_mapping.extend([[domain_1]] * original_size)
 
-                for domain_2 in domains:
-                    if domain_1 != domain_2 and (domain_2, domain_1) not in done and (domain_1, domain_2) not in done:
-                        done.append((domain_1, domain_2))
-                        domain_items, _ = split_indices_prop(rest_elems, prop_2_domains)
-                        domain_items = np.tile(domain_items, n_repeats)
-                        mapping.extend(domain_items)
-                        domain_mapping.extend([[domain_1, domain_2]] * len(domain_items))
-                        if len(domains) == 3:
-                            # Add 3 elem as 2
-                            mapping.extend(labelled_3_elems)
-                            domain_mapping.extend([[domain_1, domain_2]] * len(labelled_3_elems))
+            for domain_2 in domains:
+                if domain_1 != domain_2 and (domain_2, domain_1) not in done and (domain_1, domain_2) not in done:
+                    done.append((domain_1, domain_2))
+                    domain_items, _ = split_indices_prop(rest_elems, prop_2_domains)
+                    domain_items = np.tile(domain_items, n_repeats)
+                    mapping.extend(domain_items)
+                    domain_mapping.extend([[domain_1, domain_2]] * len(domain_items))
+                    if len(domains) == 3:
+                        # Add 3 elem as 2
+                        mapping.extend(labelled_3_elems)
+                        domain_mapping.extend([[domain_1, domain_2]] * len(labelled_3_elems))
 
         print(f"Loaded {len(allowed_indices)} examples in train set.")
         train_set = SimpleShapesDataset(self.simple_shapes_folder, "train",

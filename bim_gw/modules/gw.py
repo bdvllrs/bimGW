@@ -162,13 +162,16 @@ class GlobalWorkspace(LightningModule):
             projected_domains[domain] = self.encode(latents[domain], domain, add_tanh=False)
         return projected_domains
 
-    def combine(self, states):
+    def combine(self, states, masks=None):
         pre_act = None
         for domain in states.keys():
+            output = states[domain]
+            if masks is not None and domain in masks:
+                output = torch.where(masks[domain][:, None], output, torch.zeros_like(output))
             if pre_act is None:
-                pre_act = states[domain]
+                pre_act = output
             else:
-                pre_act += states[domain]
+                pre_act += output
         assert pre_act is not None
         return torch.tanh(pre_act)
 
@@ -303,13 +306,17 @@ class GlobalWorkspace(LightningModule):
     def step(self, available_domains, latents, mode="val", prefix=""):
         # prop_sync = torch.min(available_domains['v'], available_domains['t']).sum() / available_domains['v'].size(0)
         # self.log(f"{mode}/{prefix}prop_sync_batch", prop_sync, on_step=True, on_epoch=False)
+        mask_unimodal = sum([available_domain for available_domain in available_domains.values()]) == 1.
 
         latent_predictions = {
             "tr": {},
             "cy": {},
             "dcy": {}
         }
-        latent_targets = {}
+        latent_targets = {
+            "tr": {},
+            "cy": {},
+        }
         states = {}
         masks = {}
         # null_latents = {domain_name: self.get_null_latent(available_domains["v"].size(0), domain_name)
@@ -319,41 +326,47 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name_target, latent_target in latents.items():
             mask = available_domains[domain_name_target]
+            masked_available_domains = {domain: m[mask] for domain, m in available_domains.items()}
             masks[domain_name_target] = mask
-            if mask.any():
-                latent_targets[domain_name_target] = [latents[domain_name_target][k][mask]
-                                                      for k in range(len(latents[domain_name_target]))]
+            # In train mode, do cycles only when unimodal. Else all non masked elements
+            cycles_mask = mask_unimodal if mode == "train" else mask
+            if cycles_mask.any():
+                latent_targets["cy"][domain_name_target] = [latents[domain_name_target][k][cycles_mask]
+                                                            for k in range(len(latents[domain_name_target]))]
 
                 state = self.combine({domain_name_target: state_domains[domain_name_target]})
                 states[domain_name_target] = state
-                last_latents = self.predict(state[mask])
+                last_latents = self.predict(state[cycles_mask])
                 latent_predictions["dcy"][domain_name_target] = last_latents[domain_name_target]
 
                 # Cycle
                 del last_latents[domain_name_target]
                 state_domain = self.project(last_latents)
                 state = self.combine(state_domain)
-                latent_predictions["cy"][domain_name_target] = self.predict(state, [domain_name_target])[domain_name_target]
-
+                latent_predictions["cy"][domain_name_target] = self.predict(state, [domain_name_target])[
+                    domain_name_target]
+            if mask.any():
+                latent_targets["tr"][domain_name_target] = [latents[domain_name_target][k][mask]
+                                                            for k in range(len(latents[domain_name_target]))]
                 # Translation
                 state = self.combine(self.project({
                     domain_name: [x[mask] for x in domain_latent]
                     for domain_name, domain_latent in latents.items()
                     if domain_name != domain_name_target
-                }))
+                }), masked_available_domains)
                 predictions = self.predict(state, [domain_name_target])
                 latent_predictions["tr"][domain_name_target] = predictions[domain_name_target]
 
-        demi_cycle_losses = self.loss(latent_predictions['dcy'], latent_targets, prefix="demi_cycles")
-        cycle_losses = self.loss(latent_predictions['cy'], latent_targets, prefix="cycles")
+        demi_cycle_losses = self.loss(latent_predictions['dcy'], latent_targets["cy"], prefix="demi_cycles")
+        cycle_losses = self.loss(latent_predictions['cy'], latent_targets["cy"], prefix="cycles")
         # cosine_losses = self.cosine_loss(states)
         contrastive_losses = self.contrastive_loss(states, masks)
 
-        translation_losses = self.loss(latent_predictions['tr'], latent_targets, prefix="translation")
+        translation_losses = self.loss(latent_predictions['tr'], latent_targets["tr"], prefix="translation")
 
-        # losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses}
-        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses}
-        loss_names = ["demi_cycles", "cycles", "translation"]
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses}
+        # losses = {**demi_cycle_losses, **cycle_losses, **translation_losses}
+        loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
         losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
                                        for loss_name in loss_names], dim=0).sum()
         losses["total_no_coefs"] = torch.stack([losses[loss_name] for loss_name in loss_names], dim=0).sum()
