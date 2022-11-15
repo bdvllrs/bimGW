@@ -1,32 +1,36 @@
 from pathlib import Path
 
 import torch
+from mmsdk import mmdatasdk
 from pytorch_lightning import LightningDataModule
 
-from bim_gw.datasets.odd_image.dataset import OddImageDataset
+from bim_gw.datasets.cmu_mosei.dataset import CMUMOSEIDataset
 
 
-class OddImageDataModule(LightningDataModule):
-    def __init__(self, root_path, pre_saved_latent_path, batch_size, num_workers, selected_domains, bert_latent):
-        super(OddImageDataModule, self).__init__()
+class CMUMOSEIDataModule(LightningDataModule):
+    def __init__(self, root_path, batch_size, num_workers, selected_domains, validate_cmu=True, seq_length=50):
+        super(CMUMOSEIDataModule, self).__init__()
 
         self.root_path = Path(root_path)
-        self.pre_saved_latent_path = pre_saved_latent_path
         self.selected_domains = selected_domains
-        self.bert_latent = bert_latent
+        self.cmu_dataset = mmdatasdk.mmdataset(root_path, validate=validate_cmu)
 
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.classes = [0, 1, 2]
-        self.img_size = 32
+        self.seq_length = seq_length
 
     def setup(self, stage=None):
-        self.train_set = OddImageDataset(self.root_path, "train", self.pre_saved_latent_path, self.selected_domains,
-                                         self.bert_latent)
-        self.val_set = OddImageDataset(self.root_path, "val", self.pre_saved_latent_path, self.selected_domains,
-                                       self.bert_latent)
-        self.test_set = OddImageDataset(self.root_path, "test", self.pre_saved_latent_path, self.selected_domains,
-                                        self.bert_latent)
+        folds = [mmdatasdk.cmu_mosei.standard_folds.standard_train_fold,
+                 mmdatasdk.cmu_mosei.standard_folds.standard_valid_fold,
+                 mmdatasdk.cmu_mosei.standard_folds.standard_test_fold]
+
+        data_folds = self.cmu_dataset.get_tensors(seq_len=self.seq_length,
+                                                  non_sequences=["All Labels"],
+                                                  direction=False,
+                                                  folds=folds)
+        self.train_set = CMUMOSEIDataset(data_folds[0], "train", self.selected_domains, None)
+        self.val_set = CMUMOSEIDataset(data_folds[1], "val", self.selected_domains, None)
+        self.test_set = CMUMOSEIDataset(data_folds[2], "test", self.selected_domains, None)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(self.train_set,
