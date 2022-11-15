@@ -16,8 +16,12 @@ def has_internet_connection(host='https://google.com'):
     except:
         return False
 
+def load_extra_conf_resolver(path):
+    return OmegaConf.load(str(PROJECT_DIR / "config" / path))
 
 def get_args(debug=False, additional_config_files=None, cli=True):
+    OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
+
     print("Cli args")
     print(sys.argv)
 

@@ -1,3 +1,4 @@
+from bim_gw.datasets.cmu_mosei.data_module import CMUMOSEIDataModule
 from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
 
@@ -19,6 +20,11 @@ def load_dataset(args, local_args, **kwargs):
                                       local_args.selected_domains,
                                       pre_saved_latent_paths,
                                       sync_uses_whole_dataset, fetcher_params=args.fetchers, **kwargs)
+    elif args.visual_dataset == "cmu_mosei":
+        print("Loading CMU MOSEI.")
+        return CMUMOSEIDataModule(args.cmu_mosei.path, local_args.batch_size, args.dataloader.num_workers,
+                                  local_args.selected_domains, args.cmu_mosei.validate,
+                                  args.cmu_mosei.seq_length, **kwargs)
     else:
         raise ValueError("The requested dataset is not implemented.")
 
