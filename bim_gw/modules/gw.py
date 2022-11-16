@@ -491,15 +491,28 @@ class GlobalWorkspace(LightningModule):
                         f"{slug}/translation/{domain_name}_to_{domain_name_2}",
                         max_examples,
                     )
-                    # if domain_name == "t" and domain_name_2 == "v":
-                    #     fig, axes = plt.subplots(1, latent_end.size(1))
-                    #     for k in range(latent_end.size(1)):
-                    #         l = latent_end.detach().cpu().numpy()[:, k]
-                    #         x = np.linspace(-0.8, 0.8, 100)
-                    #         axes[k].hist(l, 50, density=True)
-                    #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                    #     logger.log_image("decoded_v_hist", fig)
-                    #     plt.close(fig)
+
+            del predictions[domain_name]
+            state = self.project(predictions)
+            cycle_predictions = self.predict(self.combine(state))
+            x_reconstructed = self.domain_mods[domain_name].decode(self.adapt(cycle_predictions)[domain_name])
+            self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
+                                                     f"{slug}/cycles/{domain_name}",
+                                                     max_examples)
+
+            state = self.combine(self.project({
+                dn: [x for x in domain_latent]
+                for dn, domain_latent in latents.items()
+                if dn != domain_name
+            }))
+            translation_predictions = self.predict(state, [domain_name])
+            domain_end_pred = self.domain_mods[domain_name].decode(self.adapt(translation_predictions[domain_name]))
+            self.domain_mods[domain_name].log_domain(
+                logger, domain_end_pred,
+                f"{slug}/translation/{domain_name}",
+                max_examples,
+            )
+
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
