@@ -87,7 +87,7 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
-                                                                domain_mods=get_domains(args, data), strict=False)
+                                                                domain_mods=get_domains(args, len(data.classes), data.img_size), strict=False)
         load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
@@ -102,14 +102,14 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         model = OddClassifier.load_from_checkpoint(path,
-                                                   unimodal_encoders=get_domains(args, data),
+                                                   unimodal_encoders=get_domains(args, len(data.classes), data.img_size),
                                                    encoders=encoders)
         for logger in args.loggers:
             logger.args.version = item['ID']
             logger.args.id = item['ID']
             logger.args.resume = True
     else:
-        model = OddClassifier(get_domains(args, data), encoders, args.global_workspace.z_size,
+        model = OddClassifier(get_domains(args, len(data.classes), data.img_size), encoders, args.global_workspace.z_size,
                     args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)

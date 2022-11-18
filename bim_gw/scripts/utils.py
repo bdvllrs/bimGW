@@ -10,7 +10,7 @@ from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.loggers import get_loggers
 
 
-def get_domain(name, domain_name, args, data):
+def get_domain(name, domain_name, args, num_classes=None, img_size=None):
     if domain_name in ["v", "v_f"]:
         domain = VAE.load_from_checkpoint(
             args.global_workspace.vae_checkpoint,
@@ -23,7 +23,8 @@ def get_domain(name, domain_name, args, data):
             args.global_workspace.lm_checkpoint,
             bert_path=args.global_workspace.bert_path)
     elif domain_name in ["attr", "attr_f"]:
-        domain = ShapesAttributesLM(len(data.classes), data.img_size)
+        assert num_classes is not None and img_size is not None, "Need num_classes and img_size for attr domain"
+        domain = ShapesAttributesLM(num_classes, img_size)
     elif domain_name == "a":
         domain = ActionModule()
     else:
@@ -37,9 +38,10 @@ def get_domain(name, domain_name, args, data):
     return domain
 
 
-def get_domains(args, data):
+def get_domains(args, num_classes=None, img_size=None):
     return {
-        name: get_domain(name, domain, args, data) for name, domain in args.global_workspace.selected_domains.items()
+        name: get_domain(name, domain, args,
+                         num_classes, img_size) for name, domain in args.global_workspace.selected_domains.items()
     }
 
 
