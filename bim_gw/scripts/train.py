@@ -16,7 +16,7 @@ def train_gw(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    global_workspace = GlobalWorkspace(get_domains(args, data), args.global_workspace.z_size,
+    global_workspace = GlobalWorkspace(get_domains(args, len(data.classes), data.img_size), args.global_workspace.z_size,
                                        args.global_workspace.hidden_size,
                                        args.global_workspace.n_layers.encoder,
                                        args.global_workspace.n_layers.decoder,

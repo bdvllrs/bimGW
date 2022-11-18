@@ -39,7 +39,9 @@ if __name__ == '__main__':
 
     sentences += ["" for k in range(32 - len(sentences))]
 
-    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods=get_domains(args, data), strict=False)
+    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint,
+                                                            domain_mods=get_domains(args, len(data.classes),
+                                                                                    data.img_size), strict=False)
 
     visual_model = global_workspace.domain_mods["v"]
     text_model = global_workspace.domain_mods["t"]
