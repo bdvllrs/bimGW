@@ -59,10 +59,6 @@ class IdentityModule(nn.Module):
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
-                              args.odd_image.batch_size, args.dataloader.num_workers,
-                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
-
     if args.odd_image.csv_ids is not None:
         item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args)
         args.odd_image.slurm_id = item['name'].split("-")[1]
@@ -87,7 +83,7 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
-                                                                domain_mods=get_domains(args, len(data.classes), data.img_size), strict=False)
+                                                                domain_mods=get_domains(args, 3, 32), strict=False)
         load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
@@ -102,15 +98,22 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         model = OddClassifier.load_from_checkpoint(path,
-                                                   unimodal_encoders=get_domains(args, len(data.classes), data.img_size),
+                                                   unimodal_encoders=get_domains(args, 3, 32),
                                                    encoders=encoders)
         for logger in args.loggers:
             logger.args.version = item['ID']
             logger.args.id = item['ID']
             logger.args.resume = True
     else:
-        model = OddClassifier(get_domains(args, len(data.classes), data.img_size), encoders, args.global_workspace.z_size,
+        model = OddClassifier(get_domains(args, 3, 32), encoders, args.global_workspace.z_size,
                     args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
+
+    data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
+                              args.odd_image.batch_size, args.dataloader.num_workers,
+                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
+
+    if 'attr' in model.unimodal_encoders.keys():
+        model.unimodal_encoders['attr'].output_dims = [len(data.classes), data.img_size]
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
