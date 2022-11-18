@@ -328,7 +328,7 @@ class GlobalWorkspace(LightningModule):
             mask = available_domains[domain_name_target]
             masked_available_domains = {domain: m[mask] for domain, m in available_domains.items()}
             masks[domain_name_target] = mask
-            # In train mode, do cycles only when unimodal. Else all non masked elements
+            # In train mode, do cycles only when unimodal. Else all non-masked elements
             cycles_mask = mask_unimodal if mode == "train" else mask
             if cycles_mask.any():
                 latent_targets["cy"][domain_name_target] = [latents[domain_name_target][k][cycles_mask]
@@ -506,7 +506,7 @@ class GlobalWorkspace(LightningModule):
                 if dn != domain_name
             }))
             translation_predictions = self.predict(state, [domain_name])
-            domain_end_pred = self.domain_mods[domain_name].decode(self.adapt(translation_predictions[domain_name]))
+            domain_end_pred = self.domain_mods[domain_name].decode(self.adapt(translation_predictions)[domain_name])
             self.domain_mods[domain_name].log_domain(
                 logger, domain_end_pred,
                 f"{slug}/translation/{domain_name}",
