@@ -346,16 +346,21 @@ class GlobalWorkspace(LightningModule):
                 latent_predictions["cy"][domain_name_target] = self.predict(state, [domain_name_target])[
                     domain_name_target]
             if mask.any():
-                latent_targets["tr"][domain_name_target] = [latents[domain_name_target][k][mask]
-                                                            for k in range(len(latents[domain_name_target]))]
-                # Translation
-                state = self.combine(self.project({
-                    domain_name: [x[mask] for x in domain_latent]
-                    for domain_name, domain_latent in latents.items()
-                    if domain_name != domain_name_target
-                }), masked_available_domains)
-                predictions = self.predict(state, [domain_name_target])
-                latent_predictions["tr"][domain_name_target] = predictions[domain_name_target]
+                for domain_name_start, latent_start in latents.items():
+                    if domain_name_start != domain_name_target:
+                        mask_tr = torch.logical_and(mask, available_domains[domain_name_start])
+                        if mask_tr.any():
+                            latent_targets["tr"][f"{domain_name_target}-{domain_name_start}"] = [
+                                latents[domain_name_target][k][mask_tr]
+                                for k in range(len(latents[domain_name_target]))
+                            ]
+                            # Translation
+                            state = self.combine(self.project({
+                                domain_name_start: [x[mask_tr] for x in latent_start]
+                            }))
+                            predictions = self.predict(state, [domain_name_target])
+                            latent_predictions["tr"][f"{domain_name_target}-{domain_name_start}"] = predictions[
+                                domain_name_target]
 
         demi_cycle_losses = self.loss(latent_predictions['dcy'], latent_targets["cy"], prefix="demi_cycles")
         cycle_losses = self.loss(latent_predictions['cy'], latent_targets["cy"], prefix="cycles")
@@ -512,7 +517,6 @@ class GlobalWorkspace(LightningModule):
                 f"{slug}/translation/{domain_name}",
                 max_examples,
             )
-
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
