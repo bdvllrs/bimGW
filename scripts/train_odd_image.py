@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import pandas as pd
 from torch import nn
@@ -13,6 +12,7 @@ from bim_gw.modules.utils import DomainEncoder
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.utils import find_best_epoch
 
 
 def get_name(x):
@@ -44,13 +44,6 @@ def get_csv_data(df, args):
     #     demi_cycles_coef = row['parameters/losses/coefs/demi_cycles']
     #     supervision_coef = row['parameters/losses/coefs/supervision']
 
-
-def find_best_epoch(ckpt_folder):
-    ckpt_folder = Path(ckpt_folder)
-    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:])) for p in ckpt_folder.iterdir()]
-    return sorted(files, key=lambda x: x[0], reverse=True)[0][0]
-    # epochs = [int(filename[6:-5]) for filename in ckpt_files]  # 'epoch={int}.ckpt' filename format
-    # return max(epochs)
 
 class IdentityModule(nn.Module):
     def forward(self, x):
