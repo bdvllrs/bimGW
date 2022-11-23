@@ -15,8 +15,8 @@ class OddClassifier(LightningModule):
         for mod in unimodal_encoders.values():
             mod.freeze()  # insures that all modules are frozen
 
-        self.train_acc = {name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()}
-        self.val_acc = {name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()}
+        self.train_acc = torch.nn.ModuleDict({name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()})
+        self.val_acc = torch.nn.ModuleDict({name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()})
 
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size * 3, 16),
