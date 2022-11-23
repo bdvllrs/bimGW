@@ -1,4 +1,6 @@
 import os
+import shutil
+from pathlib import Path
 
 import pandas as pd
 import wandb
@@ -10,6 +12,9 @@ from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.scripts.utils import get_trainer, get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.utils import find_best_epoch
+
+local_path = Path("../checkpoints/bimGW")
+
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -43,7 +48,10 @@ if __name__ == "__main__":
                               })
 
         for logger in trainer.loggers:
-            logger.save_images(True)
+            logger.save_images(False)
         trainer.validate(global_workspace, data)
         trainer.test(global_workspace, data)
+
+        if (local_path / slurm_id).exists():
+            shutil.rmtree(str(local_path / slurm_id))
         wandb.finish()
