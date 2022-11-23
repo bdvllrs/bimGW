@@ -45,6 +45,8 @@ def get_csv_data(df, args, csv_row=None):
         args.seed = item['parameters/seed']
     if 'parameters/global_workspace/selected_domains/t' in item:
         args.global_workspace.selected_domains.t = item["parameters/global_workspace/selected_domains/t"]
+    if 'Name' in item:
+        item['name'] = item['Name']
     return item
     # df['slug'] = df.apply(get_name, axis=1)
     # min_idx = df.groupby(["parameters/global_workspace/prop_labelled_images", 'slug'])["min"].idxmin()
