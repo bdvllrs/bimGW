@@ -45,8 +45,8 @@ class OddClassifier(LightningModule):
         for name in losses.keys():
             self.log(f"{mode}_{name}_loss", losses[name])
             acc_fn = self.train_acc if mode == "train" else self.val_acc
-            acc_fn(predictions[name].softmax(-1), batch['label'])
-            self.log(f"{mode}_{name}_acc", acc_fn, on_epoch=(mode=="val"))
+            res = acc_fn(predictions[name].softmax(-1), batch['label'])
+            self.log(f"{mode}_{name}_acc", res, on_epoch=(mode=="val"))
         self.log(f"{mode}_loss", losses["v"])
         return losses["v"]
 
