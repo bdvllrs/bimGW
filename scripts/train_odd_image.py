@@ -35,11 +35,16 @@ def get_csv_data(df, args, csv_row=None):
         item = df.iloc[0].to_dict()
     else:
         item = df.iloc[csv_row].to_dict()
+
     args.losses.coefs.demi_cycles = item['parameters/losses/coefs/demi_cycles']
     args.losses.coefs.cycles = item['parameters/losses/coefs/cycles']
     args.losses.coefs.contrastive = item['parameters/losses/coefs/contrastive']
     args.losses.coefs.supervision = item['parameters/losses/coefs/supervision']
     args.global_workspace.prop_labelled_images = item['parameters/global_workspace/prop_labelled_images']
+    if 'parameters/seed' in item:
+        args.seed = item['parameters/seed']
+    if 'parameters/global_workspace/selected_domains/t' in item:
+        args.global_workspace.selected_domains.t = item["parameters/global_workspace/selected_domains/t"]
     return item
     # df['slug'] = df.apply(get_name, axis=1)
     # min_idx = df.groupby(["parameters/global_workspace/prop_labelled_images", 'slug'])["min"].idxmin()
