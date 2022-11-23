@@ -21,7 +21,7 @@ if __name__ == "__main__":
         checkpoint_path = args.path_to_checkpoint.format(id=slurm_id)
         checkpoint_path = find_best_epoch(checkpoint_path)
         print(row)
-        seed_everything(row['seed'])
+        seed_everything(row['parameters/seed'])
 
         data = load_dataset(args, args.global_workspace)
         data.prepare_data()
