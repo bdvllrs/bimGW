@@ -27,7 +27,7 @@ if __name__ == "__main__":
         data.prepare_data()
         data.setup(stage="fit")
 
-        global_workspace = GlobalWorkspace.load_from_checkpoint(checkpoint_path, domain_mods=get_domains(args, data),
+        global_workspace = GlobalWorkspace.load_from_checkpoint(checkpoint_path, domain_mods=get_domains(args, len(data.classes), data.img_size),
                                                                 domain_examples=data.domain_examples)
 
         for logger in args.loggers:
