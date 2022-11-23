@@ -15,8 +15,8 @@ class OddClassifier(LightningModule):
         for mod in unimodal_encoders.values():
             mod.freeze()  # insures that all modules are frozen
 
-        self.train_acc = torchmetrics.Accuracy()
-        self.val_acc = torchmetrics.Accuracy()
+        self.train_acc = {name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()}
+        self.val_acc = {name: torchmetrics.Accuracy() for name in unimodal_encoders.keys()}
 
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size * 3, 16),
@@ -44,7 +44,7 @@ class OddClassifier(LightningModule):
         }
         for name in losses.keys():
             self.log(f"{mode}_{name}_loss", losses[name])
-            acc_fn = self.train_acc if mode == "train" else self.val_acc
+            acc_fn = self.train_acc[name] if mode == "train" else self.val_acc[name]
             res = acc_fn(predictions[name].softmax(-1), batch['label'])
             self.log(f"{mode}_{name}_acc", res, on_epoch=(mode=="val"))
         self.log(f"{mode}_loss", losses["v"])
