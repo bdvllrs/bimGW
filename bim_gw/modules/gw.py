@@ -329,7 +329,8 @@ class GlobalWorkspace(LightningModule):
             masked_available_domains = {domain: m[mask] for domain, m in available_domains.items()}
             masks[domain_name_target] = mask
             # In train mode, do cycles only when unimodal. Else all non-masked elements
-            cycles_mask = mask_unimodal if mode == "train" else mask
+            # cycles_mask = mask_unimodal if mode == "train" else mask
+            cycles_mask = mask
             if cycles_mask.any():
                 latent_targets["cy"][domain_name_target] = [latents[domain_name_target][k][cycles_mask]
                                                             for k in range(len(latents[domain_name_target]))]
