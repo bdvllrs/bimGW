@@ -2,7 +2,7 @@ import numpy as np
 
 from attributes_to_language.composer import Composer
 
-from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
+# from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 
 
@@ -18,11 +18,7 @@ def a_has_n(sentence):
 
 # or from a kwargs given to the composer method.
 script_structures = [
-    "{start} {size}{link}{color}{link}{shape}{link}{location}{link}{rotation}.",
-    "{start} {color}{link}{size}{link}{shape}{link}{location}{link}{rotation}.",
-    "{start} {size}{link}{shape}{link}{color}{link}{location}{link}{rotation}.",
-    "{start} {size}{link}{shape}{link}{location}{link}{color}{link}{rotation}.",
-    "{start} {shape}{link}{location}{link}{size}{link}{color}{link}{rotation}.",
+    "{start} <{size}>{link}<{color}>{link}<{shape}>{link}<{location}>{link}<{rotation}>.",
 ]
 
 # Elements in the list of each variant is randomly chosen.
@@ -38,7 +34,7 @@ modifiers = None
 #     MixModifier(0.2)
 # ]
 
-composer = Composer(script_structures, writers, variants, modifiers)
+random_composer = Composer(script_structures, writers, variants, modifiers)
 
 script_structures = [
     "{start} {size} {colorBefore} {shape}{link} <{location}>{link} <{rotation}>.",
@@ -64,20 +60,19 @@ variants = {
     "colorAfter": ["{color}", "{color} color"],
     "colorBoth": ["{color}", "in {color}", "{color} colored", "in {color} color"],
     ",?": [", ", " "],
-    "link": [". It is", ", it is", "{,?}and is", "{,?}and it is", ",",],
+    "link": [". It is", ", it is", "{,?}and is", "{,?}and it is", ",", ],
     "link2": [". It looks like", ", it looks like", "{,?}and looks like", "{,?}and it looks like"],
     "link3": [". It is", ", it is", "{,?}and is", "{,?}and it is", ",", " and"],
 }
 
-val_composer = Composer(script_structures, writers, variants, modifiers)
+composer = Composer(script_structures, writers, variants, modifiers)
 
 if __name__ == '__main__':
-    labels = np.load(str("/mnt/SSD/datasets/shapes_v13/train_labels.npy"))
-    for k in range(100):
-        print(val_composer({
-            "shape": int(labels[k][0]),
-            "rotation": labels[k][4],
-            "color": (labels[k][5], labels[k][6], labels[k][7]),
-            "size": labels[k][3] // 4,
-            "location": (labels[k][1] // 4, labels[k][2] // 4)
+    for k in range(10):
+        print(composer({
+            "shape": 2,
+            "rotation": np.pi / 6,
+            "color": (129, 76, 200),
+            "size": 20,
+            "location": (29, 8)
         }))

@@ -60,7 +60,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.use_data_augmentation = use_data_augmentation
 
         ds = SimpleShapesDataset(simple_shapes_folder, "val", selected_domains=self.selected_domains,
-                                 add_unimodal=False, fetcher_params=self.fetcher_params)
+                                 fetcher_params=self.fetcher_params)
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
         self.is_setup = False
@@ -89,7 +89,6 @@ class SimpleShapesDataModule(LightningDataModule):
                                                 selected_indices=sync_indices,
                                                 transform=train_transforms,
                                                 selected_domains=self.selected_domains,
-                                                add_unimodal=False,
                                                 fetcher_params=self.fetcher_params)
 
                 if self.split_ood:
@@ -109,7 +108,10 @@ class SimpleShapesDataModule(LightningDataModule):
 
                 self.shapes_val = split_ood_sets(self.shapes_val, id_ood_splits)
                 self.shapes_test = split_ood_sets(self.shapes_test, id_ood_splits)
-                self.shapes_train = self.filter_sync_domains(train_set, target_indices)
+                if self.add_unimodal:
+                    self.shapes_train = self.filter_sync_domains(train_set, target_indices)
+                else:
+                    self.shapes_train = train_set
 
             self.set_validation_examples(
                 self.shapes_train,
@@ -198,8 +200,6 @@ class SimpleShapesDataModule(LightningDataModule):
         prop_3_domains = self.prop_labelled_images[1]
         prop_2_domains = self.prop_labelled_images[0]
         assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
-        mapping = None
-        domain_mapping = None
         prop_2_domains = (1 - prop_3_domains) * prop_2_domains  # count the ones in prop_3_domains as 2 domains and 3 domains
         domains = list(self.selected_domains.keys())
         original_size = len(allowed_indices)
@@ -241,7 +241,6 @@ class SimpleShapesDataModule(LightningDataModule):
                                         selected_domains=self.selected_domains,
                                         transform=train_set.transforms,
                                         output_transform=train_set.output_transform,
-                                        add_unimodal=self.add_unimodal,
                                         fetcher_params=self.fetcher_params)
         return train_set
 
