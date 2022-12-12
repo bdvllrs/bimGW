@@ -7,7 +7,7 @@ from transformers import BertModel, BertTokenizerFast, BertTokenizer
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
-from bim_gw.utils.text_composer.composer import composer
+from bim_gw.utils.text_composer.composer import random_composer
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -124,7 +124,7 @@ class ShapesLM(WorkspaceModule):
         self.imsize = imsize
         self.bert_path = bert_path
 
-        self.text_composer = composer
+        self.text_composer = random_composer
 
         self.transformer = None
         self.tokenizer = None

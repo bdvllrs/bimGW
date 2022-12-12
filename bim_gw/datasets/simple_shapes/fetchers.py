@@ -2,8 +2,6 @@ import numpy as np
 import torch
 from PIL import Image
 
-from bim_gw.utils.text_composer.composer import composer
-
 
 def transform(data, transformation):
     if transformation is not None:
@@ -94,27 +92,27 @@ class TextDataFetcher(DataFetcher):
         if bert_latents is not None:
             self.bert_data = np.load(root_path / "saved_latents" / split / bert_latents)[ids]
 
-        self.sentences = {}
-        self.text_composer = composer
+        self.captions = np.load(str(root_path / f"{split}_captions.npy"))
 
     def get_item(self, item):
-        label = self.labels[item]
-        if item in self.sentences:
-            sentence = self.sentences[item]
-        else:
-            cls = int(label[0])
-            x, y = label[1], label[2]
-            size = label[3]
-            rotation = label[4]
-
-            sentence = self.text_composer({
-                "shape": cls,
-                "rotation": rotation,
-                "color": (label[5], label[6], label[7]),
-                "size": size,
-                "location": (x, y)
-            })
-            self.sentences[item] = sentence
+        # label = self.labels[item]
+        # if item in self.sentences:
+        #     sentence = self.sentences[item]
+        # else:
+        #     cls = int(label[0])
+        #     x, y = label[1], label[2]
+        #     size = label[3]
+        #     rotation = label[4]
+        #
+        #     sentence = self.text_composer({
+        #         "shape": cls,
+        #         "rotation": rotation,
+        #         "color": (label[5], label[6], label[7]),
+        #         "size": size,
+        #         "location": (x, y)
+        #     })
+        #     self.sentences[item] = sentence
+        sentence = self.captions[item]
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
@@ -143,4 +141,3 @@ class PreSavedLatentDataFetcher:
 
     def get_items(self, item):
         return self.get_item(item) if item is not None else self.get_null_item()
-
