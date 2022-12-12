@@ -2,12 +2,11 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from transformers import BertModel, BertTokenizerFast, BertTokenizer
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
-from bim_gw.utils.text_composer.composer import random_composer
+from bim_gw.utils.text_composer.composer import composer
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -124,7 +123,7 @@ class ShapesLM(WorkspaceModule):
         self.imsize = imsize
         self.bert_path = bert_path
 
-        self.text_composer = random_composer
+        self.text_composer = composer
 
         self.transformer = None
         self.tokenizer = None
@@ -159,13 +158,15 @@ class ShapesLM(WorkspaceModule):
         self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
         self.losses = self.shapes_attribute.losses
 
-    def encode(self, x):
-        return self(x)
+    def encode(self, sentences):
+        bert_latents, sentences = sentences
+        return [bert_latents]
 
     def decode(self, text_latent):
-        # text_latent = text_latent[0]
-        # predictions = self.classify(text_latent)
-        predictions = text_latent
+        text_latent = text_latent[0]
+        predictions = self.projection(text_latent)
+        predictions = self.classify(predictions)
+        # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -182,23 +183,6 @@ class ShapesLM(WorkspaceModule):
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
         return [text_latent, sentence_predictions]
-
-    def get_bert_latent(self, sentences):
-        if self.transformer is None:
-            self.transformer = BertModel.from_pretrained(self.bert_path)
-            self.transformer.eval()
-            self.transformer.to(self.device)
-            for p in self.transformer.parameters():
-                p.requires_grad_(False)
-            self.tokenizer = BertTokenizer.from_pretrained(self.bert_path)
-
-        tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
-        x = self.transformer(**tokens)["last_hidden_state"][:, 0]
-        return x
-
-    def forward(self, sentences):
-        bert_latents, sentences = sentences
-        return self.classify(self.projection(bert_latents))
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -217,7 +201,7 @@ class ShapesLM(WorkspaceModule):
             "size": size,
             "location": (x, y)
         })
-        return labels
+        return None, labels  # TODO: add BERT vectors
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         if logger is not None:
@@ -248,7 +232,7 @@ class ShapesLM(WorkspaceModule):
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
         z = self.encode(sentences)[0]
-        predictions = self.classify(z)
+        predictions = self.classify(self.projection(z))
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -277,13 +261,13 @@ class ShapesLM(WorkspaceModule):
 
     def epoch_end(self, mode="val"):
         if self.domain_examples is not None and mode in self.domain_examples:
-            domain_examples = self.domain_examples[mode][0][0]  # only keep in dist
+            domain_examples = self.domain_examples[mode][0]  # only keep in dist
             for logger in self.loggers:
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
                     domain_examples["t"][2]
                 ])
-                predictions = self.classify(encoded_s[0])
+                predictions = self.classify(self.projection(encoded_s[0]))
                 sentence_predictions = self.decode(encoded_s)[1]
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
