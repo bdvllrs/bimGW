@@ -9,7 +9,7 @@ from tqdm import tqdm
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import generate_image, generate_dataset, generate_transformations
-from bim_gw.utils.text_composer.bert import get_bert_latents
+from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
 
 
@@ -136,7 +136,7 @@ def main():
     data = load_dataset(args, args.global_workspace, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")
-    get_bert_latents(data, args.global_workspace.bert_path, bert_latents, args.simple_shapes_path, device)
+    save_bert_latents(data, args.global_workspace.bert_path, bert_latents, args.simple_shapes_path, device)
 
     print('done!')
 

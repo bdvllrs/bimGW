@@ -4,7 +4,7 @@ import torch
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
-from bim_gw.utils.text_composer.bert import get_bert_latents
+from bim_gw.utils.text_composer.bert import save_bert_latents
 
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -26,4 +26,4 @@ if __name__ == '__main__':
     data.prepare_data()
     data.setup(stage="fit")
 
-    get_bert_latents(data, args.global_workspace.bert_path, bert_latents, args.simple_shapes_path, device)
+    save_bert_latents(data, args.global_workspace.bert_path, bert_latents, args.simple_shapes_path, device)

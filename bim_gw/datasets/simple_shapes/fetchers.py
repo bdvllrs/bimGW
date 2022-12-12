@@ -87,31 +87,13 @@ class TextDataFetcher(DataFetcher):
     def __init__(self, root_path, split, ids, labels, transforms=None, bert_latents="bert-base-uncased.npy"):
         super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
 
-        # self.bert_data = np.load(root_path / "saved_latents" / split / "bert-base-uncased_simple.npy")[ids]
         self.bert_data = None
         if bert_latents is not None:
-            self.bert_data = np.load(root_path / "saved_latents" / split / bert_latents)[ids]
+            self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
 
     def get_item(self, item):
-        # label = self.labels[item]
-        # if item in self.sentences:
-        #     sentence = self.sentences[item]
-        # else:
-        #     cls = int(label[0])
-        #     x, y = label[1], label[2]
-        #     size = label[3]
-        #     rotation = label[4]
-        #
-        #     sentence = self.text_composer({
-        #         "shape": cls,
-        #         "rotation": rotation,
-        #         "color": (label[5], label[6], label[7]),
-        #         "size": size,
-        #         "location": (x, y)
-        #     })
-        #     self.sentences[item] = sentence
         sentence = self.captions[item]
 
         if self.transforms is not None:
