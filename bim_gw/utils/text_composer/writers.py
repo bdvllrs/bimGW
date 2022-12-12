@@ -7,11 +7,11 @@ from attributes_to_language.writers import QuantizedWriter, OptionsWriter, BinsW
 shapes_writer = OptionsWriter(
     caption="{val}",
     choices={
-        2: ["an isosceles triangle", "a triangle"],
-        1: ["an egg", "a water droplet", "an isosceles triangle that has round corners", "a bullet",
-            "an oval shaped structure", "a triangle-like shape with rounded vertices", "a guitar pick"],
-        0: ["a diamond", "a trapezoidal shape", "a four-sided shape", "a kite", "a quadrilateral", "an arrow-shaped polygon",
-            "a deformed square shape"],
+        2: ["isosceles triangle", "triangle"],
+        1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
+            "oval shaped structure", "triangle-like shape with rounded vertices", "guitar pick"],
+        0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
+            "deformed square shape"],
     }
 )
 
@@ -93,23 +93,28 @@ size_writer = BinsWriter(
 location_writer = QuantizedWriter(
     quantized_values=np.array([[10, 16, 22, 10, 16, 22, 10, 16, 22],
                                [10, 10, 10, 16, 16, 16, 22, 22, 22]]),
+    caption="{located?}{val}",
     labels=[
-        ["bottom left", "lower left"],
-        ["bottom center", "bottom"],
-        ["bottom right", "lower right"],
-        ["middle left", "center left"],
-        ["center", "middle"],
-        ["middle right", "center right"],
-        ["top left", "upper left"],
-        ["top center", "top"],
-        ["top right", "upper right"],
+        ["{at_the} {bottom} left{side?}", "{at_the} {bottom}, {on_the} left{side?}"],
+        ["{at_the} {bottom} {middle}", "{at_the} {bottom}"],
+        ["{at_the} {bottom} right{side?}"],
+        ["{in_the} {middle} left{side?}"],
+        ["{in_the} {middle}"],
+        ["{in_the} {middle} right{side?}"],
+        ["{at_the} {top} left{side?}"],
+        ["{at_the} {top} {middle}", "{top}"],
+        ["{at_the} {top} right{side?}"],
     ],
     variants={
-        "located": ["", "located"],
-        "prefix": ["in the", "at the"],
-        "postfix": [" corner", ""],
-        "of_image": ["", " of the image"]
-    }
+        "bottom": ["bottom", "lower side"],
+        "middle": ["middle", "center"],
+        "top": ["top", "upper side"],
+        "at_the": ["at the"],
+        "in_the": ["in the", "at the"],
+        "on_the": ["on the", "at the"],
+        "side?": [" side", ""],
+        "located?": ["located ", " "],
+    },
 )
 
 location_writer_bins = Bins2dWriter(
@@ -130,101 +135,97 @@ location_precision_writer_bins = Bins2dWriter(
         "bottom": ["bottom", "lower side"],
         "middle": ["middle", "center"],
         "top": ["top", "upper side"],
-        "on": ["on", "at"],
+        "at_the": ["at the"],
+        "in_the": ["in the", "at the"],
+        "on_the": ["on the", "at the"],
         "side?": [" side", ""],
-        "located?": ["in the ", "located ", "at the ", "located in the ", "located at the "],
+        "located?": ["located ", " "],
     },
     labels=np.array([
         [
-            "very {bottom}, {on} the very left{side?}",
-            "very {bottom}, {on} the left{side?}",
-            "very {bottom}, slightly left",
-            "very {bottom}, at the {middle}",
-            "very {bottom}, slightly right",
-            "very {bottom}, {on} the right{side?}",
-            "very {bottom}, {on} the very right{side?}",
+            "{at_the} very {bottom}, {on_the} very left{side?}",
+            "{at_the} very {bottom}, {on_the} left{side?}",
+            "{at_the} very {bottom}, slightly left",
+            "{at_the} very {bottom}, {in_the} {middle}",
+            "{at_the} very {bottom}, slightly right",
+            "{at_the} very {bottom}, {on_the} right{side?}",
+            "{at_the} very {bottom}, {on_the} very right{side?}",
         ],
         [
-            "{bottom}, {on} the very left{side?}",
-            "{bottom}, {on} the left{side?}",
-            "{bottom}, slightly left",
-            "{bottom} {middle}",
-            "{bottom}, slightly right",
-            "{bottom}, {on} the right{side?}",
-            "{bottom} right, {on} the very right{side?}",
+            "{at_the} {bottom}, {on_the} very left{side?}",
+            "{at_the} {bottom}, {on_the} left{side?}",
+            "{at_the} {bottom}, slightly left",
+            "{at_the} {bottom} {middle}",
+            "{at_the} {bottom}, slightly right",
+            "{at_the} {bottom}, {on_the} right{side?}",
+            "{at_the} {bottom} right, {on_the} very right{side?}",
         ],
         [
-            "slightly {bottom}, {on} the very left{side?}",
-            "slightly {bottom}, {on} the left{side?}",
+            "slightly {bottom}, {on_the} very left{side?}",
+            "slightly {bottom}, {on_the} left{side?}",
             "slightly {bottom}, slightly left",
-            "slightly {bottom}, at the {middle}",
+            "slightly {bottom}, {in_the} {middle}",
             "slightly {bottom}, slightly right",
-            "slightly {bottom}, {on} the right{side?}",
-            "slightly {bottom}, {on} the very right{side?}",
+            "slightly {bottom}, {on_the} right{side?}",
+            "slightly {bottom}, {on_the} very right{side?}",
         ],
         [
-            "{middle}, {on} the very left {side?}",
-            "{middle}, {on} the left{side?}",
-            "{middle}, slightly left",
-            "{middle}",
-            "{middle}, slightly right",
-            "{middle}, {on} the right{side?}",
-            "{middle} right, {on} the very right{side?}",
+            "{in_the} {middle}, {on_the} very left {side?}",
+            "{in_the} {middle}, {on_the} left{side?}",
+            "{in_the} {middle}, slightly left",
+            "{in_the} {middle}",
+            "{in_the} {middle}, slightly right",
+            "{in_the} {middle}, {on_the} right{side?}",
+            "{in_the} {middle} right, {on_the} very right{side?}",
         ],
         [
-            "slightly {top} left, {on} the very left{side?}",
-            "slightly {top}, {on} the left{side?}",
+            "slightly {top} left, {on_the} very left{side?}",
+            "slightly {top}, {on_the} left{side?}",
             "slightly {top}, slightly left",
-            "slightly {top}, at the {middle}",
+            "slightly {top}, {in_the} {middle}",
             "slightly {top}, slightly right",
-            "slightly {top}, {on} the right{side?}",
-            "slightly {top}, {on} the very right{side?}",
+            "slightly {top}, {on_the} right{side?}",
+            "slightly {top}, {on_the} very right{side?}",
         ],
         [
-            "{top} left, {on} the very left{side?}",
-            "{top}, {on} the left{side?}",
-            "{top}, slightly left",
-            "{top} {middle}",
-            "{top}, slightly right",
-            "{top}, {on} the right{side?}",
-            "{top} right, {on} the very right{side?}",
+            "{at_the} {top} left, {on_the} very left{side?}",
+            "{at_the} {top}, {on_the} left{side?}",
+            "{at_the} {top}, slightly left",
+            "{at_the} {top} {middle}",
+            "{at_the} {top}, slightly right",
+            "{at_the} {top}, {on_the} right{side?}",
+            "{at_the} {top} right, {on_the} very right{side?}",
         ],
         [
-            "very {top} left, {on} the very left{side?}",
-            "very {top}, {on} the left{side?}",
-            "very {top}, slightly left",
-            "very {top}, at the {middle}",
-            "very {top}, slightly right",
-            "very {top}, {on} the right{side?}",
-            "very {top}, {on} the very right{side?}",
+            "{at_the} very {top} left, {on_the} very left{side?}",
+            "{at_the} very {top}, {on_the} left{side?}",
+            "{at_the} very {top}, slightly left",
+            "{at_the} very {top}, {in_the} {middle}",
+            "{at_the} very {top}, slightly right",
+            "{at_the} very {top}, {on_the} right{side?}",
+            "{at_the} very {top}, {on_the} very right{side?}",
         ],
     ]).transpose()
 )
 
 color_large_set_writer = QuantizedWriter(
-    caption="{in?}{val}{color?}",
-    variants={
-        "in?": ["", "in "],
-        "color?": ["", " color", " colored"]
-    },
+    caption="{val}",
     quantized_values=COLORS_LARGE_SET["rgb"],
     labels=COLORS_LARGE_SET["labels"]
 )
 
 color_xkcd_writer = QuantizedWriter(
-    caption="{in?}{val}{color?}",
+    caption="{val}{color?}",
     variants={
-        "in?": ["", "in "],
-        "color?": ["", " color", " colored"]
+        "color?": ["", "-color", " colored"]
     },
     quantized_values=COLORS_XKCD["rgb"],
     labels=COLORS_XKCD["labels"]
 )
 
 color_sparse_writer = QuantizedWriter(
-    caption="{in?}{val}{color?}",
+    caption="{val}{color?}",
     variants={
-        "in?": ["", "in "],
         "color?": ["", " color", " colored"]
     },
     quantized_values=COLORS_SPARSE["rgb"],

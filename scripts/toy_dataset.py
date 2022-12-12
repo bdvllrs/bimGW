@@ -1,10 +1,16 @@
+import os
 from pathlib import Path
 
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+from bim_gw.datasets import load_dataset
+from bim_gw.utils import get_args
 from bim_gw.utils.shapes import generate_image, generate_dataset, generate_transformations
+from bim_gw.utils.text_composer.bert import get_bert_latents
+from bim_gw.utils.text_composer.composer import composer
 
 
 def save_dataset(path_root, dataset, imsize):
@@ -45,10 +51,11 @@ def save_labels(path_root, dataset, dataset_transfo):
 
 
 def main():
-    seed = 0
-    image_size = 32
+    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    seed = args.seed
+    image_size = args.img_size
 
-    dataset_location = Path("/mnt/SSD/datasets/shapes_v14")
+    dataset_location = Path(args.simple_shapes_path)
     dataset_location.mkdir(exist_ok=True)
 
     size_train_set = 1_000_000
@@ -101,6 +108,35 @@ def main():
     save_dataset(dataset_location / "test", test_labels, image_size)
     (dataset_location / "transformed" / "test").mkdir(exist_ok=True)
     save_dataset(dataset_location / "transformed" / "test", test_transfo_labels, image_size)
+
+    print("Saving captions...")
+
+    for split in ["train", "val", "test"]:
+        labels = np.load(str(dataset_location / f"{split}_labels.npy"))
+        captions = []
+        for k in tqdm(range(labels.shape[0]), total=labels.shape[0]):
+            captions.append(composer({
+                "shape": int(labels[k][0]),
+                "rotation": labels[k][4],
+                "color": (labels[k][5], labels[k][6], labels[k][7]),
+                "size": labels[k][3] // 4,
+                "location": (labels[k][1] // 4, labels[k][2] // 4)
+            }))
+        np.save(str(dataset_location / f"{split}_captions.npy"), captions)
+
+    print("Extracting BERT features...")
+    bert_latents = args.fetchers.t.bert_latents
+    args.fetchers.t.bert_latents = None
+    args.global_workspace.use_pre_saved = False
+    args.global_workspace.prop_labelled_images = 1.
+    args.global_workspace.split_ood = False
+    args.global_workspace.sync_uses_whole_dataset = True
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args.global_workspace.selected_domains = {"t": "t"}
+    data = load_dataset(args, args.global_workspace, add_unimodal=False)
+    data.prepare_data()
+    data.setup(stage="fit")
+    get_bert_latents(data, args.global_workspace.bert_path, bert_latents, args.simple_shapes_path, device)
 
     print('done!')
 

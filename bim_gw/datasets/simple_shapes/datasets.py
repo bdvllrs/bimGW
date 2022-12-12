@@ -18,7 +18,7 @@ class SimpleShapesDataset:
 
     def __init__(self, path, split="train", mapping=None, domain_mapping=None, selected_indices=None,
                  selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 add_unimodal=True, fetcher_params=None):
+                 fetcher_params=None):
         """
         Args:
             path:
@@ -36,7 +36,6 @@ class SimpleShapesDataset:
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
-        self.add_unimodal = add_unimodal
 
         self.classes = np.array(["square", "circle", "triangle"])
         self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
