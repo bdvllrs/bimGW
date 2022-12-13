@@ -1,24 +1,25 @@
-devices: 1
-accelerator: gpu
-distributed_backend: ddp
-seed: 0
+devices: 1  # Number of GPU used for training
+accelerator: gpu  # cpu, gpu, tpu, ... (see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#accelerator for available accelerators)
+distributed_backend: ddp  # see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#strategy
+seed: 0  # seed of the run
 debug: false
 fast_dev_run: false
-max_epochs: 100
-max_steps: -1
+max_epochs: -1  # number of trained epochs. If -1, will use max_steps instead
+max_steps: 100000  # number of trained steps
 
-image_net_path: null
-cifar10_path: null
-simple_shapes_path: null
+simple_shapes_path: ???  # path to root folder of the dataset
 
-visual_dataset: "shapes"
+visual_dataset: "shapes"  # dataset to use. For now, only "shapes"
 
-img_size: 32
+img_size: 32  # size of the images in the dataset
 
-n_validation_examples: 32
+n_validation_examples: 32  # number of validation examples for the images logged (losses will use the whole val dataset)
 
-slurm:
-  script: train
+checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
+resume_from_checkpoint: null  # path to a checkpoint to continue training
+
+slurm:  # slurm parameters if started on slurm with the slurm/launch.py command
+  script: train  # which script to start
   slurm:
     "-N": 1
     "--gres": "gpu:${devices}"
@@ -29,18 +30,22 @@ fetchers:
   t:
     bert_latents: bert-base-uncased_simple.npy
 
+# =====
+# VAE parameters
+# =====
 vae:
   batch_size: 128
-  data_augmentation: true
+  data_augmentation: false  # whether to use data_augmentation on the images
 
   beta: 0.5
-  z_size: 12
-  ae_size: 512
-  type: "optimal_sigma"
+  z_size: 12  # size of the VAE latent space
+  ae_size: 512  # hidden size dimension
+  type: "beta"  # in "beta", "sigma", "optimal_sigma"
 
-  n_FID_samples: 1000
+  n_FID_samples: 1000  # num of samples to compute FID
 
   early_stopping_patience: null  # no early stopping
+
   optim:
     lr: 1e-4
     weight_decay: 3e-5
@@ -48,12 +53,16 @@ vae:
     step: 20
     gamma: 0.5
 
+# =====
+# Language model parameters
+# =====
 lm:
-  z_size: 12
+  z_size: 12  # size of the latent space after projection
 
   batch_size: 128
   n_validation_examples: 32
   early_stopping_patience: null
+
   optim:
     lr: 1e-4
     weight_decay: 3e-5
@@ -61,25 +70,29 @@ lm:
     step: 10
     gamma: 0.1
 
+# =====
+# GW parameters
+# =====
 global_workspace:
-  monitor_grad_norms: false  # if true, training is a bit slower.
+  monitor_grad_norms: false  # if true, logs gradients (for debug, training is a bit slower)
+
   batch_size: 128
   data_augmentation: false
-  selected_domains: null
-  sync_uses_whole_dataset: false
+  selected_domains: { "v": "v", "t": "t"}  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
+  sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.
 
   use_pre_saved: false
   load_pre_saved_latents: null
 
-  split_ood: false
+  split_ood: false  # whether to remove a out-of-distribution split in the training set.
   bert_path: "bert-base-uncased"
 
-  z_size: 20
+  z_size: 12  # size of the GW latent space
   hidden_size: 512
   n_layers:
-    encoder: 0
+    encoder: 2
     decoder: 0
-    decoder_head: 0
+    decoder_head: 2
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   remove_sync_domains: null
   classes_labelled_images: null  # null is all classes
@@ -123,10 +136,17 @@ dataloader:
   num_workers: 0
 
 loggers:
-  - logger: TensorBoardLogger
+  - logger: WandbLogger
     save_images: true
+    watch_model: true
     args:
-      save_dir: "../logs/tensor_board_logger"
+      save_dir: "path/to/wandb/log/dir"
+      project: "bim-gw"
+      # Additional args to wandb.init
+#  - logger: TensorBoardLogger
+#    save_images: true
+#    args:
+#      save_dir: "../logs/tensor_board_logger"
 #  - logger: CSVLogger
 #    save_images: true
 #    args:
@@ -139,6 +159,9 @@ loggers:
 #      mode: async
 #      run: null
 
+# =====
+# Odd-one-out experiment parameters
+# =====
 odd_image:
   batch_size: 512
   encoder_path: null  # path to checkpoint
@@ -150,6 +173,4 @@ odd_image:
     lr: 1e-3
     weight_decay: 1e-5
 
-checkpoints_dir: ???
-resume_from_checkpoint: null
 _code_version: master
