@@ -119,8 +119,8 @@ def main():
                 "shape": int(labels[k][0]),
                 "rotation": labels[k][4],
                 "color": (labels[k][5], labels[k][6], labels[k][7]),
-                "size": labels[k][3] // 4,
-                "location": (labels[k][1] // 4, labels[k][2] // 4)
+                "size": labels[k][3],
+                "location": (labels[k][1], labels[k][2])
             }))
         np.save(str(dataset_location / f"{split}_captions.npy"), captions)
 

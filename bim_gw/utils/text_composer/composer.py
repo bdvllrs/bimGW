@@ -1,7 +1,11 @@
+import os
+from pathlib import Path
+
 import numpy as np
 
 from attributes_to_language.composer import Composer
 
+from bim_gw.utils import get_args
 # from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 
@@ -68,11 +72,15 @@ variants = {
 composer = Composer(script_structures, writers, variants, modifiers)
 
 if __name__ == '__main__':
+
+    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    dataset_location = Path(args.simple_shapes_path)
+    labels = np.load(str(dataset_location / f"val_labels.npy"))
     for k in range(10):
         print(composer({
-            "shape": 2,
-            "rotation": np.pi / 6,
-            "color": (129, 76, 200),
-            "size": 20,
-            "location": (29, 8)
+            "shape": int(labels[k][0]),
+            "rotation": labels[k][4],
+            "color": (labels[k][5], labels[k][6], labels[k][7]),
+            "size": labels[k][3],
+            "location": (labels[k][1], labels[k][2])
         }))
