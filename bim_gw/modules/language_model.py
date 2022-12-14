@@ -31,7 +31,14 @@ class ShapesAttributesLM(WorkspaceModule):
         ]
 
     def encode(self, x):
-        return self(x)
+        cls, latents = x
+        out_latents = latents.clone()
+        out_latents[:, 0] = out_latents[:, 0] / self.imsize
+        out_latents[:, 1] = out_latents[:, 1] / self.imsize
+        out_latents[:, 2] = out_latents[:, 2] / self.imsize
+        return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+                # rotations,
+                out_latents * 2 - 1)
 
     def decode(self, x):
         logits, latent = x
@@ -44,16 +51,6 @@ class ShapesAttributesLM(WorkspaceModule):
 
     def adapt(self, x):
         return x[0].exp(), x[1]
-
-    def forward(self, x: list):
-        cls, latents = x
-        out_latents = latents.clone()
-        out_latents[:, 0] = out_latents[:, 0] / self.imsize
-        out_latents[:, 1] = out_latents[:, 1] / self.imsize
-        out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                # rotations,
-                out_latents * 2 - 1)
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
