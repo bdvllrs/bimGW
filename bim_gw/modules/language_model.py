@@ -143,17 +143,17 @@ class ShapesLM(WorkspaceModule):
 
         self.domain_examples = domain_examples
 
-        # self.output_dims = [self.z_size]
-        # self.decoder_activation_fn = [
-        #     None
-        # ]
-        #
-        # self.losses = [
-        #     F.mse_loss
-        # ]
-        self.output_dims = self.shapes_attribute.output_dims
-        self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
-        self.losses = self.shapes_attribute.losses
+        self.output_dims = [self.bert_size]
+        self.decoder_activation_fn = [
+            None
+        ]
+
+        self.losses = [
+            F.mse_loss
+        ]
+        # self.output_dims = self.shapes_attribute.output_dims
+        # self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
+        # self.losses = self.shapes_attribute.losses
 
     def encode(self, sentences):
         bert_latents, sentences = sentences
@@ -208,8 +208,8 @@ class ShapesLM(WorkspaceModule):
             encoded_s = x[0]
         else:
             encoded_s = self.encode(x)
-        # predictions = self.shapes_attribute.decode(self.classify(encoded_s))
-        predictions = self.shapes_attribute.decode(encoded_s)
+        predictions = self.shapes_attribute.decode(self.classify(self.projection(encoded_s[0])))
+        # predictions = self.shapes_attribute.decode(encoded_s)
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):

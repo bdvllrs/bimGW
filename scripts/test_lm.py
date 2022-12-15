@@ -20,6 +20,7 @@ if __name__ == "__main__":
     args.lm.split_ood = False
     args.lm.selected_domains = {"a": "attr", "t": "t"}
     args.lm.data_augmentation = False
+    args.lm.remove_sync_domains = None
 
     data = load_dataset(args, args.lm, add_unimodal=False)
     data.prepare_data()

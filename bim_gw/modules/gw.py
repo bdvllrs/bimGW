@@ -452,7 +452,7 @@ class GlobalWorkspace(LightningModule):
             domain_examples[domain_name] = domain_example
         return domain_examples
 
-    def log_images(self, logger, examples, slug="val", max_examples=None):
+    def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
             save_images = logger._save_images
@@ -528,11 +528,11 @@ class GlobalWorkspace(LightningModule):
                         validation_examples = self.get_domain_examples(mode, dist)
 
                         if self.validation_example_list is not None:
-                            self.log_images(logger, validation_examples, f"{mode}/{dist}")
+                            self.log_domains(logger, validation_examples, f"{mode}/{dist}")
 
                 if log_train and "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
                     train_examples = self.get_domain_examples("train", "in_dist")
-                    self.log_images(logger, train_examples, "train")
+                    self.log_domains(logger, train_examples, "train")
 
                 self.set_unimodal_pass_through(True)
 
