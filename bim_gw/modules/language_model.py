@@ -106,7 +106,7 @@ def make_causal_mask_prog(input_dec, encod_out):
 
 class ShapesLM(WorkspaceModule):
     def __init__(
-            self, z_size, n_classes, imsize, bert_path,
+            self, z_size, hidden_size, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
     ):
@@ -114,9 +114,8 @@ class ShapesLM(WorkspaceModule):
         super(ShapesLM, self).__init__()
         self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
+        self.hidden_size = hidden_size
         self.z_size = z_size
-        self.bert_size = 768
-        assert self.z_size != self.bert_size, "Cannot have z_size and bert_size the same."
         self.imsize = imsize
         self.bert_path = bert_path
 
@@ -129,21 +128,21 @@ class ShapesLM(WorkspaceModule):
         self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
-            nn.Linear(self.bert_size, self.bert_size),
-            nn.ReLU(),
-            nn.Linear(self.bert_size, self.bert_size // 2),
-            nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.z_size)
-        )
-        self.classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
+            nn.Linear(self.z_size, self.z_size // 2),
+            nn.ReLU(),
+            nn.Linear(self.z_size // 2, self.hidden_size)
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims))
         )
 
         self.domain_examples = domain_examples
 
-        self.output_dims = [self.bert_size]
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
             None
         ]

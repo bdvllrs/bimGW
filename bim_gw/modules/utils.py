@@ -80,6 +80,33 @@ class DomainEncoder(nn.Module):
         out = self.encoder(x)
         return out
 
+class LMDomainEncoder(DomainEncoder):
+    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
+        super(LMDomainEncoder, self).__init__(in_dims, hidden_size, out_dim, n_layers)
+        z_size = sum(in_dims)
+        self.encoder = nn.Sequential(
+            nn.Linear(z_size, z_size),
+            nn.ReLU(),
+            nn.Linear(z_size, z_size // 2),
+            nn.ReLU(),
+            nn.Linear(z_size // 2, self.out_dim),
+        )
+
+class LMDomainDecoder(DomainDecoder):
+    def __init__(self, in_dim, hidden_size, n_layers, n_layers_head, out_dims=0, activation_fn=None):
+        super(LMDomainDecoder, self).__init__(in_dim, hidden_size, n_layers, n_layers_head, out_dims, activation_fn)
+
+        self.encoder_head = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.hidden_size, pose_dim // 2),
+                nn.ReLU(),
+                nn.Linear(pose_dim // 2, pose_dim),
+                nn.ReLU(),
+                nn.Linear(pose_dim, pose_dim),
+            )
+            for pose_dim in self.out_dims
+        ])
+
 
 def mask_predictions(predictions, targets, mask):
     for k in range(len(predictions)):

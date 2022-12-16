@@ -78,7 +78,7 @@ global_workspace:
 
   batch_size: 128
   data_augmentation: false
-  selected_domains: { "v": "v", "t": "t"}  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
+  selected_domains: {}  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
   sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.
 
   use_pre_saved: false
@@ -88,11 +88,16 @@ global_workspace:
   bert_path: "bert-base-uncased"
 
   z_size: 12  # size of the GW latent space
-  hidden_size: 512
+
+  hidden_size:
+    encoder: {"t": 512, "attr": 32, "v": 32}
+    decoder: {"t": 512, "attr": 32, "v": 32}
+
   n_layers:
-    encoder: 2
-    decoder: 0
-    decoder_head: 2
+    encoder: {"t": 1, "attr": 1, "v": 2}
+    decoder: {"t": 0, "attr": 0, "v": 0}
+    decoder_head: {"t": 2, "attr": 2, "v": 2}
+
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   remove_sync_domains: null
   classes_labelled_images: null  # null is all classes

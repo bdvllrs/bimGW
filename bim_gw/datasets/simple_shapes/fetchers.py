@@ -100,7 +100,7 @@ class TextDataFetcher(DataFetcher):
             sentence = self.transforms(sentence)
         bert = torch.zeros(768).float()
         if self.bert_data is not None:
-            bert = torch.from_numpy(self.bert_data[item])
+            bert = torch.from_numpy(self.bert_data[item]).float()
         return torch.tensor(1.).float(), bert, str(sentence)
 
     def get_null_item(self):
