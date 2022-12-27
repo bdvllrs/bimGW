@@ -7,7 +7,7 @@ import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
 
-from bim_gw.modules.utils import DomainDecoder, DomainEncoder, mask_predictions
+from bim_gw.modules.utils import DomainDecoder, DomainEncoder, mask_predictions, LMDomainEncoder, LMDomainDecoder
 from bim_gw.modules.workspace_module import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 
@@ -46,7 +46,9 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
         self.remove_sync_domains = remove_sync_domains if remove_sync_domains is not None else []
-        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for n1, n2 in self.remove_sync_domains]
+        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for
+                                                                                                  n1, n2 in
+                                                                                                  self.remove_sync_domains]
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -70,13 +72,21 @@ class GlobalWorkspace(LightningModule):
         }
 
         # Define encoders for translation
-        self.encoders = nn.ModuleDict({item: DomainEncoder(mod.output_dims, self.hidden_size,
-                                                           self.z_size, self.n_layers_encoder)
-                                       for item, mod in domain_mods.items()})
-        self.decoders = nn.ModuleDict({item: (DomainDecoder(self.z_size, self.hidden_size,
-                                                            self.n_layers_decoder, self.n_layers_decoder_head,
-                                                            mod.output_dims, mod.decoder_activation_fn))
-                                       for item, mod in domain_mods.items()})
+        encoders = {}
+        decoders = {}
+        for item, mod in domain_mods.items():
+            encoder_class = DomainEncoder
+            decoder_class = DomainDecoder
+            # if item == "t":
+            #     encoder_class = LMDomainEncoder
+            #     decoder_class = LMDomainDecoder
+            encoders[item] = encoder_class(mod.output_dims, self.hidden_size['encoder'][item],
+                                           self.z_size, self.n_layers_encoder[item])
+            decoders[item] = decoder_class(self.z_size, self.hidden_size['decoder'][item],
+                                           self.n_layers_decoder[item], self.n_layers_decoder_head[item],
+                                           mod.output_dims, mod.decoder_activation_fn)
+        self.encoders = nn.ModuleDict(encoders)
+        self.decoders = nn.ModuleDict(decoders)
 
         # Define losses
         self.loss_fn = {}
@@ -310,8 +320,8 @@ class GlobalWorkspace(LightningModule):
         return {prefix: torch.tensor(0.).to(self.device)}
 
     def step(self, available_domains, latents, mode="val", prefix=""):
-        prop_sync = torch.min(available_domains['v'], available_domains['t']).sum() / available_domains['v'].size(0)
-        self.log(f"{mode}/{prefix}prop_sync_batch", prop_sync, on_step=True, on_epoch=False)
+        # prop_sync = torch.min(available_domains['v'], available_domains['t']).sum() / available_domains['v'].size(0)
+        # self.log(f"{mode}/{prefix}prop_sync_batch", prop_sync, on_step=True, on_epoch=False)
 
         latent_demi_cycle_predictions = {}
         latent_demi_cycle_target = {}
@@ -380,9 +390,11 @@ class GlobalWorkspace(LightningModule):
         translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
         translation_losses_2 = {}
         if mode == "val":
-            translation_losses_2 = self.loss(latent_translation_predictions_2, latent_translation_target_2, prefix="translation-non-op")
+            translation_losses_2 = self.loss(latent_translation_predictions_2, latent_translation_target_2,
+                                             prefix="translation-non-op")
 
-        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses, **translation_losses_2}
+        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses,
+                  **translation_losses_2}
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
         losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
                                        for loss_name in loss_names], dim=0).sum()
@@ -452,7 +464,7 @@ class GlobalWorkspace(LightningModule):
             domain_examples[domain_name] = domain_example
         return domain_examples
 
-    def log_images(self, logger, examples, slug="val", max_examples=None):
+    def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
             save_images = logger._save_images
@@ -528,11 +540,11 @@ class GlobalWorkspace(LightningModule):
                         validation_examples = self.get_domain_examples(mode, dist)
 
                         if self.validation_example_list is not None:
-                            self.log_images(logger, validation_examples, f"{mode}/{dist}")
+                            self.log_domains(logger, validation_examples, f"{mode}/{dist}")
 
                 if log_train and "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
                     train_examples = self.get_domain_examples("train", "in_dist")
-                    self.log_images(logger, train_examples, "train")
+                    self.log_domains(logger, train_examples, "train")
 
                 self.set_unimodal_pass_through(True)
 

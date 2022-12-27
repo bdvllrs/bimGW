@@ -5,7 +5,7 @@ from tqdm import tqdm
 from transformers import BertModel, BertTokenizer
 
 
-def get_bert_latents(data, bert_path, bert_latents, path, device):
+def save_bert_latents(data, bert_path, bert_latents, path, device):
     transformer = BertModel.from_pretrained(bert_path)
     transformer.eval()
     transformer.to(device)

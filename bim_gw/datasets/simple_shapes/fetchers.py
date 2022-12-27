@@ -60,9 +60,9 @@ class AttributesDataFetcher(DataFetcher):
     modality = "attr"
 
     def get_null_item(self):
-        _, cls, attr = self.get_item(0)
+        _, cls, attr, _ = self.get_item(0)
         attr[:] = 0.
-        return torch.tensor(0.).float(), 0, attr
+        return torch.tensor(0.).float(), 0, attr, torch.tensor(0.).float()
 
     def get_item(self, item):
         label = self.labels[item]
@@ -73,11 +73,13 @@ class AttributesDataFetcher(DataFetcher):
         r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
+        unpaired = label[11]
 
         return (
             torch.tensor(1.).float(),
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
+            torch.tensor(unpaired).float()
         )
 
 
@@ -87,39 +89,21 @@ class TextDataFetcher(DataFetcher):
     def __init__(self, root_path, split, ids, labels, transforms=None, bert_latents="bert-base-uncased.npy"):
         super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
 
-        # self.bert_data = np.load(root_path / "saved_latents" / split / "bert-base-uncased_simple.npy")[ids]
         self.bert_data = None
         if bert_latents is not None:
-            self.bert_data = np.load(root_path / "saved_latents" / split / bert_latents)[ids]
+            self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
 
     def get_item(self, item):
-        # label = self.labels[item]
-        # if item in self.sentences:
-        #     sentence = self.sentences[item]
-        # else:
-        #     cls = int(label[0])
-        #     x, y = label[1], label[2]
-        #     size = label[3]
-        #     rotation = label[4]
-        #
-        #     sentence = self.text_composer({
-        #         "shape": cls,
-        #         "rotation": rotation,
-        #         "color": (label[5], label[6], label[7]),
-        #         "size": size,
-        #         "location": (x, y)
-        #     })
-        #     self.sentences[item] = sentence
         sentence = self.captions[item]
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
         bert = torch.zeros(768).float()
         if self.bert_data is not None:
-            bert = torch.from_numpy(self.bert_data[item])
-        return torch.tensor(1.).float(), bert, sentence
+            bert = torch.from_numpy(self.bert_data[item]).float()
+        return torch.tensor(1.).float(), bert, str(sentence)
 
     def get_null_item(self):
         x = torch.zeros(768).float()

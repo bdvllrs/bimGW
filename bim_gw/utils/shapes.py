@@ -1,7 +1,7 @@
 import matplotlib.path as mpath
 import numpy as np
 from matplotlib import patches as patches, pyplot as plt, gridspec
-from neptune.new.types import File
+from tqdm import tqdm
 
 
 def get_transformed_coordinates(coordinates, origin, scale, rotation):
@@ -185,11 +185,15 @@ def generate_class(n_samples):
     return np.random.randint(3, size=n_samples)
 
 
+def generate_unpaired_attr(n_samples):
+    return np.random.rand(n_samples)
+
+
 def generate_transformations(labels, target_labels):
     n_samples = len(labels['classes'])
     assert len(target_labels['classes']) == n_samples
     transformation_complexity = np.random.rand(n_samples)
-    transformations = np.zeros((n_samples, 11))
+    transformations = np.zeros((n_samples, 12))
     for k in range(n_samples):
         n_transfo = 1
         if 0.6 <= transformation_complexity[k] <= 0.9:
@@ -197,7 +201,7 @@ def generate_transformations(labels, target_labels):
         elif transformation_complexity[k] > 0.9:
             n_transfo = 3
         for i in range(n_transfo):
-            transfo = np.random.randint(0, 5)
+            transfo = np.random.randint(0, 6)
             transformations[k, 0] = labels["classes"][k]
             if transfo == 0:  # class
                 transformations[k, 0] = target_labels["classes"][k]
@@ -208,24 +212,30 @@ def generate_transformations(labels, target_labels):
                 transformations[k, 3] = target_labels["locations"][k, 1] - labels["locations"][k, 1]
             elif transfo == 3:  # rotation
                 transformations[k, 4] = target_labels["rotations"][k] - labels["rotations"][k]
-            else:  # color
+            elif transfo == 4:  # color
                 transformations[k, 5] = target_labels["colors"][k, 0] - labels["colors"][k, 0]
                 transformations[k, 6] = target_labels["colors"][k, 1] - labels["colors"][k, 1]
                 transformations[k, 7] = target_labels["colors"][k, 2] - labels["colors"][k, 2]
                 transformations[k, 8] = target_labels["colors_hls"][k, 0] - labels["colors_hls"][k, 0]
                 transformations[k, 9] = target_labels["colors_hls"][k, 1] - labels["colors_hls"][k, 1]
                 transformations[k, 10] = target_labels["colors_hls"][k, 2] - labels["colors_hls"][k, 2]
+            else:
+                transformations[k, 11] = 0
     return transformed_labels(labels, transformations), labels_from_transfo(transformations)
+
 
 def transformed_labels(labels, transfo):
     return dict(
-        classes = transfo[:, 0],
-        locations = labels["locations"] + transfo[:, 2:4],
-        sizes = labels["sizes"] + transfo[:, 1],
-        rotations = labels["rotations"] + transfo[:, 4],
-        colors = labels["colors"] + transfo[:, 5:8],
-        colors_hls = labels["colors_hls"] + transfo[:, 8:11]
+        classes=transfo[:, 0],
+        locations=labels["locations"] + transfo[:, 2:4],
+        sizes=labels["sizes"] + transfo[:, 1],
+        rotations=labels["rotations"] + transfo[:, 4],
+        colors=labels["colors"] + transfo[:, 5:8],
+        colors_hls=labels["colors_hls"] + transfo[:, 8:11],
+        unpaired=labels["unpaired"] + transfo[:, 12]
     )
+
+
 def labels_from_transfo(transfo):
     return dict(
         classes=transfo[:, 0],
@@ -233,7 +243,8 @@ def labels_from_transfo(transfo):
         sizes=transfo[:, 1],
         rotations=transfo[:, 4],
         colors=transfo[:, 5:8],
-        colors_hls=transfo[:, 8:11]
+        colors_hls=transfo[:, 8:11],
+        unpaired=transfo[:, 12]
     )
 
 
@@ -245,5 +256,91 @@ def generate_dataset(n_samples, min_scale, max_scale, min_lightness, max_lightne
     locations = generate_location(n_samples, max_scale, imsize)
     rotation = generate_rotation(n_samples)
     colors_rgb, colors_hls = generate_color(n_samples, min_lightness, max_lightness)
+    unpaired = generate_unpaired_attr(n_samples)
     return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors_rgb,
-                colors_hls=colors_hls)
+                colors_hls=colors_hls, unpaired=unpaired)
+
+
+def save_dataset(path_root, dataset, imsize):
+    dpi = 1
+    classes, locations, radii = dataset["classes"], dataset["locations"], dataset["sizes"]
+    rotations, colors = dataset["rotations"], dataset["colors"]
+    for k, (cls, location, scale, rotation, color) in tqdm(enumerate(zip(classes, locations, radii, rotations, colors)),
+                                                           total=len(classes)):
+        path_file = path_root / f"{k}.png"
+
+        fig, ax = plt.subplots(figsize=(imsize / dpi, imsize / dpi), dpi=dpi)
+        generate_image(ax, cls, location, scale, rotation, color, imsize)
+        ax.set_facecolor("black")
+        # patch = patches.Circle((location[0], location[1]), 1, facecolor="white")
+        # ax.add_patch(patch)
+        plt.tight_layout(pad=0)
+        # plt.show()
+        plt.savefig(path_file, dpi=dpi, format="png")
+        plt.close(fig)
+
+
+def load_labels_old(path_root):
+    labels = np.load(str(path_root))
+    dataset = {
+        "classes": labels[:, 0],
+        "locations": labels[:, 1:3],
+        "sizes": labels[:, 3],
+        "rotations": labels[:, 4],
+        "colors": labels[:, 5:8],
+        "colors_hls": labels[:, 8:11],
+    }
+    dataset_transfo = {
+        "classes": labels[:, 11],
+        "locations": labels[:, 12:14],
+        "sizes": labels[:, 14],
+        "rotations": labels[:, 15],
+        "colors": labels[:, 16:19],
+        "colors_hls": labels[:, 19:22],
+    }
+    return dataset, dataset_transfo
+
+
+def load_labels(path_root):
+    labels = np.load(str(path_root))
+    dataset = {
+        "classes": labels[:, 0],
+        "locations": labels[:, 1:3],
+        "sizes": labels[:, 3],
+        "rotations": labels[:, 4],
+        "colors": labels[:, 5:8],
+        "colors_hls": labels[:, 8:11],
+        "unpaired": labels[:, 11]
+    }
+    dataset_transfo = {
+        "classes": labels[:, 11],
+        "locations": labels[:, 12:14],
+        "sizes": labels[:, 14],
+        "rotations": labels[:, 15],
+        "colors": labels[:, 16:19],
+        "colors_hls": labels[:, 19:22],
+        "unpaired": labels[:, 22]
+    }
+    return dataset, dataset_transfo
+
+
+def save_labels(path_root, dataset, dataset_transfo):
+    classes, locations, sizes = dataset["classes"], dataset["locations"], dataset["sizes"]
+    rotations, colors = dataset["rotations"], dataset["colors"]
+    colors_hls = dataset["colors_hls"]
+    unpaired_attr = dataset["unpaired"]
+    classes_transfo, locations_transfo, sizes_transfo = dataset_transfo["classes"], dataset_transfo["locations"], \
+                                                        dataset_transfo["sizes"]
+    rotations_transfo, colors_transfo = dataset_transfo["rotations"], dataset_transfo["colors"]
+    colors_hls_transfo = dataset_transfo["colors_hls"]
+    unpaired_attr_transfo = dataset_transfo["unpaired"]
+    # header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h", "l", "s", "t_class", "d_x", "d_y", "d_scale",
+    #           "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
+    # TODO: add transformation to unpaired examples
+    labels = np.concatenate([
+        classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)), rotations.reshape((-1, 1)), colors, colors_hls,
+        unpaired_attr.reshape((-1, 1)),
+        classes_transfo.reshape((-1, 1)), locations_transfo, sizes_transfo.reshape((-1, 1)),
+        rotations_transfo.reshape((-1, 1)), colors_transfo, colors_hls_transfo, unpaired_attr_transfo.reshape((-1, 1))
+    ], axis=1).astype(np.float32)
+    np.save(path_root, labels)

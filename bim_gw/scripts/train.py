@@ -56,6 +56,7 @@ def train_lm(args):
     args.lm.split_ood = False
     args.lm.selected_domains = {"a": "attr", "t": "t"}
     args.lm.data_augmentation = False
+    args.lm.remove_sync_domains = None
 
     data = load_dataset(args, args.lm, add_unimodal=False)
     data.prepare_data()
@@ -68,7 +69,7 @@ def train_lm(args):
                                            bert_path=args.global_workspace.bert_path,
                                            domain_examples=data.domain_examples)
     else:
-        lm = ShapesLM(args.lm.z_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
+        lm = ShapesLM(args.lm.z_size, args.lm.hidden_size, len(data.classes), data.img_size, args.global_workspace.bert_path,
                       args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step, args.lm.scheduler.gamma,
                       data.domain_examples)
 

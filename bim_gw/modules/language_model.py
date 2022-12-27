@@ -2,12 +2,11 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from transformers import BertModel, BertTokenizerFast, BertTokenizer
 
 from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
-from bim_gw.utils.text_composer.composer import random_composer
+from bim_gw.utils.text_composer.composer import composer
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -19,42 +18,61 @@ class ShapesAttributesLM(WorkspaceModule):
         self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.n_classes, self.z_size]
+        self.output_dims = [self.n_classes, self.z_size, 1]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
+            torch.tanh  # unpaired
         ]
 
         self.losses = [
             lambda x, y: nll_loss(x, y),  # shapes
-            F.mse_loss  # rest
+            F.mse_loss,  # rest
+            F.mse_loss  # unpaired
         ]
 
     def encode(self, x):
-        return self(x)
-
-    def decode(self, x):
-        logits, latent = x
-        out_latents = (latent.clone() + 1) / 2
-        out_latents[:, 0] = out_latents[:, 0] * self.imsize
-        out_latents[:, 1] = out_latents[:, 1] * self.imsize
-        out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        return (torch.argmax(logits, dim=-1),
-                out_latents)
-
-    def adapt(self, x):
-        return x[0].exp(), x[1]
-
-    def forward(self, x: list):
-        cls, latents = x
+        if len(x) == 2:
+            cls, latents = x
+            unpaired = torch.ones_like(latents[:, 0]) * 0.5
+        else:
+            cls, latents, unpaired = x
         out_latents = latents.clone()
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
+        if len(x) == 2:
+            return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+                    # rotations,
+                    out_latents * 2 - 1)
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
-                out_latents * 2 - 1)
+                out_latents * 2 - 1,
+                unpaired * 2 - 1)
+
+    def decode(self, x):
+        if len(x) == 2:
+            logits, latents = x
+            unpaired = torch.zeros_like(latents[:, 0])
+        else:
+            logits, latents, unpaired = x
+        out_latents = (latents.clone() + 1) / 2
+        out_latents[:, 0] = out_latents[:, 0] * self.imsize
+        out_latents[:, 1] = out_latents[:, 1] * self.imsize
+        out_latents[:, 2] = out_latents[:, 2] * self.imsize
+        if len(x) == 2:
+            return (torch.argmax(logits, dim=-1),
+                    out_latents)
+        return (torch.argmax(logits, dim=-1),
+                out_latents,
+                (unpaired + 1) / 2)
+
+    def adapt(self, x):
+        if len(x) == 2:
+            return x[0].exp(), x[1]
+        else:
+            return x[0].exp(), x[1], x[2]
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
@@ -80,6 +98,9 @@ class ShapesAttributesLM(WorkspaceModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
         latents = x[1][:max_examples].detach().cpu().numpy()
+        unpaired = np.zeros_like(latents[:, 0])
+        if len(x) == 3:
+            unpaired = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
@@ -92,10 +113,10 @@ class ShapesAttributesLM(WorkspaceModule):
         )
 
         # text
-        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "u"]
         text = []
         for k in range(len(classes)):
-            text.append([classes[k].item()] + latents[k].tolist())
+            text.append([classes[k].item()] + latents[k].tolist() + [unpaired[k].item()])
         if logger is not None:
             logger.log_table(name + "_text", columns=labels, data=text, step=step)
         else:
@@ -110,7 +131,7 @@ def make_causal_mask_prog(input_dec, encod_out):
 
 class ShapesLM(WorkspaceModule):
     def __init__(
-            self, z_size, n_classes, imsize, bert_path,
+            self, z_size, hidden_size, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
     ):
@@ -118,13 +139,12 @@ class ShapesLM(WorkspaceModule):
         super(ShapesLM, self).__init__()
         self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
+        self.hidden_size = hidden_size
         self.z_size = z_size
-        self.bert_size = 768
-        assert self.z_size != self.bert_size, "Cannot have z_size and bert_size the same."
         self.imsize = imsize
         self.bert_path = bert_path
 
-        self.text_composer = random_composer
+        self.text_composer = composer
 
         self.transformer = None
         self.tokenizer = None
@@ -133,39 +153,41 @@ class ShapesLM(WorkspaceModule):
         self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
-            nn.Linear(self.bert_size, self.bert_size),
-            nn.ReLU(),
-            nn.Linear(self.bert_size, self.bert_size // 2),
-            nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.z_size)
-        )
-        self.classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.shapes_attribute.output_dims))
+            nn.Linear(self.z_size, self.z_size // 2),
+            nn.ReLU(),
+            nn.Linear(self.z_size // 2, self.hidden_size)
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims))
         )
 
         self.domain_examples = domain_examples
 
-        # self.output_dims = [self.z_size]
-        # self.decoder_activation_fn = [
-        #     None
-        # ]
-        #
-        # self.losses = [
-        #     F.mse_loss
-        # ]
-        self.output_dims = self.shapes_attribute.output_dims
-        self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
-        self.losses = self.shapes_attribute.losses
+        self.output_dims = [self.z_size]
+        self.decoder_activation_fn = [
+            None
+        ]
 
-    def encode(self, x):
-        return self(x)
+        self.losses = [
+            F.mse_loss
+        ]
+        # self.output_dims = self.shapes_attribute.output_dims
+        # self.decoder_activation_fn = self.shapes_attribute.decoder_activation_fn
+        # self.losses = self.shapes_attribute.losses
+
+    def encode(self, sentences):
+        bert_latents, sentences = sentences
+        return [bert_latents]
 
     def decode(self, text_latent):
-        # text_latent = text_latent[0]
-        # predictions = self.classify(text_latent)
-        predictions = text_latent
+        text_latent = text_latent[0]
+        predictions = self.projection(text_latent)
+        predictions = self.classify(predictions)
+        # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
@@ -182,23 +204,6 @@ class ShapesLM(WorkspaceModule):
             "location": (attributes[k, 0], attributes[k, 1])
         }) for k in range(len(cls))]
         return [text_latent, sentence_predictions]
-
-    def get_bert_latent(self, sentences):
-        if self.transformer is None:
-            self.transformer = BertModel.from_pretrained(self.bert_path)
-            self.transformer.eval()
-            self.transformer.to(self.device)
-            for p in self.transformer.parameters():
-                p.requires_grad_(False)
-            self.tokenizer = BertTokenizer.from_pretrained(self.bert_path)
-
-        tokens = self.tokenizer(sentences, return_tensors='pt', padding=True).to(self.device)
-        x = self.transformer(**tokens)["last_hidden_state"][:, 0]
-        return x
-
-    def forward(self, sentences):
-        bert_latents, sentences = sentences
-        return self.classify(self.projection(bert_latents))
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -217,7 +222,7 @@ class ShapesLM(WorkspaceModule):
             "size": size,
             "location": (x, y)
         })
-        return labels
+        return None, labels  # TODO: add BERT vectors
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         if logger is not None:
@@ -227,8 +232,8 @@ class ShapesLM(WorkspaceModule):
             encoded_s = x[0]
         else:
             encoded_s = self.encode(x)
-        # predictions = self.shapes_attribute.decode(self.classify(encoded_s))
-        predictions = self.shapes_attribute.decode(encoded_s)
+        predictions = self.shapes_attribute.decode(self.classify(self.projection(encoded_s[0])))
+        # predictions = self.shapes_attribute.decode(encoded_s)
         self.shapes_attribute.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
@@ -248,7 +253,7 @@ class ShapesLM(WorkspaceModule):
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
         z = self.encode(sentences)[0]
-        predictions = self.classify(z)
+        predictions = self.classify(self.projection(z))
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -277,13 +282,13 @@ class ShapesLM(WorkspaceModule):
 
     def epoch_end(self, mode="val"):
         if self.domain_examples is not None and mode in self.domain_examples:
-            domain_examples = self.domain_examples[mode][0][0]  # only keep in dist
+            domain_examples = self.domain_examples[mode][0]  # only keep in dist
             for logger in self.loggers:
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
                     domain_examples["t"][2]
                 ])
-                predictions = self.classify(encoded_s[0])
+                predictions = self.classify(self.projection(encoded_s[0]))
                 sentence_predictions = self.decode(encoded_s)[1]
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]

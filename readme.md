@@ -30,7 +30,7 @@ evaluate and use the model.
 The scripts are in the `scripts` folder.
 The scripts use the configuration files, but they can be overridden using CLI args:
 ```
-python train.py "max_epochs=2" "global_workspace.use_pre_saved=true"
+python train.py "max_epochs=2" "global_workspace.batch_size=512"
 ```
 
 # Dataset

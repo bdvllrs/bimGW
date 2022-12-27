@@ -21,7 +21,10 @@ def get_domain(name, domain_name, args, num_classes=None, img_size=None):
     elif domain_name in ["t", "t_f"]:
         domain = ShapesLM.load_from_checkpoint(
             args.global_workspace.lm_checkpoint,
-            bert_path=args.global_workspace.bert_path)
+            bert_path=args.global_workspace.bert_path,
+            z_size=args.lm.z_size,
+            hidden_size=args.lm.hidden_size
+        )
     elif domain_name in ["attr", "attr_f"]:
         assert num_classes is not None and img_size is not None, "Need num_classes and img_size for attr domain"
         domain = ShapesAttributesLM(num_classes, img_size)
