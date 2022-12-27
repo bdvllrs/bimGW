@@ -18,39 +18,61 @@ class ShapesAttributesLM(WorkspaceModule):
         self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.n_classes, self.z_size]
+        self.output_dims = [self.n_classes, self.z_size, 1]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
+            torch.tanh  # unpaired
         ]
 
         self.losses = [
             lambda x, y: nll_loss(x, y),  # shapes
-            F.mse_loss  # rest
+            F.mse_loss,  # rest
+            F.mse_loss  # unpaired
         ]
 
     def encode(self, x):
-        cls, latents = x
+        if len(x) == 2:
+            cls, latents = x
+            unpaired = torch.ones_like(latents[:, 0]) * 0.5
+        else:
+            cls, latents, unpaired = x
         out_latents = latents.clone()
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
+        if len(x) == 2:
+            return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+                    # rotations,
+                    out_latents * 2 - 1)
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
-                out_latents * 2 - 1)
+                out_latents * 2 - 1,
+                unpaired * 2 - 1)
 
     def decode(self, x):
-        logits, latent = x
-        out_latents = (latent.clone() + 1) / 2
+        if len(x) == 2:
+            logits, latents = x
+            unpaired = torch.zeros_like(latents[:, 0])
+        else:
+            logits, latents, unpaired = x
+        out_latents = (latents.clone() + 1) / 2
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
+        if len(x) == 2:
+            return (torch.argmax(logits, dim=-1),
+                    out_latents)
         return (torch.argmax(logits, dim=-1),
-                out_latents)
+                out_latents,
+                (unpaired + 1) / 2)
 
     def adapt(self, x):
-        return x[0].exp(), x[1]
+        if len(x) == 2:
+            return x[0].exp(), x[1]
+        else:
+            return x[0].exp(), x[1], x[2]
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
@@ -76,6 +98,9 @@ class ShapesAttributesLM(WorkspaceModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
         latents = x[1][:max_examples].detach().cpu().numpy()
+        unpaired = np.zeros_like(latents[:, 0])
+        if len(x) == 3:
+            unpaired = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
@@ -88,10 +113,10 @@ class ShapesAttributesLM(WorkspaceModule):
         )
 
         # text
-        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "u"]
         text = []
         for k in range(len(classes)):
-            text.append([classes[k].item()] + latents[k].tolist())
+            text.append([classes[k].item()] + latents[k].tolist() + [unpaired[k].item()])
         if logger is not None:
             logger.log_table(name + "_text", columns=labels, data=text, step=step)
         else:
