@@ -3,51 +3,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
-from bim_gw.utils.shapes import generate_image, generate_dataset, generate_transformations
+from bim_gw.utils.shapes import generate_dataset, generate_transformations, save_dataset, save_labels, load_labels, \
+    load_labels_old, generate_unpaired_attr
 from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
-
-
-def save_dataset(path_root, dataset, imsize):
-    dpi = 1
-    classes, locations, radii = dataset["classes"], dataset["locations"], dataset["sizes"]
-    rotations, colors = dataset["rotations"], dataset["colors"]
-    for k, (cls, location, scale, rotation, color) in tqdm(enumerate(zip(classes, locations, radii, rotations, colors)),
-                                                           total=len(classes)):
-        path_file = path_root / f"{k}.png"
-
-        fig, ax = plt.subplots(figsize=(imsize / dpi, imsize / dpi), dpi=dpi)
-        generate_image(ax, cls, location, scale, rotation, color, imsize)
-        ax.set_facecolor("black")
-        # patch = patches.Circle((location[0], location[1]), 1, facecolor="white")
-        # ax.add_patch(patch)
-        plt.tight_layout(pad=0)
-        # plt.show()
-        plt.savefig(path_file, dpi=dpi, format="png")
-        plt.close(fig)
-
-
-def save_labels(path_root, dataset, dataset_transfo):
-    classes, locations, sizes = dataset["classes"], dataset["locations"], dataset["sizes"]
-    rotations, colors = dataset["rotations"], dataset["colors"]
-    colors_hls = dataset["colors_hls"]
-    classes_transfo, locations_transfo, sizes_transfo = dataset_transfo["classes"], dataset_transfo["locations"], \
-                                                        dataset_transfo["sizes"]
-    rotations_transfo, colors_transfo = dataset_transfo["rotations"], dataset_transfo["colors"]
-    colors_hls_transfo = dataset_transfo["colors_hls"]
-    # header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h", "l", "s", "t_class", "d_x", "d_y", "d_scale",
-    #           "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
-    labels = np.concatenate([
-        classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)), rotations.reshape((-1, 1)), colors, colors_hls,
-        classes_transfo.reshape((-1, 1)), locations_transfo, sizes_transfo.reshape((-1, 1)),
-        rotations_transfo.reshape((-1, 1)), colors_transfo, colors_hls_transfo
-    ], axis=1).astype(np.float32)
-    np.save(path_root, labels)
 
 
 def main():
@@ -141,5 +104,19 @@ def main():
     print('done!')
 
 
+def other():
+    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    seed = args.seed
+    np.random.seed(seed)
+
+    dataset_location = Path(args.simple_shapes_path)
+    for path_name in ["train_labels_2", "val_labels", "test_labels"]:
+    # for path_name in ["val_labels"]:
+        dataset, dataset_transfo = load_labels(dataset_location / (path_name + ".npy"))
+        dataset['unpaired'] = generate_unpaired_attr(dataset['classes'].shape[0])
+        dataset_transfo['unpaired'] = np.zeros_like(dataset['unpaired'])
+        save_labels(dataset_location / f"{path_name}_2.npy", dataset, dataset_transfo)
+
+
 if __name__ == '__main__':
-    main()
+    other()
