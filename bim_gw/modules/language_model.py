@@ -42,10 +42,6 @@ class ShapesAttributesLM(WorkspaceModule):
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        if len(x) == 2:
-            return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                    # rotations,
-                    out_latents * 2 - 1)
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
                 out_latents * 2 - 1,
@@ -61,9 +57,6 @@ class ShapesAttributesLM(WorkspaceModule):
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        if len(x) == 2:
-            return (torch.argmax(logits, dim=-1),
-                    out_latents)
         return (torch.argmax(logits, dim=-1),
                 out_latents,
                 (unpaired + 1) / 2)
@@ -162,7 +155,7 @@ class ShapesLM(WorkspaceModule):
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims))
+            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims[:-1]))  # remove last unmatched attr
         )
 
         self.domain_examples = domain_examples
@@ -240,7 +233,7 @@ class ShapesLM(WorkspaceModule):
         prediction = self.classifier(z)
         predictions = []
         last_dim = 0
-        for dim, act_fn in zip(self.shapes_attribute.output_dims, self.shapes_attribute.decoder_activation_fn):
+        for dim, act_fn in zip(self.shapes_attribute.output_dims[:-1], self.shapes_attribute.decoder_activation_fn[:-1]):
             pred = act_fn(prediction[:, last_dim:last_dim + dim])
             predictions.append(pred)
             last_dim += dim
@@ -249,7 +242,7 @@ class ShapesLM(WorkspaceModule):
     def step(self, batch, batch_idx, mode="train"):
         sentences, targets = batch["t"][1:], batch["a"][1:]
         bs = sentences[0].size(0)
-        targets = self.shapes_attribute.encode(targets)
+        targets = self.shapes_attribute.encode(targets)[:-1]
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
         z = self.encode(sentences)[0]
@@ -257,7 +250,7 @@ class ShapesLM(WorkspaceModule):
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
-                                                           self.shapes_attribute.losses, targets)):
+                                                           self.shapes_attribute.losses[:-1], targets)):
             group_loss = loss(group_pred, target)
             predictions.append(group_pred)
             losses.append(group_loss)
