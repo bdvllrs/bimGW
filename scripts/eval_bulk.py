@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import wandb
+from omegaconf import OmegaConf
 
 from bim_gw.modules.gw import GlobalWorkspace
 from pytorch_lightning import seed_everything
@@ -417,7 +418,7 @@ if __name__ == "__main__":
     k = 1
 
     for language_type in ['t', 'attr']:
-        args.global_workspace.selected_domains.t = language_type
+        args.global_workspace.selected_domains = ["v", language_type]
 
         data = load_dataset(args, args.global_workspace)
         data.prepare_data()
@@ -432,7 +433,7 @@ if __name__ == "__main__":
                     args.losses.coefs.cycles = checkpoint["coef_cy"]
                     args.losses.coefs.supervision = checkpoint["coef_supervision"]
                     args.losses.coefs.contrastive = checkpoint["coef_contrastive"]
-                    args.global_workspace.selected_domains = {"v": "v", "t": checkpoint['type']}
+                    args.global_workspace.selected_domains = OmegaConf.create(["v", checkpoint['type']])
                     args.global_workspace.prop_labelled_images = checkpoint['prop_sup']
 
                     global_workspace = GlobalWorkspace.load_from_checkpoint(str(p),

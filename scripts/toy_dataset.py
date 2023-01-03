@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from omegaconf import OmegaConf
 from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
@@ -95,7 +96,7 @@ def main():
     args.global_workspace.split_ood = False
     args.global_workspace.sync_uses_whole_dataset = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.global_workspace.selected_domains = {"t": "t"}
+    args.global_workspace.selected_domains = OmegaConf.create(["t"])
     data = load_dataset(args, args.global_workspace, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")

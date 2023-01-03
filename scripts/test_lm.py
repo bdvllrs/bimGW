@@ -1,6 +1,7 @@
 import os
 
 import torch
+from omegaconf import OmegaConf
 from transformers import BertModel, BertTokenizer
 
 from bim_gw.utils import get_args
@@ -18,7 +19,7 @@ if __name__ == "__main__":
     args.lm.prop_labelled_images = 1.
 
     args.lm.split_ood = False
-    args.lm.selected_domains = {"a": "attr", "t": "t"}
+    args.lm.selected_domains = OmegaConf.create(["attr", "t"])
     args.lm.data_augmentation = False
     args.lm.remove_sync_domains = None
 

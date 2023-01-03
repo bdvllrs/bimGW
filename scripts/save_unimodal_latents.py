@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from omegaconf import OmegaConf
 from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     args.global_workspace.sync_uses_whole_dataset = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.global_workspace.selected_domains = {domain: domain for domain in args.global_workspace.load_pre_saved_latents.keys()}
+    args.global_workspace.selected_domains = OmegaConf.create([domain for domain in args.global_workspace.load_pre_saved_latents.keys()])
 
     data = load_dataset(args, args.global_workspace, with_actions=True)
     data.prepare_data()
@@ -38,36 +39,34 @@ if __name__ == '__main__':
     }
 
     for domain_key in domains.keys():
-        domain_name = args.global_workspace.selected_domains[domain_key]
-        assert domain_name in args.global_workspace.load_pre_saved_latents, f"Path for domain {domain_name} is not provided."
+        assert domain_key in args.global_workspace.load_pre_saved_latents, f"Path for domain {domain_key} is not provided."
 
     path = Path(args.simple_shapes_path) / "saved_latents"
     path.mkdir(exist_ok=True)
 
     for name, data_loader in data_loaders.items():
         latents = {
-            args.global_workspace.selected_domains[domain_key]: None for domain_key in domains.keys()
+            domain_key: None for domain_key in domains.keys()
         }
         print(f"Fetching {name} data.")
         for idx, (batch, target) in tqdm(enumerate(data_loader),
                                          total=int(len(data_loader.dataset) / data_loader.batch_size)):
             for domain_key in domains.keys():
-                domain_name = args.global_workspace.selected_domains[domain_key]
                 l = None
-                for t in range(len(batch[domain_name])):
-                    data = batch[domain_name][t][1:]
+                for t in range(len(batch[domain_key])):
+                    data = batch[domain_key][t][1:]
                     for k in range(len(data)):
                         if isinstance(data[k], torch.Tensor):
                             data[k] = data[k].to(device)
-                    encoded = domains[domain_name].encode(data)
+                    encoded = domains[domain_key].encode(data)
                     if l is None:
                         l = [[] for k in range(len(encoded))]
                     for k in range(len(encoded)):
                         l[k].append(encoded[k].cpu().detach().numpy())
-                if latents[domain_name] is None:
-                    latents[domain_name] = [[] for k in range(len(l))]
+                if latents[domain_key] is None:
+                    latents[domain_key] = [[] for k in range(len(l))]
                 for k in range(len(l)):
-                    latents[domain_name][k].append(np.stack(l[k], axis=1))
+                    latents[domain_key][k].append(np.stack(l[k], axis=1))
         for domain_name, l in latents.items():
             (path / name).mkdir(exist_ok=True)
             paths = []

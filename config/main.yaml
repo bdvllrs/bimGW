@@ -78,7 +78,7 @@ global_workspace:
 
   batch_size: 128
   data_augmentation: false
-  selected_domains: {}  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
+  selected_domains: []  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
   sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.
 
   use_pre_saved: false

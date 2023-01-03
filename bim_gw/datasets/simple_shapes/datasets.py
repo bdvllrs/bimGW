@@ -28,8 +28,8 @@ class SimpleShapesDataset:
             selected_indices:
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains = {domain: domain for domain in
-                                 self.available_domains.keys()} if selected_domains is None else selected_domains
+        self.selected_domains = [domain for domain in
+                                 self.available_domains.keys()] if selected_domains is None else selected_domains
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
                            for domain in self.available_domains.keys()}
@@ -50,7 +50,7 @@ class SimpleShapesDataset:
         self.mapping = np.array(self.mapping)
         self.available_domains_mapping = domain_mapping
         if self.available_domains_mapping is None:
-            domains = list(self.selected_domains.keys())
+            domains = list(self.selected_domains)
             self.available_domains_mapping = [domains] * self.mapping.shape[0]
 
         if fetcher_params is None:
@@ -60,9 +60,9 @@ class SimpleShapesDataset:
                 fetcher_params[domain] = dict()
 
         self.data_fetchers = {
-            domain_key: self.available_domains[domain](
+            domain: self.available_domains[domain](
                 self.root_path, self.split, self.ids, self.labels, self.transforms, **fetcher_params[domain])
-            for domain_key, domain in self.selected_domains.items()
+            for domain in self.selected_domains
         }
 
         self.pre_saved_data = {}
@@ -71,11 +71,11 @@ class SimpleShapesDataset:
 
     def use_pre_saved_latents(self, pre_saved_latent_path):
         if pre_saved_latent_path is not None:
-            for key, domain_key in self.selected_domains.items():
+            for domain_key in self.selected_domains:
                 if domain_key in pre_saved_latent_path.keys():
                     self.pre_saved_data[domain_key] = load_pre_saved_latent(
                         self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids)
-                    self.data_fetchers[key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
+                    self.data_fetchers[domain_key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
 
     def __len__(self):
         return self.mapping.shape[0]

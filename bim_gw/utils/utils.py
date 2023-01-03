@@ -60,6 +60,9 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     if args.seed == "random":
         args.seed = np.random.randint(0, 100_000)
 
+    if OmegaConf.is_dict(args.global_workspace.selected_domains):
+        args.global_workspace.selected_domains = OmegaConf.create([values for values in args.global_workspace.selected_domains.values()])
+
     return args
 
 

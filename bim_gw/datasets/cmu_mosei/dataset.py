@@ -15,8 +15,8 @@ class CMUMOSEIDataset:
 
     def __getitem__(self, item):
         data = {
-            key: torch.from_numpy(self.dataset[name][item])
-            for key, name in self.selected_domains.items()
+            name: torch.from_numpy(self.dataset[name][item])
+            for name in self.selected_domains
         }
         data['s'] = self.dataset["All Labels"][item]
         if self.transforms is not None:

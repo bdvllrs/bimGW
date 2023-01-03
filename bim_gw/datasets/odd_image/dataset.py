@@ -32,7 +32,7 @@ class OddImageDataset:
             "attr": AttributesDataFetcher(self.root_path, "train", ids, labels, {"attr": None}),
             "t": TextDataFetcher(self.root_path, "train", ids, labels, {"t": None}, bert_latent),
         }
-        self.fetchers = {name: fetchers[name] for name in selected_domains.values()}
+        self.fetchers = {name: fetchers[name] for name in selected_domains}
 
     def __len__(self):
         return self.labels.shape[0]

@@ -144,22 +144,22 @@ class SimpleShapesDataModule(LightningDataModule):
                                                               size=(self.n_domain_examples,))
 
         self.domain_examples = {
-            "train": [{domain: [] for domain in self.selected_domains.keys()}, None],
-            "val": [{domain: [] for domain in self.selected_domains.keys()}, None],
-            "test": [{domain: [] for domain in self.selected_domains.keys()}, None],
+            "train": [{domain: [] for domain in self.selected_domains}, None],
+            "val": [{domain: [] for domain in self.selected_domains}, None],
+            "test": [{domain: [] for domain in self.selected_domains}, None],
         }
 
         if self.split_ood:
             for set_name in ["val", "test"]:
                 self.domain_examples[set_name][1] = {domain: [[] for _ in range(self.n_time_steps)] for domain in
-                                                     self.selected_domains.keys()}
+                                                     self.selected_domains}
 
         # add t examples
         for set_name, used_set in [("train", {"in_dist": train_set}), ("val", val_set), ("test", test_set)]:
             for used_dist in range(2):
                 used_dist_name = "in_dist" if used_dist == 0 else "ood"
                 if reconstruction_indices[set_name][used_dist] is not None:
-                    for domain in self.selected_domains.keys():
+                    for domain in self.selected_domains:
                         example_item = used_set[used_dist_name][0][domain]
                         if not isinstance(example_item, tuple):
                             examples = []
@@ -198,7 +198,7 @@ class SimpleShapesDataModule(LightningDataModule):
         mapping = None
         domain_mapping = None
         if prop_2_domains < 1:
-            domains = list(self.selected_domains.keys())
+            domains = list(self.selected_domains)
             original_size = len(allowed_indices)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
@@ -235,17 +235,17 @@ class SimpleShapesDataModule(LightningDataModule):
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
                                        transform={"v": get_preprocess(self.use_data_augmentation)},
-                                       selected_domains={"v": "v"},
+                                       selected_domains=["v"],
                                        output_transform=lambda d: d["v"][1],
                                        fetcher_params=self.fetcher_params)
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                      transform={"v": get_preprocess(self.use_data_augmentation)},
-                                     selected_domains={"v": "v"},
+                                     selected_domains=["v"],
                                      output_transform=lambda d: d["v"][1],
                                      fetcher_params=self.fetcher_params)
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
                                       transform={"v": get_preprocess(self.use_data_augmentation)},
-                                      selected_domains={"v": "v"},
+                                      selected_domains=["v"],
                                       output_transform=lambda d: d["v"][1],
                                       fetcher_params=self.fetcher_params)
         self.inception_stats_path_train = compute_dataset_statistics(train_ds, self.simple_shapes_folder,

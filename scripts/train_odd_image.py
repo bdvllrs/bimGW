@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+from omegaconf import OmegaConf
 from torch import nn
 
 from bim_gw.modules.gw import GlobalWorkspace
@@ -44,6 +45,7 @@ def get_csv_data(df, args, csv_row=None):
     if 'parameters/seed' in item:
         args.seed = item['parameters/seed']
     if 'parameters/global_workspace/selected_domains/t' in item:
+        # TODO: change for selected_domains as list.
         args.global_workspace.selected_domains.t = item["parameters/global_workspace/selected_domains/t"]
     if 'Name' in item:
         item['name'] = item['Name']
@@ -104,7 +106,7 @@ if __name__ == "__main__":
         global_workspace.eval()
         encoders = {name: nn.Sequential(global_workspace.encoders[name], nn.Tanh()) for name in load_domains}
 
-    args.global_workspace.selected_domains = {name: name for name in load_domains}
+    args.global_workspace.selected_domains = OmegaConf.create([name for name in load_domains])
 
     if args.odd_image.resume_csv is not None:
         item = get_csv_data(pd.read_csv(args.odd_image.resume_csv), args)

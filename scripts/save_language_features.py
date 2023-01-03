@@ -1,6 +1,7 @@
 import os
 
 import torch
+from omegaconf import OmegaConf
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     args.global_workspace.sync_uses_whole_dataset = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.global_workspace.selected_domains = {"t": "t"}
+    args.global_workspace.selected_domains = OmegaConf.create(["t"])
 
     data = load_dataset(args, args.global_workspace, add_unimodal=False)
     data.prepare_data()

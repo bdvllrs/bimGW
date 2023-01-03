@@ -1,6 +1,7 @@
 import os
 
 import torch
+from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
@@ -54,7 +55,7 @@ def train_lm(args):
     args.lm.prop_labelled_images = 1.
 
     args.lm.split_ood = False
-    args.lm.selected_domains = {"a": "attr", "t": "t"}
+    args.lm.selected_domains = OmegaConf.create(["attr", "t"])
     args.lm.data_augmentation = False
     args.lm.remove_sync_domains = None
 
@@ -83,9 +84,9 @@ def train_lm(args):
 def train_ae(args):
     seed_everything(args.seed)
 
-    args.vae.prop_sync_domains = {"all": 1.}
+    args.vae.prop_sync_domains = OmegaConf.create({"all": 1.})
     args.vae.split_ood = False
-    args.vae.selected_domains = {"v": "v"}
+    args.vae.selected_domains = OmegaConf.create(["v"])
 
     data = load_dataset(args, args.vae)
 
@@ -112,7 +113,7 @@ def train_vae(args):
     raise Exception("Change this to fit new prop_sync")
 
     args.vae.split_ood = False
-    args.vae.selected_domains = {"v": "v"}
+    args.vae.selected_domains = OmegaConf.create(["v"])
 
     data = load_dataset(args, args.vae)
 

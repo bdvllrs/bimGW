@@ -1,5 +1,3 @@
 global_workspace:
-  selected_domains: {
-    "v": "v", "t": "attr",
-  }
+  selected_domains: ["v","attr"]
   text_domain: "attributes"  # bert / attributes

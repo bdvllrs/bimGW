@@ -41,9 +41,7 @@ neptune:
 global_workspace:
   monitor_grad_norms: true
 
-  selected_domains: {
-    "v": "v", "t": "t",
-  }
+  selected_domains: ["v", "t"]
   split_ood: false
   text_domain: "bert"  # bert / attributes
   bert_path: "bert-base-uncased"
