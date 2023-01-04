@@ -75,7 +75,7 @@ def get_egg_patch(location, scale, rotation, color):
 
 
 def generate_image(ax, cls, location, scale, rotation, color, imsize=32):
-    color = color.astype(np.float) / 255
+    color = color.astype(np.float32) / 255
     if cls == 0:
         patch = get_diamond_patch(location, scale, rotation, color)
     elif cls == 1:

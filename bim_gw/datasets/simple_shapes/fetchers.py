@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from PIL import Image
 
+from bim_gw.utils.text_composer.composer import composer
+from bim_gw.utils.text_composer.utils import get_structure_category
+
 
 def transform(data, transformation):
     if transformation is not None:
@@ -94,20 +97,22 @@ class TextDataFetcher(DataFetcher):
             self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
+        self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)
 
     def get_item(self, item):
         sentence = self.captions[item]
+        choice = get_structure_category(composer, self.choices[item])
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
         bert = torch.zeros(768).float()
         if self.bert_data is not None:
             bert = torch.from_numpy(self.bert_data[item]).float()
-        return torch.tensor(1.).float(), bert, str(sentence)
+        return torch.tensor(1.).float(), bert, str(sentence), choice
 
     def get_null_item(self):
         x = torch.zeros(768).float()
-        return torch.tensor(0.).float(), x, ""
+        return torch.tensor(0.).float(), x, "", 0
 
 
 class PreSavedLatentDataFetcher:

@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torchmetrics
 from torch import nn
 from torch.nn import functional as F
 
@@ -7,7 +8,7 @@ from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 from bim_gw.utils.text_composer.composer import composer
-from bim_gw.utils.text_composer.utils import inspect_all_choices
+from bim_gw.utils.text_composer.utils import inspect_all_choices, get_choices_from_structure_category
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -165,6 +166,9 @@ class ShapesLM(WorkspaceModule):
             nn.Linear(self.hidden_size, self.composer_inspection['structures'])  # predict sentence structure
         )
 
+        self.grammar_train_acc = torchmetrics.Accuracy()
+        self.grammar_val_acc = torchmetrics.Accuracy()
+
         self.domain_examples = domain_examples
 
         self.output_dims = [self.z_size]
@@ -180,13 +184,15 @@ class ShapesLM(WorkspaceModule):
         # self.losses = self.shapes_attribute.losses
 
     def encode(self, sentences):
-        bert_latents, sentences = sentences
+        bert_latents, sentences, choices = sentences
         return [bert_latents]
 
     def decode(self, text_latent):
         text_latent = text_latent[0]
-        predictions = self.projection(text_latent)
-        predictions = self.classify(predictions)
+        z = self.projection(text_latent)
+        predictions = self.classify(z)
+        grammar_prediction = self.grammar_classifier(z)
+        choices = get_choices_from_structure_category(self.text_composer, torch.argmax(grammar_prediction, dim=1).tolist())
         # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
@@ -196,14 +202,15 @@ class ShapesLM(WorkspaceModule):
         rotation_y = attributes[:, 4] * 2 - 1
         rotations = np.arctan2(rotation_y, rotation_x)
 
-        sentence_predictions = [self.text_composer({
+
+        sentence_predictions, final_choices = zip(*[self.text_composer({
             "shape": int(cls[k]),
             "rotation": rotations[k],
             "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
             "size": attributes[k, 2],
             "location": (attributes[k, 0], attributes[k, 1])
-        }) for k in range(len(cls))]
-        return [text_latent, sentence_predictions]
+        }, choices[k]) for k in range(len(cls))])
+        return [text_latent, sentence_predictions, final_choices]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
         samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
@@ -215,14 +222,14 @@ class ShapesLM(WorkspaceModule):
         # rotation = rotation * 2 * np.pi / 360  # put in radians
         r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
 
-        labels = self.text_composer({
+        labels, choices = self.text_composer({
             "shape": cls,
             "rotation": rotation,
             "color": (r, g, b),
             "size": size,
             "location": (x, y)
         })
-        return None, labels  # TODO: add BERT vectors
+        return None, labels, choices  # TODO: add BERT vectors
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         if logger is not None:
@@ -247,13 +254,14 @@ class ShapesLM(WorkspaceModule):
         return predictions
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["t"][1:], batch["a"][1:]
+        sentences, targets = batch["t"][1:], batch["attr"][1:]
         bs = sentences[0].size(0)
         targets = self.shapes_attribute.encode(targets)[:-1]
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
-        z = self.encode(sentences)[0]
-        predictions = self.classify(self.projection(z))
+        text_latent = self.encode(sentences)[0]
+        z = self.projection(text_latent)
+        predictions = self.classify(z)
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -264,6 +272,14 @@ class ShapesLM(WorkspaceModule):
             total_loss += group_loss
 
             self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+
+        grammar_prediction = self.grammar_classifier(z)
+        loss_grammar = F.cross_entropy(grammar_prediction, sentences[2])
+        total_loss += loss_grammar
+        acc_fn = self.grammar_train_acc if mode == "train" else self.grammar_val_acc
+        res = acc_fn(grammar_prediction.softmax(-1), sentences[2])
+        self.log(f"{mode}/loss_grammar", loss_grammar, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+        self.log(f"{mode}_grammar_acc", res, on_epoch=(mode=="val"))
 
         self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
         return predictions, losses, total_loss
@@ -286,10 +302,13 @@ class ShapesLM(WorkspaceModule):
             for logger in self.loggers:
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
-                    domain_examples["t"][2]
+                    domain_examples["t"][2],
+                    domain_examples["t"][3].to(self.device)
                 ])
-                predictions = self.classify(self.projection(encoded_s[0]))
-                sentence_predictions = self.decode(encoded_s)[1]
+                z = self.projection(encoded_s[0])
+                predictions = self.classify(z)
+                decoded_s = self.decode(encoded_s)
+                sentence_predictions = decoded_s[1]
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
 
@@ -300,7 +319,7 @@ class ShapesLM(WorkspaceModule):
                                                  f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, domain_examples["a"][1:], f"{mode}/target_reconstruction")
+                    self.shapes_attribute.log_domain(logger, domain_examples["attr"][1:], f"{mode}/target_reconstruction")
                     logger.log_table(f"{mode}/target_text", columns=["Text"],
                                      data=[[domain_examples['t'][2][k]] for k in
                                            range(len(domain_examples['t'][2]))])
