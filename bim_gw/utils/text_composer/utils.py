@@ -60,7 +60,6 @@ def get_choices_from_structure_category(composer, categories):
                 all_choices.append(choices)
                 break
             category -= math.factorial(len(groups))
-        all_choices.append(choices)
     return all_choices
 
 

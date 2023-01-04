@@ -202,14 +202,17 @@ class ShapesLM(WorkspaceModule):
         rotation_y = attributes[:, 4] * 2 - 1
         rotations = np.arctan2(rotation_y, rotation_x)
 
-
-        sentence_predictions, final_choices = zip(*[self.text_composer({
-            "shape": int(cls[k]),
-            "rotation": rotations[k],
-            "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
-            "size": attributes[k, 2],
-            "location": (attributes[k, 0], attributes[k, 1])
-        }, choices[k]) for k in range(len(cls))])
+        sentence_predictions, final_choices = [], []
+        for k in range(len(cls)):
+            sentence, choice = self.text_composer({
+                "shape": int(cls[k]),
+                "rotation": rotations[k],
+                "color": (attributes[k, 5] * 255, attributes[k, 6] * 255, attributes[k, 7] * 255),
+                "size": attributes[k, 2],
+                "location": (attributes[k, 0], attributes[k, 1])
+            }, choices[k])
+            sentence_predictions.append(sentence)
+            final_choices.append(choice)
         return [text_latent, sentence_predictions, final_choices]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
