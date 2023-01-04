@@ -6,6 +6,7 @@ import numpy as np
 from attributes_to_language.composer import Composer
 
 from bim_gw.utils import get_args
+from bim_gw.utils.text_composer.utils import inspect_all_choices
 # from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 
@@ -74,13 +75,16 @@ composer = Composer(script_structures, writers, variants, modifiers)
 if __name__ == '__main__':
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
-    dataset_location = Path(args.simple_shapes_path)
-    labels = np.load(str(dataset_location / f"val_labels.npy"))
-    for k in range(10):
-        print(composer({
-            "shape": int(labels[k][0]),
-            "rotation": labels[k][4],
-            "color": (labels[k][5], labels[k][6], labels[k][7]),
-            "size": labels[k][3],
-            "location": (labels[k][1], labels[k][2])
-        }))
+    all_choices = inspect_all_choices(composer)
+    print(all_choices)
+    print(len(all_choices))
+    # dataset_location = Path(args.simple_shapes_path)
+    # labels = np.load(str(dataset_location / f"val_labels.npy"))
+    # for k in range(10):
+    #     print(composer({
+    #         "shape": int(labels[k][0]),
+    #         "rotation": labels[k][4],
+    #         "color": (labels[k][5], labels[k][6], labels[k][7]),
+    #         "size": labels[k][3],
+    #         "location": (labels[k][1], labels[k][2])
+    #     }))
