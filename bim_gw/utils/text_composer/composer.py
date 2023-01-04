@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from attributes_to_language.composer import Composer
+from tqdm import tqdm
 
 from bim_gw.utils import get_args
 from bim_gw.utils.text_composer.utils import inspect_all_choices
@@ -76,15 +77,21 @@ if __name__ == '__main__':
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     all_choices = inspect_all_choices(composer)
-    print(all_choices)
-    print(len(all_choices))
-    # dataset_location = Path(args.simple_shapes_path)
-    # labels = np.load(str(dataset_location / f"val_labels.npy"))
-    # for k in range(10):
-    #     print(composer({
-    #         "shape": int(labels[k][0]),
-    #         "rotation": labels[k][4],
-    #         "color": (labels[k][5], labels[k][6], labels[k][7]),
-    #         "size": labels[k][3],
-    #         "location": (labels[k][1], labels[k][2])
-    #     }))
+    dataset_location = Path(args.simple_shapes_path)
+    for split in ["train", "val", "test"]:
+        labels = np.load(str(dataset_location / f"{split}_labels.npy"))
+        captions = []
+        choices = []
+        for k in tqdm(range(len(labels)), total=len(labels)):
+            caption, choice = composer({
+                "shape": int(labels[k][0]),
+                "rotation": labels[k][4],
+                "color": (labels[k][5], labels[k][6], labels[k][7]),
+                "size": labels[k][3],
+                "location": (labels[k][1], labels[k][2])
+            })
+            captions.append(caption)
+            choices.append(choice)
+        np.save(str(dataset_location / f"{split}_captions.npy"), captions)
+        np.save(str(dataset_location / f"{split}_caption_choices.npy"), choices)
+

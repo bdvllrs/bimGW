@@ -7,6 +7,7 @@ from bim_gw.modules.workspace_module import WorkspaceModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 from bim_gw.utils.text_composer.composer import composer
+from bim_gw.utils.text_composer.utils import inspect_all_choices
 
 
 class ShapesAttributesLM(WorkspaceModule):
@@ -138,6 +139,7 @@ class ShapesLM(WorkspaceModule):
         self.bert_path = bert_path
 
         self.text_composer = composer
+        self.composer_inspection = inspect_all_choices(composer)
 
         self.transformer = None
         self.tokenizer = None
@@ -156,6 +158,11 @@ class ShapesLM(WorkspaceModule):
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
             nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims[:-1]))  # remove last unmatched attr
+        )
+        self.grammar_classifier = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.composer_inspection['structures'])  # predict sentence structure
         )
 
         self.domain_examples = domain_examples

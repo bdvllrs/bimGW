@@ -78,15 +78,19 @@ def main():
     for split in ["train", "val", "test"]:
         labels = np.load(str(dataset_location / f"{split}_labels.npy"))
         captions = []
+        choices = []
         for k in tqdm(range(labels.shape[0]), total=labels.shape[0]):
-            captions.append(composer({
+            caption, choice = composer({
                 "shape": int(labels[k][0]),
                 "rotation": labels[k][4],
                 "color": (labels[k][5], labels[k][6], labels[k][7]),
                 "size": labels[k][3],
                 "location": (labels[k][1], labels[k][2])
-            }))
+            })
+            captions.append(caption)
+            choices.append(choice)
         np.save(str(dataset_location / f"{split}_captions.npy"), captions)
+        np.save(str(dataset_location / f"{split}_caption_choices.npy"), choices)
 
     print("Extracting BERT features...")
     bert_latents = args.fetchers.t.bert_latents
