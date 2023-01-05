@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 
 from bim_gw.utils.text_composer.composer import composer
-from bim_gw.utils.text_composer.utils import get_structure_category
+from bim_gw.utils.text_composer.utils import get_categories
 
 
 def transform(data, transformation):
@@ -101,7 +101,7 @@ class TextDataFetcher(DataFetcher):
 
     def get_item(self, item):
         sentence = self.captions[item]
-        choice = get_structure_category(composer, self.choices[item])
+        choice = get_categories(composer, self.choices[item])
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
@@ -112,7 +112,8 @@ class TextDataFetcher(DataFetcher):
 
     def get_null_item(self):
         x = torch.zeros(768).float()
-        return torch.tensor(0.).float(), x, "", 0
+        choice = get_categories(composer, None)
+        return torch.tensor(0.).float(), x, "", choice
 
 
 class PreSavedLatentDataFetcher:

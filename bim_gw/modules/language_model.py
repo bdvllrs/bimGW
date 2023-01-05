@@ -124,6 +124,10 @@ def make_causal_mask_prog(input_dec, encod_out):
     return mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.)).to(input_dec.device)
 
 
+def convert_angle(angle):
+    return angle + 2 * np.pi * (angle < 0)
+
+
 class ShapesLM(WorkspaceModule):
     def __init__(
             self, z_size, hidden_size, n_classes, imsize, bert_path,
@@ -160,14 +164,17 @@ class ShapesLM(WorkspaceModule):
             nn.ReLU(),
             nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims[:-1]))  # remove last unmatched attr
         )
-        self.grammar_classifier = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.composer_inspection['structures'])  # predict sentence structure
-        )
+        self.grammar_classifiers = nn.ModuleDict({
+            name: nn.Sequential(
+                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.ReLU(),
+                nn.Linear(self.hidden_size, n_outputs))  # predict sentence structure
+            for name, n_outputs in self.composer_inspection.items()})
 
-        self.grammar_train_acc = torchmetrics.Accuracy()
-        self.grammar_val_acc = torchmetrics.Accuracy()
+        self.grammar_train_acc = nn.ModuleDict(
+            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()})
+        self.grammar_val_acc = nn.ModuleDict(
+            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()})
 
         self.domain_examples = domain_examples
 
@@ -191,8 +198,8 @@ class ShapesLM(WorkspaceModule):
         text_latent = text_latent[0]
         z = self.projection(text_latent)
         predictions = self.classify(z)
-        grammar_prediction = self.grammar_classifier(z)
-        choices = get_choices_from_structure_category(self.text_composer, torch.argmax(grammar_prediction, dim=1).tolist())
+        grammar_prediction = self.get_grammar_prediction(z)
+        choices = get_choices_from_structure_category(self.text_composer, grammar_prediction)
         # predictions = text_latent
         predictions = self.shapes_attribute.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
@@ -200,7 +207,7 @@ class ShapesLM(WorkspaceModule):
         # Text
         rotation_x = attributes[:, 3] * 2 - 1
         rotation_y = attributes[:, 4] * 2 - 1
-        rotations = np.arctan2(rotation_y, rotation_x)
+        rotations = convert_angle(np.arctan2(rotation_y, rotation_x))
 
         sentence_predictions, final_choices = [], []
         for k in range(len(cls)):
@@ -250,11 +257,18 @@ class ShapesLM(WorkspaceModule):
         prediction = self.classifier(z)
         predictions = []
         last_dim = 0
-        for dim, act_fn in zip(self.shapes_attribute.output_dims[:-1], self.shapes_attribute.decoder_activation_fn[:-1]):
+        for dim, act_fn in zip(self.shapes_attribute.output_dims[:-1],
+                               self.shapes_attribute.decoder_activation_fn[:-1]):
             pred = act_fn(prediction[:, last_dim:last_dim + dim])
             predictions.append(pred)
             last_dim += dim
         return predictions
+
+    def get_grammar_prediction(self, z):
+        return {
+            name: torch.argmax(self.grammar_classifiers[name](z), dim=1).tolist()
+            for name in self.grammar_classifiers.keys()
+        }
 
     def step(self, batch, batch_idx, mode="train"):
         sentences, targets = batch["t"][1:], batch["attr"][1:]
@@ -276,13 +290,16 @@ class ShapesLM(WorkspaceModule):
 
             self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
 
-        grammar_prediction = self.grammar_classifier(z)
-        loss_grammar = F.cross_entropy(grammar_prediction, sentences[2])
-        total_loss += loss_grammar
-        acc_fn = self.grammar_train_acc if mode == "train" else self.grammar_val_acc
-        res = acc_fn(grammar_prediction.softmax(-1), sentences[2])
-        self.log(f"{mode}/loss_grammar", loss_grammar, logger=True, on_epoch=(mode != "train"), batch_size=bs)
-        self.log(f"{mode}_grammar_acc", res, on_epoch=(mode=="val"))
+        grammar_coef = 1 / len(self.grammar_classifiers)
+        for name, classifier in self.grammar_classifiers.items():
+            grammar_prediction = classifier(z)
+            loss_grammar = F.cross_entropy(grammar_prediction, sentences[2][name])
+            total_loss += grammar_coef * loss_grammar
+            acc_fn = self.grammar_train_acc[name] if mode == "train" else self.grammar_val_acc[name]
+            res = acc_fn(grammar_prediction.softmax(-1), sentences[2][name])
+            self.log(f"{mode}/loss_grammar_{name}", loss_grammar, logger=True, on_epoch=(mode != "train"),
+                     batch_size=bs)
+            self.log(f"{mode}_grammar_{name}_acc", res, on_epoch=(mode != "train"))
 
         self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
         return predictions, losses, total_loss
@@ -306,7 +323,7 @@ class ShapesLM(WorkspaceModule):
                 encoded_s = self.encode([
                     domain_examples["t"][1].to(self.device),
                     domain_examples["t"][2],
-                    domain_examples["t"][3].to(self.device)
+                    domain_examples["t"][3]
                 ])
                 z = self.projection(encoded_s[0])
                 predictions = self.classify(z)
@@ -322,7 +339,8 @@ class ShapesLM(WorkspaceModule):
                                                  f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, domain_examples["attr"][1:], f"{mode}/target_reconstruction")
+                    self.shapes_attribute.log_domain(logger, domain_examples["attr"][1:],
+                                                     f"{mode}/target_reconstruction")
                     logger.log_table(f"{mode}/target_text", columns=["Text"],
                                      data=[[domain_examples['t'][2][k]] for k in
                                            range(len(domain_examples['t'][2]))])
