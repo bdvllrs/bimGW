@@ -20,24 +20,28 @@ class ShapesAttributesLM(WorkspaceModule):
         self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [self.n_classes, self.z_size, 1]
+        self.output_dims = [
+            self.n_classes,
+            self.z_size,
+            # 1
+        ]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
-            torch.tanh  # unpaired
+            # torch.tanh  # unpaired
         ]
 
         self.losses = [
             lambda x, y: nll_loss(x, y),  # shapes
             F.mse_loss,  # rest
-            F.mse_loss  # unpaired
+            # F.mse_loss  # unpaired
         ]
 
     def encode(self, x):
         if len(x) == 2:
             cls, latents = x
-            unpaired = torch.ones_like(latents[:, 0]) * 0.5
+            # unpaired = torch.ones_like(latents[:, 0]) * 0.5
         else:
             cls, latents, unpaired = x
         out_latents = latents.clone()
@@ -46,13 +50,13 @@ class ShapesAttributesLM(WorkspaceModule):
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
         return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
                 # rotations,
-                out_latents * 2 - 1,
-                unpaired * 2 - 1)
+                out_latents * 2 - 1)
+                # unpaired * 2 - 1)
 
     def decode(self, x):
         if len(x) == 2:
             logits, latents = x
-            unpaired = torch.zeros_like(latents[:, 0])
+            # unpaired = torch.zeros_like(latents[:, 0])
         else:
             logits, latents, unpaired = x
         out_latents = (latents.clone() + 1) / 2
@@ -60,8 +64,8 @@ class ShapesAttributesLM(WorkspaceModule):
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
         return (torch.argmax(logits, dim=-1),
-                out_latents,
-                (unpaired + 1) / 2)
+                out_latents)
+                # (unpaired + 1) / 2)
 
     def adapt(self, x):
         if len(x) == 2:

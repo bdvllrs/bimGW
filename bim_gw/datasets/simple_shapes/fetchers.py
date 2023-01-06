@@ -63,9 +63,11 @@ class AttributesDataFetcher(DataFetcher):
     modality = "attr"
 
     def get_null_item(self):
-        _, cls, attr, _ = self.get_item(0)
+        # _, cls, attr, _ = self.get_item(0)
+        _, cls, attr = self.get_item(0)
         attr[:] = 0.
-        return torch.tensor(0.).float(), 0, attr, torch.tensor(0.).float()
+        # return torch.tensor(0.).float(), 0, attr, torch.tensor(0.).float()
+        return torch.tensor(0.).float(), 0, attr
 
     def get_item(self, item):
         label = self.labels[item]
@@ -76,13 +78,13 @@ class AttributesDataFetcher(DataFetcher):
         r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
-        unpaired = label[11]
+        # unpaired = label[11]
 
         return (
             torch.tensor(1.).float(),
             cls,
             torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-            torch.tensor(unpaired).float()
+            # torch.tensor(unpaired).float()
         )
 
 

@@ -73,8 +73,9 @@ def get_categories(composer, choices):
             categories[name] = choices['writers'][writer_name]['_writer']
         elif writer_name in choices['writers']:
             variant_name = split_name[3]
-            if variant_name in choices['writers'][writer_name]:
-                categories[name] = choices[name][writer_name][variant_name]
+            variant_choice = int(split_name[2])
+            if variant_name in choices['writers'][writer_name] and choices['writers'][writer_name]['_writer'] == variant_choice:
+                categories[name] = choices['writers'][writer_name][variant_name]
     return categories
 
 def get_choices_from_structure_category(composer, grammar_predictions):
