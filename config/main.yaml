@@ -30,6 +30,38 @@ fetchers:
   t:
     bert_latents: bert-base-uncased_simple.npy
 
+visualization:
+  fg_color: "black"
+  bg_color: "white"
+  font_size: 12
+  font_size_title: 14
+
+  gw_results:
+    saved_figure_path: "../../data/plots"
+    mix_loss_coefficients:
+      translation: 1.
+      contrastive: 0.1
+    total_num_examples: 500_000
+    legend:
+      num_columns: 2
+    axes:
+      selected_curves: ["tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy"]
+      attributes:
+        load_from: csv  # in wandb, csv
+        wandb_entity_project: ???  # entity/project-name
+        wandb_group_name: ???  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
+        csv_path: ???  # If load_from is csv, path to csv file containing the run to display
+      text:
+        load_from: csv
+        wandb_entity_project: ???  # entity/project-name
+        wandb_run_names: ???
+        csv_path: ???
+
+    loss_definitions:
+      translation: ["val/in_dist/translation_loss.min"]  # list of the logged losses to average for translation
+      contrastive: ["val/in_dist/contrastive_loss.min"]
+
+
 # =====
 # VAE parameters
 # =====

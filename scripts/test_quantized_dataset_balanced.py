@@ -32,10 +32,10 @@ if __name__ == '__main__':
     }
 
     for quantizer_name, quantizer in quantizers.items():
-        if type(quantizer.labels[0][0]) is list:
-            labels = [l for labels in quantizer.labels[0] for l in labels]
+        if type(quantizer.y_axis_labels[0][0]) is list:
+            labels = [l for labels in quantizer.y_axis_labels[0] for l in labels]
         else:
-            labels = [l for l in quantizer.labels[0]]
+            labels = [l for l in quantizer.y_axis_labels[0]]
 
         location_counts = {l: 0 for l in labels}
         for k in tqdm(range(n_samples)):

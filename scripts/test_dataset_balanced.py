@@ -21,7 +21,7 @@ def test_dataset_balanced(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    labels = np.array(data.train_datasets["t"].labels)
+    labels = np.array(data.train_datasets["t"].y_axis_labels)
     cls = 2
     labels = labels[labels[:, 0] == cls]
     plt.hist(labels[:, 1], 200, density=True)
