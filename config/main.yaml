@@ -35,6 +35,7 @@ visualization:
   bg_color: "white"
   font_size: 12
   font_size_title: 14
+  line_width: 2
 
   gw_results:
     saved_figure_path: "../../data/plots"

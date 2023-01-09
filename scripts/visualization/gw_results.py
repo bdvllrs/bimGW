@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 if len(grp) > 1:
                     ax = grp.plot('num_examples', evaluated_loss + '_mean', ax=ax, yerr=evaluated_loss + "_std",
                                   label=(slug_label if k == 0 else '_nolegend_'),
-                                  legend=False, **get_fmt(curve_name), linewidth=2)
+                                  legend=False, **get_fmt(curve_name), linewidth=args.visualization.line_width)
                 else:
                     ax.axhline(y=grp[evaluated_loss + "_mean"].iloc[0],
                                label=(slug_label if k == 0 else '_nolegend_'),
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 if len(grp) > 1:
                     ax = grp.plot('num_examples', coef + '_coef', ax=ax,
                                   label=(slug_label if k == 0 else '_nolegend_'),
-                                  legend=False, **get_fmt(slug), linewidth=2)
+                                  legend=False, **get_fmt(slug), linewidth=args.visualization.line_width)
 
                 ax.set_xlabel("Number of bimodal examples ($N$)", fontsize=args.visualization.font_size)
                 if n == 0:
