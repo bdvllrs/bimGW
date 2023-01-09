@@ -30,6 +30,10 @@ fetchers:
   t:
     bert_latents: bert-base-uncased_simple.npy
 
+
+# =====
+# Visualization parameters
+# =====
 visualization:
   fg_color: "black"
   bg_color: "white"
@@ -42,25 +46,27 @@ visualization:
     mix_loss_coefficients:
       translation: 1.
       contrastive: 0.1
-    total_num_examples: 500_000
+    total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
     legend:
       num_columns: 2
     axes:
+      # should be *in this order* separated by a "+": tr, cont, dcy, then cy. To not include one loss component, just remove it from the list.
+      # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_curves: ["tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy"]
       attributes:
-        load_from: csv  # in wandb, csv
-        wandb_entity_project: ???  # entity/project-name
+        load_from: csv  # among wandb or csv
+        wandb_entity_project: ???  # If load_from is wandb, entity/project-name
         wandb_group_name: ???  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
         csv_path: ???  # If load_from is csv, path to csv file containing the run to display
       text:
-        load_from: csv
-        wandb_entity_project: ???  # entity/project-name
+        load_from: csv  # similar to attributes
+        wandb_entity_project: ???
         wandb_run_names: ???
         csv_path: ???
 
     loss_definitions:
       translation: ["val/in_dist/translation_loss.min"]  # list of the logged losses to average for translation
-      contrastive: ["val/in_dist/contrastive_loss.min"]
+      contrastive: ["val/in_dist/contrastive_loss.min"]  # similar for contrastive
 
 
 # =====
