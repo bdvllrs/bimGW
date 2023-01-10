@@ -7,5 +7,6 @@ matplotlib>=3.5.1
 torchmetrics==0.7.2
 transformers==4.17.0
 opencv-python==4.5.5.64
+pandas>=1.4.1
 attributes-to-language@git+https://github.com/bdvllrs/attributes-to-language.git@v0.3.0#egg=attributes-to-language
 auto-sbatch@git+https://github.com/bdvllrs/auto-sbatch.git@master#egg=auto-sbatch
