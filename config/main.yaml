@@ -54,12 +54,12 @@ visualization:
       # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_curves: ["tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy"]
       attributes:
-        load_from: csv  # among wandb or csv
+        load_from: wandb  # among wandb or csv
         wandb_entity_project: ???  # If load_from is wandb, entity/project-name
         wandb_group_name: ???  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
         csv_path: ???  # If load_from is csv, path to csv file containing the run to display
       text:
-        load_from: csv  # similar to attributes
+        load_from: wandb  # similar to attributes
         wandb_entity_project: ???
         wandb_run_names: ???
         csv_path: ???
