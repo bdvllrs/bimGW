@@ -13,11 +13,11 @@ def get_version():
     return version
 
 
-extras_requires = {
+extras_require = {
     "wandb": ["wandb>=0.13.4"],
     "neptune": ["neptune-client>=0.16"],
 }
-extras_requires["all"] = list(set(sum(extras_requires.values(), [])))
+extras_require["all"] = list(set(sum(extras_require.values(), [])))
 
 if __name__ == '__main__':
     setup(
@@ -25,5 +25,5 @@ if __name__ == '__main__':
         version=get_version(),
         install_requires=get_requirements(),
         packages=find_packages(),
-        extras_requires=extras_requires
+        extras_require=extras_require
     )
