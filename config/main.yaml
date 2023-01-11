@@ -54,14 +54,14 @@ visualization:
       selected_curves: ["tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy"]
       attributes:
         load_from: wandb  # among wandb or csv
-        wandb_entity_project: ???  # If load_from is wandb, entity/project-name
-        wandb_group_name: ???  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
-        csv_path: ???  # If load_from is csv, path to csv file containing the run to display
+        wandb_entity_project: null  # If load_from is wandb, entity/project-name
+        wandb_group_name: null  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
+        csv_path: null  # If load_from is csv, path to csv file containing the run to display
       text:
         load_from: wandb  # similar to attributes
-        wandb_entity_project: ???
-        wandb_run_names: ???
-        csv_path: ???
+        wandb_entity_project: null
+        wandb_run_names: null
+        csv_path: null
 
     loss_definitions:
       translation: ["val/in_dist/translation_loss.min"]  # list of the logged losses to average for translation
