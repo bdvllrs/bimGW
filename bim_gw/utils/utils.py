@@ -28,6 +28,10 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     print(sys.argv)
 
     # Configurations
+    default_args = OmegaConf.create({
+        "debug": False
+    })
+
     config_path = PROJECT_DIR / "config"
     main_args = OmegaConf.load(str((config_path / "main.yaml").resolve()))
     if debug and (config_path / "debug.yaml").exists():
@@ -44,7 +48,7 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     else:
         local_args = {}
 
-    args = OmegaConf.merge(main_args, local_args, debug_args)
+    args = OmegaConf.merge(default_args, main_args, local_args, debug_args)
 
     if additional_config_files is not None:
         for file in additional_config_files:

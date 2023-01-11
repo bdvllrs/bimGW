@@ -2,8 +2,7 @@ devices: 1  # Number of GPU used for training
 accelerator: gpu  # cpu, gpu, tpu, ... (see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#accelerator for available accelerators)
 distributed_backend: ddp  # see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#strategy
 seed: 0  # seed of the run
-debug: false
-fast_dev_run: false
+fast_dev_run: false  # whether to start the training in fast_dev_run mode (see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#fast-dev-run)
 max_epochs: -1  # number of trained epochs. If -1, will use max_steps instead
 max_steps: 100000  # number of trained steps
 
@@ -11,39 +10,39 @@ simple_shapes_path: ???  # path to root folder of the dataset
 
 visual_dataset: "shapes"  # dataset to use. For now, only "shapes"
 
-img_size: 32  # size of the images in the dataset
+img_size: 32  # width and height of images in the dataset
 
-n_validation_examples: 32  # number of validation examples for the images logged (losses will use the whole val dataset)
+n_validation_examples: 32  # number of validation examples for the images logged (only for text and images, losses will use the whole val dataset)
 
 checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
 resume_from_checkpoint: null  # path to a checkpoint to continue training
 
 slurm:  # slurm parameters if started on slurm with the slurm/launch.py command
   script: train  # which script to start
-  slurm:
+  slurm:  # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
     "-N": 1
     "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
 
-fetchers:
-  t:
-    bert_latents: bert-base-uncased_simple.npy
+fetchers:  # Additional fetcher parameters.
+  t:  # for text fetcher
+    bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
 
 
 # =====
 # Visualization parameters
 # =====
 visualization:
-  fg_color: "black"
-  bg_color: "white"
+  fg_color: "black"  # plot foreground color
+  bg_color: "white"  # plot background color
   font_size: 12
   font_size_title: 14
-  line_width: 2
+  line_width: 2  # curve line width
 
   gw_results:
-    saved_figure_path: "../../data/plots"
-    mix_loss_coefficients:
+    saved_figure_path: "../../data/plots"  # where to save figures
+    mix_loss_coefficients:  # mix_loss is the weighted average of translation and contrastive
       translation: 1.
       contrastive: 0.1
     total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
