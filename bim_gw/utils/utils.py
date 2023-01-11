@@ -44,7 +44,7 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     else:
         local_args = {}
 
-    args = OmegaConf.merge(main_args, local_args, debug_args, cli_args)
+    args = OmegaConf.merge(main_args, local_args, debug_args)
 
     if additional_config_files is not None:
         for file in additional_config_files:
