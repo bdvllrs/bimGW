@@ -51,12 +51,12 @@ if __name__ == '__main__':
 
         df = df.groupby(["parameters/global_workspace/prop_labelled_images",
                          "parameters/losses/coefs/contrastive", "parameters/losses/coefs/cycles",
-                         "parameters/losses/coefs/demi_cycles", "parameters/losses/coefs/supervision"], as_index=False)
+                         "parameters/losses/coefs/demi_cycles", "parameters/losses/coefs/translation"], as_index=False)
 
         df = df.agg(
             mix_loss_mean=pd.NamedAgg(column='mix_loss', aggfunc="mean"),
             mix_loss_std=pd.NamedAgg(column='mix_loss', aggfunc=sem_fn),
-            supervision_coef=pd.NamedAgg(column='parameters/losses/coefs/supervision', aggfunc='first'),
+            translation_coef=pd.NamedAgg(column='parameters/losses/coefs/translation', aggfunc='first'),
             cycles_coef=pd.NamedAgg(column='parameters/losses/coefs/cycles', aggfunc='first'),
             demi_cycles_coef=pd.NamedAgg(column='parameters/losses/coefs/demi_cycles', aggfunc='first'),
             contrastive_coef=pd.NamedAgg(column='parameters/losses/coefs/contrastive', aggfunc='first'),

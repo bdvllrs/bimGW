@@ -14,6 +14,7 @@ from bim_gw.modules.utils import DomainEncoder
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.visualization import update_df_for_legacy_code
 
 
 def get_name(x):
@@ -26,12 +27,13 @@ def get_name(x):
         name += "+cy"
     return name
 
+
 def get_csv_data(df, args, csv_row=None):
     if csv_row is None:
         df = df.loc[df['parameters/losses/coefs/contrastive'] == args.losses.coefs.contrastive]
         df = df.loc[df['parameters/losses/coefs/cycles'] == args.losses.coefs.cycles]
         df = df.loc[df['parameters/losses/coefs/demi_cycles'] == args.losses.coefs.demi_cycles]
-        df = df.loc[df['parameters/losses/coefs/supervision'] == args.losses.coefs.supervision]
+        df = df.loc[df['parameters/losses/coefs/translation'] == args.losses.coefs.translation]
         df = df.loc[df['parameters/global_workspace/prop_labelled_images'] == args.global_workspace.prop_labelled_images]
         item = df.iloc[0].to_dict()
     else:
@@ -40,26 +42,14 @@ def get_csv_data(df, args, csv_row=None):
     args.losses.coefs.demi_cycles = item['parameters/losses/coefs/demi_cycles']
     args.losses.coefs.cycles = item['parameters/losses/coefs/cycles']
     args.losses.coefs.contrastive = item['parameters/losses/coefs/contrastive']
-    args.losses.coefs.supervision = item['parameters/losses/coefs/supervision']
+    args.losses.coefs.translation = item['parameters/losses/coefs/translation']
     args.global_workspace.prop_labelled_images = item['parameters/global_workspace/prop_labelled_images']
+    args.global_workspace.selected_domains = item['parameters/global_workspace/selected_domains']
     if 'parameters/seed' in item:
         args.seed = item['parameters/seed']
-    if 'parameters/global_workspace/selected_domains/t' in item:
-        # TODO: change for selected_domains as list.
-        args.global_workspace.selected_domains.t = item["parameters/global_workspace/selected_domains/t"]
     if 'Name' in item:
         item['name'] = item['Name']
     return item
-    # df['slug'] = df.apply(get_name, axis=1)
-    # min_idx = df.groupby(["parameters/global_workspace/prop_labelled_images", 'slug'])["min"].idxmin()
-    # df = df.loc[min_idx]
-    # for index, row in df.iterrows():
-    #     slurm_id = row["name"].split("-")[1]
-    #     prop_labelled_images = row["parameters/global_workspace/prop_labelled_images"]
-    #     contrastive_coef = row['parameters/losses/coefs/contrastive']
-    #     cycles_coef = row['parameters/losses/coefs/cycles']
-    #     demi_cycles_coef = row['parameters/losses/coefs/demi_cycles']
-    #     supervision_coef = row['parameters/losses/coefs/supervision']
 
 
 def find_best_epoch(ckpt_folder):
@@ -77,7 +67,8 @@ if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
     if args.odd_image.csv_ids is not None:
-        item = get_csv_data(pd.read_csv(args.odd_image.csv_ids), args, args.odd_image.csv_row)
+        df = update_df_for_legacy_code(pd.read_csv(args.odd_image.csv_ids))
+        item = get_csv_data(df, args, args.odd_image.csv_row)
         args.odd_image.slurm_id = item['name'].split("-")[1]
 
     load_domains = []

@@ -1,5 +1,5 @@
 import sys
-
+import logging
 import numpy as np
 import torchvision
 from matplotlib import pyplot as plt
@@ -16,8 +16,10 @@ def has_internet_connection(host='https://google.com'):
     except:
         return False
 
+
 def load_extra_conf_resolver(path):
     return OmegaConf.load(str(PROJECT_DIR / "config" / path))
+
 
 def get_args(debug=False, additional_config_files=None, cli=True):
     OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
@@ -60,8 +62,14 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     if args.seed == "random":
         args.seed = np.random.randint(0, 100_000)
 
+    # Backward compatibility for old config files
     if OmegaConf.is_dict(args.global_workspace.selected_domains):
-        args.global_workspace.selected_domains = OmegaConf.create([values for values in args.global_workspace.selected_domains.values()])
+        logging.warning("Selected domains is a dict, converting to list. Use a list in the config file in future runs.")
+        args.global_workspace.selected_domains = OmegaConf.create(
+            [values for values in args.global_workspace.selected_domains.values()])
+    if args.losses.coefs.supervision is not None:
+        logging.warning("Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead.")
+        args.losses.coefs.translation = args.losses.coefs.supervision
 
     return args
 
@@ -94,5 +102,3 @@ def val_or_default(d, key, default=None):
     if key in d:
         return d[key]
     return default
-
-
