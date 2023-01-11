@@ -169,7 +169,8 @@ losses:
   coefs:
     demi_cycles: 0.
     cycles: 0.
-    supervision: 1.
+    supervision: null  # Deprecated. Here for backward compatibility, use translation instead. If not null, will override the value in translation.
+    translation: 1.
     cosine: 0.
     contrastive: 1.3
 

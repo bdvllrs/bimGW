@@ -40,7 +40,7 @@ def train_gw(args):
         "t1": deepcopy(lm),
         "a": actions
     }, args.global_workspace.z_size, args.global_workspace.hidden_size, len(data.classes),
-        args.loss_parts.coefs.demi_cycles, args.loss_parts.coefs.cycles, args.loss_parts.coefs.supervision,
+        args.loss_parts.coefs.demi_cycles, args.loss_parts.coefs.cycles, args.loss_parts.coefs.translation,
         args.losses.coefs.cosine, args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
         args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
         args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma, data.validation_domain_examples,

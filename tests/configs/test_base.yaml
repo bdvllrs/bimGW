@@ -33,7 +33,7 @@ losses:
   coefs:
     demi_cycles: 1.
     cycles: 1.
-    supervision: 4.
+    translation: 4.
 
 neptune:
   project_name: null

@@ -6,7 +6,7 @@ import pandas as pd
 
 def get_name(x):
     name = ""
-    if x['parameters/losses/coefs/supervision'] > 0:
+    if x['parameters/losses/coefs/translation'] > 0:
         name += "+tr"
     if x['parameters/losses/coefs/contrastive'] > 0:
         name += "+cont"
@@ -81,10 +81,23 @@ def set_new_cols(df, d):
     return df
 
 
+def add_translation(x):
+    if x['parameters/losses/coefs/supervision'] != None:
+        return x['parameters/losses/coefs/supervision']
+    return x['parameters/losses/coefs/translation']
+
+def update_df_for_legacy_code(df):
+    df['parameters/losses/coefs/translation'] = df.apply(add_translation, axis=1)
+    if 'parameters/global_workspace/selected_domains' in df.columns:
+        if isinstance(df['parameters/global_workspace/selected_domains'][0], dict):
+            df['parameters/global_workspace/selected_domains'] = df['parameters/global_workspace/selected_domains'].apply(lambda x: [x[k] for k in x.keys()])
+    return df
+
+
 def load_df(args, language_domain):
     args = args.visualization.gw_results.axes[language_domain]
     if args.load_from == "csv":
-        return pd.read_csv(Path(args.csv_path))
+        return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
     elif args.load_from == "wandb":
         import wandb
 
@@ -94,8 +107,9 @@ def load_df(args, language_domain):
         for run in runs:
             vals = run.summary._json_dict
             vals.update({k: v for k, v in run.config.items()
-                 if not k.startswith('_')})
+                         if not k.startswith('_')})
             vals["Name"] = run.name
+
             for k, v in vals.items():
                 if isinstance(v, dict) and "min" in v:
                     k += "." + "min"
@@ -103,5 +117,6 @@ def load_df(args, language_domain):
                 if k not in columns:
                     columns[k] = []
                 columns[k].append(v)
-        return pd.DataFrame(columns)
+
+        return update_df_for_legacy_code(pd.DataFrame(columns))
     raise ValueError(f"Unknown load_from: {args.load_from}")
