@@ -27,7 +27,7 @@ if __name__ == '__main__':
     data.prepare_data()
     data.setup(stage="fit")
 
-    domains = get_domains(args, len(data.classes), data.img_size)
+    domains = get_domains(args, data.img_size)
     for domain in domains.values():
         domain.to(device)
         domain.eval()

@@ -33,8 +33,7 @@ if __name__ == '__main__':
     path = args.simple_shapes_path
 
     global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint,
-                                                            domain_mods=get_domains(args, len(data.classes),
-                                                                                    data.img_size), strict=False)
+                                                            domain_mods=get_domains(args, data.img_size), strict=False)
     global_workspace.eval()
 
     attr_model = global_workspace.domain_mods["attr"]

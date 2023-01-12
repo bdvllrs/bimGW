@@ -15,7 +15,8 @@ img_size: 32  # width and height of images in the dataset
 n_validation_examples: 32  # number of validation examples for the images logged (only for text and images, losses will use the whole val dataset)
 
 checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
-resume_from_checkpoint: null  # path to a checkpoint to continue training
+resume_from_checkpoint: null  # path to a checkpoint to continue training. For train_lm path to the LM, for train_vae path to the VAE...
+checkpoint: null  # path to the GW model for evaluation
 
 slurm:  # slurm parameters if started on slurm with the slurm/launch.py command
   script: train  # which script to start

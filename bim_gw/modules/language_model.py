@@ -12,11 +12,11 @@ from bim_gw.utils.text_composer.utils import inspect_all_choices, get_choices_fr
 
 
 class ShapesAttributesLM(WorkspaceModule):
-    def __init__(self, n_classes, imsize):
+    def __init__(self, imsize):
         super(ShapesAttributesLM, self).__init__()
         self.save_hyperparameters()
 
-        self.n_classes = n_classes
+        self.n_classes = 3
         self.z_size = 8
         self.imsize = imsize
 

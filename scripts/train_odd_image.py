@@ -91,7 +91,7 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
-                                                                domain_mods=get_domains(args, 3, 32), strict=False)
+                                                                domain_mods=get_domains(args, 32), strict=False)
         load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
@@ -106,15 +106,15 @@ if __name__ == "__main__":
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         model = OddClassifier.load_from_checkpoint(path,
-                                                   unimodal_encoders=get_domains(args, 3, 32),
+                                                   unimodal_encoders=get_domains(args, 32),
                                                    encoders=encoders)
         for logger in args.loggers:
             logger.args.version = item['ID']
             logger.args.id = item['ID']
             logger.args.resume = True
     else:
-        model = OddClassifier(get_domains(args, 3, 32), encoders, args.global_workspace.z_size,
-                    args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
+        model = OddClassifier(get_domains(args, 32), encoders, args.global_workspace.z_size,
+                              args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
 
     data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
                               args.odd_image.batch_size, args.dataloader.num_workers,
