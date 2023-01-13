@@ -178,13 +178,13 @@ word_embeddings: null
 dataloader:
   num_workers: 0
 
-loggers:
-  - logger: WandbLogger
-    save_images: true
-    watch_model: true
-    args:
-      save_dir: "path/to/wandb/log/dir"
-      project: "bim-gw"
+loggers: []
+#  - logger: WandbLogger
+#    save_images: true
+#    watch_model: true
+#    args:
+#      save_dir: "path/to/wandb/log/dir"
+#      project: "bimGW"
       # Additional args to wandb.init
 #  - logger: TensorBoardLogger
 #    save_images: true
