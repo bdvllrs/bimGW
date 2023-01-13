@@ -3,7 +3,7 @@ from typing import Optional, Union, List
 
 import wandb
 from omegaconf import OmegaConf
-from pytorch_lightning.loggers import WandbLogger as WandbLoggerBase
+from pytorch_lightning.loggers.wandb import WandbLogger as WandbLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from bim_gw.utils.loggers.utils import ImageType
