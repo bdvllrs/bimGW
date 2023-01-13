@@ -166,7 +166,7 @@ class ShapesLM(WorkspaceModule):
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims[:-1]))  # remove last unmatched attr
+            nn.Linear(self.hidden_size, sum(self.shapes_attribute.output_dims))  # remove last unmatched attr
         )
         self.grammar_classifiers = nn.ModuleDict({
             name: nn.Sequential(
@@ -261,8 +261,8 @@ class ShapesLM(WorkspaceModule):
         prediction = self.classifier(z)
         predictions = []
         last_dim = 0
-        for dim, act_fn in zip(self.shapes_attribute.output_dims[:-1],
-                               self.shapes_attribute.decoder_activation_fn[:-1]):
+        for dim, act_fn in zip(self.shapes_attribute.output_dims,
+                               self.shapes_attribute.decoder_activation_fn):
             pred = act_fn(prediction[:, last_dim:last_dim + dim])
             predictions.append(pred)
             last_dim += dim
@@ -277,7 +277,7 @@ class ShapesLM(WorkspaceModule):
     def step(self, batch, batch_idx, mode="train"):
         sentences, targets = batch["t"][1:], batch["attr"][1:]
         bs = sentences[0].size(0)
-        targets = self.shapes_attribute.encode(targets)[:-1]
+        targets = self.shapes_attribute.encode(targets)
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
         text_latent = self.encode(sentences)[0]
@@ -286,7 +286,7 @@ class ShapesLM(WorkspaceModule):
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
-                                                           self.shapes_attribute.losses[:-1], targets)):
+                                                           self.shapes_attribute.losses, targets)):
             group_loss = loss(group_pred, target)
             predictions.append(group_pred)
             losses.append(group_loss)
@@ -343,7 +343,7 @@ class ShapesLM(WorkspaceModule):
                                                  f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.shapes_attribute.log_domain(logger, domain_examples["attr"][1:],
+                    self.shapes_attribute.log_domain(logger, domain_examples["attr"],
                                                      f"{mode}/target_reconstruction")
                     logger.log_table(f"{mode}/target_text", columns=["Text"],
                                      data=[[domain_examples['t'][2][k]] for k in
