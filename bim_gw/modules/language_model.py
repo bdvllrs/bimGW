@@ -153,7 +153,7 @@ class ShapesLM(WorkspaceModule):
         self.transformer = None
         self.tokenizer = None
 
-        self.shapes_attribute = ShapesAttributesLM(n_classes, imsize)
+        self.shapes_attribute = ShapesAttributesLM(imsize)
         self.shapes_attribute.freeze()
 
         self.projection = nn.Sequential(
