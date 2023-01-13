@@ -27,7 +27,7 @@ def split_indices_prop(allowed_indices, prop):
 class SimpleShapesDataModule(LightningDataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, use_data_augmentation=False, prop_labelled_images=None,
+            num_workers=0, prop_labelled_images=None,
             removed_sync_domains=None,
             n_validation_domain_examples=None, split_ood=True,
             selected_domains=None,
@@ -56,7 +56,6 @@ class SimpleShapesDataModule(LightningDataModule):
         self.remove_sync_domains = removed_sync_domains
 
         self.num_channels = 3
-        self.use_data_augmentation = use_data_augmentation
 
         ds = SimpleShapesDataset(simple_shapes_folder, "val", selected_domains=self.selected_domains,
                                  fetcher_params=self.fetcher_params)
@@ -67,7 +66,7 @@ class SimpleShapesDataModule(LightningDataModule):
     def setup(self, stage=None):
         if not self.is_setup:
             val_transforms = {"v": get_preprocess()}
-            train_transforms = {"v": get_preprocess(self.use_data_augmentation)}
+            train_transforms = {"v": get_preprocess()}
             if stage == "fit" or stage is None:
                 self.shapes_val = SimpleShapesDataset(self.simple_shapes_folder, "val",
                                                       transform=val_transforms,
@@ -234,17 +233,17 @@ class SimpleShapesDataModule(LightningDataModule):
 
     def compute_inception_statistics(self, batch_size, device):
         train_ds = SimpleShapesDataset(self.simple_shapes_folder, "train",
-                                       transform={"v": get_preprocess(self.use_data_augmentation)},
+                                       transform={"v": get_preprocess()},
                                        selected_domains=["v"],
                                        output_transform=lambda d: d["v"][1],
                                        fetcher_params=self.fetcher_params)
         val_ds = SimpleShapesDataset(self.simple_shapes_folder, "val",
-                                     transform={"v": get_preprocess(self.use_data_augmentation)},
+                                     transform={"v": get_preprocess()},
                                      selected_domains=["v"],
                                      output_transform=lambda d: d["v"][1],
                                      fetcher_params=self.fetcher_params)
         test_ds = SimpleShapesDataset(self.simple_shapes_folder, "test",
-                                      transform={"v": get_preprocess(self.use_data_augmentation)},
+                                      transform={"v": get_preprocess()},
                                       selected_domains=["v"],
                                       output_transform=lambda d: d["v"][1],
                                       fetcher_params=self.fetcher_params)
