@@ -10,10 +10,11 @@ from bim_gw.utils.loggers.utils import ImageType, text_from_table
 
 
 class AimLogger(AimLoggerBase):
-    def __init__(self, *aim_params, save_images=True, **aim_run_kwargs):
+    def __init__(self, *aim_params, save_images=True, save_last_images=True, **aim_run_kwargs):
         super().__init__(*aim_params, **aim_run_kwargs)
 
         self._save_images = save_images
+        self._save_last_images = save_last_images
         if not self._save_images:
             logging.warning("AimLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -44,6 +45,7 @@ class AimLogger(AimLoggerBase):
 def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
     logger = AimLogger(
         save_images=log_args.save_images,
+        save_last_images=log_args.save_last_images,
         experiment=name,
         **OmegaConf.to_object(log_args.args)
     )

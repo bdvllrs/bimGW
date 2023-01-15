@@ -10,7 +10,7 @@ from bim_gw.utils.loggers.utils import ImageType, to_pil_image, text_from_table
 
 
 class CSVLogger(CSVLoggerBase):
-    def __init__(self, *params, save_images=True, image_location="images", text_location="texts",
+    def __init__(self, *params, save_images=True, save_last_images=True, image_location="images", text_location="texts",
                  source_location="sources", **kwargs):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
@@ -19,6 +19,7 @@ class CSVLogger(CSVLoggerBase):
         self._texts = {}
         self._images = []
         self._save_images = save_images
+        self._save_last_images = save_last_images
         self._image_last_step = {}
         self._text_last_step = {}
         if not self._save_images:
@@ -81,6 +82,8 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     args = OmegaConf.to_object(log_args.args)
     args['name'] = name
     args['version'] = version
+    args['save_images'] = log_args.save_images
+    args['save_last_images'] = log_args.save_last_images
     logger = CSVLogger(
         **args
     )

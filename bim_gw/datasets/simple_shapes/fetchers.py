@@ -100,6 +100,7 @@ class TextDataFetcher(DataFetcher):
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)
+        self.null_choice = None
 
     def get_item(self, item):
         sentence = self.captions[item]
@@ -114,8 +115,10 @@ class TextDataFetcher(DataFetcher):
 
     def get_null_item(self):
         x = torch.zeros(768).float()
-        choice = get_categories(composer, None)
-        return torch.tensor(0.).float(), x, "", choice
+        if self.null_choice is None:
+            self.null_choice = get_categories(composer, self.choices[0])
+            self.null_choice = {key: 0 for key in self.null_choice}
+        return torch.tensor(0.).float(), x, "", self.null_choice
 
 
 class PreSavedLatentDataFetcher:

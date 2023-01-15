@@ -44,7 +44,7 @@ def get_categories(composer, choices):
     categories = dict()
     if choices is None:
         categories['structure'] = 0
-        choices = dict(variants=dict())
+        choices = dict(variants=dict(), writers=dict())
     else:
         # structure
         class_val = 0

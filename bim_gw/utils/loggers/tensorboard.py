@@ -13,9 +13,10 @@ from bim_gw.utils.loggers.utils import ImageType, text_from_table
 
 
 class TensorBoardLogger(TensorBoardLoggerBase):
-    def __init__(self, *params, save_images=True, **kwargs):
+    def __init__(self, *params, save_images=True, save_last_images=True, **kwargs):
         super(TensorBoardLogger, self).__init__(*params, **kwargs)
         self._save_images = save_images
+        self._save_last_images = save_last_images
         if not self._save_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -50,6 +51,8 @@ def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_f
     args = OmegaConf.to_object(log_args.args)
     args['name'] = name
     args['version'] = version
+    args['save_images'] = log_args.save_images
+    args['save_last_images'] = log_args.save_last_images
     logger = TensorBoardLogger(
         **args
     )

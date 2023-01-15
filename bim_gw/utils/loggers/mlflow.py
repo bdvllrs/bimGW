@@ -9,11 +9,14 @@ from bim_gw.utils.loggers.utils import ImageType, to_pil_image, text_from_table
 
 
 class MLFlowLogger(MLFlowLoggerBase):
-    def __init__(self, *params, image_location="images", text_location="texts", save_images=True, **kwargs):
+    def __init__(self, *params, image_location="images", text_location="texts", save_images=True, save_last_images=True,
+                 **kwargs):
         super(MLFlowLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
         self._save_images = save_images
+        self._save_last_images = save_last_images
+
         self._image_last_step = {}
         self._text_last_step = {}
 

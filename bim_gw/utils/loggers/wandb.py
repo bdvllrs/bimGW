@@ -10,10 +10,11 @@ from bim_gw.utils.loggers.utils import ImageType
 
 
 class WandbLogger(WandbLoggerBase):
-    def __init__(self, *params, save_images=True, save_tables=True, **kwargs):
+    def __init__(self, *params, save_images=True, save_last_images=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
         self._save_images = save_images
+        self._save_last_images = save_last_images
         self._log_tables = save_tables
         if not self._save_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
@@ -50,6 +51,7 @@ class WandbLogger(WandbLoggerBase):
 def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
     logger = WandbLogger(
         save_images=log_args.save_images,
+        save_last_images=log_args.save_last_images,
         save_tables=log_args.save_tables if "save_tables" in log_args else True,
         tags=tags,
         **OmegaConf.to_object(log_args.args)

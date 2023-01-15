@@ -11,10 +11,11 @@ from bim_gw.utils.loggers.utils import ImageType, to_pil_image, text_from_table
 
 
 class NeptuneLogger(NeptuneLoggerBase):
-    def __init__(self, save_images=True, **neptune_run_kwargs):
+    def __init__(self, save_images=True, save_last_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
 
         self._save_images = save_images
+        self._save_last_images = save_last_images
         if not self._save_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
@@ -44,6 +45,7 @@ class NeptuneLogger(NeptuneLoggerBase):
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
         save_images=log_args.save_images,
+        save_last_images=log_args.save_last_images,
         name=name,
         log_model_checkpoints=False,
         tags=tags,
