@@ -15,12 +15,15 @@ def has_internet_connection(host='https://google.com'):
     except:
         return False
 
+def split_resolver(key, value, item=None):
+    return value.split(key)[item]
 
 def load_extra_conf_resolver(path):
     return OmegaConf.load(str(PROJECT_DIR / "config" / path))
 
 
 def get_args(debug=False, additional_config_files=None, cli=True):
+    OmegaConf.register_new_resolver("split", split_resolver)
     OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
 
     print("Cli args")

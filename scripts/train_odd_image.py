@@ -1,7 +1,5 @@
 import os
-from pathlib import Path
 
-import pandas as pd
 from omegaconf import OmegaConf
 from torch import nn
 
@@ -14,30 +12,22 @@ from bim_gw.modules.utils import DomainEncoder
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.visualization import update_df_for_legacy_code
+from bim_gw.utils.utils import get_runs_dataframe, find_best_epoch
 
 
-def get_name(x):
-    name = ""
-    if x['parameters/losses/coefs/supervision'] > 0:
-        name += "+sup"
-    if x['parameters/losses/coefs/demi_cycles'] > 0:
-        name += "+dcy"
-    if x['parameters/losses/coefs/cycles'] > 0:
-        name += "+cy"
-    return name
-
-
-def get_csv_data(df, args, csv_row=None):
-    if csv_row is None:
+def update_args_from_selected_run(df, args, select_row_from_index=None, select_row_from_current_coefficients=False):
+    if select_row_from_index is not None:
+        item = df.iloc[select_row_from_index].to_dict()
+    elif select_row_from_current_coefficients:
         df = df.loc[df['parameters/losses/coefs/contrastive'] == args.losses.coefs.contrastive]
         df = df.loc[df['parameters/losses/coefs/cycles'] == args.losses.coefs.cycles]
         df = df.loc[df['parameters/losses/coefs/demi_cycles'] == args.losses.coefs.demi_cycles]
         df = df.loc[df['parameters/losses/coefs/translation'] == args.losses.coefs.translation]
-        df = df.loc[df['parameters/global_workspace/prop_labelled_images'] == args.global_workspace.prop_labelled_images]
+        df = df.loc[
+            df['parameters/global_workspace/prop_labelled_images'] == args.global_workspace.prop_labelled_images]
         item = df.iloc[0].to_dict()
     else:
-        item = df.iloc[csv_row].to_dict()
+        raise ValueError('select_row_from_index or select_row_from_current_coefficients must be set.')
 
     args.losses.coefs.demi_cycles = item['parameters/losses/coefs/demi_cycles']
     args.losses.coefs.cycles = item['parameters/losses/coefs/cycles']
@@ -47,51 +37,47 @@ def get_csv_data(df, args, csv_row=None):
     args.global_workspace.selected_domains = item['parameters/global_workspace/selected_domains']
     if 'parameters/seed' in item:
         args.seed = item['parameters/seed']
-    if 'Name' in item:
-        item['name'] = item['Name']
+    assert args.odd_image.encoder.selected_id_key in item, "selected_id_key not in item."
+    item['selected_id_key'] = item[args.odd_image.encoder.selected_id_key]
     return item
 
 
-def find_best_epoch(ckpt_folder):
-    ckpt_folder = Path(ckpt_folder)
-    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:])) for p in ckpt_folder.iterdir()]
-    return sorted(files, key=lambda x: x[0], reverse=True)[0][0]
-    # epochs = [int(filename[6:-5]) for filename in ckpt_files]  # 'epoch={int}.ckpt' filename format
-    # return max(epochs)
-
-class IdentityModule(nn.Module):
+class ExtractFirstItemModule(nn.Module):
     def forward(self, x):
         return x[0]
+
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    if args.odd_image.csv_ids is not None:
-        df = update_df_for_legacy_code(pd.read_csv(args.odd_image.csv_ids))
-        item = get_csv_data(df, args, args.odd_image.csv_row)
-        args.odd_image.slurm_id = item['name'].split("-")[1]
+    if args.odd_image.load_from is not None:
+        df = get_runs_dataframe(args.odd_image)
+        item = update_args_from_selected_run(df, args, args.odd_image.select_row_from_index, args.odd_image.select_row_from_current_coefficients)
+        args.odd_image.encoder.selected_id = item['selected_id_key']
 
     load_domains = []
 
-    if args.odd_image.encoder_path is None or args.odd_image.encoder_path == "random":
-        encoder = nn.Sequential(DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
-                                args.global_workspace.n_layers.encoder), nn.Tanh())
-        if args.odd_image.encoder_path == "random":
+    if args.odd_image.encoder.path is None or args.odd_image.encoder.path == "random":
+        encoder = nn.Sequential(
+            DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
+                          args.global_workspace.n_layers.encoder), nn.Tanh())
+        if args.odd_image.encoder.path == "random":
             encoder.eval()
             for p in encoder.parameters():
                 p.requires_grad_(False)
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
-    elif args.odd_image.encoder_path == "identity":
-        encoder = IdentityModule()
+    elif args.odd_image.encoder.path == "identity":
+        encoder = ExtractFirstItemModule()
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
     else:
-        path = args.odd_image.encoder_path
+        path = args.odd_image.encoder.path
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         global_workspace = GlobalWorkspace.load_from_checkpoint(path,
-                                                                domain_mods=get_domains(args, 32), strict=False)
+                                                                domain_mods=get_domains(args, args.img_size),
+                                                                strict=False)
         load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
@@ -99,18 +85,16 @@ if __name__ == "__main__":
 
     args.global_workspace.selected_domains = OmegaConf.create([name for name in load_domains])
 
-    if args.odd_image.resume_csv is not None:
-        item = get_csv_data(pd.read_csv(args.odd_image.resume_csv), args)
-        args.odd_image.slurm_id = item['Name'].split("-")[1]
-        path = args.odd_image.encoder_path
+    if args.resume_from_checkpoint is not None:
+        path = args.resume_from_checkpoint
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
         model = OddClassifier.load_from_checkpoint(path,
-                                                   unimodal_encoders=get_domains(args, 32),
+                                                   unimodal_encoders=get_domains(args, args.img_size),
                                                    encoders=encoders)
         for logger in args.loggers:
-            logger.args.version = item['ID']
-            logger.args.id = item['ID']
+            logger.args.version = args.logger_resume_id
+            logger.args.id = args.logger_resume_id
             logger.args.resume = True
     else:
         model = OddClassifier(get_domains(args, 32), encoders, args.global_workspace.z_size,

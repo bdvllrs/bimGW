@@ -16,6 +16,8 @@ n_validation_examples: 32  # number of validation examples for the images logged
 
 checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
 resume_from_checkpoint: null  # path to a checkpoint to continue training. For train_lm path to the LM, for train_vae path to the VAE...
+logger_resume_id: null  # if not null, will resume the logged run (such as wandb run) with this id.
+
 checkpoint: null  # path to the GW model for evaluation
 
 slurm:  # slurm parameters if started on slurm with the slurm/launch.py command
@@ -214,10 +216,24 @@ loggers: []
 # =====
 odd_image:
   batch_size: 512
-  encoder_path: null  # path to checkpoint
-  csv_ids: null
-  csv_row: null
-  resume_csv: null
+  encoder:
+    path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
+                # If "identity", will not use the encoder.
+                # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
+                # set using the load_from below.
+    # For example
+    # path: "path/to/checkpoints/${odd_image.encoder.selected_id}/last.ckpt"
+    # If the path leads to a folder, the last checkpoint is automatically loaded.
+
+    load_from: null  # similar to the visualization. Can be null (train a  wandb or csv
+    wandb_entity_project: null
+    wandb_filter: null
+    csv_path: null
+    selected_id_key: "Name"  # from which column the id is taken in the loaded run.
+
+  # If load from is not null, which items to select from the loaded runs?
+  select_row_from_index: null  # If this is not null, will select the corresponding item.
+  select_row_from_current_coefficients: false  # if select_row_from_index is null and this is true, will select the run which uses the same loss coefficients as currently set.
 
   optimizer:
     lr: 1e-3

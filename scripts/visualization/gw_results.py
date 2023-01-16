@@ -6,7 +6,8 @@ from bim_gw.utils import get_args
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from bim_gw.utils.visualization import get_name, get_fmt, sem_fn, get_agg_args_from_dict, set_new_cols, load_df
+from bim_gw.utils.visualization import get_fmt, sem_fn, get_agg_args_from_dict, set_new_cols
+from bim_gw.utils.utils import get_runs_dataframe, get_job_slug_from_coefficients
 
 y_axis_labels = {
     "translation": "Translation losses",
@@ -39,8 +40,8 @@ if __name__ == '__main__':
     loss_evaluations = ["mix_loss", "translation", "contrastive"]
     dataframes = {}
     for language_domain in language_domains:
-        df = load_df(args, language_domain)
-        df['slug'] = df.apply(get_name, axis=1)
+        df = get_runs_dataframe(args.visualization.gw_results.axes[language_domain])
+        df['slug'] = df.apply(get_job_slug_from_coefficients, axis=1)
 
         tr_coef = args.visualization.gw_results.mix_loss_coefficients.translation
         cont_coef = args.visualization.gw_results.mix_loss_coefficients.contrastive
