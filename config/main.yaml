@@ -57,6 +57,13 @@ visualization:
         load_from: wandb  # among wandb or csv
         wandb_entity_project: null  # If load_from is wandb, entity/project-name
         wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
+        # For example, load jobs with a certain slurm job name and have a finished state:
+        # wandb_filter: {
+        #   "$and": [
+        #     { "config.parameters/slurm/slurm/-J": "slurm_job_name" },
+        #     'State': "finished"
+        #   ]
+        # }
         csv_path: null  # If load_from is csv, path to csv file containing the run to display
       text:
         load_from: wandb  # similar to attributes
