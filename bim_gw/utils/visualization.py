@@ -27,6 +27,12 @@ def get_fmt(name):
         return {"linestyle": "--", "color": "#CC3363"}
     if name == "tr+cont+dcy+cy":
         return {"linestyle": "--", "marker": "d", "color": "#FFAA5A"}
+    if name == "tr+dcy+cy":
+        return {"linestyle": "-", "color": "#d124ff"}
+    if name == "tr+dcy":
+        return {"linestyle": "-", "color": "#043505"}
+    if name == "cont":
+        return {"linestyle": "--", "color": "#043505"}
 
 
 def get_fmt_all(name):
