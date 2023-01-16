@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from omegaconf import OmegaConf
 
 
 def get_name(x):
@@ -87,7 +88,7 @@ def add_translation(x):
     return x['parameters/losses/coefs/translation']
 
 def update_df_for_legacy_code(df):
-    if 'parameters/losses/coefs/supervision' not in df.columns:
+    if 'parameters/losses/coefs/translation' not in df.columns:
         df['parameters/losses/coefs/translation'] = df.apply(add_translation, axis=1)
     if 'parameters/global_workspace/selected_domains' in df.columns:
         if isinstance(df['parameters/global_workspace/selected_domains'][0], dict):
@@ -103,7 +104,7 @@ def load_df(args, language_domain):
         import wandb
 
         api = wandb.Api()
-        runs = api.runs(args.wandb_entity_project, {"config.parameters/slurm/slurm/-J": args.wandb_group_name})
+        runs = api.runs(args.wandb_entity_project, OmegaConf.to_object(args.wandb_filter))
         columns = {}
         for run in runs:
             vals = run.summary._json_dict

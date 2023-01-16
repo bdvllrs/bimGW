@@ -56,12 +56,12 @@ visualization:
       attributes:
         load_from: wandb  # among wandb or csv
         wandb_entity_project: null  # If load_from is wandb, entity/project-name
-        wandb_group_name: null  # If load_from is wandb, value of the slurm/slurm/-J of the runs to load
+        wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
         csv_path: null  # If load_from is csv, path to csv file containing the run to display
       text:
         load_from: wandb  # similar to attributes
         wandb_entity_project: null
-        wandb_run_names: null
+        wandb_filter: null
         csv_path: null
 
     loss_definitions:
