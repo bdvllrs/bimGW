@@ -217,6 +217,7 @@ loggers: []
 odd_image:
   batch_size: 512
   encoder:
+    selected_id: null
     path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
                 # If "identity", will not use the encoder.
                 # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
@@ -225,7 +226,10 @@ odd_image:
     # path: "path/to/checkpoints/${odd_image.encoder.selected_id}/last.ckpt"
     # If the path leads to a folder, the last checkpoint is automatically loaded.
 
-    load_from: null  # similar to the visualization. Can be null (train a  wandb or csv
+    load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
+                     # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
+                     # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
+                     # If null, will not overwrite odd_image.encoder.selected_id.
     wandb_entity_project: null
     wandb_filter: null
     csv_path: null

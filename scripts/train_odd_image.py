@@ -50,8 +50,8 @@ class ExtractFirstItemModule(nn.Module):
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    if args.odd_image.load_from is not None:
-        df = get_runs_dataframe(args.odd_image)
+    if args.odd_image.encoder.load_from is not None:
+        df = get_runs_dataframe(args.odd_image.encoder)
         item = update_args_from_selected_run(df, args, args.odd_image.select_row_from_index, args.odd_image.select_row_from_current_coefficients)
         args.odd_image.encoder.selected_id = item['selected_id_key']
 

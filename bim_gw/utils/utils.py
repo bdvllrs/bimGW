@@ -42,13 +42,25 @@ def replace_legacy_supervision_to_translation(x):
     return x['parameters/losses/coefs/translation']
 
 
+def replace_legacy_selected_domains(x):
+    selected_domains = []
+    for column in x.index:
+        if column == "parameters/global_workspace/selected_domains":
+            selected_domains = x[column]
+            break
+        if "parameters/global_workspace/selected_domains" in column:
+            selected_domains.append(x[column])
+    return selected_domains
+
+
 def update_df_for_legacy_code(df):
     if 'parameters/losses/coefs/translation' not in df.columns:
         df['parameters/losses/coefs/translation'] = df.apply(replace_legacy_supervision_to_translation, axis=1)
-    if 'parameters/global_workspace/selected_domains' in df.columns:
-        if isinstance(df['parameters/global_workspace/selected_domains'][0], dict):
-            df['parameters/global_workspace/selected_domains'] = df[
-                'parameters/global_workspace/selected_domains'].apply(lambda x: [x[k] for k in x.keys()])
+
+    for column in df.columns:
+        if "parameters/global_workspace/selected_domains" in column:
+            df['parameters/global_workspace/selected_domains'] = df.apply(replace_legacy_selected_domains, axis=1)
+            break
     return df
 
 
