@@ -5,15 +5,13 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 
 from bim_gw.modules.workspace_module import PassThroughWM
-from bim_gw.utils.domains import DomainRegistry, add_domains_to_registry
+from bim_gw.utils.domains import DomainRegistry
 from bim_gw.utils.loggers import get_loggers
 
 
 def get_domain(domain_name, args, img_size=None):
-    domain_registry = DomainRegistry()
-
     try:
-        domain = domain_registry.get(domain_name)(args, img_size)
+        domain = DomainRegistry().get(domain_name)(args, img_size)
     except KeyError:
         raise ValueError(f"Domain {domain_name} not found in registry.")
 
@@ -26,8 +24,6 @@ def get_domain(domain_name, args, img_size=None):
 
 
 def get_domains(args, img_size=None):
-    add_domains_to_registry()
-
     return {
         domain: get_domain(domain, args, img_size) for domain in args.global_workspace.selected_domains
     }

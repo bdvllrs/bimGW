@@ -16,7 +16,9 @@ def has_internet_connection(host='https://google.com'):
         return False
 
 def split_resolver(key, value, item=None):
-    return value.split(key)[item]
+    if hasattr(value, "split"):
+        return value.split(key)[item]
+    return value
 
 def load_extra_conf_resolver(path):
     return OmegaConf.load(str(PROJECT_DIR / "config" / path))

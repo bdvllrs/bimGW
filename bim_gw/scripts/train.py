@@ -5,7 +5,6 @@ from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
-from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 from bim_gw.modules import VAE, AE, GlobalWorkspace, ShapesLM
 from bim_gw.scripts.utils import get_domains, get_trainer
 
