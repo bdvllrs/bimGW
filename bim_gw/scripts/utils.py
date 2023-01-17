@@ -39,6 +39,13 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
         version = "-".join(tags)
     source_files = ['../**/*.py', '../readme.md',
                     '../requirements.txt', '../**/*.yaml']
+
+    if args.logger_resume_id is not None:
+        for logger in args.loggers:
+            logger.args.version = args.logger_resume_id
+            logger.args.id = args.logger_resume_id
+            logger.args.resume = True
+
     loggers = get_loggers(name, version, args.loggers, model, args, tags, source_files)
 
     # Callbacks

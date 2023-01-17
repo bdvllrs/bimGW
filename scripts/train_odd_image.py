@@ -92,10 +92,11 @@ if __name__ == "__main__":
         model = OddClassifier.load_from_checkpoint(path,
                                                    unimodal_encoders=get_domains(args, args.img_size),
                                                    encoders=encoders)
-        for logger in args.loggers:
-            logger.args.version = args.logger_resume_id
-            logger.args.id = args.logger_resume_id
-            logger.args.resume = True
+        if args.logger_resume_id is not None:
+            for logger in args.loggers:
+                logger.args.version = args.logger_resume_id
+                logger.args.id = args.logger_resume_id
+                logger.args.resume = True
     else:
         model = OddClassifier(get_domains(args, 32), encoders, args.global_workspace.z_size,
                               args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
