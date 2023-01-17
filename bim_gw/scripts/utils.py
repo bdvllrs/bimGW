@@ -4,35 +4,18 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 
-from bim_gw.modules import VAE, ShapesLM, ActionModule
-from bim_gw.modules.language_model import ShapesAttributesLM
 from bim_gw.modules.workspace_module import PassThroughWM
+from bim_gw.utils.domains import DomainRegistry, add_domains_to_registry
 from bim_gw.utils.loggers import get_loggers
 
 
 def get_domain(domain_name, args, img_size=None):
-    if domain_name in ["v", "v_f"]:  # the _f suffix is for domain after a transformation (action). Not used at the moment.
-        domain = VAE.load_from_checkpoint(
-            args.global_workspace.vae_checkpoint,
-            mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-            kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
-            strict=False
-        )
-    elif domain_name in ["t", "t_f"]:
-        domain = ShapesLM.load_from_checkpoint(
-            args.global_workspace.lm_checkpoint,
-            bert_path=args.global_workspace.bert_path,
-            z_size=args.lm.z_size,
-            hidden_size=args.lm.hidden_size
-        )
-    elif domain_name in ["attr", "attr_f"]:
-        assert img_size is not None, "Needs img_size for attr domain"
-        domain = ShapesAttributesLM(img_size)
-    elif domain_name == "a":
-        # TODO
-        domain = ActionModule()
-    else:
-        raise ValueError(f"{domain_name} is not a valid domain name.")
+    domain_registry = DomainRegistry()
+
+    try:
+        domain = domain_registry.get(domain_name)(args, img_size)
+    except KeyError:
+        raise ValueError(f"Domain {domain_name} not found in registry.")
 
     if args.global_workspace.use_pre_saved and domain_name in args.global_workspace.load_pre_saved_latents.keys():
         domain = PassThroughWM(domain)
@@ -43,6 +26,8 @@ def get_domain(domain_name, args, img_size=None):
 
 
 def get_domains(args, img_size=None):
+    add_domains_to_registry()
+
     return {
         domain: get_domain(domain, args, img_size) for domain in args.global_workspace.selected_domains
     }
