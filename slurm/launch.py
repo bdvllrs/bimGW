@@ -10,6 +10,7 @@ if __name__ == '__main__':
 
     args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False)
     cli_args = OmegaConf.from_cli()
+    args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 
     script_location = f"scripts/{args.slurm.script}.py"
@@ -25,7 +26,6 @@ if __name__ == '__main__':
     )
 
     args = args.slurm
-    args = OmegaConf.merge(args, cli_args)
     slurm_args = args.slurm
     del args.slurm
     args.slurm = OmegaConf.create({"slurm": slurm_args, **OmegaConf.to_object(args)})
