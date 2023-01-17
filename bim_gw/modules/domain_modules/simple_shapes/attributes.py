@@ -35,9 +35,6 @@ class SimpleShapesAttributes(DomainModule):
             # F.mse_loss  # unpaired
         ]
 
-        self.workspace_encoder_cls = DomainEncoder
-        self.workspace_decoder_cls = DomainDecoder
-
     def encode(self, x):
         if len(x) == 2:
             cls, latents = x

@@ -30,9 +30,6 @@ class AE(DomainModule):
             None
         ]
         self.losses = [F.mse_loss]
-        self.workspace_encoder_cls = DomainEncoder
-        self.workspace_decoder_cls = DomainDecoder
-
         # val sampling
         if validation_reconstruction_images is not None:
             self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)

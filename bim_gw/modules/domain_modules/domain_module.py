@@ -3,11 +3,15 @@ from typing import Tuple
 import torch
 from pytorch_lightning import LightningModule
 
+from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
+
 
 class DomainModule(LightningModule):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.workspace_encoder_cls = DomainEncoder
+        self.workspace_decoder_cls = DomainDecoder
         self.requires_acc_computation = False
 
     def forward(self, x: torch.Tensor) -> Tuple:

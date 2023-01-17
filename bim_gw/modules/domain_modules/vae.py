@@ -47,8 +47,6 @@ class VAE(DomainModule):
             #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
             # )
         ]
-        self.workspace_encoder_cls = DomainEncoder
-        self.workspace_decoder_cls = DomainDecoder
 
         # val sampling
         self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))

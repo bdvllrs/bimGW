@@ -79,8 +79,6 @@ class SimpleShapesText(DomainModule):
         self.losses = [
             F.mse_loss
         ]
-        self.workspace_encoder_cls = DomainEncoder
-        self.workspace_decoder_cls = DomainDecoder
         # self.output_dims = self.attribute_domain.output_dims
         # self.decoder_activation_fn = self.attribute_domain.decoder_activation_fn
         # self.losses = self.attribute_domain.losses
