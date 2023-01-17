@@ -29,6 +29,7 @@ if __name__ == '__main__':
     slurm_args = args.slurm
     del args.slurm
     args.slurm = OmegaConf.create({"slurm": slurm_args, **OmegaConf.to_object(args)})
+    del args.script
 
     sbatch = SBatch(slurm_args, args, handler)
     sbatch(
