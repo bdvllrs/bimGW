@@ -34,7 +34,7 @@ python train.py "max_epochs=2" "global_workspace.batch_size=512"
 ```
 
 # Dataset
-The main dataset of the project is the custom "shapes" dataset. One can be generated using the `toy_dataset.py` script.
+The main dataset of the project is the custom "shapes" dataset. One can be generated using the `create_shape_dataset.py` script.
 
 ![Some validation examples of the shapes dataset](images/shapes_dataset.png)
 
