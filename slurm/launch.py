@@ -19,7 +19,6 @@ if __name__ == '__main__':
         str(work_dir.absolute()),
         args.slurm.run_work_directory,
         args.slurm.python_environment,
-        args.slurm.run_registry_path,
         pre_modules=args.slurm.pre_modules,
         run_modules=args.slurm.run_modules,
         setup_experiment=False
@@ -29,6 +28,7 @@ if __name__ == '__main__':
     args = OmegaConf.merge(args, cli_args)
     slurm_args = args.slurm
     del args.slurm
+    args.slurm = OmegaConf.create({"slurm": slurm_args, **OmegaConf.to_object(args)})
 
     sbatch = SBatch(slurm_args, args, handler)
     sbatch(
