@@ -8,7 +8,7 @@ from pytorch_lightning import seed_everything
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
 from bim_gw.modules.gw import GlobalWorkspace
-from bim_gw.modules.vae import VAE
+from bim_gw.modules.domain_modules.vae import VAE
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import log_shape_fig
 

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
 from pytorch_lightning import seed_everything
 
-from bim_gw.modules.vae import VAE
+from bim_gw.modules.domain_modules.vae import VAE
 from bim_gw.utils import get_args
 
 

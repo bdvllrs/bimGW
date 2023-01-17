@@ -1,11 +1,10 @@
 from typing import Tuple
 
 import torch
-import torch.nn.functional as F
 from pytorch_lightning import LightningModule
 
 
-class WorkspaceModule(LightningModule):
+class DomainModule(LightningModule):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -30,7 +29,7 @@ class WorkspaceModule(LightningModule):
         raise NotImplementedError
 
 
-class PassThroughWM(WorkspaceModule):
+class PassThroughWM(DomainModule):
     def __init__(self, workspace_module):
         super(PassThroughWM, self).__init__()
         self.workspace_module = workspace_module
@@ -38,6 +37,8 @@ class PassThroughWM(WorkspaceModule):
         self.output_dims = self.workspace_module.output_dims
         self.decoder_activation_fn = self.workspace_module.decoder_activation_fn
         self.losses = self.workspace_module.losses
+        self.workspace_encoder_cls = self.workspace_module.workspace_encoder_cls
+        self.workspace_decoder_cls = self.workspace_module.workspace_decoder_cls
         # self.requires_acc_computation = self.workspace_module.requires_acc_computation
 
         self.use_pass_through = True

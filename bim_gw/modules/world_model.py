@@ -5,7 +5,7 @@ from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from bim_gw.modules.ations import ActionModule
-from bim_gw.modules.utils import DomainDecoder, DomainEncoder
+from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
 
 
 class WorldModel(LightningModule):

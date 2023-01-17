@@ -7,8 +7,8 @@ from torch.utils.data import Subset
 
 from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
 from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_ood_sets
-from bim_gw.modules import VAE, ShapesLM
-from bim_gw.modules.language_model import ShapesAttributesLM
+from bim_gw.modules.domain_modules import VAE
+from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesAttributes, SimpleShapesText
 from bim_gw.utils.domains import DomainRegistry
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
@@ -21,8 +21,8 @@ def add_domains_to_registry():
         kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
     ))
-    domain_registry.add("attr", lambda args, img_size: ShapesAttributesLM(img_size))
-    domain_registry.add("t", lambda args, img_size=None: ShapesLM.load_from_checkpoint(
+    domain_registry.add("attr", lambda args, img_size: SimpleShapesAttributes(img_size))
+    domain_registry.add("t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
         args.global_workspace.lm_checkpoint,
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,

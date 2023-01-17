@@ -1,4 +1,5 @@
-from bim_gw.modules.language_model import ShapesLM, ShapesAttributesLM
+from bim_gw.modules.domain_modules.simple_shapes.text import SimpleShapesText
+from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
 
 
 def load_dataset(args, local_args, **kwargs):
@@ -34,9 +35,9 @@ def load_dataset(args, local_args, **kwargs):
 
 def get_lm(args, data, **kwargs):
     if args.global_workspace.text_domain == "attributes":
-        lm = ShapesAttributesLM(len(data.classes), data.img_size)
+        lm = SimpleShapesAttributes(len(data.classes), data.img_size)
     elif args.global_workspace.text_domain == "bert":
-        lm = ShapesLM.load_from_checkpoint(
+        lm = SimpleShapesText.load_from_checkpoint(
             args.global_workspace.lm_checkpoint,
             bert_path=args.global_workspace.bert_path)
     return lm

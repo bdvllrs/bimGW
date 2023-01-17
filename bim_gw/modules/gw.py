@@ -7,8 +7,8 @@ import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
 
-from bim_gw.modules.utils import DomainDecoder, DomainEncoder, mask_predictions, LMDomainEncoder, LMDomainDecoder
-from bim_gw.modules.workspace_module import PassThroughWM
+from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
+from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 
 
@@ -77,11 +77,8 @@ class GlobalWorkspace(LightningModule):
         encoders = {}
         decoders = {}
         for item, mod in domain_mods.items():
-            encoder_class = DomainEncoder
-            decoder_class = DomainDecoder
-            # if item == "t":
-            #     encoder_class = LMDomainEncoder
-            #     decoder_class = LMDomainDecoder
+            encoder_class = mod.workspace_encoder_cls
+            decoder_class = mod.workspace_decoder_cls
             encoders[item] = encoder_class(mod.output_dims, self.hidden_size['encoder'][item],
                                            self.z_size, self.n_layers_encoder[item])
             decoders[item] = decoder_class(self.z_size, self.hidden_size['decoder'][item],

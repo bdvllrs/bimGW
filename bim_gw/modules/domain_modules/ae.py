@@ -4,88 +4,12 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.modules.workspace_module import WorkspaceModule
+from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
 from bim_gw.utils.utils import log_image
 
 
-class DeconvResNetBlock(nn.Module):
-    def __init__(self, inplanes, planes, kernel_size, stride, padding, upsample=False):
-        super(DeconvResNetBlock, self).__init__()
-
-        self.block1 = nn.Sequential(
-            nn.ConvTranspose2d(inplanes, inplanes, kernel_size, 1, 1, bias=False),
-            nn.BatchNorm2d(inplanes),
-            nn.ReLU(inplace=True),
-        )
-        self.block2 = nn.Sequential(
-            nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
-            nn.BatchNorm2d(planes),
-            nn.ReLU(inplace=True),
-        )
-
-        self.relu = nn.ReLU(inplace=True)
-
-        self.upsample = nn.Identity()
-        if upsample:
-            self.upsample = nn.Sequential(
-                nn.ConvTranspose2d(inplanes, planes, kernel_size, stride, 1, padding, bias=False),
-                nn.BatchNorm2d(planes),
-            )
-
-    def forward(self, x):
-        out = self.block1(x)  # (B, C, W, H)
-        out = self.block2(out)  # (B, C, W, H)
-        out = out + self.upsample(x)  # (B, C/2, W*2, H*2)
-        out = self.relu(out)
-        return out
-
-
-class ResNetDecoder(nn.Module):
-    def __init__(self, z_dim):
-        super().__init__()
-        self.z_dim = z_dim
-
-        self.layer1 = nn.Sequential(
-            DeconvResNetBlock(512, 512, 3, 1, 0, True),
-            DeconvResNetBlock(512, 256, 3, 2, 1, True),
-        )
-        self.layer2 = nn.Sequential(
-            DeconvResNetBlock(256, 256, 3, 1, 0, True),
-            DeconvResNetBlock(256, 128, 3, 2, 1, True),
-        )
-        self.layer3 = nn.Sequential(
-            DeconvResNetBlock(128, 128, 3, 1, 0, True),
-            DeconvResNetBlock(128, 64, 3, 2, 1, True),
-        )
-        self.layer4 = nn.Sequential(
-            DeconvResNetBlock(64, 64, 3, 1, 0, False),
-            DeconvResNetBlock(64, 64, 3, 1, 0, False),
-        )
-
-        self.unpool = nn.Sequential(
-            nn.ConvTranspose2d(64, 64, 3, 2, 1, output_padding=1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-        )
-
-        self.conv = nn.ConvTranspose2d(64, 3, 7, 2, 3, output_padding=1, bias=False)
-        self.linear = nn.Linear(self.z_dim, 512, bias=False)
-        self.bn = nn.BatchNorm2d(512)
-
-    def forward(self, x):
-        x = self.linear(x)  # (B, 512)
-        x = x.reshape(x.size(0), 512, 1, 1)  # (B, 512, 1, 1)
-        out = self.bn(x)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-        out = self.unpool(out)
-        out = self.conv(out)
-        return out
-
-
-class AE(WorkspaceModule):
+class AE(DomainModule):
     def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int,
                  n_validation_examples: int = 32,
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
@@ -106,6 +30,8 @@ class AE(WorkspaceModule):
             None
         ]
         self.losses = [F.mse_loss]
+        self.workspace_encoder_cls = DomainEncoder
+        self.workspace_decoder_cls = DomainDecoder
 
         # val sampling
         if validation_reconstruction_images is not None:

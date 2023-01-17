@@ -4,7 +4,7 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 
-from bim_gw.modules.workspace_module import PassThroughWM
+from bim_gw.modules.domain_modules.domain_module import PassThroughWM
 from bim_gw.utils.domains import DomainRegistry
 from bim_gw.utils.loggers import get_loggers
 

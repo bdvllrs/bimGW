@@ -1,11 +1,9 @@
 import os
 
-import torch
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
-from bim_gw.modules.gw import split_domains_available_domains
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 
