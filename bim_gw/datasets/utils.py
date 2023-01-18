@@ -1,5 +1,4 @@
-from bim_gw.modules.domain_modules.simple_shapes.text import SimpleShapesText
-from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
+from bim_gw.utils.registers import DatasetRegister
 
 
 def load_dataset(args, local_args, **kwargs):
@@ -30,14 +29,12 @@ def load_dataset(args, local_args, **kwargs):
     #                               local_args.selected_domains, args.cmu_mosei.validate,
     #                               args.cmu_mosei.seq_length, **kwargs)
     else:
-        raise ValueError("The requested dataset is not implemented.")
+        try:
+            dataset = DatasetRegister().get(args.visual_dataset)(args, local_args, **kwargs)
+        except KeyError:
+            raise ValueError("The requested dataset is not implemented.")
+        return dataset
 
 
 def get_lm(args, data, **kwargs):
-    if args.global_workspace.text_domain == "attributes":
-        lm = SimpleShapesAttributes(len(data.classes), data.img_size)
-    elif args.global_workspace.text_domain == "bert":
-        lm = SimpleShapesText.load_from_checkpoint(
-            args.global_workspace.lm_checkpoint,
-            bert_path=args.global_workspace.bert_path)
-    return lm
+    raise NotImplementedError("Use get_domains instead.")

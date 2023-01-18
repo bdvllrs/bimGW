@@ -9,20 +9,20 @@ from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
 from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_ood_sets
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesAttributes, SimpleShapesText
-from bim_gw.utils.domains import DomainRegistry
+from bim_gw.utils.registers import DomainRegister
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
-def add_domains_to_registry():
-    domain_registry = DomainRegistry()
-    domain_registry.add("v", lambda args, img_size=None: VAE.load_from_checkpoint(
+def add_domains_to_register():
+    domain_register = DomainRegister()
+    domain_register.add("v", lambda args, img_size=None: VAE.load_from_checkpoint(
         args.global_workspace.vae_checkpoint,
         mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
         kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
     ))
-    domain_registry.add("attr", lambda args, img_size: SimpleShapesAttributes(img_size))
-    domain_registry.add("t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
+    domain_register.add("attr", lambda args, img_size: SimpleShapesAttributes(img_size))
+    domain_register.add("t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
         args.global_workspace.lm_checkpoint,
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,
@@ -83,7 +83,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.val_dataset_size = len(ds)
         self.is_setup = False
 
-        add_domains_to_registry()
+        add_domains_to_register()
 
     def setup(self, stage=None):
         if not self.is_setup:
