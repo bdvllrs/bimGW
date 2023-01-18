@@ -47,7 +47,7 @@ The dataset comprises 32x32 images. The images contain one shape (among a triang
 # The model
 The model contains uni-modal modules which are pretrained:
 - A VAE for the visual domain,
-- a BERT and projection for the language model.
+- BERT for the language model.
 
 ![Diagram of the model](images/model.png)
 
