@@ -55,7 +55,6 @@ def train_lm(args):
     os.environ["TOKENIZERS_PARALLELISM"] = "0"
 
     args.lm.prop_labelled_images = 1.
-
     args.lm.split_ood = False
     args.lm.selected_domains = OmegaConf.create(["attr", "t"])
     args.lm.data_augmentation = False
@@ -91,20 +90,26 @@ def train_ae(args):
     args.vae.prop_sync_domains = OmegaConf.create({"all": 1.})
     args.vae.split_ood = False
     args.vae.selected_domains = OmegaConf.create(["v"])
+    args.vae.remove_sync_domains = None
 
     data = load_dataset(args, args.vae)
 
     data.prepare_data()
     data.setup(stage="fit")
 
-    ae = AE(
-        data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
-        args.n_validation_examples,
-        args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-        data.domain_examples["val"][0][0]["v"][1]
-    )
+    if "checkpoint" in args and args.checkpoint is not None:
+        ae = AE.load_from_checkpoint(args.checkpoint, strict=False,
+                                     n_validation_examples=args.n_validation_examples,
+                                     validation_reconstruction_images=data.domain_examples["val"][0]["v"][1])
+    else:
+        ae = AE(
+            data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
+            args.n_validation_examples,
+            args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
+            data.domain_examples["val"][0]["v"][1]
+        )
 
-    trainer = get_trainer("train_lm", args, ae, monitor_loss="val_total_loss",
+    trainer = get_trainer("train_ae", args, ae, monitor_loss="val_total_loss",
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(ae, data)
     trainer.validate(ae, data, "best")
@@ -116,6 +121,7 @@ def train_vae(args):
     args.vae.prop_labelled_images = 1.
     args.vae.split_ood = False
     args.vae.selected_domains = OmegaConf.create(["v"])
+    args.vae.remove_sync_domains = None
 
     data = load_dataset(args, args.vae)
 
@@ -123,16 +129,16 @@ def train_vae(args):
     data.setup(stage="fit")
     data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
 
-    if "checkpoint" in args:
+    if "checkpoint" in args and args.checkpoint is not None:
         vae = VAE.load_from_checkpoint(args.checkpoint, strict=False,
                                        n_validation_examples=args.n_validation_examples,
-                                       validation_reconstruction_images=data.domain_examples["val"][0][0]["v"][1])
+                                       validation_reconstruction_images=data.domain_examples["val"][0]["v"][1])
     else:
         vae = VAE(
             data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
             args.n_validation_examples,
             args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-            data.domain_examples["val"][0][0]["v"][1], args.vae.n_FID_samples
+            data.domain_examples["val"][0]["v"][1], args.vae.n_FID_samples
         )
 
     trainer = get_trainer("train_vae", args, vae, monitor_loss="val_total_loss",
