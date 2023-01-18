@@ -150,7 +150,7 @@ class GlobalWorkspace(LightningModule):
         return self.decoders[domain_name](z)
 
     def get_null_latent(self, batch_size, domain_name):
-        items = list(self.trainer.datamodule.shapes_train.data_fetchers[domain_name].get_null_item())
+        items = list(self.trainer.datamodule.train_set.data_fetchers[domain_name].get_null_item())
         batch = [items for k in range(batch_size)]
         x = self.collate_fn(batch)
         for k in range(len(x)):
@@ -580,7 +580,7 @@ class GlobalWorkspace(LightningModule):
         scheduler_gamma = self.hparams.scheduler_gamma
         if self.hparams.scheduler_mode == "adaptive":
             # Convert into step interval if adaptive mode.
-            size_dataset = len(self.trainer.datamodule.shapes_train["sync_"])
+            size_dataset = len(self.trainer.datamodule.train_set["sync_"])
             batch_size = self.trainer.datamodule.batch_size
             if scheduler_interval == "step":
                 n_step_per_epoch = int(size_dataset / batch_size)

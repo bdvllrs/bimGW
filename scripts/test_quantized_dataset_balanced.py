@@ -17,7 +17,7 @@ if __name__ == '__main__':
                             args.lm.n_validation_examples, False, {"a": "attr", "t": "t"})
     data.prepare_data()
     data.setup(stage="fit")
-    n_samples = len(data.shapes_train["a"])
+    n_samples = len(data.train_set["a"])
     # n_samples = 10_000
 
     quantizers = {
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
         location_counts = {l: 0 for l in labels}
         for k in tqdm(range(n_samples)):
-            cls, attrs = data.shapes_train["a"][k]
+            cls, attrs = data.train_set["a"][k]
             inputs =  [attrs[idx] for idx in indices[quantizer_name]]
             location = quantizer(*inputs)
             location_counts[location] += 1
