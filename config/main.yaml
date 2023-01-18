@@ -8,7 +8,7 @@ max_steps: 100000  # number of trained steps
 
 simple_shapes_path: ???  # path to root folder of the dataset
 
-visual_dataset: "shapes"  # dataset to use. For now, only "shapes"
+current_dataset: "shapes"  # dataset to use. For now, only "shapes"
 
 img_size: 32  # width and height of images in the dataset
 

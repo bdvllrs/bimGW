@@ -36,7 +36,7 @@ def load_dataset(args, local_args, **kwargs):
     # DatasetRegister().add("cmu_mosei", load_cmu_mosei_dataset)
 
     try:
-        dataset = DatasetRegister().get(args.visual_dataset)(args, local_args, **kwargs)
+        dataset = DatasetRegister().get(args.current_dataset)(args, local_args, **kwargs)
     except KeyError:
         raise ValueError("The requested dataset is not implemented.")
     return dataset
