@@ -78,13 +78,12 @@ class AttributesDataFetcher(DataFetcher):
         r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
-        # unpaired = label[11]
+        unpaired = label[11]
 
         return (
             torch.tensor(1.).float(),
             cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b], dtype=torch.float),
-            # torch.tensor(unpaired).float()
+            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b, unpaired], dtype=torch.float),
         )
 
 

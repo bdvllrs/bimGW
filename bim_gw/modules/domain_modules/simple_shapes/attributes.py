@@ -13,25 +13,25 @@ class SimpleShapesAttributes(DomainModule):
         self.save_hyperparameters()
 
         self.n_classes = 3
-        self.z_size = 8
+        self.z_size = 8 + 1
         self.imsize = imsize
 
         self.output_dims = [
             self.n_classes,
             self.z_size,
-            # 1
+            # 1,
         ]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
-            # torch.tanh  # unpaired
+            # torch.tanh,  # unpaired
         ]
 
         self.losses = [
             lambda x, y: nll_loss(x, y),  # shapes
             F.mse_loss,  # rest
-            # F.mse_loss  # unpaired
+            # F.mse_loss,  # unpaired
         ]
 
     def encode(self, x):
@@ -44,10 +44,12 @@ class SimpleShapesAttributes(DomainModule):
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
-        return (torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
-                # rotations,
-                out_latents * 2 - 1)
-                # unpaired * 2 - 1)
+        return (
+            torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
+            # rotations,
+            out_latents * 2 - 1,
+            # unpaired * 2 - 1,
+        )
 
     def decode(self, x):
         if len(x) == 2:
@@ -59,9 +61,11 @@ class SimpleShapesAttributes(DomainModule):
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
         out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        return (torch.argmax(logits, dim=-1),
-                out_latents)
-                # (unpaired + 1) / 2)
+        return (
+            torch.argmax(logits, dim=-1),
+            out_latents,
+            # (unpaired + 1) / 2,
+        )
 
     def adapt(self, x):
         if len(x) == 2:
@@ -93,14 +97,14 @@ class SimpleShapesAttributes(DomainModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
         latents = x[1][:max_examples].detach().cpu().numpy()
-        unpaired = np.zeros_like(latents[:, 0])
+        # unpaired = np.zeros_like(latents[:, 0])
         if len(x) == 3:
             unpaired = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
             logger,
-            classes,
+            classes[:-1],
             # rotations,
             latents,
             name + "_vis",
@@ -111,7 +115,7 @@ class SimpleShapesAttributes(DomainModule):
         labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "u"]
         text = []
         for k in range(len(classes)):
-            text.append([classes[k].item()] + latents[k].tolist() + [unpaired[k].item()])
+            text.append([classes[k].item()] + latents[k].tolist())
         if logger is not None:
             logger.log_table(name + "_text", columns=labels, data=text, step=step)
         else:
