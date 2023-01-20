@@ -3,7 +3,6 @@ import torch
 from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
-from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
