@@ -1,13 +1,7 @@
-from pathlib import Path
-
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
-
-from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
-from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_ood_sets
-from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 
 
 def split_indices_prop(allowed_indices, prop):
