@@ -31,7 +31,7 @@ if __name__ == '__main__':
     args.slurm = OmegaConf.create({"slurm": slurm_args, **OmegaConf.to_object(args)})
     del args.script
 
-    sbatch = SBatch(slurm_args, args, handler)
+    sbatch = SBatch(slurm_args, OmegaConf.merge(args, cli_args), handler)
     sbatch(
         args.command,
         schedule_all_tasks=True
