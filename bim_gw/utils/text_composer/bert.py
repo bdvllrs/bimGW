@@ -27,4 +27,12 @@ def save_bert_latents(data, bert_path, bert_latents, path, device):
             tokens = tokenizer(sentences, return_tensors='pt', padding=True).to(device)
             x = transformer(**tokens)["last_hidden_state"][:, 0]
             latents.append(x.cpu().numpy())
-        np.save(str(path / f"{name}_{bert_latents}"), np.concatenate(latents, axis=0))
+        all_latents = np.concatenate(latents, axis=0)
+        np.save(str(path / f"{name}_{bert_latents}"), all_latents)
+
+        # Save latent statistics
+        if name == "train":
+            mean = all_latents.mean(axis=0)
+            std = all_latents.std(axis=0)
+            np.save(str(path / f"{bert_latents}_mean.npy"), mean)
+            np.save(str(path / f"{bert_latents}_std.npy"), std)
