@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from PIL import Image
+from sklearn.decomposition import PCA
 
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
@@ -98,9 +99,9 @@ class TextDataFetcher(DataFetcher):
         self.bert_std = None
         if bert_latents is not None:
             self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
-            self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
-            self.bert_std = np.load(root_path / f"std_{bert_latents}")
-            self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
+            # self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
+            # self.bert_std = np.load(root_path / f"std_{bert_latents}")
+            # self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)

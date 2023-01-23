@@ -13,7 +13,7 @@ class SimpleShapesAttributes(DomainModule):
         self.save_hyperparameters()
 
         self.n_classes = 3
-        self.z_size = 8 + 1  # unmatched
+        self.z_size = 8   # unmatched
         self.imsize = imsize
 
         self.output_dims = [
