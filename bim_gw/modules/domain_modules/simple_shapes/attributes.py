@@ -8,12 +8,14 @@ from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
 
 class SimpleShapesAttributes(DomainModule):
-    def __init__(self, imsize):
+    def __init__(self, imsize, use_unpaired_attribute=True):
         super(SimpleShapesAttributes, self).__init__()
         self.save_hyperparameters()
 
+        self.use_unpaired_attribute = use_unpaired_attribute
+
         self.n_classes = 3
-        self.z_size = 8 + 1
+        self.z_size = 8 + 1 * int(use_unpaired_attribute)
         self.imsize = imsize
 
         self.output_dims = [
@@ -35,11 +37,7 @@ class SimpleShapesAttributes(DomainModule):
         ]
 
     def encode(self, x):
-        if len(x) == 2:
-            cls, latents = x
-            # unpaired = torch.ones_like(latents[:, 0]) * 0.5
-        else:
-            cls, latents, unpaired = x
+        cls, latents = x
         out_latents = latents.clone()
         out_latents[:, 0] = out_latents[:, 0] / self.imsize
         out_latents[:, 1] = out_latents[:, 1] / self.imsize
@@ -52,11 +50,7 @@ class SimpleShapesAttributes(DomainModule):
         )
 
     def decode(self, x):
-        if len(x) == 2:
-            logits, latents = x
-            # unpaired = torch.zeros_like(latents[:, 0])
-        else:
-            logits, latents, unpaired = x
+        logits, latents = x
         out_latents = (latents.clone() + 1) / 2
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
@@ -68,10 +62,7 @@ class SimpleShapesAttributes(DomainModule):
         )
 
     def adapt(self, x):
-        if len(x) == 2:
-            return x[0].exp(), x[1]
-        else:
-            return x[0].exp(), x[1], x[2]
+        return x[0].exp(), x[1]
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
@@ -97,14 +88,11 @@ class SimpleShapesAttributes(DomainModule):
     def log_domain(self, logger, x, name, max_examples=None, step=None):
         classes = x[0][:max_examples].detach().cpu().numpy()
         latents = x[1][:max_examples].detach().cpu().numpy()
-        # unpaired = np.zeros_like(latents[:, 0])
-        if len(x) == 3:
-            unpaired = x[2][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(
             logger,
-            classes[:-1],
+            classes,
             # rotations,
             latents,
             name + "_vis",
@@ -112,7 +100,9 @@ class SimpleShapesAttributes(DomainModule):
         )
 
         # text
-        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "u"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        if self.use_unpaired_attribute:
+            labels.append("u")
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
