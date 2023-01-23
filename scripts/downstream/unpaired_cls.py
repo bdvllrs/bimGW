@@ -5,7 +5,7 @@ from pytorch_lightning import Trainer
 
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
-from bim_gw.modules.unpaired_classifier import UnpairedClassifier
+from bim_gw.modules.domain_modules.simple_shapes.downstream import UnpairedClassifierAttributes
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
@@ -13,7 +13,7 @@ from bim_gw.utils.loggers import get_loggers
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    args.global_workspace.selected_domains = OmegaConf.create(["v", "t"])
+    args.global_workspace.selected_domains = OmegaConf.create(["attr"])
 
     data = load_dataset(args, args.global_workspace, add_unimodal=False)
     data.prepare_data()
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     domain_mods = get_domains(args, data.img_size)
     global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods=domain_mods, strict=False)
 
-    model = UnpairedClassifier(global_workspace)
+    model = UnpairedClassifierAttributes(global_workspace)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 

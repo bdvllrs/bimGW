@@ -9,9 +9,9 @@ from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import inspect_all_choices
 
 
-class UnpairedClassifier(LightningModule):
+class UnpairedClassifierText(LightningModule):
     def __init__(self, global_workspace, hidden_size=64, optimizer_lr=1e-3, optimizer_weight_decay=1e-5):
-        super(UnpairedClassifier, self).__init__()
+        super(UnpairedClassifierText, self).__init__()
         self.save_hyperparameters(ignore=["global_workspace"])
 
         self.global_workspace = global_workspace
