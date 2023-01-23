@@ -21,6 +21,25 @@ def convert_angle(angle):
     return angle + 2 * np.pi * (angle < 0)
 
 
+class TextEncoder(DomainEncoder):
+    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
+        super(TextEncoder, self).__init__(in_dims, hidden_size, out_dim, n_layers)
+
+        self.encoder = nn.Sequential(
+            nn.Linear(sum(self.in_dims), self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 12),  # projection
+            nn.ReLU(),
+            nn.Linear(12, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, self.out_dim)
+        )
+
+
 class SimpleShapesText(DomainModule):
     def __init__(
             self, z_size, hidden_size, n_classes, imsize, bert_path,
@@ -77,8 +96,10 @@ class SimpleShapesText(DomainModule):
         ]
 
         self.losses = [
-            F.mse_loss
+            lambda x, y: F.mse_loss(x, y)
         ]
+        # self.workspace_encoder_cls = TextEncoder
+
         # self.output_dims = self.attribute_domain.output_dims
         # self.decoder_activation_fn = self.attribute_domain.decoder_activation_fn
         # self.losses = self.attribute_domain.losses
@@ -232,7 +253,7 @@ class SimpleShapesText(DomainModule):
                                                  f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.attribute_domain.log_domain(logger, domain_examples["attr"],
+                    self.attribute_domain.log_domain(logger, domain_examples["attr"][1:],
                                                      f"{mode}/target_reconstruction")
                     logger.log_table(f"{mode}/target_text", columns=["Text"],
                                      data=[[domain_examples['t'][2][k]] for k in

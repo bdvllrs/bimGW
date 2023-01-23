@@ -94,8 +94,13 @@ class TextDataFetcher(DataFetcher):
         super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
 
         self.bert_data = None
+        self.bert_mean = None
+        self.bert_std = None
         if bert_latents is not None:
             self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
+            self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
+            self.bert_std = np.load(root_path / f"std_{bert_latents}")
+            self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)

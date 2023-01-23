@@ -34,5 +34,5 @@ def save_bert_latents(data, bert_path, bert_latents, path, device):
         if name == "train":
             mean = all_latents.mean(axis=0)
             std = all_latents.std(axis=0)
-            np.save(str(path / f"{bert_latents}_mean.npy"), mean)
-            np.save(str(path / f"{bert_latents}_std.npy"), std)
+            np.save(str(path / f"mean_{bert_latents}"), mean)
+            np.save(str(path / f"std_{bert_latents}"), std)

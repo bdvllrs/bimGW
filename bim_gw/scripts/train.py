@@ -66,7 +66,7 @@ def train_lm(args):
 
     # domain_examples = {d: data.n_domain_examples["in_dist"][0][d][1:] for d in data.n_domain_examples["in_dist"][0].keys()}
 
-    if "checkpoint" in args:
+    if "checkpoint" in args and args.checkpoint is not None:
         lm = SimpleShapesText.load_from_checkpoint(args.checkpoint, strict=False,
                                                    bert_path=args.global_workspace.bert_path,
                                                    domain_examples=data.domain_examples)
