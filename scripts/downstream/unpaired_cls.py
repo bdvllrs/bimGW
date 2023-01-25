@@ -34,10 +34,9 @@ if __name__ == "__main__":
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
     tags = None
-    version = None
+    version = args.run_name
     if slurm_job_id is not None:
-        tags = ["slurm", slurm_job_id]
-        version = "-".join(tags)
+        tags = ["slurm"]
     source_files = ['../**/*.py', '../readme.md',
                     '../requirements.txt', '../**/*.yaml']
     loggers = get_loggers("train_odd_image", version, args.loggers, model, args, tags, source_files)

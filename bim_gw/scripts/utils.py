@@ -33,10 +33,9 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
     tags = None
-    version = None
+    version = args.run_name
     if slurm_job_id is not None:
-        tags = ["slurm", slurm_job_id]
-        version = "-".join(tags)
+        tags = ["slurm"]
     source_files = ['../**/*.py', '../readme.md',
                     '../requirements.txt', '../**/*.yaml']
 

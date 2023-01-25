@@ -15,10 +15,25 @@ def has_internet_connection(host='https://google.com'):
     except:
         return False
 
+
 def split_resolver(key, value, item=None):
     if hasattr(value, "split"):
         return value.split(key)[item]
     return value
+
+
+def loss_coef_slug_resolver(*, _root_):
+    name = ""
+    if _root_.losses.coefs.translation > 0:
+        name += "+tr"
+    if _root_.losses.coefs.contrastive > 0:
+        name += "+cont"
+    if _root_.losses.coefs.demi_cycles > 0:
+        name += "+dcy"
+    if _root_.losses.coefs.cycles > 0:
+        name += "+cy"
+    return name[1:]
+
 
 def load_extra_conf_resolver(path):
     return OmegaConf.load(str(PROJECT_DIR / "config" / path))
@@ -27,13 +42,14 @@ def load_extra_conf_resolver(path):
 def get_args(debug=False, additional_config_files=None, cli=True):
     OmegaConf.register_new_resolver("split", split_resolver)
     OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
+    OmegaConf.register_new_resolver("coef_slug", loss_coef_slug_resolver)
 
     print("Cli args")
     print(sys.argv)
 
     # Configurations
     default_args = OmegaConf.create({
-        "debug": False
+        "debug": False,
     })
 
     config_path = PROJECT_DIR / "config"
@@ -76,7 +92,8 @@ def get_args(debug=False, additional_config_files=None, cli=True):
         args.global_workspace.selected_domains = OmegaConf.create(
             [values for values in args.global_workspace.selected_domains.values()])
     if args.losses.coefs.supervision is not None:
-        logging.warning("Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead.")
+        logging.warning(
+            "Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead.")
         args.losses.coefs.translation = args.losses.coefs.supervision
 
     return args
