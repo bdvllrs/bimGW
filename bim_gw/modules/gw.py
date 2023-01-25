@@ -44,6 +44,7 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_demi_cycles = loss_coef_demi_cycles
         self.loss_coef_cycles = loss_coef_cycles
         self.loss_coef_translation = loss_coef_translation
+        self.loss_coef_contrastive = loss_coef_contrastive
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
         self.remove_sync_domains = remove_sync_domains if remove_sync_domains is not None else []

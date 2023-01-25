@@ -22,6 +22,13 @@ if __name__ == "__main__":
     domain_mods = get_domains(args, data.img_size)
     global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods=domain_mods, strict=False)
 
+    args.losses.coefs = OmegaConf.create({
+        "translation": global_workspace.hparams['loss_coef_translation'],
+        "cycles": global_workspace.hparams['loss_coef_cycles'],
+        "demi_cycles": global_workspace.hparams['loss_coef_demi_cycles'],
+        "contrastive": global_workspace.hparams['loss_coef_contrastive'],
+    })
+
     model = UnpairedClassifierAttributes(global_workspace)
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
