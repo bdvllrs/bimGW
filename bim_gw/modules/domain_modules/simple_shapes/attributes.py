@@ -43,7 +43,7 @@ class SimpleShapesAttributes(DomainModule):
         out_latents[:, 2] = out_latents[:, 2] / self.imsize
         out_latents = out_latents * 2 - 1
         if self.use_unpaired:  # HUGE scaling for testing
-            out_latents[:, -1] = out_latents[:, -1] * 50
+            out_latents[:, -1] = out_latents[:, -1] * 100
         return (
             torch.nn.functional.one_hot(cls, self.n_classes).type_as(latents),
             out_latents,
@@ -53,7 +53,7 @@ class SimpleShapesAttributes(DomainModule):
         logits, latents = x
         out_latents = latents.clone()
         if self.use_unpaired:  # HUGE scaling for testing
-            out_latents[:, -1] = out_latents[:, -1] / 50
+            out_latents[:, -1] = out_latents[:, -1] / 100
         out_latents = (out_latents + 1) / 2
         out_latents[:, 0] = out_latents[:, 0] * self.imsize
         out_latents[:, 1] = out_latents[:, 1] * self.imsize
