@@ -193,8 +193,8 @@ dataloader:
 run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
 # ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
 loggers: [ ]
-  #  - logger: WandbLogger
-  #    save_images: true
+#  - logger: WandbLogger
+#    save_images: true
 #    watch_model: true
 #    args:
 #      save_dir: "path/to/wandb/log/dir"
