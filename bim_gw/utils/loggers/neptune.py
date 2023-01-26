@@ -44,8 +44,8 @@ class NeptuneLogger(NeptuneLoggerBase):
 
 def get_neptune_logger(name, version, log_args, model, conf, tags, source_files):
     logger = NeptuneLogger(
-        save_images=log_args.do_save_images,
-        save_last_images=log_args.do_save_last_images,
+        save_images=log_args.save_images,
+        save_last_images=log_args.save_last_images,
         name=name,
         log_model_checkpoints=False,
         tags=tags,

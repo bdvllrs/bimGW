@@ -82,8 +82,8 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     args = OmegaConf.to_object(log_args.args)
     args['name'] = name
     args['version'] = version
-    args['save_images'] = log_args.do_save_images
-    args['save_last_images'] = log_args.do_save_last_images
+    args['save_images'] = log_args.save_images
+    args['save_last_images'] = log_args.save_last_images
     logger = CSVLogger(
         **args
     )

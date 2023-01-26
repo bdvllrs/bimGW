@@ -44,8 +44,8 @@ class AimLogger(AimLoggerBase):
 
 def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
     logger = AimLogger(
-        save_images=log_args.do_save_images,
-        save_last_images=log_args.do_save_last_images,
+        save_images=log_args.save_images,
+        save_last_images=log_args.save_last_images,
         experiment=name,
         **OmegaConf.to_object(log_args.args)
     )

@@ -65,7 +65,7 @@ def get_ml_flow_logger(name, version, log_args, model, conf, tags, source_files)
     if tags is not None:
         tags = {tag: 1 for tag in tags}
     logger = MLFlowLogger(
-        save_images=log_args.do_save_images,
+        save_images=log_args.save_images,
         run_name=version,
         experiment_name=name,
         tags=tags,
