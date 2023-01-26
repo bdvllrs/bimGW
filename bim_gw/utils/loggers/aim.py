@@ -13,20 +13,20 @@ class AimLogger(AimLoggerBase):
     def __init__(self, *aim_params, save_images=True, save_last_images=True, **aim_run_kwargs):
         super().__init__(*aim_params, **aim_run_kwargs)
 
-        self.save_images = save_images
-        self.save_last_images = save_last_images
-        if not self.save_images:
+        self.do_save_images = save_images
+        self.do_save_last_images = save_last_images
+        if not self.do_save_images:
             logging.warning("AimLogger will not save the images. Set `save_images' to true to log them.")
 
     def set_summary(self, name, mode="max"):
         pass
 
     def save_images(self, mode=True):
-        self.save_images = mode
+        self.do_save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self.save_images:
+        if self.do_save_images:
             image = AimImage(image)
             self.experiment.track(image, name=log_name, step=step)
 
@@ -44,8 +44,8 @@ class AimLogger(AimLoggerBase):
 
 def get_aim_logger(name, version, log_args, model, conf, tags, source_files):
     logger = AimLogger(
-        save_images=log_args.save_images,
-        save_last_images=log_args.save_last_images,
+        save_images=log_args.do_save_images,
+        save_last_images=log_args.do_save_last_images,
         experiment=name,
         **OmegaConf.to_object(log_args.args)
     )

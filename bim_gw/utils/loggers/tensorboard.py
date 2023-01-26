@@ -15,20 +15,20 @@ from bim_gw.utils.loggers.utils import ImageType, text_from_table
 class TensorBoardLogger(TensorBoardLoggerBase):
     def __init__(self, *params, save_images=True, save_last_images=True, **kwargs):
         super(TensorBoardLogger, self).__init__(*params, **kwargs)
-        self.save_images = save_images
-        self.save_last_images = save_last_images
-        if not self.save_images:
+        self.do_save_images = save_images
+        self.do_save_last_images = save_last_images
+        if not self.do_save_images:
             logging.warning("TensorBoardLogger will not save the images. Set `save_images' to true to log them.")
 
     def set_summary(self, name, mode="max"):
         pass
 
     def save_images(self, mode=True):
-        self.save_images = mode
+        self.do_save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self.save_images:
+        if self.do_save_images:
             if isinstance(image, Image.Image):
                 image = torchvision.transforms.ToTensor()(image)
             if isinstance(image, torch.Tensor):
@@ -51,8 +51,8 @@ def get_tensor_board_logger(name, version, log_args, model, conf, tags, source_f
     args = OmegaConf.to_object(log_args.args)
     args['name'] = name
     args['version'] = version
-    args['save_images'] = log_args.save_images
-    args['save_last_images'] = log_args.save_last_images
+    args['save_images'] = log_args.do_save_images
+    args['save_last_images'] = log_args.do_save_last_images
     logger = TensorBoardLogger(
         **args
     )

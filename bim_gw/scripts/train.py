@@ -41,7 +41,7 @@ def train_gw(args):
     trainer.fit(global_workspace, data)
 
     for logger in trainer.loggers:
-        if logger.save_last_images:
+        if logger.do_save_last_images:
             logger.save_images(True)
     trainer.validate(global_workspace, data, "best")
     trainer.test(global_workspace, data, "best")

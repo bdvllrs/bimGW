@@ -13,12 +13,12 @@ class WandbLogger(WandbLoggerBase):
     def __init__(self, *params, save_images=True, save_last_images=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
-        self.save_images = save_images
-        self.save_last_images = save_last_images
-        self.log_tables = save_tables
-        if not self.save_images:
+        self.do_save_images = save_images
+        self.do_save_last_images = save_last_images
+        self.do_log_tables = save_tables
+        if not self.do_save_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
-        if not self.log_tables:
+        if not self.do_log_tables:
             logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
     def set_summary(self, name, mode="min"):
@@ -26,11 +26,11 @@ class WandbLogger(WandbLoggerBase):
         # pass
 
     def save_images(self, mode=True):
-        self.save_images = mode
+        self.do_save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self.save_images:
+        if self.do_save_images:
             super(WandbLogger, self).log_image(key=log_name, images=[image], step=step)
 
     @rank_zero_only
@@ -50,8 +50,8 @@ class WandbLogger(WandbLoggerBase):
 
 def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
     logger = WandbLogger(
-        save_images=log_args.save_images,
-        save_last_images=log_args.save_last_images,
+        save_images=log_args.do_save_images,
+        save_last_images=log_args.do_save_last_images,
         save_tables=log_args.save_tables if "save_tables" in log_args else True,
         tags=tags,
         **OmegaConf.to_object(log_args.args)
