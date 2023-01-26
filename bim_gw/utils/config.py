@@ -4,7 +4,7 @@ import sys
 import numpy as np
 from omegaconf import OmegaConf
 
-from bim_gw.utils import PROJECT_DIR
+from bim_gw.utils.constants import PROJECT_DIR
 
 
 def has_internet_connection(host='https://google.com'):
