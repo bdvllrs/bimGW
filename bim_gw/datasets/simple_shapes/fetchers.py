@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from PIL import Image
-from sklearn.decomposition import PCA
 
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
@@ -16,12 +15,13 @@ def transform(data, transformation):
 class DataFetcher:
     modality = None
 
-    def __init__(self, root_path, split, ids, labels, transforms=None):
+    def __init__(self, root_path, split, ids, labels, transforms=None, **kwargs):
         self.root_path = root_path
         self.split = split
         self.ids = ids
         self.labels = labels
         self.transforms = transforms[self.modality]
+        self.fetcher_args = kwargs
 
     def get_null_item(self):
         raise NotImplementedError
@@ -37,8 +37,8 @@ class DataFetcher:
 class VisualDataFetcher(DataFetcher):
     modality = "v"
 
-    def __init__(self, root_path, split, ids, labels, transforms=None):
-        super(VisualDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
+    def __init__(self, root_path, split, ids, labels, transforms=None, **kwargs):
+        super(VisualDataFetcher, self).__init__(root_path, split, ids, labels, transforms, **kwargs)
         self.null_image = None
 
     def get_null_item(self):
@@ -81,27 +81,40 @@ class AttributesDataFetcher(DataFetcher):
         rotation_y = (np.sin(rotation) + 1) / 2
         unpaired = label[11]
 
+        attributes = [x, y, size, rotation_x, rotation_y, r, g, b]
+        if self.fetcher_args['use_unpaired']:
+            attributes.append(unpaired)
+
         return (
             torch.tensor(1.).float(),
             cls,
-            torch.tensor([x, y, size, rotation_x, rotation_y, r, g, b, unpaired], dtype=torch.float),
+            torch.tensor(attributes, dtype=torch.float),
         )
 
 
 class TextDataFetcher(DataFetcher):
     modality = "t"
 
-    def __init__(self, root_path, split, ids, labels, transforms=None, bert_latents="bert-base-uncased.npy"):
-        super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms)
+    def __init__(self, root_path, split, ids, labels, transforms=None, **kwargs):
+        super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms, **kwargs)
+
+        bert_latents = self.fetcher_args['bert_latents']
+        pca_dim = self.fetcher_args['pca_dim']
 
         self.bert_data = None
         self.bert_mean = None
         self.bert_std = None
         if bert_latents is not None:
-            self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
-            # self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
-            # self.bert_std = np.load(root_path / f"std_{bert_latents}")
-            # self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
+            if pca_dim < 768 and (root_path / f"{split}_reduced_{pca_dim}_{bert_latents}").exists():
+                self.bert_data = np.load(root_path / f"{split}_reduced_{pca_dim}_{bert_latents}")[ids]
+            elif pca_dim == 768:
+                self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
+                # normalize vectors.
+                self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
+                self.bert_std = np.load(root_path / f"std_{bert_latents}")
+                self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
+            else:
+                raise ValueError("No PCA data found")
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)

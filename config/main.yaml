@@ -21,17 +21,19 @@ logger_resume_id: null  # if not null, will resume the logged run (such as wandb
 checkpoint: null  # path to the GW model for evaluation
 
 slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
-slurm:  # slurm parameters if started on slurm with the slurm/launch.py command
+slurm: # slurm parameters if started on slurm with the slurm/launch.py command
   script: train  # which script to start
-  slurm:  # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
+  slurm: # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
     "-N": 1
     "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
 
-fetchers:  # Additional fetcher parameters.
-  t:  # for text fetcher
+fetchers: # Additional fetcher parameters.
+  t: # for text fetcher
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
+  attr:
+    use_unpaired: true  # whether to load the unpaired attribute from the dataset
 
 
 # =====
@@ -46,7 +48,7 @@ visualization:
 
   gw_results:
     saved_figure_path: "../../data/plots"  # where to save figures
-    mix_loss_coefficients:  # mix_loss is the weighted average of translation and contrastive
+    mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
       translation: 1.
       contrastive: 0.1
     total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
@@ -55,7 +57,7 @@ visualization:
     axes:
       # should be *in this order* separated by a "+": tr, cont, dcy, then cy. To not include one loss component, just remove it from the list.
       # For example: "tr+cont" is valid, "cont+tr" is not.
-      selected_curves: ["tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy"]
+      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       attributes:
         load_from: wandb  # among wandb or csv
         wandb_entity_project: null  # If load_from is wandb, entity/project-name
@@ -75,8 +77,8 @@ visualization:
         csv_path: null
 
     loss_definitions:
-      translation: ["val/in_dist/translation_loss.min"]  # list of the logged losses to average for translation
-      contrastive: ["val/in_dist/contrastive_loss.min"]  # similar for contrastive
+      translation: [ "val/in_dist/translation_loss.min" ]  # list of the logged losses to average for translation
+      contrastive: [ "val/in_dist/contrastive_loss.min" ]  # similar for contrastive
 
 
 # =====
@@ -125,7 +127,7 @@ global_workspace:
   monitor_grad_norms: false  # if true, logs gradients (for debug, training is a bit slower)
 
   batch_size: 128
-  selected_domains: []  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
+  selected_domains: [ ]  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
   sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.
 
   use_pre_saved: false
@@ -137,13 +139,13 @@ global_workspace:
   z_size: 12  # size of the GW latent space
 
   hidden_size:
-    encoder: {"t": 512, "attr": 32, "v": 32}
-    decoder: {"t": 512, "attr": 32, "v": 32}
+    encoder: { "t": 512, "attr": 32, "v": 32 }
+    decoder: { "t": 512, "attr": 32, "v": 32 }
 
   n_layers:
-    encoder: {"t": 1, "attr": 1, "v": 2}
-    decoder: {"t": 0, "attr": 0, "v": 0}
-    decoder_head: {"t": 2, "attr": 2, "v": 2}
+    encoder: { "t": 1, "attr": 1, "v": 2 }
+    decoder: { "t": 0, "attr": 0, "v": 0 }
+    decoder_head: { "t": 2, "attr": 2, "v": 2 }
 
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   remove_sync_domains: null
@@ -189,15 +191,15 @@ dataloader:
   num_workers: 0
 
 run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
-                                                                                             # ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
-loggers: []
-#  - logger: WandbLogger
-#    save_images: true
-#    watch_model: true
-#    args:
-#      save_dir: "path/to/wandb/log/dir"
-#      project: "bimGW"
-      # Additional args to wandb.init
+# ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
+loggers: [ ]
+  #  - logger: WandbLogger
+  #    save_images: true
+  #    watch_model: true
+  #    args:
+  #      save_dir: "path/to/wandb/log/dir"
+  #      project: "bimGW"
+# Additional args to wandb.init
 #  - logger: TensorBoardLogger
 #    save_images: true
 #    args:
@@ -222,17 +224,17 @@ odd_image:
   encoder:
     selected_id: null
     path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
-                # If "identity", will not use the encoder.
-                # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
-                # set using the load_from below.
+      # If "identity", will not use the encoder.
+      # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
+    # set using the load_from below.
     # For example
     # path: "path/to/checkpoints/${odd_image.encoder.selected_id}/last.ckpt"
     # If the path leads to a folder, the last checkpoint is automatically loaded.
 
     load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
-                     # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
-                     # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
-                     # If null, will not overwrite odd_image.encoder.selected_id.
+      # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
+      # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
+    # If null, will not overwrite odd_image.encoder.selected_id.
     wandb_entity_project: null
     wandb_filter: null
     csv_path: null

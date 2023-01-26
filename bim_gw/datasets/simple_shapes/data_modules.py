@@ -1,8 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-import torch
-from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 
 from bim_gw.datasets.data_module import DataModule
@@ -10,8 +8,8 @@ from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
 from bim_gw.datasets.simple_shapes.utils import get_preprocess, create_ood_split, split_ood_sets
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesAttributes, SimpleShapesText
-from bim_gw.utils.registers import DomainRegister
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
+from bim_gw.utils.registers import DomainRegister
 
 
 def add_domains_to_register():
@@ -22,12 +20,14 @@ def add_domains_to_register():
         kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
     ))
-    domain_register.add("attr", lambda args, img_size: SimpleShapesAttributes(img_size))
+    domain_register.add("attr",
+                        lambda args, img_size: SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired))
     domain_register.add("t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
         args.global_workspace.lm_checkpoint,
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,
-        hidden_size=args.lm.hidden_size
+        hidden_size=args.lm.hidden_size,
+        attributes_use_unpaired=args.fetchers.attr.use_unpaired,
     ))
 
 

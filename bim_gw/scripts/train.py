@@ -1,5 +1,3 @@
-import os
-
 import torch
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
@@ -52,8 +50,6 @@ def train_gw(args):
 def train_lm(args):
     seed_everything(args.seed)
 
-    os.environ["TOKENIZERS_PARALLELISM"] = "0"
-
     args.lm.prop_labelled_images = 1.
     args.lm.split_ood = False
     args.lm.selected_domains = OmegaConf.create(["attr", "t"])
@@ -64,18 +60,17 @@ def train_lm(args):
     data.prepare_data()
     data.setup(stage="fit")
 
-    # domain_examples = {d: data.n_domain_examples["in_dist"][0][d][1:] for d in data.n_domain_examples["in_dist"][0].keys()}
-
     if "checkpoint" in args and args.checkpoint is not None:
         lm = SimpleShapesText.load_from_checkpoint(args.checkpoint, strict=False,
                                                    bert_path=args.global_workspace.bert_path,
-                                                   domain_examples=data.domain_examples)
+                                                   domain_examples=data.domain_examples,
+                                                   attributes_use_unpaired=args.fetchers.attr.use_unpaired)
     else:
         lm = SimpleShapesText(args.lm.z_size, args.lm.hidden_size, len(data.classes), data.img_size,
                               args.global_workspace.bert_path,
                               args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
                               args.lm.scheduler.gamma,
-                              data.domain_examples)
+                              data.domain_examples, args.fetchers.attr.use_unpaired)
 
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
                           early_stopping_patience=args.lm.early_stopping_patience)

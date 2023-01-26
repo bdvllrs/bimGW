@@ -4,9 +4,9 @@ import torchmetrics
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
 from bim_gw.modules.domain_modules.domain_module import DomainModule
-from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
+from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
+from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import inspect_all_choices, get_choices_from_structure_category
@@ -45,6 +45,7 @@ class SimpleShapesText(DomainModule):
             self, z_size, hidden_size, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
+            attributes_use_unpaired=True,
     ):
 
         super(SimpleShapesText, self).__init__()
@@ -61,24 +62,25 @@ class SimpleShapesText(DomainModule):
         self.transformer = None
         self.tokenizer = None
 
-        self.attribute_domain = SimpleShapesAttributes(imsize)
+        self.attribute_domain = SimpleShapesAttributes(imsize, attributes_use_unpaired)
         self.attribute_domain.freeze()
 
-        self.projection = nn.Sequential(
+        self.attribute_classifier = nn.Sequential(
             nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
             nn.Linear(self.z_size, self.z_size // 2),
             nn.ReLU(),
-            nn.Linear(self.z_size // 2, self.hidden_size)
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Linear(self.z_size // 2, self.hidden_size),
             nn.ReLU(),
             nn.Linear(self.hidden_size, sum(self.attribute_domain.output_dims))  # remove last unmatched attr
         )
         self.grammar_classifiers = nn.ModuleDict({
             name: nn.Sequential(
-                nn.Linear(self.hidden_size, self.hidden_size),
+                nn.Linear(self.z_size, self.z_size),
+                nn.ReLU(),
+                nn.Linear(self.z_size, self.z_size // 2),
+                nn.ReLU(),
+                nn.Linear(self.z_size // 2, self.hidden_size),
                 nn.ReLU(),
                 nn.Linear(self.hidden_size, n_outputs))  # predict sentence structure
             for name, n_outputs in self.composer_inspection.items()})
@@ -110,9 +112,8 @@ class SimpleShapesText(DomainModule):
 
     def decode(self, text_latent):
         text_latent = text_latent[0]
-        z = self.projection(text_latent)
-        predictions = self.classify(z)
-        grammar_prediction = self.get_grammar_prediction(z)
+        predictions = self.classify(text_latent)
+        grammar_prediction = self.get_grammar_prediction(text_latent)
         choices = get_choices_from_structure_category(self.text_composer, grammar_prediction)
         # predictions = text_latent
         predictions = self.attribute_domain.decode(predictions)
@@ -163,12 +164,12 @@ class SimpleShapesText(DomainModule):
             encoded_s = x[0]
         else:
             encoded_s = self.encode(x)
-        predictions = self.attribute_domain.decode(self.classify(self.projection(encoded_s[0])))
+        predictions = self.attribute_domain.decode(self.classify(encoded_s[0]))
         # predictions = self.attribute_domain.decode(encoded_s)
         self.attribute_domain.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
-        prediction = self.classifier(z)
+        prediction = self.attribute_classifier(z)
         predictions = []
         last_dim = 0
         for dim, act_fn in zip(self.attribute_domain.output_dims,
@@ -191,8 +192,7 @@ class SimpleShapesText(DomainModule):
         # if mode == "train":
         #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
         text_latent = self.encode(sentences)[0]
-        z = self.projection(text_latent)
-        predictions = self.classify(z)
+        predictions = self.classify(text_latent)
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -206,7 +206,7 @@ class SimpleShapesText(DomainModule):
 
         grammar_coef = 1 / len(self.grammar_classifiers)
         for name, classifier in self.grammar_classifiers.items():
-            grammar_prediction = classifier(z)
+            grammar_prediction = classifier(text_latent)
             loss_grammar = F.cross_entropy(grammar_prediction, sentences[2][name])
             total_loss += grammar_coef * loss_grammar
             acc_fn = self.grammar_train_acc[name] if mode == "train" else self.grammar_val_acc[name]
@@ -239,8 +239,7 @@ class SimpleShapesText(DomainModule):
                     domain_examples["t"][2],
                     domain_examples["t"][3]
                 ])
-                z = self.projection(encoded_s[0])
-                predictions = self.classify(z)
+                predictions = self.classify(encoded_s[0])
                 decoded_s = self.decode(encoded_s)
                 sentence_predictions = decoded_s[1]
 

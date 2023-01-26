@@ -8,12 +8,13 @@ from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
 
 class SimpleShapesAttributes(DomainModule):
-    def __init__(self, imsize):
+    def __init__(self, imsize, use_unpaired=True):
         super(SimpleShapesAttributes, self).__init__()
         self.save_hyperparameters()
 
+        self.use_unpaired = use_unpaired
         self.n_classes = 3
-        self.z_size = 8 + 1  # unmatched
+        self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute if needed
         self.imsize = imsize
 
         self.output_dims = [
@@ -98,7 +99,9 @@ class SimpleShapesAttributes(DomainModule):
         )
 
         # text
-        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "u"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        if self.use_unpaired:
+            labels.append("u")
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())

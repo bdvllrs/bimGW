@@ -95,5 +95,9 @@ def get_args(debug=False, additional_config_files=None, cli=True):
         logging.warning(
             "Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead.")
         args.losses.coefs.translation = args.losses.coefs.supervision
+    if "attr" not in args.fetchers or "use_unpaired" not in args.fetchers.attr:
+        logging.warning(
+            "Missing mandatory value `fetchers.attr.use_unpaired`. Automatically set to false.")
+        args.fetchers.attr.use_unpaired = False
 
     return args
