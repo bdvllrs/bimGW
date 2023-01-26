@@ -22,10 +22,12 @@ def far_item(ref1, ref2, labels, keys):
     # return sorted_dists[0]
     return np.random.choice(sorted_dists[:sorted_dists.shape[0] // 1000], 1)[0]
 
+
 def normalize_labels(labels):
     labels -= labels.min(axis=0)
     labels /= labels.max(axis=0)
     return labels
+
 
 def get_img(path, split, idx):
     with open(path / split / f"{idx}.png", 'rb') as f:
@@ -33,10 +35,12 @@ def get_img(path, split, idx):
         img = img.convert('RGB')
     return img
 
+
 def frame_image(img, frame_width):
     img = ImageOps.crop(img, border=frame_width)
     img_with_border = ImageOps.expand(img, border=frame_width, fill='red')
     return img_with_border
+
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -66,7 +70,7 @@ if __name__ == "__main__":
             rd = far_item(ref, labels[closest_key], labels, key)
             order = np.random.permutation(3)
             idx = [i, closest_key, rd]
-            dataset.append([idx[order[0]], idx[order[1]], idx[order[2]], np.where(order==2)[0][0]])
+            dataset.append([idx[order[0]], idx[order[1]], idx[order[2]], np.where(order == 2)[0][0]])
             axes[i, order[0]].imshow(get_img(root_path, split, i))
             axes[i, order[1]].imshow(get_img(root_path, split, closest_key))
             axes[i, order[2]].imshow(frame_image(get_img(root_path, split, rd), 2))

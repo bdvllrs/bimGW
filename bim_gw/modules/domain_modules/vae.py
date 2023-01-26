@@ -5,7 +5,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
-from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
 from bim_gw.utils.utils import log_image
 from bim_gw.utils.vae import reparameterize, gaussian_nll, softclip
 

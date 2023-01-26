@@ -1,8 +1,8 @@
+import torch.nn.functional as F
 import torch.optim
 import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
-import torch.nn.functional as F
 
 from bim_gw.modules.gw import split_domains_available_domains
 from bim_gw.utils.text_composer.composer import composer

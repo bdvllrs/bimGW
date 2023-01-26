@@ -59,5 +59,6 @@ if __name__ == '__main__':
     visual_model.log_domain(None, visual_model.decode(cycle_predictions_from_t["v"]), "Cycle v through t")
     text_model.log_domain(None, text_model.decode(cycle_predictions_from_t["t"]), "Demi-cycle t from predicted by v")
     text_model.log_domain(None, text_model.decode(cycle_predictions_from_v["t"]), "Cycle t through v")
-    visual_model.log_domain(None, visual_model.decode(cycle_predictions_from_v["v"]), "Demi-cycle v from predicted by t")
+    visual_model.log_domain(None, visual_model.decode(cycle_predictions_from_v["v"]),
+                            "Demi-cycle v from predicted by t")
     print("plot")

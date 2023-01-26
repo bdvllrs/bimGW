@@ -5,8 +5,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 
 from bim_gw.modules.domain_modules.domain_module import PassThroughWM
-from bim_gw.utils.registers import DomainRegister
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.registers import DomainRegister
 
 
 def get_domain(domain_name, args, img_size=None):

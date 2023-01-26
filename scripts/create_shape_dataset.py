@@ -9,7 +9,7 @@ from tqdm import tqdm
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import generate_dataset, generate_transformations, save_dataset, save_labels, load_labels, \
-    load_labels_old, generate_unpaired_attr
+    generate_unpaired_attr
 from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
 
@@ -116,7 +116,7 @@ def other():
 
     dataset_location = Path(args.simple_shapes_path)
     for path_name in ["train_labels_2", "val_labels", "test_labels"]:
-    # for path_name in ["val_labels"]:
+        # for path_name in ["val_labels"]:
         dataset, dataset_transfo = load_labels(dataset_location / (path_name + ".npy"))
         dataset['unpaired'] = generate_unpaired_attr(dataset['classes'].shape[0])
         dataset_transfo['unpaired'] = np.zeros_like(dataset['unpaired'])

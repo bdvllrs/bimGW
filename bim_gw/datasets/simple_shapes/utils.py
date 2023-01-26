@@ -10,6 +10,7 @@ class ComposeWithExtraParameters:
     """
     DataFetchers return [active_items, modality] we apply the transform only on the modality
     """
+
     def __init__(self, transform, index=0):
         self.transform = transform
         self.index = index

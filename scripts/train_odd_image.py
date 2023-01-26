@@ -1,12 +1,11 @@
 import os
 
 from omegaconf import OmegaConf
+from pytorch_lightning import Trainer
 from torch import nn
 
-from bim_gw.modules.gw import GlobalWorkspace
-from pytorch_lightning import Trainer
-
 from bim_gw.datasets.odd_image.data_module import OddImageDataModule
+from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.odd_classifier import OddClassifier
 from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.scripts.utils import get_domains
@@ -52,7 +51,8 @@ if __name__ == "__main__":
 
     if args.odd_image.encoder.load_from is not None:
         df = get_runs_dataframe(args.odd_image.encoder)
-        item = update_args_from_selected_run(df, args, args.odd_image.select_row_from_index, args.odd_image.select_row_from_current_coefficients)
+        item = update_args_from_selected_run(df, args, args.odd_image.select_row_from_index,
+                                             args.odd_image.select_row_from_current_coefficients)
         args.odd_image.encoder.selected_id = item['selected_id_key']
 
     load_domains = []

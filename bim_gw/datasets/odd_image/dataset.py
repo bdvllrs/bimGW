@@ -2,9 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from bim_gw.datasets.simple_shapes.fetchers import PreSavedLatentDataFetcher, AttributesDataFetcher, TextDataFetcher
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
+from bim_gw.datasets.simple_shapes.fetchers import PreSavedLatentDataFetcher, AttributesDataFetcher, TextDataFetcher
 
 
 class OddImageDataset:
@@ -41,10 +41,9 @@ class OddImageDataset:
         label = self.labels[item]
         data = {
             name: (self.fetchers[name].get_item(label[0] + self.shift_ref_item)[1:],
-                  self.fetchers[name].get_item(label[1] + self.shift_ref_item)[1:],
-                  self.fetchers[name].get_item(label[2] + self.shift_ref_item)[1:])
+                   self.fetchers[name].get_item(label[1] + self.shift_ref_item)[1:],
+                   self.fetchers[name].get_item(label[2] + self.shift_ref_item)[1:])
             for name in self.fetchers.keys()
         }
         data["label"] = torch.tensor(label[3], dtype=torch.long)
         return data
-

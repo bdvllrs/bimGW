@@ -195,10 +195,10 @@ run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labell
 loggers: [ ]
   #  - logger: WandbLogger
   #    save_images: true
-  #    watch_model: true
-  #    args:
-  #      save_dir: "path/to/wandb/log/dir"
-  #      project: "bimGW"
+#    watch_model: true
+#    args:
+#      save_dir: "path/to/wandb/log/dir"
+#      project: "bimGW"
 # Additional args to wandb.init
 #  - logger: TensorBoardLogger
 #    save_images: true
@@ -224,16 +224,16 @@ odd_image:
   encoder:
     selected_id: null
     path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
-      # If "identity", will not use the encoder.
-      # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
+    # If "identity", will not use the encoder.
+    # If a path is give, it can use ${odd_image.encoder.selected_slurm_id} which is automatically
     # set using the load_from below.
     # For example
     # path: "path/to/checkpoints/${odd_image.encoder.selected_id}/last.ckpt"
     # If the path leads to a folder, the last checkpoint is automatically loaded.
 
     load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
-      # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
-      # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
+    # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
+    # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
     # If null, will not overwrite odd_image.encoder.selected_id.
     wandb_entity_project: null
     wandb_filter: null

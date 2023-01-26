@@ -42,10 +42,10 @@ def explore_vae(args):
             # z = torch.randn(n, n, vae.z_size).to(device)
             # z[:, :, 1] = 3
             for i in range(n):
-                step = start + (end - start) * float(i) / float(n-1)
+                step = start + (end - start) * float(i) / float(n - 1)
                 z[i, :, dim_i] = step
             for j in range(n):
-                step = start + (end - start) * float(j) / float(n-1)
+                step = start + (end - start) * float(j) / float(n - 1)
                 z[:, j, dim_j] = step
 
             sampled_images = vae.decoder(z.reshape(-1, vae.z_size))
@@ -64,6 +64,7 @@ def explore_vae(args):
 
     plt.savefig("../data/vae_exploration.pdf")
     plt.show()
+
 
 if __name__ == "__main__":
     explore_vae(get_args(debug=int(os.getenv("DEBUG", 0))))

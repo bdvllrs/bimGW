@@ -35,15 +35,16 @@ def get_x_y(d, cond):
 def cond_losses(*, demi_cycle, cycle, supervision):
     def aux(row):
         return (
-            ((row['parameters/losses/coefs/demi_cycles'] != 0 and not demi_cycle) or
-            (row['parameters/losses/coefs/demi_cycles'] == 0 and demi_cycle)) and
+                ((row['parameters/losses/coefs/demi_cycles'] != 0 and not demi_cycle) or
+                 (row['parameters/losses/coefs/demi_cycles'] == 0 and demi_cycle)) and
 
-            ((row['parameters/losses/coefs/cycles'] != 0 and not cycle) or
-             (row['parameters/losses/coefs/cycles'] == 0 and cycle)) and
+                ((row['parameters/losses/coefs/cycles'] != 0 and not cycle) or
+                 (row['parameters/losses/coefs/cycles'] == 0 and cycle)) and
 
-            ((row['parameters/losses/coefs/supervision'] != 0 and not supervision) or
-             (row['parameters/losses/coefs/supervision'] == 0 and supervision))
+                ((row['parameters/losses/coefs/supervision'] != 0 and not supervision) or
+                 (row['parameters/losses/coefs/supervision'] == 0 and supervision))
         )
+
     return aux
 
 

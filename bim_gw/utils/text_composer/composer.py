@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import numpy as np
-
 from attributes_to_language.composer import Composer
 from tqdm import tqdm
 
@@ -94,4 +93,3 @@ if __name__ == '__main__':
             choices.append(choice)
         np.save(str(dataset_location / f"{split}_captions.npy"), captions)
         np.save(str(dataset_location / f"{split}_caption_choices.npy"), choices)
-

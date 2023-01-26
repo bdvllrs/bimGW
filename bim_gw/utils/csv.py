@@ -1,6 +1,5 @@
-import pathlib
-
 import csv
+import pathlib
 from copy import deepcopy
 
 import numpy as np

@@ -7,8 +7,8 @@ from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
 from bim_gw.datasets.utils import get_lm
-from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.domain_modules.vae import VAE
+from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import log_shape_fig
 
@@ -52,7 +52,7 @@ def test_ood(args):
     ])
     t_samples = lm.sample(1)
     t_latent = lm.encode(t_samples)
-    class_labels =  possible_2_class
+    class_labels = possible_2_class
     print(class_labels)
     t_latent = [class_labels, t_latent[1].expand(class_labels.size(0), -1)]
     w = global_workspace.encode(t_latent, "t")
@@ -110,10 +110,12 @@ def plot_image_grid(images, title):
     plt.title(title)
     plt.show()
 
+
 def render_semantic(t_domain, title):
     classes = t_domain[0][:32].detach().cpu().numpy()
     latents = t_domain[1][:32].detach().cpu().numpy()
     log_shape_fig(None, classes, latents, title)
+
 
 if __name__ == "__main__":
     test_ood(get_args(debug=int(os.getenv("DEBUG", 0))))

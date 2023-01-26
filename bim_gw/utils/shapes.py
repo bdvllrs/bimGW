@@ -330,7 +330,7 @@ def save_labels(path_root, dataset, dataset_transfo):
     colors_hls = dataset["colors_hls"]
     unpaired_attr = dataset["unpaired"]
     classes_transfo, locations_transfo, sizes_transfo = dataset_transfo["classes"], dataset_transfo["locations"], \
-                                                        dataset_transfo["sizes"]
+        dataset_transfo["sizes"]
     rotations_transfo, colors_transfo = dataset_transfo["rotations"], dataset_transfo["colors"]
     colors_hls_transfo = dataset_transfo["colors_hls"]
     unpaired_attr_transfo = dataset_transfo["unpaired"]

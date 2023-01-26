@@ -56,4 +56,3 @@ if __name__ == '__main__':
             all_latents.append(predictions["t"][0].detach().numpy())
 
         np.save(str(path / f"{name}_predicted_{bert_latents}"), np.concatenate(all_latents, axis=0))
-

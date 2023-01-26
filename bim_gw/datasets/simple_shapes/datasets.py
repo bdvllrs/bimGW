@@ -1,12 +1,10 @@
-import itertools
-import math
 from pathlib import Path
 
 import numpy as np
 
+from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
     PreSavedLatentDataFetcher
-from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 
 
 class SimpleShapesDataset:

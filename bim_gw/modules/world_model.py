@@ -1,10 +1,10 @@
 from typing import Optional
 
 import torch
+from bim_gw.modules.ations import ActionModule
 from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from bim_gw.modules.ations import ActionModule
 from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
 
 
@@ -13,7 +13,6 @@ class WorldModel(LightningModule):
                  optimizer_lr=1e-3, optimizer_weight_decay=1e-5, scheduler_step=100, scheduler_gamma=0.1):
         super(WorldModel, self).__init__()
         self.save_hyperparameters()
-
 
         self.global_workspace = global_workspace
         self.z_size = self.global_workspace.z_size

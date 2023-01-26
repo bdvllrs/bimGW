@@ -1,9 +1,8 @@
-import re
 import math
-
+import re
 from itertools import permutations
+
 from attributes_to_language.composer import Composer
-from attributes_to_language.writers import Bins2dWriter, BinsWriter, QuantizedWriter, OptionsWriter
 
 
 def inspect_writers(composer):
@@ -26,6 +25,7 @@ def inspect_writers(composer):
             #             if len(label) > 1:
             #                 choices[f"writer_{writer_name}_{k}_val_{i}"] = len(label)
     return choices
+
 
 def inspect_all_choices(composer: Composer):
     num_structures = 0
@@ -74,9 +74,11 @@ def get_categories(composer, choices):
         elif writer_name in choices['writers']:
             variant_name = split_name[3]
             variant_choice = int(split_name[2])
-            if variant_name in choices['writers'][writer_name] and choices['writers'][writer_name]['_writer'] == variant_choice:
+            if variant_name in choices['writers'][writer_name] and choices['writers'][writer_name][
+                '_writer'] == variant_choice:
                 categories[name] = choices['writers'][writer_name][variant_name]
     return categories
+
 
 def get_choices_from_structure_category(composer, grammar_predictions):
     all_choices = []
@@ -113,5 +115,3 @@ def get_choices_from_structure_category(composer, grammar_predictions):
                 break
             category -= math.factorial(len(groups))
     return all_choices
-
-

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from auto_sbatch import SBatch, ExperimentHandler
 from omegaconf import OmegaConf
 
@@ -36,4 +37,3 @@ if __name__ == '__main__':
         args.command,
         schedule_all_tasks=True
     )
-

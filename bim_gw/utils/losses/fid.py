@@ -68,6 +68,7 @@ def to_image(tensor, normalize=False):
         image = image.float() / 255
     return image
 
+
 def imread(filename):
     """
     Loads an image file into a (height, width, 3) uint8 ndarray.

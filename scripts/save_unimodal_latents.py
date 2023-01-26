@@ -21,7 +21,8 @@ if __name__ == '__main__':
     args.global_workspace.sync_uses_whole_dataset = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.global_workspace.selected_domains = OmegaConf.create([domain for domain in args.global_workspace.load_pre_saved_latents.keys()])
+    args.global_workspace.selected_domains = OmegaConf.create(
+        [domain for domain in args.global_workspace.load_pre_saved_latents.keys()])
 
     data = load_dataset(args, args.global_workspace, with_actions=True)
     data.prepare_data()

@@ -70,6 +70,3 @@ def set_new_cols(df, d):
         # average over selected losses
         df[l_name] = df[list(attr)].mean(axis=1)
     return df
-
-
-

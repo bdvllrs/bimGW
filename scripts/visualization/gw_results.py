@@ -2,12 +2,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from bim_gw.utils import get_args
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from bim_gw.utils.visualization import get_fmt, sem_fn, get_agg_args_from_dict, set_new_cols
+from bim_gw.utils import get_args
 from bim_gw.utils.utils import get_runs_dataframe, get_job_slug_from_coefficients
+from bim_gw.utils.visualization import get_fmt, sem_fn, get_agg_args_from_dict, set_new_cols
 
 y_axis_labels = {
     "translation": "Translation losses",

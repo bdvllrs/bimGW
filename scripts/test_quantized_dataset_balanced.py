@@ -5,7 +5,6 @@ from pytorch_lightning import seed_everything
 from tqdm import tqdm
 
 from bim_gw.datasets.simple_shapes import SimpleShapesData
-from bim_gw.modules import ShapesLM
 from bim_gw.utils import get_args
 from bim_gw.utils.text_composer.writers import LocationQuantizer, RotationQuantizer, SizeQuantizer
 
@@ -40,7 +39,7 @@ if __name__ == '__main__':
         location_counts = {l: 0 for l in labels}
         for k in tqdm(range(n_samples)):
             cls, attrs = data.train_set["a"][k]
-            inputs =  [attrs[idx] for idx in indices[quantizer_name]]
+            inputs = [attrs[idx] for idx in indices[quantizer_name]]
             location = quantizer(*inputs)
             location_counts[location] += 1
 

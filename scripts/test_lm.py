@@ -2,14 +2,12 @@ import os
 
 import torch
 from omegaconf import OmegaConf
-from transformers import BertModel, BertTokenizer
-
-from bim_gw.utils import get_args
-
 from pytorch_lightning import seed_everything
+from transformers import BertModel, BertTokenizer
 
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import ShapesLM
+from bim_gw.utils import get_args
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -26,7 +24,6 @@ if __name__ == "__main__":
     data = load_dataset(args, args.lm, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")
-
 
     lm = ShapesLM.load_from_checkpoint(args.checkpoint, strict=False,
                                        bert_path=args.global_workspace.bert_path,
@@ -76,4 +73,3 @@ if __name__ == "__main__":
     # print(torch.cdist(x, x))
 
     lm.log_domain(None, [x, sentences], "")
-

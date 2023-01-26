@@ -7,7 +7,6 @@ import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
 
-from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
 from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 

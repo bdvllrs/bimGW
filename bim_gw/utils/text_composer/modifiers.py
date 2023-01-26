@@ -32,5 +32,3 @@ class DeleteModifier:
         sentence = "{link}".join(tokens)
         sentence = "{start} " + sentence + "."
         return sentence
-
-

@@ -27,10 +27,10 @@ class OddClassifier(LightningModule):
     def step(self, batch, mode="train"):
         latents = {
             name: torch.cat([
-                    self.encoders[name](self.unimodal_encoders[name](batch[name][0])),
-                    self.encoders[name](self.unimodal_encoders[name](batch[name][1])),
-                    self.encoders[name](self.unimodal_encoders[name](batch[name][2])),
-                ], dim=1)
+                self.encoders[name](self.unimodal_encoders[name](batch[name][0])),
+                self.encoders[name](self.unimodal_encoders[name](batch[name][1])),
+                self.encoders[name](self.unimodal_encoders[name](batch[name][2])),
+            ], dim=1)
             for name in self.unimodal_encoders.keys()
         }
 
@@ -46,7 +46,7 @@ class OddClassifier(LightningModule):
             self.log(f"{mode}_{name}_loss", losses[name])
             acc_fn = self.train_acc[name] if mode == "train" else self.val_acc[name]
             res = acc_fn(predictions[name].softmax(-1), batch['label'])
-            self.log(f"{mode}_{name}_acc", res, on_epoch=(mode=="val"))
+            self.log(f"{mode}_{name}_acc", res, on_epoch=(mode == "val"))
         self.log(f"{mode}_loss", losses["v"])
         return losses["v"]
 

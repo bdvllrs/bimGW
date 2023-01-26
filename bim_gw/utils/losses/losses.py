@@ -31,4 +31,3 @@ loss_functions = {
     "cross_entropy": cross_entropy,
     "nll": nll_loss
 }
-

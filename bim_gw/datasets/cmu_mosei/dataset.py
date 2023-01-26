@@ -1,5 +1,4 @@
 import torch
-from mmsdk import mmdatasdk
 
 
 class CMUMOSEIDataset:
