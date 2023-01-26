@@ -1,4 +1,5 @@
 devices: 1  # Number of GPU used for training
+name: "train"  # a name for the run
 accelerator: gpu  # cpu, gpu, tpu, ... (see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#accelerator for available accelerators)
 distributed_backend: ddp  # see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#strategy
 seed: 0  # seed of the run
@@ -25,6 +26,7 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
   script: train  # which script to start
   slurm: # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
     "-N": 1
+    "-J": ${name}
     "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
