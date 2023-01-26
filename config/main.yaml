@@ -246,4 +246,8 @@ odd_image:
     lr: 1e-3
     weight_decay: 1e-5
 
+downstream:
+  unpaired_cls:
+    checkpoint: "path/to/checkpoint"
+
 _code_version: master

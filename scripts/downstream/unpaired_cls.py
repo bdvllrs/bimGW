@@ -20,8 +20,8 @@ if __name__ == "__main__":
     data.prepare_data()
     data.setup(stage="fit")
 
-    assert args.checkpoint is not None, "You must provide a checkpoint for this script."
-    checkpoint_path = args.checkpoint
+    assert args.downstream.unpaired_cls is not None, "You must provide a checkpoint for this script."
+    checkpoint_path = args.downstream.unpaired_cls
     if not os.path.isfile(checkpoint_path) and os.path.isdir(checkpoint_path):
         checkpoint_path = find_best_epoch(checkpoint_path)
 
