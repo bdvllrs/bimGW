@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 
 import pandas as pd
+import torch
 import torchvision
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
@@ -107,6 +109,10 @@ def get_job_slug_from_coefficients(x):
 def find_best_epoch(ckpt_folder):
     ckpt_folder = Path(ckpt_folder)
     files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:])) for p in ckpt_folder.iterdir()]
-    return sorted(files, key=lambda x: x[0], reverse=True)[0][0]
-    # epochs = [int(filename[6:-5]) for filename in ckpt_files]  # 'epoch={int}.ckpt' filename format
-    # return max(epochs)
+    last = sorted(files, key=lambda x: x[0], reverse=True)[0][0]
+    loaded_path = torch.load(last, map_location=torch.device('cpu'))
+    for callback_name, callback in loaded_path['callbacks'].items():
+        if 'ModelCheckpoint' in callback_name and 'best_model_path' in callback and os.path.isfile(
+                callback['best_model_path']):
+            return callback['best_model_path']
+    return last
