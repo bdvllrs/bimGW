@@ -32,6 +32,7 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
 fetchers: # Additional fetcher parameters.
   t: # for text fetcher
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
+    pca_dim: 768  # dimension of the PCA projection of the BERT features. If 768, no PCA is applied
   attr:
     use_unpaired: true  # whether to load the unpaired attribute from the dataset
 
@@ -107,7 +108,8 @@ vae:
 # Language model parameters
 # =====
 lm:
-  z_size: 12  # size of the latent space after projection
+  z_size: ${fetchers.t.pca_dim}
+  hidden_size: 64
 
   batch_size: 128
   n_validation_examples: 32
