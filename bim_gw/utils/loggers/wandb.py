@@ -44,7 +44,7 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
-        if self.log_tables:
+        if self.do_log_tables:
             super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
 
 
