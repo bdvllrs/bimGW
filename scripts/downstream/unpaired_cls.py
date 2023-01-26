@@ -38,7 +38,6 @@ if __name__ == "__main__":
     model = UnpairedClassifierAttributes(
         global_workspace, args.downstream.unpaired_cls.optimizer.lr,
         args.downstream.unpaired_cls.optimizer.weight_decay,
-        args.downstream.unpaired_cls.random_regressor,
     )
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
@@ -60,4 +59,8 @@ if __name__ == "__main__":
         logger=loggers,
     )
 
-    trainer.fit(model, data)
+    if not args.downstream.unpaired_cls.random_regressor:
+        trainer.fit(model, data)
+
+    trainer.validate(global_workspace, data, "best" if not args.downstream.unpaired_cls.random_regressor else None)
+    trainer.test(global_workspace, data, "best" if not args.downstream.unpaired_cls.random_regressor else None)
