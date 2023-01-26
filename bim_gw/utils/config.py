@@ -24,13 +24,13 @@ def split_resolver(key, value, item=None):
 
 def loss_coef_slug_resolver(*, _root_):
     name = ""
-    if type(_root_.losses.translation) in [int, float] and _root_.losses.coefs.translation > 0:
+    if type(_root_.losses.coefs.translation) in [int, float] and _root_.losses.coefs.translation > 0:
         name += "+tr"
-    if type(_root_.losses.contrastive) in [int, float] and _root_.losses.coefs.contrastive > 0:
+    if type(_root_.losses.coefs.contrastive) in [int, float] and _root_.losses.coefs.contrastive > 0:
         name += "+cont"
-    if type(_root_.losses.demi_cycles) in [int, float] and _root_.losses.coefs.demi_cycles > 0:
+    if type(_root_.losses.coefs.demi_cycles) in [int, float] and _root_.losses.coefs.demi_cycles > 0:
         name += "+dcy"
-    if type(_root_.losses.cycles) in [int, float] and _root_.losses.coefs.cycles > 0:
+    if type(_root_.losses.coefs.cycles) in [int, float] and _root_.losses.coefs.cycles > 0:
         name += "+cy"
     return name[1:]
 
