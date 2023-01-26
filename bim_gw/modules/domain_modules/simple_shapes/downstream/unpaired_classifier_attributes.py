@@ -31,7 +31,8 @@ class UnpairedClassifierAttributes(LightningModule):
             nn.Linear(global_workspace.z_size // 2, 1)
         )
         if random_regressor:
-            self.regressor.freeze()
+            for param in self.regressor.parameters():
+                param.requires_grad_(False)
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
