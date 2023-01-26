@@ -35,7 +35,11 @@ if __name__ == "__main__":
         "contrastive": global_workspace.hparams['loss_coef_contrastive'],
     })
 
-    model = UnpairedClassifierAttributes(global_workspace)
+    model = UnpairedClassifierAttributes(
+        global_workspace, args.downstream.unpaired_cls.optimizer.lr,
+        args.downstream.unpaired_cls.optimizer.weight_decay,
+        args.downstream.unpaired_cls.random_regressor,
+    )
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 

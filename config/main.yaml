@@ -250,6 +250,11 @@ odd_image:
 
 downstream:
   unpaired_cls:
+    random_regressor: false
     checkpoint: "path/to/checkpoint"
+
+    optimizer:
+      lr: 1e-3
+      weight_decay: 1e-5
 
 _code_version: master

@@ -10,7 +10,7 @@ from bim_gw.utils.text_composer.utils import inspect_all_choices
 
 
 class UnpairedClassifierAttributes(LightningModule):
-    def __init__(self, global_workspace, optimizer_lr=1e-3, optimizer_weight_decay=1e-5):
+    def __init__(self, global_workspace, optimizer_lr=1e-3, optimizer_weight_decay=1e-5, random_regressor=False):
         super(UnpairedClassifierAttributes, self).__init__()
         self.save_hyperparameters(ignore=["global_workspace"])
 
@@ -30,6 +30,8 @@ class UnpairedClassifierAttributes(LightningModule):
             nn.ReLU(),
             nn.Linear(global_workspace.z_size // 2, 1)
         )
+        if random_regressor:
+            self.regressor.freeze()
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
