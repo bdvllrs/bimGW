@@ -18,22 +18,22 @@ class CSVLogger(CSVLoggerBase):
         self._source_location = source_location
         self._texts = {}
         self._images = []
-        self._save_images = save_images
-        self._save_last_images = save_last_images
+        self.save_images = save_images
+        self.save_last_images = save_last_images
         self._image_last_step = {}
         self._text_last_step = {}
-        if not self._save_images:
+        if not self.save_images:
             logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
 
     def set_summary(self, name, mode="max"):
         pass
 
     def save_images(self, mode=True):
-        self._save_images = mode
+        self.save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._save_images:
+        if self.save_images:
             if step is None:
                 if log_name not in self._image_last_step:
                     self._image_last_step[log_name] = 0

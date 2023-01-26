@@ -466,13 +466,13 @@ class GlobalWorkspace(LightningModule):
     def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
-            if logger._save_last_images:
-                save_images = logger._save_images
+            if logger.save_last_images:
+                save_images = logger.save_images
                 logger.save_images(True)
             for domain_name, domain_example in examples.items():
                 self.domain_mods[domain_name].log_domain(logger, domain_example,
                                                          f"{slug}/original/domain_{domain_name}", max_examples)
-            if logger._save_last_images:
+            if logger.save_last_images:
                 logger.save_images(save_images)
             # if domain_name == "v":
             #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()

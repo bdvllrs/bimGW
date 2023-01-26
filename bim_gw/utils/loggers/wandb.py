@@ -13,12 +13,12 @@ class WandbLogger(WandbLoggerBase):
     def __init__(self, *params, save_images=True, save_last_images=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
-        self._save_images = save_images
-        self._save_last_images = save_last_images
-        self._log_tables = save_tables
-        if not self._save_images:
+        self.save_images = save_images
+        self.save_last_images = save_last_images
+        self.log_tables = save_tables
+        if not self.save_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
-        if not self._log_tables:
+        if not self.log_tables:
             logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
     def set_summary(self, name, mode="min"):
@@ -26,16 +26,16 @@ class WandbLogger(WandbLoggerBase):
         # pass
 
     def save_images(self, mode=True):
-        self._save_images = mode
+        self.save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._save_images:
+        if self.save_images:
             super(WandbLogger, self).log_image(key=log_name, images=[image], step=step)
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
-        if self._log_tables:
+        if self.log_tables:
             if not isinstance(text, list):
                 text = [[text]]
             else:
@@ -44,7 +44,7 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
-        if self._log_tables:
+        if self.log_tables:
             super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
 
 

@@ -14,20 +14,20 @@ class NeptuneLogger(NeptuneLoggerBase):
     def __init__(self, save_images=True, save_last_images=True, **neptune_run_kwargs):
         super().__init__(**neptune_run_kwargs)
 
-        self._save_images = save_images
-        self._save_last_images = save_last_images
-        if not self._save_images:
+        self.save_images = save_images
+        self.save_last_images = save_last_images
+        if not self.save_images:
             logging.warning("NeptuneLogger will not save the images. Set `save_images' to true to log them.")
 
     def set_summary(self, name, mode="max"):
         pass
 
     def save_images(self, mode=True):
-        self._save_images = mode
+        self.save_images = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
-        if self._save_images:
+        if self.save_images:
             image = to_pil_image(image)
             self.experiment[log_name].log(File.as_image(image), step=step)
 
