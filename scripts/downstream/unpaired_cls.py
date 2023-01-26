@@ -9,6 +9,7 @@ from bim_gw.modules.domain_modules.simple_shapes.downstream import UnpairedClass
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.utils import find_best_epoch
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -19,8 +20,12 @@ if __name__ == "__main__":
     data.prepare_data()
     data.setup(stage="fit")
 
+    checkpoint_path = args.checkpoint
+    if not os.path.isfile(checkpoint_path) and os.path.isdir(checkpoint_path):
+        checkpoint_path = find_best_epoch(checkpoint_path)
+
     domain_mods = get_domains(args, data.img_size)
-    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods=domain_mods, strict=False)
+    global_workspace = GlobalWorkspace.load_from_checkpoint(checkpoint_path, domain_mods=domain_mods, strict=False)
 
     args.losses.coefs = OmegaConf.create({
         "translation": global_workspace.hparams['loss_coef_translation'],
