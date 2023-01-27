@@ -1,0 +1,3 @@
+global_workspace:
+  lm_checkpoint: ${oc.env:LM_CHECKPOINT}
+  vae_checkpoint: ${oc.env:VAE_CHECKPOINT}
