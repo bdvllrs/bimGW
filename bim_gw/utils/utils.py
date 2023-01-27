@@ -116,3 +116,9 @@ def find_best_epoch(ckpt_folder):
                 callback['best_model_path']):
             return callback['best_model_path']
     return last
+
+
+def get_checkpoint_path(path):
+    if path is not None and os.path.isdir(path):
+        return find_best_epoch(path)
+    return path

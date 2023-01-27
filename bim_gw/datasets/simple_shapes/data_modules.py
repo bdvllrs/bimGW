@@ -10,12 +10,13 @@ from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesAttributes, SimpleShapesText
 from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.registers import DomainRegister
+from bim_gw.utils.utils import get_checkpoint_path
 
 
 def add_domains_to_register():
     domain_register = DomainRegister()
     domain_register.add("v", lambda args, img_size=None: VAE.load_from_checkpoint(
-        args.global_workspace.vae_checkpoint,
+        get_checkpoint_path(args.global_workspace.vae_checkpoint),
         mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
         kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
@@ -23,7 +24,7 @@ def add_domains_to_register():
     domain_register.add("attr",
                         lambda args, img_size: SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired))
     domain_register.add("t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
-        args.global_workspace.lm_checkpoint,
+        get_checkpoint_path(args.global_workspace.lm_checkpoint),
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,
         hidden_size=args.lm.hidden_size,

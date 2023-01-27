@@ -11,7 +11,7 @@ from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.utils import get_runs_dataframe, find_best_epoch
+from bim_gw.utils.utils import get_runs_dataframe, find_best_epoch, get_checkpoint_path
 
 
 def update_args_from_selected_run(df, args, select_row_from_index=None, select_row_from_current_coefficients=False):
@@ -86,9 +86,7 @@ if __name__ == "__main__":
     args.global_workspace.selected_domains = OmegaConf.create([name for name in load_domains])
 
     if args.resume_from_checkpoint is not None:
-        path = args.resume_from_checkpoint
-        if not os.path.isfile(path) and os.path.isdir(path):
-            path = find_best_epoch(path)
+        path = get_checkpoint_path(args.resume_from_checkpoint)
         model = OddClassifier.load_from_checkpoint(path,
                                                    unimodal_encoders=get_domains(args, args.img_size),
                                                    encoders=encoders)

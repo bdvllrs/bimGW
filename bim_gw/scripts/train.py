@@ -7,6 +7,7 @@ from bim_gw.modules import GlobalWorkspace
 from bim_gw.modules.domain_modules import VAE, AE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesText
 from bim_gw.scripts.utils import get_domains, get_trainer
+from bim_gw.utils.utils import get_checkpoint_path
 
 
 def train_gw(args):
@@ -61,7 +62,8 @@ def train_lm(args):
     data.setup(stage="fit")
 
     if "checkpoint" in args and args.checkpoint is not None:
-        lm = SimpleShapesText.load_from_checkpoint(args.checkpoint, strict=False,
+        checkpoint_path = get_checkpoint_path(args.checkpoint)
+        lm = SimpleShapesText.load_from_checkpoint(checkpoint_path, strict=False,
                                                    bert_path=args.global_workspace.bert_path,
                                                    domain_examples=data.domain_examples,
                                                    attributes_use_unpaired=args.fetchers.attr.use_unpaired)
@@ -93,7 +95,8 @@ def train_ae(args):
     data.setup(stage="fit")
 
     if "checkpoint" in args and args.checkpoint is not None:
-        ae = AE.load_from_checkpoint(args.checkpoint, strict=False,
+        checkpoint_path = get_checkpoint_path(args.checkpoint)
+        ae = AE.load_from_checkpoint(checkpoint_path, strict=False,
                                      n_validation_examples=args.n_validation_examples,
                                      validation_reconstruction_images=data.domain_examples["val"][0]["v"][1])
     else:
@@ -125,7 +128,8 @@ def train_vae(args):
     data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
 
     if "checkpoint" in args and args.checkpoint is not None:
-        vae = VAE.load_from_checkpoint(args.checkpoint, strict=False,
+        checkpoint_path = get_checkpoint_path(args.checkpoint)
+        vae = VAE.load_from_checkpoint(checkpoint_path, strict=False,
                                        n_validation_examples=args.n_validation_examples,
                                        validation_reconstruction_images=data.domain_examples["val"][0]["v"][1])
     else:

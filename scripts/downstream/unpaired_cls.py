@@ -9,7 +9,7 @@ from bim_gw.modules.domain_modules.simple_shapes.downstream import UnpairedClass
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.utils import find_best_epoch
+from bim_gw.utils.utils import get_checkpoint_path
 
 if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -21,10 +21,7 @@ if __name__ == "__main__":
     data.setup(stage="fit")
 
     assert args.downstream.unpaired_cls.checkpoint is not None, "You must provide a checkpoint for this script."
-    checkpoint_path = args.downstream.unpaired_cls.checkpoint
-    if not os.path.isfile(checkpoint_path) and os.path.isdir(checkpoint_path):
-        checkpoint_path = find_best_epoch(checkpoint_path)
-
+    checkpoint_path = get_checkpoint_path(args.downstream.unpaired_cls.checkpoint)
     domain_mods = get_domains(args, data.img_size)
     global_workspace = GlobalWorkspace.load_from_checkpoint(checkpoint_path, domain_mods=domain_mods, strict=False)
 
