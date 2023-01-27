@@ -157,7 +157,7 @@ class SimpleShapesText(DomainModule):
         return None, labels, choices  # TODO: add BERT vectors
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        if logger is not None:
+        if logger is not None and hasattr(logger, "log_table"):
             text = [[x[1][k]] for k in range(len(x[1]))]
             logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
         if type(x[0]) == list:
@@ -245,7 +245,8 @@ class SimpleShapesText(DomainModule):
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
 
-                logger.log_table(f"{mode}/predictions_text", columns=["Text"], data=text)
+                if hasattr(logger, "log_table"):
+                    logger.log_table(f"{mode}/predictions_text", columns=["Text"], data=text)
 
                 # Images
                 self.attribute_domain.log_domain(logger, self.attribute_domain.decode(predictions),
@@ -254,9 +255,10 @@ class SimpleShapesText(DomainModule):
                 if self.current_epoch == 0:
                     self.attribute_domain.log_domain(logger, domain_examples["attr"][1:],
                                                      f"{mode}/target_reconstruction")
-                    logger.log_table(f"{mode}/target_text", columns=["Text"],
-                                     data=[[domain_examples['t'][2][k]] for k in
-                                           range(len(domain_examples['t'][2]))])
+                    if hasattr(logger, "log_table"):
+                        logger.log_table(f"{mode}/target_text", columns=["Text"],
+                                         data=[[domain_examples['t'][2][k]] for k in
+                                               range(len(domain_examples['t'][2]))])
 
     def validation_epoch_end(self, outputs):
         self.epoch_end("val")

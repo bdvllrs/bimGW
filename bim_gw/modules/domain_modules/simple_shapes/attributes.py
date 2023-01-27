@@ -109,7 +109,7 @@ class SimpleShapesAttributes(DomainModule):
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
-        if logger is not None:
+        if logger is not None and hasattr(logger, "log_table"):
             logger.log_table(name + "_text", columns=labels, data=text, step=step)
         else:
             print(labels)
