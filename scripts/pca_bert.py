@@ -27,3 +27,7 @@ if __name__ == '__main__':
         np.save(str(shapes_path / f"train_reduced_{k}_{args.fetchers.t.bert_latents}"), bert_reduced_train)
         np.save(str(shapes_path / f"val_reduced_{k}_{args.fetchers.t.bert_latents}"), bert_reduced_val)
         np.save(str(shapes_path / f"test_reduced_{k}_{args.fetchers.t.bert_latents}"), bert_reduced_test)
+        mean = bert_reduced_train.mean(axis=0)
+        std = bert_reduced_train.std(axis=0)
+        np.save(str(shapes_path / f"mean_reduced_{k}_{args.fetchers.t.bert_latents}"), mean)
+        np.save(str(shapes_path / f"std_reduced_{k}_{args.fetchers.t.bert_latents}"), std)

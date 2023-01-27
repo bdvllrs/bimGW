@@ -107,14 +107,15 @@ class TextDataFetcher(DataFetcher):
         if bert_latents is not None:
             if pca_dim < 768 and (root_path / f"{split}_reduced_{pca_dim}_{bert_latents}").exists():
                 self.bert_data = np.load(root_path / f"{split}_reduced_{pca_dim}_{bert_latents}")[ids]
+                self.bert_mean = np.load(root_path / f"mean_reduced_{pca_dim}_{bert_latents}")
+                self.bert_std = np.load(root_path / f"std_reduced_{pca_dim}_{bert_latents}")
             elif pca_dim == 768:
                 self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
-                # normalize vectors.
                 self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
                 self.bert_std = np.load(root_path / f"std_{bert_latents}")
-                self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
             else:
                 raise ValueError("No PCA data found")
+            self.bert_data = (self.bert_data - self.bert_mean) / self.bert_std
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)
