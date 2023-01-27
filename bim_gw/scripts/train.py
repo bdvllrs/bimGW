@@ -42,7 +42,7 @@ def train_gw(args):
     trainer.fit(global_workspace, data)
 
     loggers_save_images(trainer.loggers, True)
-    best_checkpoint = "best" if args.fast_dev_run is not None else None
+    best_checkpoint = "best" if not args.fast_dev_run else None
     trainer.validate(global_workspace, data, best_checkpoint)
     trainer.test(global_workspace, data, best_checkpoint)
 
@@ -76,7 +76,7 @@ def train_lm(args):
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
                           early_stopping_patience=args.lm.early_stopping_patience)
     trainer.fit(lm, data)
-    best_checkpoint = "best" if args.fast_dev_run is not None else None
+    best_checkpoint = "best" if not args.fast_dev_run else None
     trainer.validate(lm, data, best_checkpoint)
     trainer.test(lm, data, best_checkpoint)
 
@@ -110,7 +110,7 @@ def train_ae(args):
     trainer = get_trainer("train_ae", args, ae, monitor_loss="val_total_loss",
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(ae, data)
-    best_checkpoint = "best" if args.fast_dev_run is not None else None
+    best_checkpoint = "best" if not args.fast_dev_run else None
     trainer.validate(ae, data, best_checkpoint)
     trainer.test(ae, data, best_checkpoint)
 
@@ -146,6 +146,6 @@ def train_vae(args):
                           early_stopping_patience=args.vae.early_stopping_patience)
     trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
-    best_checkpoint = "best" if args.fast_dev_run is not None else None
+    best_checkpoint = "best" if not args.fast_dev_run else None
     trainer.validate(vae, data, best_checkpoint)
     trainer.test(vae, data, best_checkpoint)
