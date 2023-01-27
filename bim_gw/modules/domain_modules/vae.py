@@ -16,9 +16,7 @@ class VAE(DomainModule):
                  optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
                  scheduler_step: int = 20, scheduler_gamma: float = 0.5,
                  validation_reconstruction_images: Optional[torch.Tensor] = None,
-                 n_FID_samples=1000,
-                 mmd_loss_coef=0.,
-                 kl_loss_coef=0.):
+                 n_FID_samples=1000, ):
         # configurations
         super().__init__()
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
