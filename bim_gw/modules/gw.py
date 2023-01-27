@@ -9,6 +9,7 @@ from torch import nn
 
 from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
+from bim_gw.utils.utils import logger_save_images
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -466,31 +467,15 @@ class GlobalWorkspace(LightningModule):
     def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
+            save_images = False
             if logger.do_save_last_images:
-                save_images = logger.do_save_images
-                logger.save_images(True)
+                save_images = getattr(logger, "do_save_images", False)
+                logger_save_images(logger, True)
             for domain_name, domain_example in examples.items():
                 self.domain_mods[domain_name].log_domain(logger, domain_example,
                                                          f"{slug}/original/domain_{domain_name}", max_examples)
             if logger.do_save_last_images:
-                logger.save_images(save_images)
-            # if domain_name == "v":
-            #     latent = self.domain_mods[domain_name].encode(domain_example)[1].detach().cpu().numpy()
-            #     fig, axes = plt.subplots(1, latent.shape[1])
-            #     for k in range(latent.shape[1]):
-            #         l = latent[:, k]
-            #         axes[k].hist(l, 50, density=True)
-            #         x = np.linspace(-0.8, 0.8, 100)
-            #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-            #     logger.log_image("original_v_hist", fig)
-            #     plt.close(fig)
-
-        # if len(self.rotation_error_val):
-        #     fig = plt.figure()
-        #     plt.hist(self.rotation_error_val, 50, density=True)
-        #     logger.log_image("rotation_error_val", fig)
-        #     plt.close(fig)
-        #     self.rotation_error_val = []
+                logger_save_images(logger, save_images)
 
         latents = self.encode_uni_modal(examples)
 
@@ -517,15 +502,6 @@ class GlobalWorkspace(LightningModule):
                         f"{slug}/translation/{domain_name}_to_{domain_name_2}",
                         max_examples,
                     )
-                    # if domain_name == "t" and domain_name_2 == "v":
-                    #     fig, axes = plt.subplots(1, latent_end.size(1))
-                    #     for k in range(latent_end.size(1)):
-                    #         l = latent_end.detach().cpu().numpy()[:, k]
-                    #         x = np.linspace(-0.8, 0.8, 100)
-                    #         axes[k].hist(l, 50, density=True)
-                    #         axes[k].plot(x, scipy.stats.norm.pdf(x, 0, 1))
-                    #     logger.log_image("decoded_v_hist", fig)
-                    #     plt.close(fig)
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]

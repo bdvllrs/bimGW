@@ -13,7 +13,7 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
     sample_imgs = sample_imgs - sample_imgs.min()
     sample_imgs = sample_imgs / sample_imgs.max()
     img_grid = torchvision.utils.make_grid(sample_imgs, pad_value=1, **kwargs)
-    if logger is not None:
+    if logger is not None and hasattr(logger, "log_image"):
         logger.log_image(name, img_grid, step=step)
     else:
         img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
@@ -21,6 +21,17 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
         plt.title(name)
         plt.tight_layout(pad=0)
         plt.show()
+
+
+def logger_save_images(logger, mode=True):
+    if logger is not None and hasattr(logger, "save_images"):
+        logger.save_images(mode)
+
+
+def loggers_save_images(loggers, mode=True):
+    for logger in loggers:
+        if hasattr(logger, "do_save_last_images") and logger.do_save_last_images:
+            logger_save_images(logger, mode)
 
 
 def val_or_default(d, key, default=None):
