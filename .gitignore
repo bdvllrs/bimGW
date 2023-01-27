@@ -2,6 +2,7 @@
 config/
 !config/main.yaml
 checkoint/
+test/checkpoint/
 data/
 
 ### Python template

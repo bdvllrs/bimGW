@@ -31,6 +31,9 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
     "--time": "12:00:00"
     "--mem": 5000
 
+dataloader:
+  num_workers: 0
+
 fetchers: # Additional fetcher parameters.
   t: # for text fetcher
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
@@ -88,9 +91,9 @@ visualization:
 # VAE parameters
 # =====
 vae:
-  batch_size: 128
+  batch_size: 512
 
-  beta: 0.5
+  beta: 0.1
   z_size: 12  # size of the VAE latent space
   ae_size: 512  # hidden size dimension
   type: "beta"  # in "beta", "sigma", "optimal_sigma"
@@ -100,11 +103,11 @@ vae:
   early_stopping_patience: null  # no early stopping
 
   optim:
-    lr: 1e-4
-    weight_decay: 3e-5
+    lr: 3e-4
+    weight_decay: 1e-5
   scheduler:
-    step: 20
-    gamma: 0.5
+    step: 100
+    gamma: 0.9
 
 # =====
 # Language model parameters
@@ -113,7 +116,7 @@ lm:
   z_size: ${fetchers.t.pca_dim}
   hidden_size: 64
 
-  batch_size: 128
+  batch_size: 1024
   n_validation_examples: 32
   early_stopping_patience: null
 
@@ -121,8 +124,8 @@ lm:
     lr: 1e-4
     weight_decay: 3e-5
   scheduler:
-    step: 10
-    gamma: 0.1
+    step: 200
+    gamma: 0.0
 
 # =====
 # GW parameters
@@ -143,30 +146,27 @@ global_workspace:
   z_size: 12  # size of the GW latent space
 
   hidden_size:
-    encoder: { "t": 512, "attr": 32, "v": 32 }
-    decoder: { "t": 512, "attr": 32, "v": 32 }
+    encoder: { "t": 128, "attr": 128, "v": 64 }
+    decoder: { "t": 128, "attr": 128, "v": 64 }
 
   n_layers:
-    encoder: { "t": 1, "attr": 1, "v": 2 }
+    encoder: { "t": 2, "attr": 1, "v": 2 }
     decoder: { "t": 0, "attr": 0, "v": 0 }
     decoder_head: { "t": 2, "attr": 2, "v": 2 }
 
   prop_labelled_images: 1.  # of the allowed classes to be labelled.
   remove_sync_domains: null
-  classes_labelled_images: null  # null is all classes
   vae_checkpoint: null
   lm_checkpoint: null
-  vae_mmd_loss_coef: 0.
-  vae_kl_loss_coef: 0.
 
-  early_stopping_patience: 10
+  early_stopping_patience: 20
   optim:
     lr:
       encoders: 1e-4
-      decoders: 1e-4
+      decoders: 3e-4
       supervised_multiplier: 1.
       unsupervised_multiplier: 1.
-    weight_decay: 3e-5
+    weight_decay: 5e-5
 
   scheduler:
     # "fixed"/"adaptive".
@@ -175,24 +175,18 @@ global_workspace:
     #   The given values are the one used if prop_labelled_images is set to 1.
     mode: fixed
     interval: epoch
-    step: 20
+    step: 300
     gamma: 0.5
 
 losses:
   schedules: null
   coefs:
-    demi_cycles: 0.
-    cycles: 0.
+    demi_cycles: 1.
+    cycles: 1.
     supervision: null  # Deprecated. Here for backward compatibility, use translation instead. If not null, will override the value in translation.
     translation: 1.
     cosine: 0.
-    contrastive: 1.3
-
-gensim_model_path: null
-word_embeddings: null
-
-dataloader:
-  num_workers: 0
+    contrastive: 1.
 
 run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
 # ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
@@ -249,8 +243,8 @@ odd_image:
   select_row_from_current_coefficients: false  # if select_row_from_index is null and this is true, will select the run which uses the same loss coefficients as currently set.
 
   optimizer:
-    lr: 1e-3
-    weight_decay: 1e-5
+    lr: 3e-4
+    weight_decay: 1e-4
 
 downstream:
   unpaired_cls:

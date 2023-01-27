@@ -1,69 +1,210 @@
-gpus: 1
+devices: 1  # Number of GPU used for training
+name: "test"  # a name for the run
+seed: 0  # seed of the run
+fast_dev_run: true  # whether to start the training in fast_dev_run mode (see https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#fast-dev-run)
+max_epochs: -1  # number of trained epochs. If -1, will use max_steps instead
+max_steps: 1  # number of trained steps
+
+current_dataset: "shapes"  # dataset to use. For now, only "shapes"
+
+img_size: 32  # width and height of images in the dataset
+n_validation_examples: 4  # number of validation examples for the images logged (only for text and images, losses will use the whole val dataset)
+
+checkpoints_dir: "./checkpoints"  # path to save checkpoints artifacts
+resume_from_checkpoint: null  # path to a checkpoint to continue training. For train_lm path to the LM, for train_vae path to the VAE...
+logger_resume_id: null  # if not null, will resume the logged run (such as wandb run) with this id.
+checkpoint: null  # path to the GW model for evaluation
+
+slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
+slurm: # slurm parameters if started on slurm with the slurm/launch.py command
+  script: test  # which script to start
+  slurm: # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
+    "-N": 1
+    "-J": ${name}
+    "--gres": "gpu:${devices}"
+    "--time": "02:00"
+    "--mem": 5000
+
 dataloader:
-  num_workers: 8
+  num_workers: 0
 
-visual_dataset: "shapes"
+fetchers: # Additional fetcher parameters.
+  t: # for text fetcher
+    bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
+    pca_dim: 768  # dimension of the PCA projection of the BERT features. If 768, no PCA is applied
+  attr:
+    use_unpaired: true  # whether to load the unpaired attribute from the dataset
 
+
+# =====
+# Visualization parameters
+# =====
+visualization:
+  fg_color: "black"  # plot foreground color
+  bg_color: "white"  # plot background color
+  font_size: 12
+  font_size_title: 14
+  line_width: 2  # curve line width
+
+  gw_results:
+    saved_figure_path: "./data/plots"  # where to save figures
+    mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
+      translation: 1.
+      contrastive: 0.1
+    total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
+    legend:
+      num_columns: 2
+    axes:
+      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+      attributes:
+        load_from: wandb  # among wandb or csv
+        wandb_entity_project: null  # If load_from is wandb, entity/project-name
+        wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
+        csv_path: null  # If load_from is csv, path to csv file containing the run to display
+      text:
+        load_from: wandb  # similar to attributes
+        wandb_entity_project: null
+        wandb_filter: null
+        csv_path: null
+
+    loss_definitions:
+      translation: [ "val/in_dist/translation_loss.min" ]  # list of the logged losses to average for translation
+      contrastive: [ "val/in_dist/contrastive_loss.min" ]  # similar for contrastive
+
+
+# =====
+# VAE parameters
+# =====
 vae:
-  data_augmentation: true
-  beta: 0.1
-  batch_size: 16
+  batch_size: 4
 
-  z_size: 12
-  ae_size: 512
-  type: "beta"
+  beta: 0.1
+  z_size: 12  # size of the VAE latent space
+  ae_size: 512  # hidden size dimension
+  type: "beta"  # in "beta", "sigma", "optimal_sigma"
+
+  n_FID_samples: 4  # num of samples to compute FID
+
+  early_stopping_patience: null  # no early stopping
+
+  optim:
+    lr: 3e-4
+    weight_decay: 1e-5
+  scheduler:
+    step: 100
+    gamma: 0.9
+
+# =====
+# Language model parameters
+# =====
+lm:
+  z_size: ${fetchers.t.pca_dim}
+  hidden_size: 64
+
+  batch_size: 4
+  n_validation_examples: 4
+  early_stopping_patience: null
 
   optim:
     lr: 1e-4
     weight_decay: 3e-5
-
-lm:
-  z_size: 12
-
-  batch_size: 16
-  n_validation_examples: 32
-  optim:
-    lr: 5e-4
-    weight_decay: 3e-5
   scheduler:
-    step: 50
-    gamma: 0.1
+    step: 200
+    gamma: 0.0
+
+# =====
+# GW parameters
+# =====
+global_workspace:
+  monitor_grad_norms: false  # if true, logs gradients (for debug, training is a bit slower)
+
+  batch_size: 4
+  selected_domains: [ ]  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
+  sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.
+
+  use_pre_saved: false
+  load_pre_saved_latents: null
+
+  split_ood: false  # whether to remove a out-of-distribution split in the training set.
+  bert_path: "bert-base-uncased"
+
+  z_size: 12  # size of the GW latent space
+
+  hidden_size:
+    encoder: { "t": 128, "attr": 128, "v": 64 }
+    decoder: { "t": 128, "attr": 128, "v": 64 }
+
+  n_layers:
+    encoder: { "t": 2, "attr": 1, "v": 2 }
+    decoder: { "t": 0, "attr": 0, "v": 0 }
+    decoder_head: { "t": 2, "attr": 2, "v": 2 }
+
+  prop_labelled_images: 1.  # of the allowed classes to be labelled.
+  remove_sync_domains: null
+  vae_checkpoint: null
+  lm_checkpoint: null
+
+  early_stopping_patience: 20
+  optim:
+    lr:
+      encoders: 1e-4
+      decoders: 3e-4
+      supervised_multiplier: 1.
+      unsupervised_multiplier: 1.
+    weight_decay: 5e-5
+
+  scheduler:
+    # "fixed"/"adaptive".
+    # - Fixed will use the following values.
+    # - Adaptive will change the values based on the prop_labelled_image setting.
+    #   The given values are the one used if prop_labelled_images is set to 1.
+    mode: fixed
+    interval: epoch
+    step: 300
+    gamma: 0.5
 
 losses:
+  schedules: null
   coefs:
     demi_cycles: 1.
     cycles: 1.
-    translation: 4.
+    supervision: null  # Deprecated. Here for backward compatibility, use translation instead. If not null, will override the value in translation.
+    translation: 1.
+    cosine: 0.
+    contrastive: 1.
 
-neptune:
-  project_name: null
+run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
+loggers: [ ]
 
-global_workspace:
-  monitor_grad_norms: true
+# =====
+# Odd-one-out experiment parameters
+# =====
+odd_image:
+  batch_size: 512
+  encoder:
+    selected_id: null
+    path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
 
-  selected_domains: [ "v", "t" ]
-  split_ood: false
-  text_domain: "bert"  # bert / attributes
-  bert_path: "bert-base-uncased"
-  vae_mmd_loss_coef: 0.
-  vae_kl_loss_coef: 0.
+    load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
+    wandb_entity_project: null
+    wandb_filter: null
+    csv_path: null
+    selected_id_key: "Name"  # from which column the id is taken in the loaded run.
 
-  batch_size: 16
-  data_augmentation: false
+  select_row_from_index: null  # If this is not null, will select the corresponding item.
+  select_row_from_current_coefficients: false  # if select_row_from_index is null and this is true, will select the run which uses the same loss coefficients as currently set.
 
-  z_size: 12
-  hidden_size: 128
-  prop_labelled_images: 1.  # of the allowed classes to be labelled.
-  classes_labelled_images: null  # null is all classes
+  optimizer:
+    lr: 3e-4
+    weight_decay: 1e-4
 
-  optim:
-    lr:
-      encoders: 1e-3
-      decoders: 1e-3
-      supervised_multiplier: 1.
-      unsupervised_multiplier: 1.
-    weight_decay: 1e-5
+downstream:
+  unpaired_cls:
+    random_regressor: false
+    checkpoint: "path/to/checkpoint"
 
-  scheduler:
-    step: 10
-    gamma: 0.1
+    optimizer:
+      lr: 1e-3
+      weight_decay: 1e-5
+
+_code_version: test
