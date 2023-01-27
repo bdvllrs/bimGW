@@ -78,8 +78,8 @@ class AE(DomainModule):
         # self.log(f"{mode}_mse_grads", grad_norm(reconstruction_loss, self.parameters(), retain_graph=True, allow_unused=True))
         # self.log(f"{mode}_kl_grads", grad_norm(kl_divergence_loss, self.parameters(), retain_graph=True, allow_unused=True))
 
-        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode == "val"))
-        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode == "val"))
+        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"))
 
         return total_loss
 

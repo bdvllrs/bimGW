@@ -134,9 +134,9 @@ class VAE(DomainModule):
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
 
-        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode == "val"))
-        self.log(f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode == "val"))
-        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode == "val"))
+        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"))
         if mode == "train":
             self.log("log_sigma", self.log_sigma, logger=True)
         return total_loss
