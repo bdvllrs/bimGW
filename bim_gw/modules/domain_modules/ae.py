@@ -89,16 +89,19 @@ class AE(DomainModule):
     def validation_step(self, batch, batch_idx):
         return self.step(batch, mode="val")
 
-    def validation_epoch_end(self, outputs):
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, mode="test")
+
+    def epoch_end(self, outputs, mode="val"):
         if self.validation_reconstruction_images is not None:
             for logger in self.loggers:
                 x = self.validation_reconstruction_images
                 _, x_reconstructed = self(x)
 
                 if self.current_epoch == 0:
-                    log_image(logger, x[:self.hparams.n_validation_examples], "val_original_images")
+                    log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
 
-                log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], "val_reconstruction")
+                log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], f"{mode}_reconstruction")
 
                 #
                 # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
@@ -111,6 +114,12 @@ class AE(DomainModule):
                 #
                 # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
                 # self.print("FID test: ", fid_value)
+
+    def validation_epoch_end(self, outputs):
+        self.epoch_end(outputs, mode="val")
+
+    def test_epoch_end(self, outputs):
+        self.epoch_end(outputs, mode="test")
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
