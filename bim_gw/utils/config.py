@@ -39,10 +39,17 @@ def load_extra_conf_resolver(path):
     return OmegaConf.load(str(PROJECT_DIR / "config" / path))
 
 
+def load_resolvers_if_needed():
+    if not OmegaConf.has_resolver("split"):
+        OmegaConf.register_new_resolver("split", split_resolver)
+    if not OmegaConf.has_resolver("path"):
+        OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
+    if not OmegaConf.has_resolver("coef_slug"):
+        OmegaConf.register_new_resolver("coef_slug", loss_coef_slug_resolver)
+
+
 def get_args(debug=False, additional_config_files=None, cli=True):
-    OmegaConf.register_new_resolver("split", split_resolver)
-    OmegaConf.register_new_resolver("path", load_extra_conf_resolver)
-    OmegaConf.register_new_resolver("coef_slug", loss_coef_slug_resolver)
+    load_resolvers_if_needed()
 
     print("Cli args")
     print(sys.argv)
