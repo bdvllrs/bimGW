@@ -252,26 +252,6 @@ class GlobalWorkspace(LightningModule):
                 if (self.current_epoch != 0) and (self.current_epoch % self.loss_schedules[loss_name]["step"] == 0):
                     setattr(self, f"loss_coef_{loss_name}", coef * self.loss_schedules[loss_name]["gamma"])
 
-    def cosine_loss(self, states):
-        losses = []
-        indiv_losses = {}
-        for domain_name in states.keys():
-            domain_name_1, domain_name_2 = domain_name.split("-")
-            latent_domain_1 = states[domain_name]
-            latent_domain_2 = states[f"{domain_name_2}-{domain_name_1}"]
-            # project domains into one another
-            indiv_losses[f"cosine_similarity_s_{domain_name_1}-s_{domain_name_2}"] = torch.cosine_similarity(
-                latent_domain_1, latent_domain_2).mean()
-
-            l = F.cosine_embedding_loss(latent_domain_1, latent_domain_2,
-                                        torch.ones(latent_domain_1.size(0)).to(latent_domain_1.device))
-            indiv_losses[f"cosine_loss_s_{domain_name_1}-s_{domain_name_2}"] = l
-            losses.append(l)
-        if len(losses):
-            indiv_losses["cosine"] = torch.stack(losses, dim=0).mean()
-            return indiv_losses
-        return {"cosine": torch.tensor(0.).to(self.device)}
-
     def contrastive_loss(self, states):
         losses = []
         indiv_losses = {}
@@ -300,20 +280,14 @@ class GlobalWorkspace(LightningModule):
         losses = []
         indiv_losses = {}
         for domain_name in predictions.keys():
+            loss_domain = domain_name
+            if "-" in domain_name:
+                loss_domain = domain_name.split("-")[0]
             prediction, target = predictions[domain_name], targets[domain_name]
-            loss = torch.tensor(0.).to(prediction[0].device)
-            for k in range(len(prediction)):
-                token = f"{prefix}/domain_{domain_name}_{k}"
-                loss_domain = domain_name
-                if "-" in domain_name:
-                    loss_domain = domain_name.split("-")[0]
-                loss_fn = self.loss_fn[f"{loss_domain}_{k}"]
-                l = loss_fn(prediction[k], target[k]).mean()
-                loss += l
-                indiv_losses[token] = l
-            token = f"{prefix}/domain_{domain_name}"
-            indiv_losses[token] = loss
-            losses.append(loss)
+            domain_total, domain_indiv_losses = self.domain_mods[loss_domain].loss(prediction, target)
+            indiv_losses.update({f"{prefix}/domain_{domain_name}_{k}": v for k, v in domain_indiv_losses.items()})
+            losses.append(domain_total)
+            indiv_losses[f"{prefix}/domain_{domain_name}"] = domain_total
         if len(losses):
             indiv_losses[prefix] = torch.stack(losses, dim=0).mean()
             return indiv_losses
@@ -374,17 +348,8 @@ class GlobalWorkspace(LightningModule):
                             latent[k][available_domains[domain_name], :] for k in range(len(latent))
                         ]
 
-        # latent_prediction = self.predict(self.project(latents, available_domains))
-        # latent_cycle = self.predict(self.project(self.adapt(latent_prediction)))
-
-        # latent_demi_cycle_predictions = {**latent_demi_cycle_predictions, **latent_prediction}
-        # latent_demi_cycle_target = {**latent_demi_cycle_target, **latents}
-        # latent_cycle_predictions = {**latent_cycle_predictions, **latent_cycle}
-        # latent_cycle_target = {**latent_cycle_target, **latents}
-
         demi_cycle_losses = self.loss(latent_demi_cycle_predictions, latent_demi_cycle_target, prefix="demi_cycles")
         cycle_losses = self.loss(latent_cycle_predictions, latent_cycle_target, prefix="cycles")
-        # cosine_losses = self.cosine_loss(states)
         contrastive_losses = self.contrastive_loss(states)
 
         translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")

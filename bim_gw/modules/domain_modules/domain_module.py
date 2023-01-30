@@ -32,6 +32,15 @@ class DomainModule(LightningModule):
     def compute_acc(self, acc_metric, predictions, targets):
         raise NotImplementedError
 
+    def loss(self, predictions, targets):
+        loss = 0.
+        losses = dict()
+        for k, loss_fn in enumerate(self.losses):
+            l = loss_fn(predictions[k], targets[k]).mean()
+            loss += l
+            losses[k] = l
+        return loss, losses
+
 
 class PassThroughWM(DomainModule):
     def __init__(self, workspace_module):
