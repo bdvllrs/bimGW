@@ -50,5 +50,5 @@ if __name__ == "__main__":
         logger=loggers,
     )
 
-    trainer.validate(global_workspace, data, "best" if not args.downstream.unpaired_cls.random_regressor else None)
-    trainer.test(global_workspace, data, "best" if not args.downstream.unpaired_cls.random_regressor else None)
+    trainer.validate(global_workspace, data)
+    trainer.test(global_workspace, data)
