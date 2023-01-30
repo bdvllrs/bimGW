@@ -22,7 +22,12 @@ if __name__ == "__main__":
     assert args.downstream.unpaired_cls.checkpoint is not None, "You must provide a checkpoint for this script."
     checkpoint_path = get_checkpoint_path(args.downstream.unpaired_cls.checkpoint)
     domain_mods = get_domains(args, data.img_size)
-    global_workspace = GlobalWorkspace.load_from_checkpoint(checkpoint_path, domain_mods=domain_mods, strict=False)
+    global_workspace = GlobalWorkspace.load_from_checkpoint(
+        checkpoint_path,
+        domain_mods=domain_mods,
+        domain_examples=data.domain_examples,
+        strict=False,
+    )
     global_workspace.eval().freeze()
 
     args.losses.coefs = OmegaConf.create({
