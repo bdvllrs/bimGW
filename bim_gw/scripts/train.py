@@ -67,7 +67,7 @@ def train_lm(args):
                                                    domain_examples=data.domain_examples,
                                                    attributes_use_unpaired=args.fetchers.attr.use_unpaired)
     else:
-        lm = SimpleShapesText(args.lm.z_size, args.lm.hidden_size, len(data.classes), data.img_size,
+        lm = SimpleShapesText(args.lm.z_size, args.lm.hidden_size, args.lm.beta, len(data.classes), data.img_size,
                               args.global_workspace.bert_path,
                               args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
                               args.lm.scheduler.gamma,

@@ -10,6 +10,7 @@ from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import inspect_all_choices, get_choices_from_structure_category
+from bim_gw.utils.vae import gaussian_nll, reparameterize
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -42,7 +43,7 @@ class TextEncoder(DomainEncoder):
 
 class SimpleShapesText(DomainModule):
     def __init__(
-            self, z_size, hidden_size, n_classes, imsize, bert_path,
+            self, z_size, hidden_size, beta, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
             attributes_use_unpaired=True,
@@ -51,6 +52,7 @@ class SimpleShapesText(DomainModule):
         super(SimpleShapesText, self).__init__()
         self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
+        self.bert_size = 768
         self.hidden_size = hidden_size
         self.z_size = z_size
         self.imsize = imsize
@@ -65,24 +67,40 @@ class SimpleShapesText(DomainModule):
         self.attribute_domain = SimpleShapesAttributes(imsize, attributes_use_unpaired)
         self.attribute_domain.freeze()
 
-        self.attribute_classifier = nn.Sequential(
-            nn.Linear(self.z_size, self.z_size),
+        self.encoder = nn.Sequential(
+            nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.z_size, self.z_size // 2),
+            nn.Linear(self.bert_size // 2, self.hidden_size * 2),
             nn.ReLU(),
-            nn.Linear(self.z_size // 2, self.hidden_size),
+            nn.Linear(self.hidden_size * 2, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, sum(self.attribute_domain.output_dims))  # remove last unmatched attr
+            nn.Linear(self.hidden_size, self.z_size * 2)
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(self.z_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size * 2),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size * 2, self.bert_size // 2),
+            nn.ReLU(),
+            nn.Linear(self.bert_size // 2, self.bert_size),
+        )
+
+        self.attribute_encoder = nn.Sequential(
+            nn.Linear(self.z_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, sum(self.attribute_domain.output_dims))
         )
         self.grammar_classifiers = nn.ModuleDict({
             name: nn.Sequential(
-                nn.Linear(self.z_size, self.z_size),
+                nn.Linear(self.z_size, self.hidden_size),
                 nn.ReLU(),
-                nn.Linear(self.z_size, self.z_size // 2),
+                nn.Linear(self.hidden_size, self.hidden_size),
                 nn.ReLU(),
-                nn.Linear(self.z_size // 2, self.hidden_size),
-                nn.ReLU(),
-                nn.Linear(self.hidden_size, n_outputs))  # predict sentence structure
+                nn.Linear(self.hidden_size, n_outputs))
             for name, n_outputs in self.composer_inspection.items()})
 
         self.grammar_train_acc = nn.ModuleDict(
@@ -92,7 +110,7 @@ class SimpleShapesText(DomainModule):
 
         self.domain_examples = domain_examples
 
-        self.output_dims = [self.z_size]
+        self.output_dims = [self.bert_size]
         self.decoder_activation_fn = [
             None
         ]
@@ -100,18 +118,17 @@ class SimpleShapesText(DomainModule):
         self.losses = [
             lambda x, y: F.mse_loss(x, y)
         ]
-        # self.workspace_encoder_cls = TextEncoder
 
-        # self.output_dims = self.attribute_domain.output_dims
-        # self.decoder_activation_fn = self.attribute_domain.decoder_activation_fn
-        # self.losses = self.attribute_domain.losses
+        self.register_buffer("log_sigma", torch.tensor(0.))
+        self.register_buffer("beta", torch.tensor(beta))
 
     def encode(self, sentences):
         bert_latents, sentences, choices = sentences
-        return [bert_latents]
+        z, _ = self.encode_stats(bert_latents)
+        return [z]
 
-    def decode(self, text_latent):
-        text_latent = text_latent[0]
+    def decode(self, z):
+        text_latent = z[0]
         predictions = self.classify(text_latent)
         grammar_prediction = self.get_grammar_prediction(text_latent)
         choices = get_choices_from_structure_category(self.text_composer, grammar_prediction)
@@ -169,7 +186,7 @@ class SimpleShapesText(DomainModule):
         self.attribute_domain.log_domain(logger, predictions, name, max_examples, step=step)
 
     def classify(self, z):
-        prediction = self.attribute_classifier(z)
+        prediction = self.attribute_encoder(z)
         predictions = []
         last_dim = 0
         for dim, act_fn in zip(self.attribute_domain.output_dims,
@@ -185,14 +202,48 @@ class SimpleShapesText(DomainModule):
             for name in self.grammar_classifiers.keys()
         }
 
+    def encode_stats(self, text_latent):
+        z = self.encoder(text_latent)
+        return z[:, :self.z_size], z[:, self.z_size:]
+
+    def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        assert x_reconstructed.size() == x.size()
+        loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
+        return loss
+
+    def kl_divergence_loss(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        return kl
+
     def step(self, batch, batch_idx, mode="train"):
         sentences, targets = batch["t"][1:], batch["attr"][1:]
         bs = sentences[0].size(0)
         targets = self.attribute_domain.encode(targets)
-        # if mode == "train":
-        #     sentences = (sentences[0] + 0.1 * torch.randn_like(sentences[0]), sentences[1])
-        text_latent = self.encode(sentences)[0]
-        predictions = self.classify(text_latent)
+        x = sentences[0]
+        z_mean, z_logvar = self.encode_stats(x)
+        z = reparameterize(z_mean, z_logvar)
+        x_reconstructed = self.decoder(z)
+
+        reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
+        kl_divergence_loss = self.kl_divergence_loss(z_mean, z_logvar)
+        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
+
+        self.log(f"{mode}/reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(f"{mode}/kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(f"{mode}/vae_loss", total_loss, on_epoch=(mode != "train"))
+
+        predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(z_mean.detach(),
+                                                                                                    sentences,
+                                                                                                    targets,
+                                                                                                    mode=mode)
+        total_loss = total_loss + attribute_prediction_loss
+
+        self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
+        return total_loss
+
+    def train_attribute_predictions(self, x, sentences, targets, mode="train"):
+        bs = sentences[0].size(0)
+        predictions = self.classify(x)
         losses = []
         total_loss = 0
         for k, (group_pred, loss, target) in enumerate(zip(predictions,
@@ -202,45 +253,47 @@ class SimpleShapesText(DomainModule):
             losses.append(group_loss)
             total_loss += group_loss
 
-            self.log(f"{mode}/loss_{k}", group_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+            self.log(f"{mode}/loss_attributes_{k}", group_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
 
         grammar_coef = 1 / len(self.grammar_classifiers)
         for name, classifier in self.grammar_classifiers.items():
-            grammar_prediction = classifier(text_latent)
+            grammar_prediction = classifier(x)
             loss_grammar = F.cross_entropy(grammar_prediction, sentences[2][name])
             total_loss += grammar_coef * loss_grammar
             acc_fn = self.grammar_train_acc[name] if mode == "train" else self.grammar_val_acc[name]
             res = acc_fn(grammar_prediction.softmax(-1), sentences[2][name])
             self.log(f"{mode}/loss_grammar_{name}", loss_grammar, logger=True, on_epoch=(mode != "train"),
                      batch_size=bs)
-            self.log(f"{mode}_grammar_{name}_acc", res, on_epoch=(mode != "train"))
+            self.log(f"{mode}/grammar_{name}_acc", res, on_epoch=(mode != "train"))
 
-        self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+        self.log(f"{mode}/attribute_loss", total_loss, on_epoch=(mode != "train"))
+
         return predictions, losses, total_loss
 
     def training_step(self, batch, batch_idx):
-        predictions, losses, total_loss = self.step(batch, batch_idx, "train")
+        total_loss = self.step(batch, batch_idx, "train")
         return total_loss
 
     def validation_step(self, batch, batch_idx):
-        predictions, losses, total_loss = self.step(batch, batch_idx, "val")
+        total_loss = self.step(batch, batch_idx, "val")
         return total_loss
 
     def test_step(self, batch, batch_idx):
-        predictions, losses, total_loss = self.step(batch, batch_idx, "test")
+        total_loss = self.step(batch, batch_idx, "test")
         return total_loss
 
     def epoch_end(self, mode="val"):
         if self.domain_examples is not None and mode in self.domain_examples:
             domain_examples = self.domain_examples[mode][0]  # only keep in dist
             for logger in self.loggers:
+                x = domain_examples["t"][1].to(self.device)
                 encoded_s = self.encode([
-                    domain_examples["t"][1].to(self.device),
+                    x,
                     domain_examples["t"][2],
                     domain_examples["t"][3]
                 ])
-                predictions = self.classify(encoded_s[0])
                 decoded_s = self.decode(encoded_s)
+                predictions = self.classify(encoded_s[0])
                 sentence_predictions = decoded_s[1]
 
                 text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]

@@ -28,6 +28,7 @@ def add_domains_to_register():
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,
         hidden_size=args.lm.hidden_size,
+        beta=args.lm.beta,
         attributes_use_unpaired=args.fetchers.attr.use_unpaired,
     ))
 

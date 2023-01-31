@@ -113,8 +113,9 @@ vae:
 # Language model parameters
 # =====
 lm:
-  z_size: ${fetchers.t.pca_dim}
+  z_size: 24
   hidden_size: 64
+  beta: 0.1
 
   batch_size: 1024
   n_validation_examples: 32
