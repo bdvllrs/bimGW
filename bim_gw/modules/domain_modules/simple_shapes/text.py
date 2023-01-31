@@ -110,7 +110,7 @@ class SimpleShapesText(DomainModule):
 
         self.domain_examples = domain_examples
 
-        self.output_dims = [self.bert_size]
+        self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
             None
         ]
