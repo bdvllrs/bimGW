@@ -150,9 +150,9 @@ class SimpleShapesText(DomainModule):
         return [z]
 
     def decode(self, z):
-        text_latent = z[0]
-        predictions = self.classify(text_latent)
-        grammar_prediction = self.get_grammar_prediction(text_latent)
+        text_latent = self.decoder(z[0])
+        predictions = self.classify(z[0])
+        grammar_prediction = self.get_grammar_prediction(z[0])
         choices = get_choices_from_structure_category(self.text_composer, grammar_prediction)
         # predictions = text_latent
         predictions = self.attribute_domain.decode(predictions)
