@@ -10,7 +10,7 @@ from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import inspect_all_choices, get_choices_from_structure_category
-from bim_gw.utils.vae import gaussian_nll, reparameterize
+from bim_gw.utils.vae import reparameterize
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -47,6 +47,9 @@ class SimpleShapesText(DomainModule):
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
             attributes_use_unpaired=True,
+            train_vae=True,
+            train_attr_decoders=True,
+            optimize_vae_with_attr_regression=False
     ):
 
         super(SimpleShapesText, self).__init__()
@@ -57,6 +60,9 @@ class SimpleShapesText(DomainModule):
         self.z_size = z_size
         self.imsize = imsize
         self.bert_path = bert_path
+        self.train_vae = train_vae
+        self.train_attr_decoders = train_attr_decoders
+        self.optimize_vae_with_attr_regression = optimize_vae_with_attr_regression
 
         self.text_composer = composer
         self.composer_inspection = inspect_all_choices(composer)
@@ -68,9 +74,9 @@ class SimpleShapesText(DomainModule):
         self.attribute_domain.freeze()
 
         self.encoder = nn.Sequential(
-            nn.Linear(self.bert_size, self.bert_size // 2),
+            nn.Linear(self.bert_size, self.bert_size),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.hidden_size * 2),
+            nn.Linear(self.bert_size, self.hidden_size * 2),
             nn.ReLU(),
             nn.Linear(self.hidden_size * 2, self.hidden_size),
             nn.ReLU(),
@@ -82,10 +88,18 @@ class SimpleShapesText(DomainModule):
             nn.ReLU(),
             nn.Linear(self.hidden_size, self.hidden_size * 2),
             nn.ReLU(),
-            nn.Linear(self.hidden_size * 2, self.bert_size // 2),
+            nn.Linear(self.hidden_size * 2, self.bert_size),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.bert_size),
+            nn.Linear(self.bert_size, self.bert_size),
         )
+
+        if not self.train_vae:
+            for param in self.encoder.parameters():
+                param.requires_grad = False
+            for param in self.decoder.parameters():
+                param.requires_grad = False
+            self.encoder.eval()
+            self.decoder.eval()
 
         self.attribute_encoder = nn.Sequential(
             nn.Linear(self.z_size, self.hidden_size),
@@ -102,6 +116,14 @@ class SimpleShapesText(DomainModule):
                 nn.ReLU(),
                 nn.Linear(self.hidden_size, n_outputs))
             for name, n_outputs in self.composer_inspection.items()})
+
+        if not self.train_attr_decoders:
+            for param in self.attribute_encoder.parameters():
+                param.requires_grad = False
+            for param in self.grammar_classifiers.parameters():
+                param.requires_grad = False
+            self.attribute_encoder.eval()
+            self.grammar_classifiers.eval()
 
         self.grammar_train_acc = nn.ModuleDict(
             {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()})
@@ -207,8 +229,7 @@ class SimpleShapesText(DomainModule):
         return z[:, :self.z_size], z[:, self.z_size:]
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        assert x_reconstructed.size() == x.size()
-        loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
+        loss = F.mse_loss(x_reconstructed, x, reduction="sum")
         return loss
 
     def kl_divergence_loss(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
@@ -226,17 +247,21 @@ class SimpleShapesText(DomainModule):
 
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(z_mean, z_logvar)
-        total_loss = reconstruction_loss + self.beta * kl_divergence_loss
+        total_loss = (reconstruction_loss + self.beta * kl_divergence_loss) / bs
 
         self.log(f"{mode}/reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"))
         self.log(f"{mode}/kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode != "train"))
         self.log(f"{mode}/vae_loss", total_loss, on_epoch=(mode != "train"))
 
-        predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(z_mean.detach(),
+        z_predictions = z_mean
+        if not self.optimize_vae_with_attr_regression:
+            z_predictions = z_mean.detach()
+
+        predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(z_predictions,
                                                                                                     sentences,
                                                                                                     targets,
                                                                                                     mode=mode)
-        total_loss = total_loss + attribute_prediction_loss
+        total_loss = total_loss + 100 * attribute_prediction_loss
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss
@@ -257,7 +282,7 @@ class SimpleShapesText(DomainModule):
 
         grammar_coef = 1 / len(self.grammar_classifiers)
         for name, classifier in self.grammar_classifiers.items():
-            grammar_prediction = classifier(x)
+            grammar_prediction = classifier(x.detach())
             loss_grammar = F.cross_entropy(grammar_prediction, sentences[2][name])
             total_loss += grammar_coef * loss_grammar
             acc_fn = self.grammar_train_acc[name] if mode == "train" else self.grammar_val_acc[name]

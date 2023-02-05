@@ -62,16 +62,22 @@ def train_lm(args):
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
-        lm = SimpleShapesText.load_from_checkpoint(checkpoint_path, strict=False,
-                                                   bert_path=args.global_workspace.bert_path,
-                                                   domain_examples=data.domain_examples,
-                                                   attributes_use_unpaired=args.fetchers.attr.use_unpaired)
+        lm = SimpleShapesText.load_from_checkpoint(
+            checkpoint_path, strict=False,
+            bert_path=args.global_workspace.bert_path,
+            domain_examples=data.domain_examples,
+            attributes_use_unpaired=args.fetchers.attr.use_unpaired,
+            train_vae=args.lm.train_vae,
+            train_attr_decoders=args.lm.train_attr_decoders,
+            optimize_vae_with_attr_regression=args.lm.optimize_vae_with_attr_regression, )
     else:
-        lm = SimpleShapesText(args.lm.z_size, args.lm.hidden_size, args.lm.beta, len(data.classes), data.img_size,
-                              args.global_workspace.bert_path,
-                              args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
-                              args.lm.scheduler.gamma,
-                              data.domain_examples, args.fetchers.attr.use_unpaired)
+        lm = SimpleShapesText(
+            args.lm.z_size, args.lm.hidden_size, args.lm.beta,
+            len(data.classes), data.img_size, args.global_workspace.bert_path,
+            args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
+            args.lm.scheduler.gamma, data.domain_examples, args.fetchers.attr.use_unpaired,
+            args.lm.train_vae, args.lm.train_attr_decoders,
+            args.lm.optimize_vae_with_attr_regression)
 
     trainer = get_trainer("train_lm", args, lm, monitor_loss="val/total_loss",
                           early_stopping_patience=args.lm.early_stopping_patience)

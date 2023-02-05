@@ -117,6 +117,10 @@ lm:
   hidden_size: 64
   beta: 0.1
 
+  train_vae: true
+  train_attr_decoders: false
+  optimize_vae_with_attr_regression: false
+
   batch_size: 1024
   n_validation_examples: 32
   early_stopping_patience: null
