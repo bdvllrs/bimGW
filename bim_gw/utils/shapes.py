@@ -1,6 +1,6 @@
 import matplotlib.path as mpath
 import numpy as np
-from matplotlib import patches as patches, pyplot as plt, gridspec
+from matplotlib import gridspec, patches as patches, pyplot as plt
 from tqdm import tqdm
 
 
@@ -13,10 +13,12 @@ def get_transformed_coordinates(coordinates, origin, scale, rotation):
 
 def get_diamond_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
-    coordinates = np.array([[0.5, 0],
-                            [1, 0.3],
-                            [0.5, 1],
-                            [0, 0.3]])
+    coordinates = np.array(
+        [[0.5, 0],
+         [1, 0.3],
+         [0.5, 1],
+         [0, 0.3]]
+    )
     origin = np.array([[x, y]])
     patch = patches.Polygon(get_transformed_coordinates(coordinates, origin, scale, rotation), facecolor=color)
     return patch
@@ -26,10 +28,12 @@ def get_square_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
     origin = np.array([[x, y]])
     shift = (2 - np.sqrt(2)) / 4
-    coordinates = np.array([[shift, shift],
-                            [1 - shift, shift],
-                            [1 - shift, 1 - shift],
-                            [shift, 1 - shift]])
+    coordinates = np.array(
+        [[shift, shift],
+         [1 - shift, shift],
+         [1 - shift, 1 - shift],
+         [shift, 1 - shift]]
+    )
     patch = patches.Polygon(get_transformed_coordinates(coordinates, origin, scale, rotation), facecolor=color)
     return patch
 
@@ -37,9 +41,11 @@ def get_square_patch(location, scale, rotation, color):
 def get_triangle_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
     origin = np.array([[x, y]])
-    coordinates = np.array([[0.5, 1],
-                            [0.2, 0],
-                            [0.8, 0]])
+    coordinates = np.array(
+        [[0.5, 1],
+         [0.2, 0],
+         [0.8, 0]]
+    )
     patch = patches.Polygon(get_transformed_coordinates(coordinates, origin, scale, rotation), facecolor=color)
     return patch
 
@@ -53,19 +59,21 @@ def get_circle_patch(location, scale, rotation, color):
 def get_egg_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
     origin = np.array([[x, y]])
-    coordinates = np.array([[0.5, 0],
-                            [0.8, 0],
-                            [0.9, 0.1],
-                            [0.9, 0.3],
-                            [0.9, 0.5],
-                            [0.7, 1],
-                            [0.5, 1],
-                            [0.3, 1],
-                            [0.1, 0.5],
-                            [0.1, 0.3],
-                            [0.1, 0.1],
-                            [0.2, 0],
-                            [0.5, 0]])
+    coordinates = np.array(
+        [[0.5, 0],
+         [0.8, 0],
+         [0.9, 0.1],
+         [0.9, 0.3],
+         [0.9, 0.5],
+         [0.7, 1],
+         [0.5, 1],
+         [0.3, 1],
+         [0.1, 0.5],
+         [0.1, 0.3],
+         [0.1, 0.1],
+         [0.2, 0],
+         [0.5, 0]]
+    )
     codes = [mpath.Path.MOVETO, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
              mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
              mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4]
@@ -248,8 +256,10 @@ def labels_from_transfo(transfo):
     )
 
 
-def generate_dataset(n_samples, min_scale, max_scale, min_lightness, max_lightness, imsize,
-                     classes=None):
+def generate_dataset(
+        n_samples, min_scale, max_scale, min_lightness, max_lightness, imsize,
+        classes=None
+):
     if classes is None:
         classes = generate_class(n_samples)
     sizes = generate_scale(n_samples, min_scale, max_scale)
@@ -257,16 +267,20 @@ def generate_dataset(n_samples, min_scale, max_scale, min_lightness, max_lightne
     rotation = generate_rotation(n_samples)
     colors_rgb, colors_hls = generate_color(n_samples, min_lightness, max_lightness)
     unpaired = generate_unpaired_attr(n_samples)
-    return dict(classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors_rgb,
-                colors_hls=colors_hls, unpaired=unpaired)
+    return dict(
+        classes=classes, locations=locations, sizes=sizes, rotations=rotation, colors=colors_rgb,
+        colors_hls=colors_hls, unpaired=unpaired
+    )
 
 
 def save_dataset(path_root, dataset, imsize):
     dpi = 1
     classes, locations, radii = dataset["classes"], dataset["locations"], dataset["sizes"]
     rotations, colors = dataset["rotations"], dataset["colors"]
-    for k, (cls, location, scale, rotation, color) in tqdm(enumerate(zip(classes, locations, radii, rotations, colors)),
-                                                           total=len(classes)):
+    for k, (cls, location, scale, rotation, color) in tqdm(
+            enumerate(zip(classes, locations, radii, rotations, colors)),
+            total=len(classes)
+    ):
         path_file = path_root / f"{k}.png"
 
         fig, ax = plt.subplots(figsize=(imsize / dpi, imsize / dpi), dpi=dpi)
@@ -337,10 +351,13 @@ def save_labels(path_root, dataset, dataset_transfo):
     # header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h", "l", "s", "t_class", "d_x", "d_y", "d_scale",
     #           "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
     # TODO: add transformation to unpaired examples
-    labels = np.concatenate([
-        classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)), rotations.reshape((-1, 1)), colors, colors_hls,
-        unpaired_attr.reshape((-1, 1)),
-        classes_transfo.reshape((-1, 1)), locations_transfo, sizes_transfo.reshape((-1, 1)),
-        rotations_transfo.reshape((-1, 1)), colors_transfo, colors_hls_transfo, unpaired_attr_transfo.reshape((-1, 1))
-    ], axis=1).astype(np.float32)
+    labels = np.concatenate(
+        [
+            classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)), rotations.reshape((-1, 1)), colors, colors_hls,
+            unpaired_attr.reshape((-1, 1)),
+            classes_transfo.reshape((-1, 1)), locations_transfo, sizes_transfo.reshape((-1, 1)),
+            rotations_transfo.reshape((-1, 1)), colors_transfo, colors_hls_transfo,
+            unpaired_attr_transfo.reshape((-1, 1))
+        ], axis=1
+    ).astype(np.float32)
     np.save(path_root, labels)

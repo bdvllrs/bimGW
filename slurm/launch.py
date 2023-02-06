@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from auto_sbatch import SBatch, ExperimentHandler
+from auto_sbatch import ExperimentHandler, SBatch
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args

@@ -2,8 +2,8 @@ from typing import Union
 
 import torch
 import torchvision
-from PIL import Image
 from matplotlib import pyplot as plt
+from PIL import Image
 
 ImageType = Union[torch.Tensor, plt.Figure, Image.Image]
 

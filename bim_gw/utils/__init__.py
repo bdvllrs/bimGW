@@ -1,2 +1,2 @@
-from .config import has_internet_connection, get_args
+from .config import get_args, has_internet_connection
 from .constants import PROJECT_DIR

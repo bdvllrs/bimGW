@@ -3,8 +3,8 @@ import random
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageOps
 from matplotlib import pyplot as plt
+from PIL import Image, ImageOps
 from tqdm import tqdm
 
 from bim_gw.utils import get_args

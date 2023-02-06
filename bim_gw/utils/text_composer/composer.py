@@ -82,13 +82,15 @@ if __name__ == '__main__':
         captions = []
         choices = []
         for k in tqdm(range(len(labels)), total=len(labels)):
-            caption, choice = composer({
-                "shape": int(labels[k][0]),
-                "rotation": labels[k][4],
-                "color": (labels[k][5], labels[k][6], labels[k][7]),
-                "size": labels[k][3],
-                "location": (labels[k][1], labels[k][2])
-            })
+            caption, choice = composer(
+                {
+                    "shape": int(labels[k][0]),
+                    "rotation": labels[k][4],
+                    "color": (labels[k][5], labels[k][6], labels[k][7]),
+                    "size": labels[k][3],
+                    "location": (labels[k][1], labels[k][2])
+                }
+            )
             captions.append(caption)
             choices.append(choice)
         np.save(str(dataset_location / f"{split}_captions.npy"), captions)

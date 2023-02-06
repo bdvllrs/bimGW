@@ -57,11 +57,15 @@ class DataModule(LightningDataModule):
         }
 
         if val_set["ood"] is not None:
-            reconstruction_indices["val"][1] = torch.randint(len(val_set["ood"]),
-                                                             size=(self.n_domain_examples,))
+            reconstruction_indices["val"][1] = torch.randint(
+                len(val_set["ood"]),
+                size=(self.n_domain_examples,)
+            )
         if test_set["ood"] is not None:
-            reconstruction_indices["test"][1] = torch.randint(len(test_set["ood"]),
-                                                              size=(self.n_domain_examples,))
+            reconstruction_indices["test"][1] = torch.randint(
+                len(test_set["ood"]),
+                size=(self.n_domain_examples,)
+            )
 
         self.domain_examples = {
             "train": [{domain: [] for domain in self.selected_domains}, None],
@@ -109,7 +113,8 @@ class DataModule(LightningDataModule):
                                 else:
                                     self.domain_examples[set_name][used_dist][domain].append(examples)
                             self.domain_examples[set_name][used_dist][domain] = tuple(
-                                self.domain_examples[set_name][used_dist][domain])
+                                self.domain_examples[set_name][used_dist][domain]
+                            )
 
     def filter_sync_domains(self, allowed_indices):
         prop_2_domains = self.prop_labelled_images
@@ -145,33 +150,43 @@ class DataModule(LightningDataModule):
         return mapping, domain_mapping
 
     def train_dataloader(self, shuffle=True):
-        return torch.utils.data.DataLoader(self.train_set,
-                                           shuffle=shuffle,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.train_set,
+            shuffle=shuffle,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
 
     def val_dataloader(self):
         dataloaders = [
-            torch.utils.data.DataLoader(self.val_set["in_dist"], self.batch_size,
-                                        num_workers=self.num_workers, pin_memory=True),
+            torch.utils.data.DataLoader(
+                self.val_set["in_dist"], self.batch_size,
+                num_workers=self.num_workers, pin_memory=True
+            ),
         ]
         if self.val_set["ood"] is not None:
             dataloaders.append(
-                torch.utils.data.DataLoader(self.val_set["ood"], self.batch_size,
-                                            num_workers=self.num_workers, pin_memory=True)
+                torch.utils.data.DataLoader(
+                    self.val_set["ood"], self.batch_size,
+                    num_workers=self.num_workers, pin_memory=True
+                )
             )
         return dataloaders
 
     def test_dataloader(self):
         dataloaders = [
-            torch.utils.data.DataLoader(self.test_set["in_dist"], self.batch_size,
-                                        num_workers=self.num_workers, pin_memory=True),
+            torch.utils.data.DataLoader(
+                self.test_set["in_dist"], self.batch_size,
+                num_workers=self.num_workers, pin_memory=True
+            ),
         ]
 
         if self.test_set["ood"] is not None:
             dataloaders.append(
-                torch.utils.data.DataLoader(self.test_set["ood"], self.batch_size,
-                                            num_workers=self.num_workers, pin_memory=True)
+                torch.utils.data.DataLoader(
+                    self.test_set["ood"], self.batch_size,
+                    num_workers=self.num_workers, pin_memory=True
+                )
             )
         return dataloaders

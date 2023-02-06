@@ -1,11 +1,11 @@
 import logging
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import torch
 import torchvision
-from PIL import Image
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
+from PIL import Image
 from pytorch_lightning.loggers import TensorBoardLogger as TensorBoardLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 

@@ -28,12 +28,14 @@ class InceptionV3(nn.Module):
         2048: 3  # Final average pooling features
     }
 
-    def __init__(self,
-                 output_blocks=[DEFAULT_BLOCK_INDEX],
-                 resize_input=True,
-                 normalize_input=True,
-                 requires_grad=False,
-                 use_fid_inception=True):
+    def __init__(
+            self,
+            output_blocks=[DEFAULT_BLOCK_INDEX],
+            resize_input=True,
+            normalize_input=True,
+            requires_grad=False,
+            use_fid_inception=True
+    ):
         """Build pretrained InceptionV3
         Parameters
         ----------
@@ -141,10 +143,12 @@ class InceptionV3(nn.Module):
         x = inp
 
         if self.resize_input:
-            x = F.interpolate(x,
-                              size=(299, 299),
-                              mode='bilinear',
-                              align_corners=False)
+            x = F.interpolate(
+                x,
+                size=(299, 299),
+                mode='bilinear',
+                align_corners=False
+            )
 
         if self.normalize_input:
             x = 2 * x - 1  # Scale from range (0, 1) to range (-1, 1)
@@ -183,9 +187,11 @@ def fid_inception_v3():
     This method first constructs torchvision's Inception and then patches the
     necessary parts that are different in the FID Inception model.
     """
-    inception = _inception_v3(num_classes=1008,
-                              aux_logits=False,
-                              pretrained=False)
+    inception = _inception_v3(
+        num_classes=1008,
+        aux_logits=False,
+        pretrained=False
+    )
     inception.Mixed_5b = FIDInceptionA(192, pool_features=32)
     inception.Mixed_5c = FIDInceptionA(256, pool_features=64)
     inception.Mixed_5d = FIDInceptionA(288, pool_features=64)
@@ -219,8 +225,10 @@ class FIDInceptionA(torchvision.models.inception.InceptionA):
 
         # Patch: Tensorflow's average pool does not use the padded zero's in
         # its average calculation
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1,
-                                   count_include_pad=False)
+        branch_pool = F.avg_pool2d(
+            x, kernel_size=3, stride=1, padding=1,
+            count_include_pad=False
+        )
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
@@ -248,8 +256,10 @@ class FIDInceptionC(torchvision.models.inception.InceptionC):
 
         # Patch: Tensorflow's average pool does not use the padded zero's in
         # its average calculation
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1,
-                                   count_include_pad=False)
+        branch_pool = F.avg_pool2d(
+            x, kernel_size=3, stride=1, padding=1,
+            count_include_pad=False
+        )
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [branch1x1, branch7x7, branch7x7dbl, branch_pool]
@@ -282,8 +292,10 @@ class FIDInceptionE_1(torchvision.models.inception.InceptionE):
 
         # Patch: Tensorflow's average pool does not use the padded zero's in
         # its average calculation
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1,
-                                   count_include_pad=False)
+        branch_pool = F.avg_pool2d(
+            x, kernel_size=3, stride=1, padding=1,
+            count_include_pad=False
+        )
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [branch1x1, branch3x3, branch3x3dbl, branch_pool]

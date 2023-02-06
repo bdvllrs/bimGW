@@ -8,8 +8,9 @@ from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
-from bim_gw.utils.shapes import generate_dataset, generate_transformations, save_dataset, save_labels, load_labels, \
-    generate_unpaired_attr
+from bim_gw.utils.shapes import (
+    generate_dataset, generate_transformations, generate_unpaired_attr, load_labels, save_dataset, save_labels
+)
 from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
 
@@ -35,21 +36,33 @@ def main():
     np.random.seed(seed)
 
     train_labels = generate_dataset(size_train_set, min_scale, max_scale, min_lightness, max_lightness, image_size)
-    train_transfo_labels, train_transfo = generate_transformations(train_labels,
-                                                                   generate_dataset(size_train_set, min_scale,
-                                                                                    max_scale,
-                                                                                    min_lightness, max_lightness,
-                                                                                    image_size))
+    train_transfo_labels, train_transfo = generate_transformations(
+        train_labels,
+        generate_dataset(
+            size_train_set, min_scale,
+            max_scale,
+            min_lightness, max_lightness,
+            image_size
+        )
+    )
     val_labels = generate_dataset(size_val_set, min_scale, max_scale, min_lightness, max_lightness, image_size)
-    val_transfo_labels, val_transfo = generate_transformations(val_labels,
-                                                               generate_dataset(size_val_set, min_scale, max_scale,
-                                                                                min_lightness,
-                                                                                max_lightness, image_size))
+    val_transfo_labels, val_transfo = generate_transformations(
+        val_labels,
+        generate_dataset(
+            size_val_set, min_scale, max_scale,
+            min_lightness,
+            max_lightness, image_size
+        )
+    )
     test_labels = generate_dataset(size_test_set, min_scale, max_scale, min_lightness, max_lightness, image_size)
-    test_transfo_labels, test_transfo = generate_transformations(test_labels,
-                                                                 generate_dataset(size_test_set, min_scale, max_scale,
-                                                                                  min_lightness,
-                                                                                  max_lightness, image_size))
+    test_transfo_labels, test_transfo = generate_transformations(
+        test_labels,
+        generate_dataset(
+            size_test_set, min_scale, max_scale,
+            min_lightness,
+            max_lightness, image_size
+        )
+    )
 
     print("Save labels...")
     save_labels(dataset_location / "train_labels.npy", train_labels, train_transfo)
@@ -80,13 +93,15 @@ def main():
         captions = []
         choices = []
         for k in tqdm(range(labels.shape[0]), total=labels.shape[0]):
-            caption, choice = composer({
-                "shape": int(labels[k][0]),
-                "rotation": labels[k][4],
-                "color": (labels[k][5], labels[k][6], labels[k][7]),
-                "size": labels[k][3],
-                "location": (labels[k][1], labels[k][2])
-            })
+            caption, choice = composer(
+                {
+                    "shape": int(labels[k][0]),
+                    "rotation": labels[k][4],
+                    "color": (labels[k][5], labels[k][6], labels[k][7]),
+                    "size": labels[k][3],
+                    "location": (labels[k][1], labels[k][2])
+                }
+            )
             captions.append(caption)
             choices.append(choice)
         np.save(str(dataset_location / f"{split}_captions.npy"), captions)

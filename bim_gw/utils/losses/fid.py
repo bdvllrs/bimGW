@@ -24,7 +24,7 @@ limitations under the License.
 """
 import os
 import pickle
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import numpy as np
 import torch
@@ -102,15 +102,21 @@ def imread_custom(filename, dataset):
             data = ((data / np.max(data)) * 255 - 127) / 127
             data = data.reshape(data.shape[0], 32, 32, 3)
         elif dataset == 'CelebA':
-            data = torch.utils.data.DataLoader(datasets.CelebA(filename, split='test', download=True,
-                                                               transform=transforms.Compose([
-                                                                   transforms.Resize(64),
-                                                                   transforms.CenterCrop(64),
-                                                                   transforms.ToTensor(),
-                                                                   # transforms.Normalize((0.5, 0.5, 0.5),
-                                                                   #                     (0.5, 0.5, 0.5)),
-                                                               ])),
-                                               batch_size=50, shuffle=False)
+            data = torch.utils.data.DataLoader(
+                datasets.CelebA(
+                    filename, split='test', download=True,
+                    transform=transforms.Compose(
+                        [
+                            transforms.Resize(64),
+                            transforms.CenterCrop(64),
+                            transforms.ToTensor(),
+                            # transforms.Normalize((0.5, 0.5, 0.5),
+                            #                     (0.5, 0.5, 0.5)),
+                        ]
+                    )
+                ),
+                batch_size=50, shuffle=False
+            )
     return data
 
 
@@ -364,8 +370,10 @@ def get_activations_from_generation(model, inception_model, z_size, device, n_fi
     return activations.numpy(), mu.numpy(), sigma.numpy()
 
 
-def get_activations_from_loader(data_loader, activation_model, device, z_size=None, batch_stop=None, verbose=False,
-                                generation_model=None, reconstruction_model=None):
+def get_activations_from_loader(
+        data_loader, activation_model, device, z_size=None, batch_stop=None, verbose=False,
+        generation_model=None, reconstruction_model=None
+):
     activation_model.eval()
     if generation_model is not None:
         generation_model.eval()
@@ -400,8 +408,10 @@ def get_activations_from_loader(data_loader, activation_model, device, z_size=No
     return activations.numpy(), mu.numpy(), sigma.numpy()
 
 
-def get_activations(file, model, batch_size=50, dims=2048,
-                    cuda=False, verbose=False, dataset='CelebA', loader=True):
+def get_activations(
+        file, model, batch_size=50, dims=2048,
+        cuda=False, verbose=False, dataset='CelebA', loader=True
+):
     """Calculates the activations of the pool_3 layer for all images.
     Params:
     -- files       : List of image files paths
@@ -522,8 +532,10 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
             np.trace(sigma2) - 2 * tr_covmean)
 
 
-def calculate_activation_statistics(file, model, batch_size=50,
-                                    dims=2048, cuda=False, verbose=False, loader=False):
+def calculate_activation_statistics(
+        file, model, batch_size=50,
+        dims=2048, cuda=False, verbose=False, loader=False
+):
     """Calculation of the statistics used by the FID.
     Params:
     -- files       : List of image files paths
@@ -569,13 +581,17 @@ def calculate_fid_given_paths(paths, batch_size, cuda, dims, model, m1=None, s1=
         model.cuda()
     if m1 is None and s1 is None:
         print('activation of set 1')
-        m1, s1 = _compute_statistics_of_path(paths[0], model, batch_size,
-                                             dims, cuda, loader=True)
+        m1, s1 = _compute_statistics_of_path(
+            paths[0], model, batch_size,
+            dims, cuda, loader=True
+        )
     else:
         print('received m1 and s1')
     print('activation of set 2')
-    m2, s2 = _compute_statistics_of_path(paths[1], model, batch_size,
-                                         dims, cuda)
+    m2, s2 = _compute_statistics_of_path(
+        paths[1], model, batch_size,
+        dims, cuda
+    )
     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
 
     return fid_value, m1, s1, m2, s2
@@ -592,11 +608,13 @@ def FID_comp(paths):
             print('testing model : ', k)
             args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
                          path + '/0/10000_samples_KD_{}.npy'.format(k)]
-            fid_value = calculate_fid_given_paths(args.path,
-                                                  args.batch_size,
-                                                  args.gpu != '',
-                                                  args.dims,
-                                                  model)
+            fid_value = calculate_fid_given_paths(
+                args.path,
+                args.batch_size,
+                args.gpu != '',
+                args.dims,
+                model
+            )
             FIDS.append(fid_value)
             print('FID : ', fid_value)
         np.save(path + '/FID_array.npy', np.array(FIDS))
@@ -629,12 +647,15 @@ if __name__ == '__main__':
             print('testing model : ', i)
             args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
                          '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/CIFAR_100_final_2/0/10000_samples_GMM_{}_components_search.npy'.format(
-                             i)]
-            fid_value = calculate_fid_given_paths(args.path,
-                                                  args.batch_size,
-                                                  args.gpu != '',
-                                                  args.dims,
-                                                  model)
+                             i
+                         )]
+            fid_value = calculate_fid_given_paths(
+                args.path,
+                args.batch_size,
+                args.gpu != '',
+                args.dims,
+                model
+            )
             FIDS.append(fid_value)
             print('FID : ', fid_value)
     elif comp == 'CelebA_debug':

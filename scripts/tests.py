@@ -27,10 +27,12 @@ def tests(args):
     lm = get_lm(args, data)
     lm.freeze()
 
-    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods={
-        "v": vae,
-        "t": lm
-    })
+    global_workspace = GlobalWorkspace.load_from_checkpoint(
+        args.checkpoint, domain_mods={
+            "v": vae,
+            "t": lm
+        }
+    )
     global_workspace.eval()
 
     logger = None

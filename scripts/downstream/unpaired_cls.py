@@ -30,12 +30,14 @@ if __name__ == "__main__":
     )
     global_workspace.eval().freeze()
 
-    args.losses.coefs = OmegaConf.create({
-        "translation": global_workspace.hparams['loss_coef_translation'],
-        "cycles": global_workspace.hparams['loss_coef_cycles'],
-        "demi_cycles": global_workspace.hparams['loss_coef_demi_cycles'],
-        "contrastive": global_workspace.hparams['loss_coef_contrastive'],
-    })
+    args.losses.coefs = OmegaConf.create(
+        {
+            "translation": global_workspace.hparams['loss_coef_translation'],
+            "cycles": global_workspace.hparams['loss_coef_cycles'],
+            "demi_cycles": global_workspace.hparams['loss_coef_demi_cycles'],
+            "contrastive": global_workspace.hparams['loss_coef_contrastive'],
+        }
+    )
 
     slurm_job_id = os.getenv("SLURM_JOBID", None)
     tags = None

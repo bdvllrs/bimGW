@@ -21,8 +21,10 @@ def save_bert_latents(data, bert_path, bert_latents, path, device):
     for name, data_loader in data_loaders:
         latents = []
         print(f"Fetching {name} data.")
-        for idx, (batch) in tqdm(enumerate(data_loader),
-                                 total=int(len(data_loader.dataset) / data_loader.batch_size)):
+        for idx, (batch) in tqdm(
+                enumerate(data_loader),
+                total=int(len(data_loader.dataset) / data_loader.batch_size)
+        ):
             sentences = batch["t"][2]
             tokens = tokenizer(sentences, return_tensors='pt', padding=True).to(device)
             x = transformer(**tokens)["last_hidden_state"][:, 0]

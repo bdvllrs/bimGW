@@ -1,17 +1,19 @@
 import logging
 import os
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CSVLogger as CSVLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
-from bim_gw.utils.loggers.utils import ImageType, to_pil_image, text_from_table
+from bim_gw.utils.loggers.utils import ImageType, text_from_table, to_pil_image
 
 
 class CSVLogger(CSVLoggerBase):
-    def __init__(self, *params, save_images=True, save_last_images=True, image_location="images", text_location="texts",
-                 source_location="sources", **kwargs):
+    def __init__(
+            self, *params, save_images=True, save_last_images=True, image_location="images", text_location="texts",
+            source_location="sources", **kwargs
+    ):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
         self._text_location = text_location
@@ -87,9 +89,11 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     logger = CSVLogger(
         **args
     )
-    logger.experiment.log_hparams({
-        "parameters": OmegaConf.to_object(conf),
-        "tags": tags
-    })
+    logger.experiment.log_hparams(
+        {
+            "parameters": OmegaConf.to_object(conf),
+            "tags": tags
+        }
+    )
     # TODO: add source_files
     return logger

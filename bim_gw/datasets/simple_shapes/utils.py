@@ -26,10 +26,12 @@ def get_preprocess(augmentation=False):
     if augmentation:
         transformations.append(transforms.RandomHorizontalFlip())
 
-    transformations.extend([
-        transforms.ToTensor(),
-        # transforms.Normalize(norm_mean, norm_std)
-    ])
+    transformations.extend(
+        [
+            transforms.ToTensor(),
+            # transforms.Normalize(norm_mean, norm_std)
+        ]
+    )
 
     return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
 
@@ -57,21 +59,31 @@ def split_in_out_dist(dataset, ood_attrs):
             n_cond_checked = 0
             if "shape" in ood_attrs["selected_attributes"][k] and ood_attrs["shape"][k] == cls:
                 n_cond_checked += 1
-            if "position" in ood_attrs["selected_attributes"][k] and in_interval(x, ood_attrs["x"][k],
-                                                                                 ood_attrs["x"][(k + 1) % 3], 0, 32):
+            if "position" in ood_attrs["selected_attributes"][k] and in_interval(
+                    x, ood_attrs["x"][k],
+                    ood_attrs["x"][(k + 1) % 3], 0, 32
+            ):
                 n_cond_checked += 1
-            if "position" in ood_attrs["selected_attributes"][k] and in_interval(y, ood_attrs["y"][k],
-                                                                                 ood_attrs["y"][(k + 1) % 3], 0, 32):
+            if "position" in ood_attrs["selected_attributes"][k] and in_interval(
+                    y, ood_attrs["y"][k],
+                    ood_attrs["y"][(k + 1) % 3], 0, 32
+            ):
                 n_cond_checked += 1
-            if "color" in ood_attrs["selected_attributes"][k] and in_interval(hue, ood_attrs["color"][k],
-                                                                              ood_attrs["color"][(k + 1) % 3], 0, 256):
+            if "color" in ood_attrs["selected_attributes"][k] and in_interval(
+                    hue, ood_attrs["color"][k],
+                    ood_attrs["color"][(k + 1) % 3], 0, 256
+            ):
                 n_cond_checked += 1
-            if "size" in ood_attrs["selected_attributes"][k] and in_interval(size, ood_attrs["size"][k],
-                                                                             ood_attrs["size"][(k + 1) % 3], 0, 25):
+            if "size" in ood_attrs["selected_attributes"][k] and in_interval(
+                    size, ood_attrs["size"][k],
+                    ood_attrs["size"][(k + 1) % 3], 0, 25
+            ):
                 n_cond_checked += 1
-            if "rotation" in ood_attrs["selected_attributes"][k] and in_interval(rotation, ood_attrs["rotation"][k],
-                                                                                 ood_attrs["rotation"][(k + 1) % 3],
-                                                                                 0, 2 * np.pi):
+            if "rotation" in ood_attrs["selected_attributes"][k] and in_interval(
+                    rotation, ood_attrs["rotation"][k],
+                    ood_attrs["rotation"][(k + 1) % 3],
+                    0, 2 * np.pi
+            ):
                 n_cond_checked += 1
             if n_cond_checked >= len(ood_attrs["selected_attributes"][k]):
                 keep = False

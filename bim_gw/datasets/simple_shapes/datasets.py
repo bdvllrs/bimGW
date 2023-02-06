@@ -3,8 +3,9 @@ from pathlib import Path
 import numpy as np
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.fetchers import VisualDataFetcher, AttributesDataFetcher, TextDataFetcher, \
-    PreSavedLatentDataFetcher
+from bim_gw.datasets.simple_shapes.fetchers import (
+    AttributesDataFetcher, PreSavedLatentDataFetcher, TextDataFetcher, VisualDataFetcher
+)
 
 
 class SimpleShapesDataset:
@@ -14,9 +15,11 @@ class SimpleShapesDataset:
         "t": TextDataFetcher,
     }
 
-    def __init__(self, path, split="train", mapping=None, domain_mapping=None, selected_indices=None,
-                 selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
-                 fetcher_params=None):
+    def __init__(
+            self, path, split="train", mapping=None, domain_mapping=None, selected_indices=None,
+            selected_domains=None, pre_saved_latent_path=None, transform=None, output_transform=None,
+            fetcher_params=None
+    ):
         """
         Args:
             path:
@@ -59,7 +62,8 @@ class SimpleShapesDataset:
 
         self.data_fetchers = {
             domain: self.available_domains[domain](
-                self.root_path, self.split, self.ids, self.labels, self.transforms, **fetcher_params[domain])
+                self.root_path, self.split, self.ids, self.labels, self.transforms, **fetcher_params[domain]
+            )
             for domain in self.selected_domains
         }
 
@@ -72,7 +76,8 @@ class SimpleShapesDataset:
             for domain_key in self.selected_domains:
                 if domain_key in pre_saved_latent_path.keys():
                     self.pre_saved_data[domain_key] = load_pre_saved_latent(
-                        self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids)
+                        self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids
+                    )
                     self.data_fetchers[domain_key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
 
     def __len__(self):

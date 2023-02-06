@@ -6,17 +6,18 @@ from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.utils import log_image
-from bim_gw.utils.vae import reparameterize, gaussian_nll, softclip
+from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 
 
 class VAE(DomainModule):
-    def __init__(self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
-                 vae_type="beta",
-                 n_validation_examples: int = 32,
-                 optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
-                 scheduler_step: int = 20, scheduler_gamma: float = 0.5,
-                 validation_reconstruction_images: Optional[torch.Tensor] = None,
-                 n_FID_samples=1000, ):
+    def __init__(
+            self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
+            vae_type="beta",
+            n_validation_examples: int = 32,
+            optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
+            scheduler_step: int = 20, scheduler_gamma: float = 0.5,
+            validation_reconstruction_images: Optional[torch.Tensor] = None,
+            n_FID_samples=1000, ):
         # configurations
         super().__init__()
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
@@ -193,10 +194,14 @@ class VAE(DomainModule):
         self.epoch_end(outputs, mode="test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.optim_lr,
-                                     weight_decay=self.hparams.optim_weight_decay)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.hparams.scheduler_step,
-                                                    self.hparams.scheduler_gamma)
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=self.hparams.optim_lr,
+            weight_decay=self.hparams.optim_weight_decay
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, self.hparams.scheduler_step,
+            self.hparams.scheduler_gamma
+        )
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
@@ -268,12 +273,16 @@ class CDecoderV2(nn.Module):
                 nn.ConvTranspose2d(z_size, sizes[2], kernel_size=8, stride=1, bias=not batchnorm),
                 nn.BatchNorm2d(sizes[2]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
-                nn.ConvTranspose2d(sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
-                                   bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
+                    bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[1]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
-                nn.ConvTranspose2d(sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
-                                   bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
+                    bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[0]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
             )
@@ -293,16 +302,22 @@ class CDecoderV2(nn.Module):
                 nn.ConvTranspose2d(z_size, sizes[3], kernel_size=8, stride=1, bias=not batchnorm),
                 nn.BatchNorm2d(sizes[3]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
-                nn.ConvTranspose2d(sizes[3], sizes[2], kernel_size=kernel_size, stride=2, padding=padding,
-                                   output_padding=1, bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    sizes[3], sizes[2], kernel_size=kernel_size, stride=2, padding=padding,
+                    output_padding=1, bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[2]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
-                nn.ConvTranspose2d(sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
-                                   output_padding=1, bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
+                    output_padding=1, bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[1]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
-                nn.ConvTranspose2d(sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
-                                   output_padding=1, bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
+                    output_padding=1, bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[0]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
             )

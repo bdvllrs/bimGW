@@ -88,8 +88,10 @@ def get_runs_dataframe(args):
         columns = {}
         for run in runs:
             vals = run.summary._json_dict
-            vals.update({k: v for k, v in run.config.items()
-                         if not k.startswith('_')})
+            vals.update(
+                {k: v for k, v in run.config.items()
+                 if not k.startswith('_')}
+            )
             vals["Name"] = run.name
 
             for k, v in vals.items():
@@ -124,7 +126,8 @@ def find_best_epoch(ckpt_folder):
     loaded_path = torch.load(last, map_location=torch.device('cpu'))
     for callback_name, callback in loaded_path['callbacks'].items():
         if 'ModelCheckpoint' in callback_name and 'best_model_path' in callback and os.path.isfile(
-                callback['best_model_path']):
+                callback['best_model_path']
+        ):
             return callback['best_model_path']
     return last
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import wandb
 from omegaconf import OmegaConf

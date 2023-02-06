@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from neptune.new.exceptions import MissingFieldException
 from neptune.new.types import File
@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning.loggers import NeptuneLogger as NeptuneLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
-from bim_gw.utils.loggers.utils import ImageType, to_pil_image, text_from_table
+from bim_gw.utils.loggers.utils import ImageType, text_from_table, to_pil_image
 
 
 class NeptuneLogger(NeptuneLoggerBase):

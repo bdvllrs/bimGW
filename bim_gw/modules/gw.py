@@ -80,11 +80,15 @@ class GlobalWorkspace(LightningModule):
         for item, mod in domain_mods.items():
             encoder_class = mod.workspace_encoder_cls
             decoder_class = mod.workspace_decoder_cls
-            encoders[item] = encoder_class(mod.output_dims, self.hidden_size['encoder'][item],
-                                           self.z_size, self.n_layers_encoder[item])
-            decoders[item] = decoder_class(self.z_size, self.hidden_size['decoder'][item],
-                                           self.n_layers_decoder[item], self.n_layers_decoder_head[item],
-                                           mod.output_dims, mod.decoder_activation_fn)
+            encoders[item] = encoder_class(
+                mod.output_dims, self.hidden_size['encoder'][item],
+                self.z_size, self.n_layers_encoder[item]
+            )
+            decoders[item] = decoder_class(
+                self.z_size, self.hidden_size['decoder'][item],
+                self.n_layers_decoder[item], self.n_layers_decoder_head[item],
+                mod.output_dims, mod.decoder_activation_fn
+            )
         self.encoders = nn.ModuleDict(encoders)
         self.decoders = nn.ModuleDict(decoders)
 
@@ -130,8 +134,10 @@ class GlobalWorkspace(LightningModule):
                                     if type(example_vec) is list:
                                         setattr(self, f"{set_name}_{dist_name}_examples_domain_{key}_{k}", example_vec)
                                     else:
-                                        self.register_buffer(f"{set_name}_{dist_name}_examples_domain_{key}_{k}",
-                                                             example_vec)
+                                        self.register_buffer(
+                                            f"{set_name}_{dist_name}_examples_domain_{key}_{k}",
+                                            example_vec
+                                        )
 
         self.rotation_error_val = []
 
@@ -355,14 +361,20 @@ class GlobalWorkspace(LightningModule):
         translation_losses = self.loss(latent_translation_predictions, latent_translation_target, prefix="translation")
         translation_losses_2 = {}
         if mode == "val":
-            translation_losses_2 = self.loss(latent_translation_predictions_2, latent_translation_target_2,
-                                             prefix="translation-non-op")
+            translation_losses_2 = self.loss(
+                latent_translation_predictions_2, latent_translation_target_2,
+                prefix="translation-non-op"
+            )
 
-        losses = {**demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses,
-                  **translation_losses_2}
+        losses = {
+            **demi_cycle_losses, **cycle_losses, **translation_losses, **contrastive_losses,
+            **translation_losses_2
+        }
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
-        losses["total"] = torch.stack([self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
-                                       for loss_name in loss_names], dim=0).sum()
+        losses["total"] = torch.stack(
+            [self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
+             for loss_name in loss_names], dim=0
+        ).sum()
         losses["total_no_coefs"] = torch.stack([losses[loss_name] for loss_name in loss_names], dim=0).sum()
 
         batch_size = latents[list(latents.keys())[0]][0].size(0)
@@ -371,13 +383,17 @@ class GlobalWorkspace(LightningModule):
             if mode == "val" and self.trainer.global_step == 0:
                 for logger in self.loggers:
                     logger.set_summary(loss_name, "min")
-            self.log(loss_name, loss, logger=True,
-                     add_dataloader_idx=False, batch_size=batch_size)
+            self.log(
+                loss_name, loss, logger=True,
+                add_dataloader_idx=False, batch_size=batch_size
+            )
 
         if mode == "train":
             for coef_name in ["demi_cycles", "cycles", "translation", "cosine"]:
-                self.log(f"loss_coef/{coef_name}", getattr(self, f"loss_coef_{coef_name}"), add_dataloader_idx=False,
-                         batch_size=batch_size)
+                self.log(
+                    f"loss_coef/{coef_name}", getattr(self, f"loss_coef_{coef_name}"), add_dataloader_idx=False,
+                    batch_size=batch_size
+                )
 
         return losses["total"], losses
 
@@ -437,8 +453,10 @@ class GlobalWorkspace(LightningModule):
                 save_images = getattr(logger, "do_save_images", False)
                 logger_save_images(logger, True)
             for domain_name, domain_example in examples.items():
-                self.domain_mods[domain_name].log_domain(logger, domain_example,
-                                                         f"{slug}/original/domain_{domain_name}", max_examples)
+                self.domain_mods[domain_name].log_domain(
+                    logger, domain_example,
+                    f"{slug}/original/domain_{domain_name}", max_examples
+                )
             if logger.do_save_last_images:
                 logger_save_images(logger, save_images)
 
@@ -448,17 +466,21 @@ class GlobalWorkspace(LightningModule):
             # Demi cycles
             predictions = self.adapt(self.predict(self.project(latents, [domain_name])))
             x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
-            self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
-                                                     f"{slug}/demi_cycles/{domain_name}", max_examples)
+            self.domain_mods[domain_name].log_domain(
+                logger, x_reconstructed,
+                f"{slug}/demi_cycles/{domain_name}", max_examples
+            )
 
             for domain_name_2 in latents.keys():
                 if domain_name_2 != domain_name:
                     # Full cycles
                     cycle_predictions = self.predict(self.project(predictions, [domain_name_2]))
                     x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
-                    self.domain_mods[domain_name].log_domain(logger, x_reconstructed,
-                                                             f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
-                                                             max_examples)
+                    self.domain_mods[domain_name].log_domain(
+                        logger, x_reconstructed,
+                        f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
+                        max_examples
+                    )
 
                     # Translations
                     domain_end_pred = self.domain_mods[domain_name_2].decode(predictions[domain_name_2])
@@ -509,11 +531,13 @@ class GlobalWorkspace(LightningModule):
         params = []
         for model_type in ["encoders", "decoders"]:
             for domain_name, encoder in getattr(self, model_type).items():
-                params.append({
-                    "params": encoder.parameters(),
-                    "lr": self.hparams.optim_lr[model_type],
-                    "weight_decay": self.hparams.optim_weight_decay
-                })
+                params.append(
+                    {
+                        "params": encoder.parameters(),
+                        "lr": self.hparams.optim_lr[model_type],
+                        "weight_decay": self.hparams.optim_weight_decay
+                    }
+                )
         optimizer = torch.optim.Adam(params)
 
         scheduler_interval = self.hparams.scheduler_interval

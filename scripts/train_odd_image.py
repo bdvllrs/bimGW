@@ -11,7 +11,7 @@ from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.utils import get_runs_dataframe, find_best_epoch, get_checkpoint_path
+from bim_gw.utils.utils import find_best_epoch, get_checkpoint_path, get_runs_dataframe
 
 
 def update_args_from_selected_run(df, args, select_row_from_index=None, select_row_from_current_coefficients=False):
@@ -51,16 +51,21 @@ if __name__ == "__main__":
 
     if args.odd_image.encoder.load_from is not None:
         df = get_runs_dataframe(args.odd_image.encoder)
-        item = update_args_from_selected_run(df, args, args.odd_image.select_row_from_index,
-                                             args.odd_image.select_row_from_current_coefficients)
+        item = update_args_from_selected_run(
+            df, args, args.odd_image.select_row_from_index,
+            args.odd_image.select_row_from_current_coefficients
+        )
         args.odd_image.encoder.selected_id = item['selected_id_key']
 
     load_domains = []
 
     if args.odd_image.encoder.path is None or args.odd_image.encoder.path == "random":
         encoder = nn.Sequential(
-            DomainEncoder(args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
-                          args.global_workspace.n_layers.encoder), nn.Tanh())
+            DomainEncoder(
+                args.vae.z_size, args.global_workspace.hidden_size, args.global_workspace.z_size,
+                args.global_workspace.n_layers.encoder
+            ), nn.Tanh()
+        )
         if args.odd_image.encoder.path == "random":
             encoder.eval()
             for p in encoder.parameters():
@@ -75,9 +80,11 @@ if __name__ == "__main__":
         path = args.odd_image.encoder.path
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
-        global_workspace = GlobalWorkspace.load_from_checkpoint(path,
-                                                                domain_mods=get_domains(args, args.img_size),
-                                                                strict=False)
+        global_workspace = GlobalWorkspace.load_from_checkpoint(
+            path,
+            domain_mods=get_domains(args, args.img_size),
+            strict=False
+        )
         load_domains = global_workspace.domain_names
         global_workspace.freeze()
         global_workspace.eval()
@@ -87,21 +94,27 @@ if __name__ == "__main__":
 
     if args.resume_from_checkpoint is not None:
         path = get_checkpoint_path(args.resume_from_checkpoint)
-        model = OddClassifier.load_from_checkpoint(path,
-                                                   unimodal_encoders=get_domains(args, args.img_size),
-                                                   encoders=encoders)
+        model = OddClassifier.load_from_checkpoint(
+            path,
+            unimodal_encoders=get_domains(args, args.img_size),
+            encoders=encoders
+        )
         if args.logger_resume_id is not None:
             for logger in args.loggers:
                 logger.args.version = args.logger_resume_id
                 logger.args.id = args.logger_resume_id
                 logger.args.resume = True
     else:
-        model = OddClassifier(get_domains(args, 32), encoders, args.global_workspace.z_size,
-                              args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay)
+        model = OddClassifier(
+            get_domains(args, 32), encoders, args.global_workspace.z_size,
+            args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay
+        )
 
-    data = OddImageDataModule(args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
-                              args.odd_image.batch_size, args.dataloader.num_workers,
-                              args.global_workspace.selected_domains, args.fetchers.t.bert_latents)
+    data = OddImageDataModule(
+        args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
+        args.odd_image.batch_size, args.dataloader.num_workers,
+        args.global_workspace.selected_domains, args.fetchers.t.bert_latents
+    )
 
     if 'attr' in model.unimodal_encoders.keys():
         model.unimodal_encoders['attr'].output_dims = [len(data.classes), data.img_size]

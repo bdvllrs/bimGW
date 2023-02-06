@@ -32,8 +32,10 @@ if __name__ == '__main__':
     bert_path = args.global_workspace.bert_path
     path = args.simple_shapes_path
 
-    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint,
-                                                            domain_mods=get_domains(args, data.img_size), strict=False)
+    global_workspace = GlobalWorkspace.load_from_checkpoint(
+        args.checkpoint,
+        domain_mods=get_domains(args, data.img_size), strict=False
+    )
     global_workspace.eval()
 
     attr_model = global_workspace.domain_mods["attr"]
@@ -48,8 +50,10 @@ if __name__ == '__main__':
     for name, data_loader in data_loaders:
         all_latents = []
         print(f"Fetching {name} data.")
-        for idx, (batch) in tqdm(enumerate(data_loader),
-                                 total=int(len(data_loader.dataset) / data_loader.batch_size)):
+        for idx, (batch) in tqdm(
+                enumerate(data_loader),
+                total=int(len(data_loader.dataset) / data_loader.batch_size)
+        ):
             available_domains, domains = split_domains_available_domains(batch)
             latents = global_workspace.encode_uni_modal(domains)
             predictions = global_workspace.adapt(global_workspace.predict(global_workspace.project(latents, ["attr"])))

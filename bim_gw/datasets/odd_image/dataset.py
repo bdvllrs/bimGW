@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.fetchers import PreSavedLatentDataFetcher, AttributesDataFetcher, TextDataFetcher
+from bim_gw.datasets.simple_shapes.fetchers import AttributesDataFetcher, PreSavedLatentDataFetcher, TextDataFetcher
 
 
 class OddImageDataset:
@@ -28,7 +28,8 @@ class OddImageDataset:
                 # split always train, we used the end 500_000 as val/test for this dataset.
                 # We only used the 500 000 first examples for training the other models, we use the 500 000 unseen elements
                 # from the train set
-                load_pre_saved_latent(self.root_path, "train", pre_saved_latent_path, "v")),
+                load_pre_saved_latent(self.root_path, "train", pre_saved_latent_path, "v")
+            ),
             "attr": AttributesDataFetcher(self.root_path, "train", ids, labels, {"attr": None}),
             "t": TextDataFetcher(self.root_path, "train", ids, labels, {"t": None}, bert_latent),
         }

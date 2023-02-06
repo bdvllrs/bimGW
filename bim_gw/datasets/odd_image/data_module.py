@@ -21,28 +21,40 @@ class OddImageDataModule(LightningDataModule):
         self.img_size = 32
 
     def setup(self, stage=None):
-        self.train_set = OddImageDataset(self.root_path, "train", self.pre_saved_latent_path, self.selected_domains,
-                                         self.bert_latent)
-        self.val_set = OddImageDataset(self.root_path, "val", self.pre_saved_latent_path, self.selected_domains,
-                                       self.bert_latent)
-        self.test_set = OddImageDataset(self.root_path, "test", self.pre_saved_latent_path, self.selected_domains,
-                                        self.bert_latent)
+        self.train_set = OddImageDataset(
+            self.root_path, "train", self.pre_saved_latent_path, self.selected_domains,
+            self.bert_latent
+        )
+        self.val_set = OddImageDataset(
+            self.root_path, "val", self.pre_saved_latent_path, self.selected_domains,
+            self.bert_latent
+        )
+        self.test_set = OddImageDataset(
+            self.root_path, "test", self.pre_saved_latent_path, self.selected_domains,
+            self.bert_latent
+        )
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set,
-                                           shuffle=True,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.train_set,
+            shuffle=True,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.val_set,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.test_set,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.test_set,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )

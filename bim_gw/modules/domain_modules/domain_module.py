@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 from pytorch_lightning import LightningModule
 
-from bim_gw.modules.workspace_encoders import DomainEncoder, DomainDecoder
+from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
 
 
 class DomainModule(LightningModule):

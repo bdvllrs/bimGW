@@ -25,7 +25,9 @@ class GradNormLogger:
                     norms[model][loss_name] = self.grad_norms[model][loss_name][-1]
                 else:
                     norms[model][loss_name] = (
-                            np.convolve(self.grad_norms[model][loss_name][-window_size:], np.ones(window_size),
-                                        'valid') / window_size)[-1]
+                            np.convolve(
+                                self.grad_norms[model][loss_name][-window_size:], np.ones(window_size),
+                                'valid'
+                            ) / window_size)[-1]
 
         return pd.DataFrame(norms)

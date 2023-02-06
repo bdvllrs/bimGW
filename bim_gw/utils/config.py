@@ -55,9 +55,11 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     print(sys.argv)
 
     # Configurations
-    default_args = OmegaConf.create({
-        "debug": False,
-    })
+    default_args = OmegaConf.create(
+        {
+            "debug": False,
+        }
+    )
 
     config_path = PROJECT_DIR / "config"
     main_args = OmegaConf.load(str((config_path / "main.yaml").resolve()))
@@ -97,14 +99,17 @@ def get_args(debug=False, additional_config_files=None, cli=True):
     if OmegaConf.is_dict(args.global_workspace.selected_domains):
         logging.warning("Selected domains is a dict, converting to list. Use a list in the config file in future runs.")
         args.global_workspace.selected_domains = OmegaConf.create(
-            [values for values in args.global_workspace.selected_domains.values()])
+            [values for values in args.global_workspace.selected_domains.values()]
+        )
     if args.losses.coefs.supervision is not None:
         logging.warning(
-            "Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead.")
+            "Using deprecated value `losses.coefs.supervision`. In the future, use `losses.coefs.translation` instead."
+        )
         args.losses.coefs.translation = args.losses.coefs.supervision
     if "attr" not in args.fetchers or "use_unpaired" not in args.fetchers.attr:
         logging.warning(
-            "Missing mandatory value `fetchers.attr.use_unpaired`. Automatically set to false.")
+            "Missing mandatory value `fetchers.attr.use_unpaired`. Automatically set to false."
+        )
         args.fetchers.attr.use_unpaired = False
 
     return args

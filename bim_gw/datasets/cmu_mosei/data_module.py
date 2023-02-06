@@ -24,29 +24,37 @@ class CMUMOSEIDataModule(LightningDataModule):
                  mmdatasdk.cmu_mosei.standard_folds.standard_valid_fold,
                  mmdatasdk.cmu_mosei.standard_folds.standard_test_fold]
 
-        data_folds = self.cmu_dataset.get_tensors(seq_len=self.seq_length,
-                                                  non_sequences=["All Labels"],
-                                                  direction=False,
-                                                  folds=folds)
+        data_folds = self.cmu_dataset.get_tensors(
+            seq_len=self.seq_length,
+            non_sequences=["All Labels"],
+            direction=False,
+            folds=folds
+        )
         self.train_set = CMUMOSEIDataset(data_folds[0], "train", self.selected_domains, None)
         self.val_set = CMUMOSEIDataset(data_folds[1], "val", self.selected_domains, None)
         self.test_set = CMUMOSEIDataset(data_folds[2], "test", self.selected_domains, None)
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_set,
-                                           shuffle=True,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.train_set,
+            shuffle=True,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_set,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.val_set,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.test_set,
-                                           batch_size=self.batch_size,
-                                           num_workers=self.num_workers,
-                                           pin_memory=True)
+        return torch.utils.data.DataLoader(
+            self.test_set,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )

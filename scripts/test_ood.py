@@ -30,26 +30,30 @@ def test_ood(args):
     lm = get_lm(args, data)
     lm.freeze()
 
-    global_workspace = GlobalWorkspace.load_from_checkpoint(args.checkpoint, domain_mods={
-        "v": vae,
-        "t": lm
-    })
+    global_workspace = GlobalWorkspace.load_from_checkpoint(
+        args.checkpoint, domain_mods={
+            "v": vae,
+            "t": lm
+        }
+    )
     global_workspace.eval()
 
     print("OOD t --> v")
-    possible_2_class = torch.tensor([
-        [0.5, 0., 0.],
-        [0., 0.5, 0.],
-        [0., 0., 0.5],
-        [1., 1., 0.],
-        [1., 0., 1.],
-        [0., 1., 1.],
-        [0.5, 0.5, 0.],
-        [0.5, 0., 0.5],
-        [0., 0.5, 0.5],
-        [0.33, 0.33, 0.33],
-        [0., 0., 0.],
-    ])
+    possible_2_class = torch.tensor(
+        [
+            [0.5, 0., 0.],
+            [0., 0.5, 0.],
+            [0., 0., 0.5],
+            [1., 1., 0.],
+            [1., 0., 1.],
+            [0., 1., 1.],
+            [0.5, 0.5, 0.],
+            [0.5, 0., 0.5],
+            [0., 0.5, 0.5],
+            [0.33, 0.33, 0.33],
+            [0., 0., 0.],
+        ]
+    )
     t_samples = lm.sample(1)
     t_latent = lm.encode(t_samples)
     class_labels = possible_2_class
@@ -102,10 +106,12 @@ def plot_image_grid(images, title):
     img_grid = torchvision.utils.make_grid(images, normalize=True)
     img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
     plt.imshow(img_grid)
-    plt.tick_params(left=False,
-                    bottom=False,
-                    labelleft=False,
-                    labelbottom=False)
+    plt.tick_params(
+        left=False,
+        bottom=False,
+        labelleft=False,
+        labelbottom=False
+    )
     plt.tight_layout(pad=0)
     plt.title(title)
     plt.show()

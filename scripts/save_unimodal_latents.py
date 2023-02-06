@@ -22,7 +22,8 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.global_workspace.selected_domains = OmegaConf.create(
-        [domain for domain in args.global_workspace.load_pre_saved_latents.keys()])
+        [domain for domain in args.global_workspace.load_pre_saved_latents.keys()]
+    )
 
     data = load_dataset(args, args.global_workspace, with_actions=True)
     data.prepare_data()
@@ -50,8 +51,10 @@ if __name__ == '__main__':
             domain_key: None for domain_key in domains.keys()
         }
         print(f"Fetching {name} data.")
-        for idx, (batch, target) in tqdm(enumerate(data_loader),
-                                         total=int(len(data_loader.dataset) / data_loader.batch_size)):
+        for idx, (batch, target) in tqdm(
+                enumerate(data_loader),
+                total=int(len(data_loader.dataset) / data_loader.batch_size)
+        ):
             for domain_key in domains.keys():
                 l = None
                 for t in range(len(batch[domain_key])):

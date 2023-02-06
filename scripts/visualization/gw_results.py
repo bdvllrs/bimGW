@@ -6,8 +6,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from bim_gw.utils import get_args
-from bim_gw.utils.utils import get_runs_dataframe, get_job_slug_from_coefficients
-from bim_gw.utils.visualization import get_fmt, sem_fn, get_agg_args_from_dict, set_new_cols
+from bim_gw.utils.utils import get_job_slug_from_coefficients, get_runs_dataframe
+from bim_gw.utils.visualization import get_agg_args_from_dict, get_fmt, sem_fn, set_new_cols
 
 y_axis_labels = {
     "translation": "Translation losses",
@@ -50,9 +50,11 @@ if __name__ == '__main__':
 
         df = set_new_cols(df, args.visualization.gw_results.loss_definitions)
 
-        df = df.groupby(["parameters/global_workspace/prop_labelled_images",
-                         "parameters/losses/coefs/contrastive", "parameters/losses/coefs/cycles",
-                         "parameters/losses/coefs/demi_cycles", "parameters/losses/coefs/translation"], as_index=False)
+        df = df.groupby(
+            ["parameters/global_workspace/prop_labelled_images",
+             "parameters/losses/coefs/contrastive", "parameters/losses/coefs/cycles",
+             "parameters/losses/coefs/demi_cycles", "parameters/losses/coefs/translation"], as_index=False
+        )
 
         df = df.agg(
             mix_loss_mean=pd.NamedAgg(column='mix_loss', aggfunc="mean"),
@@ -86,13 +88,17 @@ if __name__ == '__main__':
                 grp = df[df['slug'] == curve_name]
                 slug_label = slug_to_label[curve_name] if curve_name in slug_to_label else curve_name
                 if len(grp) > 1:
-                    ax = grp.plot('num_examples', evaluated_loss + '_mean', ax=ax, yerr=evaluated_loss + "_std",
-                                  label=(slug_label if k == 0 else '_nolegend_'),
-                                  legend=False, **get_fmt(curve_name), linewidth=args.visualization.line_width)
+                    ax = grp.plot(
+                        'num_examples', evaluated_loss + '_mean', ax=ax, yerr=evaluated_loss + "_std",
+                        label=(slug_label if k == 0 else '_nolegend_'),
+                        legend=False, **get_fmt(curve_name), linewidth=args.visualization.line_width
+                    )
                 else:
-                    ax.axhline(y=grp[evaluated_loss + "_mean"].iloc[0],
-                               label=(slug_label if k == 0 else '_nolegend_'),
-                               **get_fmt(curve_name))
+                    ax.axhline(
+                        y=grp[evaluated_loss + "_mean"].iloc[0],
+                        label=(slug_label if k == 0 else '_nolegend_'),
+                        **get_fmt(curve_name)
+                    )
 
                 ax.set_xlabel("Number of bimodal examples ($N$)", fontsize=args.visualization.font_size)
                 if n == 0:
@@ -100,24 +106,30 @@ if __name__ == '__main__':
                 ax.set_yscale('log')
                 ax.set_xscale('log')
                 if m == 0:
-                    ax.set_title(title_labels[df_name], fontsize=args.visualization.font_size_title,
-                                 color=args.visualization.fg_color)
+                    ax.set_title(
+                        title_labels[df_name], fontsize=args.visualization.font_size_title,
+                        color=args.visualization.fg_color
+                    )
 
             # if m == 0:
             #     ax.set_ylim([3e-3, 4])
             # elif m == 1:
             #     ax.set_ylim([0.2, 15])
-            ax.tick_params(which='both', labelsize=args.visualization.font_size,
-                           color=args.visualization.fg_color, labelcolor=args.visualization.fg_color)
+            ax.tick_params(
+                which='both', labelsize=args.visualization.font_size,
+                color=args.visualization.fg_color, labelcolor=args.visualization.fg_color
+            )
             ax.xaxis.label.set_color(args.visualization.fg_color)
             ax.yaxis.label.set_color(args.visualization.fg_color)
             for spine in ax.spines.values():
                 spine.set_edgecolor(args.visualization.fg_color)
             ax.set_facecolor(args.visualization.bg_color)
 
-    fig.legend(loc='lower center', bbox_to_anchor=(0.5, 0), bbox_transform=fig.transFigure,
-               ncol=args.visualization.gw_results.legend.num_columns,
-               fontsize=args.visualization.font_size)
+    fig.legend(
+        loc='lower center', bbox_to_anchor=(0.5, 0), bbox_transform=fig.transFigure,
+        ncol=args.visualization.gw_results.legend.num_columns,
+        fontsize=args.visualization.font_size
+    )
     # fig.tight_layout()
     plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
     fig.patch.set_facecolor(args.visualization.bg_color)
@@ -136,36 +148,46 @@ if __name__ == '__main__':
                 grp = df[df['slug'] == slug]
                 slug_label = slug_to_label[slug] if slug in slug_to_label else slug
                 if len(grp) > 1:
-                    ax = grp.plot('num_examples', coef + '_coef', ax=ax,
-                                  label=(slug_label if k == 0 else '_nolegend_'),
-                                  legend=False, **get_fmt(slug), linewidth=args.visualization.line_width)
+                    ax = grp.plot(
+                        'num_examples', coef + '_coef', ax=ax,
+                        label=(slug_label if k == 0 else '_nolegend_'),
+                        legend=False, **get_fmt(slug), linewidth=args.visualization.line_width
+                    )
 
                 ax.set_xlabel("Number of bimodal examples ($N$)", fontsize=args.visualization.font_size)
                 if n == 0:
                     ax.set_ylabel(coef, fontsize=args.visualization.font_size)
                 ax.set_xscale('log')
                 if m == 0:
-                    ax.set_title(title_labels[df_name], fontsize=args.visualization.font_size_title,
-                                 color=args.visualization.fg_color)
+                    ax.set_title(
+                        title_labels[df_name], fontsize=args.visualization.font_size_title,
+                        color=args.visualization.fg_color
+                    )
 
             # if m == 0:
             #     ax.set_ylim([3e-3, 4])
             # elif m == 1:
             #     ax.set_ylim([0.2, 15])
-            ax.tick_params(which='both', labelsize=args.visualization.font_size, color=args.visualization.fg_color,
-                           labelcolor=args.visualization.fg_color)
+            ax.tick_params(
+                which='both', labelsize=args.visualization.font_size, color=args.visualization.fg_color,
+                labelcolor=args.visualization.fg_color
+            )
             ax.xaxis.label.set_color(args.visualization.fg_color)
             ax.yaxis.label.set_color(args.visualization.fg_color)
             for spine in ax.spines.values():
                 spine.set_edgecolor(args.visualization.fg_color)
             ax.set_facecolor(args.visualization.bg_color)
 
-    fig.legend(loc='lower center', bbox_to_anchor=(0.5, 0), bbox_transform=fig.transFigure,
-               ncol=args.visualization.gw_results.legend.num_columns,
-               fontsize=args.visualization.font_size)
+    fig.legend(
+        loc='lower center', bbox_to_anchor=(0.5, 0), bbox_transform=fig.transFigure,
+        ncol=args.visualization.gw_results.legend.num_columns,
+        fontsize=args.visualization.font_size
+    )
     # fig.tight_layout()
     plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
     fig.patch.set_facecolor(args.visualization.bg_color)
-    plt.savefig(Path(args.visualization.gw_results.saved_figure_path) / f"{now}_selected_coefficients.pdf",
-                bbox_inches="tight")
+    plt.savefig(
+        Path(args.visualization.gw_results.saved_figure_path) / f"{now}_selected_coefficients.pdf",
+        bbox_inches="tight"
+    )
     plt.show()

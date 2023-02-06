@@ -1,8 +1,8 @@
 import numpy as np
-
-from attributes_to_language.utils import COLORS_LARGE_SET, COLORS_XKCD, COLORS_SPARSE
-from attributes_to_language.writers import QuantizedWriter, OptionsWriter, BinsWriter, Bins2dWriter, \
-    ContinuousAngleWriter
+from attributes_to_language.utils import COLORS_LARGE_SET, COLORS_SPARSE, COLORS_XKCD
+from attributes_to_language.writers import (
+    Bins2dWriter, BinsWriter, ContinuousAngleWriter, OptionsWriter, QuantizedWriter
+)
 
 shapes_writer = OptionsWriter(
     caption="{val}",
@@ -17,7 +17,8 @@ shapes_writer = OptionsWriter(
 
 cardinal_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]
+    ),
     caption="{rotated} {val}",
     variants={
         "of_image": ["", "of the image"],
@@ -30,7 +31,8 @@ cardinal_rotation_preicions_writer = QuantizedWriter(
     quantized_values=np.array(
         [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
          np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
-         15 * np.pi / 8]),
+         15 * np.pi / 8]
+    ),
     caption="{rotated} {val}",
     variants={
         "of_image": ["", "of the image"],
@@ -43,7 +45,8 @@ cardinal_rotation_preicions_writer = QuantizedWriter(
 
 corner_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]),
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]
+    ),
     caption="{rotated} the {val}",
     variants={
         "of_image": ["", "of the image"],
@@ -59,7 +62,8 @@ corner_rotation_precision_writer = QuantizedWriter(
     quantized_values=np.array(
         [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
          np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
-         15 * np.pi / 8]),
+         15 * np.pi / 8]
+    ),
     caption="{rotated} the {val}",
     variants={
         "of_image": ["", "of the image"],
@@ -91,8 +95,10 @@ size_writer = BinsWriter(
 )
 
 location_writer = QuantizedWriter(
-    quantized_values=np.array([[10, 16, 22, 10, 16, 22, 10, 16, 22],
-                               [10, 10, 10, 16, 16, 16, 22, 22, 22]]),
+    quantized_values=np.array(
+        [[10, 16, 22, 10, 16, 22, 10, 16, 22],
+         [10, 10, 10, 16, 16, 16, 22, 22, 22]]
+    ),
     caption="{located?}{val}",
     labels=[
         ["{at_the} {bottom} left{side?}", "{at_the} {bottom}, {on_the} left{side?}"],
@@ -118,8 +124,10 @@ location_writer = QuantizedWriter(
 )
 
 location_writer_bins = Bins2dWriter(
-    bins=np.array([[13, 19],
-                   [13, 19]]),
+    bins=np.array(
+        [[13, 19],
+         [13, 19]]
+    ),
     labels=[
         [["top left", "upper left"], "top", "top right"],
         ["left", "middle", "right"],
@@ -129,8 +137,10 @@ location_writer_bins = Bins2dWriter(
 
 location_precision_writer_bins = Bins2dWriter(
     caption="{located?}{val}",
-    bins=np.array([[9, 12, 14, 18, 20, 23],
-                   [9, 12, 14, 18, 20, 23]]),
+    bins=np.array(
+        [[9, 12, 14, 18, 20, 23],
+         [9, 12, 14, 18, 20, 23]]
+    ),
     variants={
         "bottom": ["bottom", "lower side"],
         "middle": ["middle", "center"],
@@ -141,71 +151,73 @@ location_precision_writer_bins = Bins2dWriter(
         "side?": [" side", ""],
         "located?": ["located ", " "],
     },
-    labels=np.array([
+    labels=np.array(
         [
-            "{at_the} very {bottom}, {on_the} very left{side?}",
-            "{at_the} very {bottom}, {on_the} left{side?}",
-            "{at_the} very {bottom}, slightly left",
-            "{at_the} very {bottom}, {in_the} {middle}",
-            "{at_the} very {bottom}, slightly right",
-            "{at_the} very {bottom}, {on_the} right{side?}",
-            "{at_the} very {bottom}, {on_the} very right{side?}",
-        ],
-        [
-            "{at_the} {bottom}, {on_the} very left{side?}",
-            "{at_the} {bottom}, {on_the} left{side?}",
-            "{at_the} {bottom}, slightly left",
-            "{at_the} {bottom} {middle}",
-            "{at_the} {bottom}, slightly right",
-            "{at_the} {bottom}, {on_the} right{side?}",
-            "{at_the} {bottom} right, {on_the} very right{side?}",
-        ],
-        [
-            "slightly {bottom}, {on_the} very left{side?}",
-            "slightly {bottom}, {on_the} left{side?}",
-            "slightly {bottom}, slightly left",
-            "slightly {bottom}, {in_the} {middle}",
-            "slightly {bottom}, slightly right",
-            "slightly {bottom}, {on_the} right{side?}",
-            "slightly {bottom}, {on_the} very right{side?}",
-        ],
-        [
-            "{in_the} {middle}, {on_the} very left {side?}",
-            "{in_the} {middle}, {on_the} left{side?}",
-            "{in_the} {middle}, slightly left",
-            "{in_the} {middle}",
-            "{in_the} {middle}, slightly right",
-            "{in_the} {middle}, {on_the} right{side?}",
-            "{in_the} {middle} right, {on_the} very right{side?}",
-        ],
-        [
-            "slightly {top} left, {on_the} very left{side?}",
-            "slightly {top}, {on_the} left{side?}",
-            "slightly {top}, slightly left",
-            "slightly {top}, {in_the} {middle}",
-            "slightly {top}, slightly right",
-            "slightly {top}, {on_the} right{side?}",
-            "slightly {top}, {on_the} very right{side?}",
-        ],
-        [
-            "{at_the} {top} left, {on_the} very left{side?}",
-            "{at_the} {top}, {on_the} left{side?}",
-            "{at_the} {top}, slightly left",
-            "{at_the} {top} {middle}",
-            "{at_the} {top}, slightly right",
-            "{at_the} {top}, {on_the} right{side?}",
-            "{at_the} {top} right, {on_the} very right{side?}",
-        ],
-        [
-            "{at_the} very {top} left, {on_the} very left{side?}",
-            "{at_the} very {top}, {on_the} left{side?}",
-            "{at_the} very {top}, slightly left",
-            "{at_the} very {top}, {in_the} {middle}",
-            "{at_the} very {top}, slightly right",
-            "{at_the} very {top}, {on_the} right{side?}",
-            "{at_the} very {top}, {on_the} very right{side?}",
-        ],
-    ]).transpose()
+            [
+                "{at_the} very {bottom}, {on_the} very left{side?}",
+                "{at_the} very {bottom}, {on_the} left{side?}",
+                "{at_the} very {bottom}, slightly left",
+                "{at_the} very {bottom}, {in_the} {middle}",
+                "{at_the} very {bottom}, slightly right",
+                "{at_the} very {bottom}, {on_the} right{side?}",
+                "{at_the} very {bottom}, {on_the} very right{side?}",
+            ],
+            [
+                "{at_the} {bottom}, {on_the} very left{side?}",
+                "{at_the} {bottom}, {on_the} left{side?}",
+                "{at_the} {bottom}, slightly left",
+                "{at_the} {bottom} {middle}",
+                "{at_the} {bottom}, slightly right",
+                "{at_the} {bottom}, {on_the} right{side?}",
+                "{at_the} {bottom} right, {on_the} very right{side?}",
+            ],
+            [
+                "slightly {bottom}, {on_the} very left{side?}",
+                "slightly {bottom}, {on_the} left{side?}",
+                "slightly {bottom}, slightly left",
+                "slightly {bottom}, {in_the} {middle}",
+                "slightly {bottom}, slightly right",
+                "slightly {bottom}, {on_the} right{side?}",
+                "slightly {bottom}, {on_the} very right{side?}",
+            ],
+            [
+                "{in_the} {middle}, {on_the} very left {side?}",
+                "{in_the} {middle}, {on_the} left{side?}",
+                "{in_the} {middle}, slightly left",
+                "{in_the} {middle}",
+                "{in_the} {middle}, slightly right",
+                "{in_the} {middle}, {on_the} right{side?}",
+                "{in_the} {middle} right, {on_the} very right{side?}",
+            ],
+            [
+                "slightly {top} left, {on_the} very left{side?}",
+                "slightly {top}, {on_the} left{side?}",
+                "slightly {top}, slightly left",
+                "slightly {top}, {in_the} {middle}",
+                "slightly {top}, slightly right",
+                "slightly {top}, {on_the} right{side?}",
+                "slightly {top}, {on_the} very right{side?}",
+            ],
+            [
+                "{at_the} {top} left, {on_the} very left{side?}",
+                "{at_the} {top}, {on_the} left{side?}",
+                "{at_the} {top}, slightly left",
+                "{at_the} {top} {middle}",
+                "{at_the} {top}, slightly right",
+                "{at_the} {top}, {on_the} right{side?}",
+                "{at_the} {top} right, {on_the} very right{side?}",
+            ],
+            [
+                "{at_the} very {top} left, {on_the} very left{side?}",
+                "{at_the} very {top}, {on_the} left{side?}",
+                "{at_the} very {top}, slightly left",
+                "{at_the} very {top}, {in_the} {middle}",
+                "{at_the} very {top}, slightly right",
+                "{at_the} very {top}, {on_the} right{side?}",
+                "{at_the} very {top}, {on_the} very right{side?}",
+            ],
+        ]
+    ).transpose()
 )
 
 color_large_set_writer = QuantizedWriter(

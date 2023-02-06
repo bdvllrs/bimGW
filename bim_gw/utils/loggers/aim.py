@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from aim import Image as AimImage, Text as AimText
 from aim.sdk.adapters.pytorch_lightning import AimLogger as AimLoggerBase

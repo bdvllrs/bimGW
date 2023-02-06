@@ -32,17 +32,22 @@ class UnpairedClassifierText(LightningModule):
             nn.ReLU(),
             nn.Linear(global_workspace.z_size // 2, self.hidden_size)
         )
-        self.grammar_classifiers = nn.ModuleDict({
-            name: nn.Sequential(
-                nn.Linear(self.hidden_size, self.hidden_size),
-                nn.ReLU(),
-                nn.Linear(self.hidden_size, n_outputs))  # predict sentence structure
-            for name, n_outputs in self.composer_inspection.items()})
+        self.grammar_classifiers = nn.ModuleDict(
+            {
+                name: nn.Sequential(
+                    nn.Linear(self.hidden_size, self.hidden_size),
+                    nn.ReLU(),
+                    nn.Linear(self.hidden_size, n_outputs)
+                )  # predict sentence structure
+                for name, n_outputs in self.composer_inspection.items()}
+        )
 
         self.grammar_train_acc = nn.ModuleDict(
-            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()})
+            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()}
+        )
         self.grammar_val_acc = nn.ModuleDict(
-            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()})
+            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()}
+        )
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
@@ -57,8 +62,10 @@ class UnpairedClassifierText(LightningModule):
             total_loss += loss_grammar
             acc_fn = self.grammar_train_acc[grammar_type] if mode == "train" else self.grammar_val_acc[grammar_type]
             res = acc_fn(prediction.softmax(-1), domains['t'][2][grammar_type])
-            self.log(f"{mode}/loss_{grammar_type}", loss_grammar, logger=True, on_epoch=(mode != "train"),
-                     batch_size=bs)
+            self.log(
+                f"{mode}/loss_{grammar_type}", loss_grammar, logger=True, on_epoch=(mode != "train"),
+                batch_size=bs
+            )
             self.log(f"{mode}_{grammar_type}_acc", res, on_epoch=(mode != "train"))
 
         self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)

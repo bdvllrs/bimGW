@@ -25,9 +25,11 @@ if __name__ == "__main__":
     data.prepare_data()
     data.setup(stage="fit")
 
-    lm = ShapesLM.load_from_checkpoint(args.checkpoint, strict=False,
-                                       bert_path=args.global_workspace.bert_path,
-                                       validation_domain_examples=data.domain_examples)
+    lm = ShapesLM.load_from_checkpoint(
+        args.checkpoint, strict=False,
+        bert_path=args.global_workspace.bert_path,
+        validation_domain_examples=data.domain_examples
+    )
     lm.eval()
     lm.freeze()
     lm.to(device)

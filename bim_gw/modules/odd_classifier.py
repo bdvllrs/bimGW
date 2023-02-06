@@ -26,11 +26,13 @@ class OddClassifier(LightningModule):
 
     def step(self, batch, mode="train"):
         latents = {
-            name: torch.cat([
-                self.encoders[name](self.unimodal_encoders[name](batch[name][0])),
-                self.encoders[name](self.unimodal_encoders[name](batch[name][1])),
-                self.encoders[name](self.unimodal_encoders[name](batch[name][2])),
-            ], dim=1)
+            name: torch.cat(
+                [
+                    self.encoders[name](self.unimodal_encoders[name](batch[name][0])),
+                    self.encoders[name](self.unimodal_encoders[name](batch[name][1])),
+                    self.encoders[name](self.unimodal_encoders[name](batch[name][2])),
+                ], dim=1
+            )
             for name in self.unimodal_encoders.keys()
         }
 

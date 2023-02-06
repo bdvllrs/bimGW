@@ -5,10 +5,12 @@ from torch import nn
 def get_n_layers(n_layers, hidden_size):
     layers = []
     for k in range(n_layers):
-        layers.extend([
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU()
-        ])
+        layers.extend(
+            [
+                nn.Linear(hidden_size, hidden_size),
+                nn.ReLU()
+            ]
+        )
     return layers
 
 
@@ -26,7 +28,8 @@ class DomainDecoder(torch.nn.Module):
             activation_fn = [activation_fn]
 
         assert len(out_dims) == len(
-            activation_fn), "The model is missing some loss_functions or output_dimensions for the outputs."
+            activation_fn
+        ), "The model is missing some loss_functions or output_dimensions for the outputs."
 
         self.out_dims = out_dims
         self.activation_fn = activation_fn
@@ -37,13 +40,15 @@ class DomainDecoder(torch.nn.Module):
             *get_n_layers(n_layers, self.hidden_size)
         )
 
-        self.encoder_head = nn.ModuleList([
-            nn.Sequential(
-                *get_n_layers(n_layers_head, self.hidden_size),
-                nn.Linear(self.hidden_size, pose_dim),
-            )
-            for pose_dim in self.out_dims
-        ])
+        self.encoder_head = nn.ModuleList(
+            [
+                nn.Sequential(
+                    *get_n_layers(n_layers_head, self.hidden_size),
+                    nn.Linear(self.hidden_size, pose_dim),
+                )
+                for pose_dim in self.out_dims
+            ]
+        )
 
     def forward(self, x):
         out = self.encoder(x)
