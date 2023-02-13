@@ -10,29 +10,36 @@ from bim_gw.scripts.utils import get_domains, get_trainer
 from bim_gw.utils.utils import get_checkpoint_path, loggers_save_images
 
 
-def train_gw(args):
+def train_gw(args, mode="train"):
     seed_everything(args.seed)
 
     data = load_dataset(args, args.global_workspace)
     data.prepare_data()
     data.setup(stage="fit")
 
-    global_workspace = GlobalWorkspace(
-        get_domains(args, data.img_size), args.global_workspace.z_size,
-        args.global_workspace.hidden_size,
-        args.global_workspace.n_layers.encoder,
-        args.global_workspace.n_layers.decoder,
-        args.global_workspace.n_layers.decoder_head,
-        len(data.classes),
-        args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
-        args.losses.coefs.translation, args.losses.coefs.cosine,
-        args.losses.coefs.contrastive,
-        args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
-        args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
-        args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-        args.losses.schedules, data.domain_examples,
-        args.global_workspace.monitor_grad_norms,
-        args.global_workspace.remove_sync_domains, )
+    if "checkpoint" in args and args.checkpoint is not None:
+        checkpoint_path = get_checkpoint_path(args.checkpoint)
+        global_workspace = GlobalWorkspace.load_from_checkpoint(
+            checkpoint_path,
+            domain_mods=get_domains(args, data.img_size),
+            domain_examples=data.domain_examples, )
+    else:
+        global_workspace = GlobalWorkspace(
+            get_domains(args, data.img_size), args.global_workspace.z_size,
+            args.global_workspace.hidden_size,
+            args.global_workspace.n_layers.encoder,
+            args.global_workspace.n_layers.decoder,
+            args.global_workspace.n_layers.decoder_head,
+            len(data.classes),
+            args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
+            args.losses.coefs.translation, args.losses.coefs.cosine,
+            args.losses.coefs.contrastive,
+            args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
+            args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
+            args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
+            args.losses.schedules, data.domain_examples,
+            args.global_workspace.monitor_grad_norms,
+            args.global_workspace.remove_sync_domains, )
 
     trainer = get_trainer(
         "train_gw", args, global_workspace,
@@ -42,12 +49,17 @@ def train_gw(args):
             # "val_check_interval": args.global_workspace.prop_labelled_images
         }
     )
-    trainer.fit(global_workspace, data)
+
+    best_checkpoint = None
+    if mode == "train":
+        trainer.fit(global_workspace, data)
+        best_checkpoint = "best" if not args.fast_dev_run else None
 
     loggers_save_images(trainer.loggers, True)
-    best_checkpoint = "best" if not args.fast_dev_run else None
-    trainer.validate(global_workspace, data, best_checkpoint)
-    trainer.test(global_workspace, data, best_checkpoint)
+    if mode in ["train", "eval"]:
+        trainer.validate(global_workspace, data, best_checkpoint)
+    if mode in ["train", "test"]:
+        trainer.test(global_workspace, data, best_checkpoint)
 
 
 def train_lm(args):
