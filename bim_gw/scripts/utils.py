@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, Mode
 from bim_gw.modules.domain_modules.domain_module import PassThroughWM
 from bim_gw.utils.loggers import get_loggers
 from bim_gw.utils.registers import DomainRegister
+from bim_gw.utils.utils import get_checkpoint_path
 
 
 def get_domain(domain_name, args, img_size=None):
@@ -71,7 +72,7 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
         "strategy": (args.distributed_backend if args.devices > 1 else None),
         "logger": loggers,
         "callbacks": callbacks,
-        "resume_from_checkpoint": args.resume_from_checkpoint,
+        "resume_from_checkpoint": get_checkpoint_path(args.resume_from_checkpoint),
         "max_epochs": args.max_epochs,
         "max_steps": args.max_steps,
         "multiple_trainloader_mode": "min_size",
