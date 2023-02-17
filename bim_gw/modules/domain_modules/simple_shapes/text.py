@@ -76,19 +76,15 @@ class SimpleShapesText(DomainModule):
         self.encoder = nn.Sequential(
             nn.Linear(self.bert_size, self.bert_size),
             nn.ReLU(),
-            nn.Linear(self.bert_size, self.hidden_size * 2),
+            nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.hidden_size * 2, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.z_size * 2)
+            nn.Linear(self.bert_size // 2, self.z_size * 2)
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(self.z_size, self.hidden_size),
+            nn.Linear(self.z_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size * 2),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size * 2, self.bert_size),
+            nn.Linear(self.bert_size // 2, self.bert_size),
             nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size),
         )
@@ -102,20 +98,16 @@ class SimpleShapesText(DomainModule):
             self.decoder.eval()
 
         self.attribute_encoder = nn.Sequential(
-            nn.Linear(self.z_size, self.hidden_size),
+            nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, sum(self.attribute_domain.output_dims))
+            nn.Linear(self.z_size, sum(self.attribute_domain.output_dims))
         )
         self.grammar_classifiers = nn.ModuleDict(
             {
                 name: nn.Sequential(
-                    nn.Linear(self.z_size, self.hidden_size),
+                    nn.Linear(self.z_size, self.z_size),
                     nn.ReLU(),
-                    nn.Linear(self.hidden_size, self.hidden_size),
-                    nn.ReLU(),
-                    nn.Linear(self.hidden_size, n_outputs)
+                    nn.Linear(self.z_size, n_outputs)
                 )
                 for name, n_outputs in self.composer_inspection.items()}
         )
@@ -275,7 +267,7 @@ class SimpleShapesText(DomainModule):
         predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(
             z_predictions, sentences, targets, mode=mode
         )
-        total_loss = total_loss + 100 * attribute_prediction_loss
+        total_loss = total_loss + 10_000 * attribute_prediction_loss
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss
