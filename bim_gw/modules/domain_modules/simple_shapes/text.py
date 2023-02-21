@@ -250,7 +250,7 @@ class SimpleShapesText(DomainModule):
 
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(z_mean, z_logvar)
-        total_loss = (reconstruction_loss + self.beta * kl_divergence_loss) / bs
+        vae_loss = (reconstruction_loss + self.beta * kl_divergence_loss) / bs
 
         self.log(
             f"{mode}/reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs
@@ -258,7 +258,7 @@ class SimpleShapesText(DomainModule):
         self.log(
             f"{mode}/kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs
         )
-        self.log(f"{mode}/vae_loss", total_loss, on_epoch=(mode != "train"), batch_size=bs)
+        self.log(f"{mode}/vae_loss", vae_loss, on_epoch=(mode != "train"), batch_size=bs)
 
         z_predictions = z_mean
         if not self.optimize_vae_with_attr_regression:
@@ -267,7 +267,7 @@ class SimpleShapesText(DomainModule):
         predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(
             z_predictions, sentences, targets, mode=mode
         )
-        total_loss = total_loss + 10_000 * attribute_prediction_loss
+        total_loss = 0 * vae_loss + attribute_prediction_loss
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss
@@ -302,7 +302,7 @@ class SimpleShapesText(DomainModule):
             )
             self.log(f"{mode}/grammar_{name}_acc", res, on_epoch=(mode != "train"))
 
-        self.log(f"{mode}/attribute_loss", total_loss, on_epoch=(mode != "train"))
+        self.log(f"{mode}/attribute_grammar_loss", total_loss, on_epoch=(mode != "train"))
 
         return predictions, losses, total_loss
 
