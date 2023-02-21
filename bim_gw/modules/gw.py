@@ -37,9 +37,7 @@ class GlobalWorkspace(LightningModule):
             remove_sync_domains=None,
             save_only_last_images=False,
     ):
-
         super(GlobalWorkspace, self).__init__()
-        # self.automatic_optimization = False
 
         self.loss_coef_demi_cycles = loss_coef_demi_cycles
         self.loss_coef_cycles = loss_coef_cycles
@@ -48,9 +46,8 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_cosine = loss_coef_cosine
         self.loss_schedules = loss_schedules if loss_schedules is not None else {}
         self.remove_sync_domains = remove_sync_domains if remove_sync_domains is not None else []
-        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains] + [f"{n2}-{n1}" for
-                                                                                                  n1, n2 in
-                                                                                                  self.remove_sync_domains]
+        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains]
+        self.remove_sync_domains_names += [f"{n2}-{n1}" for n1, n2 in self.remove_sync_domains]
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -171,33 +168,6 @@ class GlobalWorkspace(LightningModule):
         for domain in keep_domains:
             pre_act += self.encode(latents[domain], domain, add_tanh=False)
         return torch.tanh(pre_act)
-
-    # def project(self, latents, available_domains=None, keep_domains=None):
-    #     if keep_domains is None:
-    #         keep_domains = list(latents.keys())
-    #     if available_domains is None:
-    #         available_domains = {
-    #             domain_name: torch.ones(latents[domain_name][0].size(0)).to(self.device, torch.float)
-    #             for domain_name in self.domain_names
-    #         }
-    #
-    #     states = []
-    #     sum_available_domains = torch.zeros(latents[keep_domains[0]][0].size(0)).to(self.device, torch.float)
-    #     for k, domain_name in enumerate(self.domain_names):
-    #         latent = latents[domain_name]
-    #         available_domain = available_domains[domain_name].clone()
-    #         if domain_name not in keep_domains:
-    #             available_domain[:] = 0.
-    #         sum_available_domains += available_domain
-    #         state = self.encode(latent, domain_name) * available_domain[:, None]
-    #         states.append(state)
-    #
-    #     assert (sum_available_domains <= 1).all(), "Several domains are provided!"
-    #
-    #     states = torch.stack(states, dim=1)
-    #     state = states.sum(dim=1)  # only keeps one, if assert is verified
-    #     # state = torch.tanh(state)
-    #     return state
 
     def predict(self, state):
         return {
