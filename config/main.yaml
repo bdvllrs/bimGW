@@ -130,6 +130,9 @@ lm:
   train_attr_decoders: false
   optimize_vae_with_attr_regression: false
 
+  coef_attr_loss: 100_000
+  coef_vae_loss: 1
+
   batch_size: 1024
   n_validation_examples: 32
   early_stopping_patience: null

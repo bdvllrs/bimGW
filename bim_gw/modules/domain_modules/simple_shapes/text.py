@@ -49,7 +49,9 @@ class SimpleShapesText(DomainModule):
             attributes_use_unpaired=True,
             train_vae=True,
             train_attr_decoders=True,
-            optimize_vae_with_attr_regression=False
+            optimize_vae_with_attr_regression=False,
+            coef_attr_loss=1,
+            coef_vae_loss=1
     ):
 
         super(SimpleShapesText, self).__init__()
@@ -63,6 +65,8 @@ class SimpleShapesText(DomainModule):
         self.train_vae = train_vae
         self.train_attr_decoders = train_attr_decoders
         self.optimize_vae_with_attr_regression = optimize_vae_with_attr_regression
+        self.coef_attr_loss = coef_attr_loss
+        self.coef_vae_loss = coef_vae_loss
 
         self.text_composer = composer
         self.composer_inspection = inspect_all_choices(composer)
@@ -278,7 +282,7 @@ class SimpleShapesText(DomainModule):
         predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(
             z_predictions, sentences, targets, mode=mode
         )
-        total_loss = vae_loss + 100_000 * attribute_prediction_loss
+        total_loss = self.coef_vae_loss * vae_loss + self.coef_attr_loss * attribute_prediction_loss
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss
