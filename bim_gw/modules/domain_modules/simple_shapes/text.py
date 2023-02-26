@@ -278,7 +278,7 @@ class SimpleShapesText(DomainModule):
         predictions, attribute_losses, attribute_prediction_loss = self.train_attribute_predictions(
             z_predictions, sentences, targets, mode=mode
         )
-        total_loss = 0 * vae_loss + attribute_prediction_loss
+        total_loss = vae_loss + 100_000 * attribute_prediction_loss
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss
@@ -341,20 +341,16 @@ class SimpleShapesText(DomainModule):
                         domain_examples["t"][3]
                     ]
                 )
-                decoded_s = self.decode(encoded_s)
                 predictions = self.classify(encoded_s[0])
-                sentence_predictions = decoded_s[1]
-
-                text = [[sentence_predictions[k]] for k in range(len(sentence_predictions))]
+                predictions = self.attribute_domain.decode(predictions)
+                sentences, choices = self.get_sentence_predictions(encoded_s[0], predictions)
+                text = [[sentence] for sentence in sentences]
 
                 if hasattr(logger, "log_table"):
                     logger.log_table(f"{mode}/predictions_text", columns=["Text"], data=text)
 
                 # Images
-                self.attribute_domain.log_domain(
-                    logger, self.attribute_domain.decode(predictions),
-                    f"{mode}/predictions_reconstruction"
-                )
+                self.attribute_domain.log_domain(logger, predictions, f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
                     self.attribute_domain.log_domain(
