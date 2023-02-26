@@ -6,7 +6,6 @@ from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
-from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_choices_from_structure_category, inspect_all_choices
@@ -22,23 +21,24 @@ def convert_angle(angle):
     return angle + 2 * np.pi * (angle < 0)
 
 
-class TextEncoder(DomainEncoder):
-    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
-        super(TextEncoder, self).__init__(in_dims, hidden_size, out_dim, n_layers)
+def symlog(x, alpha=1):
+    return torch.sign(x) * torch.log(1 + alpha * torch.abs(x)) / np.log(1 + alpha)
 
-        self.encoder = nn.Sequential(
-            nn.Linear(sum(self.in_dims), self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 12),  # projection
-            nn.ReLU(),
-            nn.Linear(12, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, self.out_dim)
-        )
+
+def symexp(x, alpha=1):
+    return torch.sign(x) * (torch.exp(alpha * torch.abs(x)) - 1) / alpha
+
+
+class SymLog(nn.Module):
+    def __init__(self, alpha=1):
+        super(SymLog, self).__init__()
+        self.alpha = alpha
+
+    def forward(self, x):
+        return symlog(x, self.alpha)
+
+    def inverse(self, x):
+        return symexp(x, self.alpha)
 
 
 class SimpleShapesText(DomainModule):
@@ -78,7 +78,8 @@ class SimpleShapesText(DomainModule):
             nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.z_size * 2)
+            nn.Linear(self.bert_size // 2, self.z_size * 2),
+            SymLog(1),
         )
 
         self.decoder = nn.Sequential(
@@ -131,28 +132,26 @@ class SimpleShapesText(DomainModule):
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            None
+            SymLog(1)
         ]
 
         self.losses = [
-            lambda x, y: F.mse_loss(x, y)
+            F.mse_loss
         ]
 
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
 
     def encode(self, sentences):
-        bert_latents, sentences, choices = sentences
-        z, _ = self.encode_stats(bert_latents)
-        return [z]
+        if len(sentences) == 3:
+            bert_latents, sentences, choices = sentences
+            z, _ = self.encode_stats(bert_latents)
+            return [z]
+        return sentences
 
-    def decode(self, z):
-        text_latent = self.decoder(z[0])
-        predictions = self.classify(z[0])
-        grammar_prediction = self.get_grammar_prediction(z[0])
+    def get_sentence_predictions(self, z, predictions):
+        grammar_prediction = self.get_grammar_prediction(z)
         choices = get_choices_from_structure_category(self.text_composer, grammar_prediction)
-        # predictions = text_latent
-        predictions = self.attribute_domain.decode(predictions)
         cls = predictions[0].detach().cpu().numpy()
         attributes = predictions[1].detach().cpu().numpy()
         # Text
@@ -173,6 +172,16 @@ class SimpleShapesText(DomainModule):
             )
             sentence_predictions.append(sentence)
             final_choices.append(choice)
+        return sentence_predictions, final_choices
+
+    def decode(self, z):
+        return z
+        z_mean = z[0]
+        text_latent = self.decoder(z_mean)
+        predictions = self.classify(z_mean)
+        predictions = self.attribute_domain.decode(predictions)
+
+        sentence_predictions, final_choices = self.get_sentence_predictions(z_mean, predictions)
         return [text_latent, sentence_predictions, final_choices]
 
     def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
@@ -197,16 +206,18 @@ class SimpleShapesText(DomainModule):
         return None, labels, choices  # TODO: add BERT vectors
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        if logger is not None and hasattr(logger, "log_table"):
-            text = [[x[1][k]] for k in range(len(x[1]))]
-            logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
-        if type(x[0]) == list:
-            encoded_s = x[0]
+        if len(x) == 1:
+            encoded_s = x
         else:
             encoded_s = self.encode(x)
         predictions = self.attribute_domain.decode(self.classify(encoded_s[0]))
         # predictions = self.attribute_domain.decode(encoded_s)
         self.attribute_domain.log_domain(logger, predictions, name, max_examples, step=step)
+
+        if logger is not None and hasattr(logger, "log_table"):
+            sentences, choices = self.get_sentence_predictions(encoded_s[0], predictions)
+            text = [[sentence] for sentence in sentences]
+            logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
 
     def classify(self, z):
         prediction = self.attribute_encoder(z)
