@@ -1,4 +1,4 @@
-from bim_gw.utils.registers import DatasetRegister
+from bim_gw.utils import registries
 
 
 def load_simple_shapes_dataset(args, local_args, **kwargs):
@@ -36,11 +36,10 @@ def load_cmu_mosei_dataset(args, local_args, **kwargs):
 
 
 def load_dataset(args, local_args, **kwargs):
-    DatasetRegister().add("shapes", load_simple_shapes_dataset)
-    # DatasetRegister().add("cmu_mosei", load_cmu_mosei_dataset)
+    registries.register_dataset("shapes", load_simple_shapes_dataset)
 
     try:
-        dataset = DatasetRegister().get(args.current_dataset)(args, local_args, **kwargs)
+        dataset = registries.get_dataset(args.current_dataset)(args, local_args, **kwargs)
     except KeyError:
         raise ValueError("The requested dataset is not implemented.")
     return dataset

@@ -5,14 +5,14 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 
 from bim_gw.modules.domain_modules.domain_module import PassThroughWM
+from bim_gw.utils import registries
 from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.registers import DomainRegister
 from bim_gw.utils.utils import get_checkpoint_path
 
 
 def get_domain(domain_name, args, img_size=None):
     try:
-        domain = DomainRegister().get(domain_name)(args, img_size)
+        domain = registries.get_domain(domain_name)(args, img_size)
     except KeyError:
         raise ValueError(f"Domain {domain_name} not found in registry.")
 
