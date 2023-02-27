@@ -13,7 +13,7 @@ from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.utils import get_checkpoint_path
 
 
-def add_domains_to_register():
+def add_domains_to_registry():
     registries.register_domain(
         "v", lambda args, img_size=None: VAE.load_from_checkpoint(
             get_checkpoint_path(args.global_workspace.vae_checkpoint),
@@ -68,7 +68,7 @@ class SimpleShapesDataModule(DataModule):
         self.val_dataset_size = len(ds)
         self.is_setup = False
 
-        add_domains_to_register()
+        add_domains_to_registry()
 
     def setup(self, stage=None):
         if not self.is_setup:
