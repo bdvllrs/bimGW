@@ -179,7 +179,6 @@ class SimpleShapesText(DomainModule):
         return sentence_predictions, final_choices
 
     def decode(self, z):
-        return z
         z_mean = z[0]
         text_latent = self.decoder(z_mean)
         predictions = self.classify(z_mean)
@@ -209,19 +208,17 @@ class SimpleShapesText(DomainModule):
         )
         return None, labels, choices  # TODO: add BERT vectors
 
-    def log_domain(self, logger, x, name, max_examples=None, step=None):
-        if len(x) == 1:
-            encoded_s = x
-        else:
-            encoded_s = self.encode(x)
-        predictions = self.attribute_domain.decode(self.classify(encoded_s[0]))
-        # predictions = self.attribute_domain.decode(encoded_s)
+    def log_domain_from_latent(self, logger, z, name, max_examples=None, step=None):
+        predictions = self.attribute_domain.decode(self.classify(z[0]))
         self.attribute_domain.log_domain(logger, predictions, name, max_examples, step=step)
 
         if logger is not None and hasattr(logger, "log_table"):
-            sentences, choices = self.get_sentence_predictions(encoded_s[0], predictions)
+            sentences, choices = self.get_sentence_predictions(z[0], predictions)
             text = [[sentence] for sentence in sentences]
             logger.log_table(name + "_s", columns=["Text"], data=text, step=step)
+
+    def log_domain(self, logger, x, name, max_examples=None, step=None):
+        self.log_domain_from_latent(logger, self.encode(x), name, max_examples, step)
 
     def classify(self, z):
         prediction = self.attribute_encoder(z)
@@ -348,6 +345,7 @@ class SimpleShapesText(DomainModule):
                 predictions = self.classify(encoded_s[0])
                 predictions = self.attribute_domain.decode(predictions)
                 sentences, choices = self.get_sentence_predictions(encoded_s[0], predictions)
+
                 text = [[sentence] for sentence in sentences]
 
                 if hasattr(logger, "log_table"):

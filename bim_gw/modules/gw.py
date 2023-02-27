@@ -417,6 +417,35 @@ class GlobalWorkspace(LightningModule):
 
     def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
+        latents = self.encode_uni_modal(examples)
+
+        for domain_name, latent in latents.items():
+            # Demi cycles
+            predictions = self.adapt(self.predict(self.project(latents, [domain_name])))
+            self.domain_mods[domain_name].log_domain_from_latent(
+                logger, predictions[domain_name],
+                f"{slug}/demi_cycles/{domain_name}", max_examples
+            )
+
+            for domain_name_2 in latents.keys():
+                if domain_name_2 != domain_name:
+                    # Full cycles
+                    cycle_predictions = self.predict(self.project(predictions, [domain_name_2]))
+                    self.domain_mods[domain_name].log_domain_from_latent(
+                        logger, cycle_predictions[domain_name],
+                        f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
+                        max_examples
+                    )
+
+                    # Translations
+                    self.domain_mods[domain_name_2].log_domain_from_latent(
+                        logger, predictions[domain_name_2],
+                        f"{slug}/translation/{domain_name}_to_{domain_name_2}",
+                        max_examples,
+                    )
+
+    def log_original_domains(self, logger, examples, slug="val", max_examples=None):
+        available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
             save_images = False
             if logger.do_save_last_images:
@@ -430,44 +459,32 @@ class GlobalWorkspace(LightningModule):
             if logger.do_save_last_images:
                 logger_save_images(logger, save_images)
 
-        latents = self.encode_uni_modal(examples)
+    def on_train_start(self) -> None:
+        for mode in ["train", "val"]:
+            domain_examples = self.domain_examples[mode]
+            if self.domain_examples is not None:
+                for logger in self.loggers:
+                    self.set_unimodal_pass_through(False)
+                    if self.trainer.datamodule.ood_boundaries is not None:
+                        logger.log_hyperparams({"ood_boundaries": self.trainer.datamodule.ood_boundaries})
+                    for k, dist in enumerate(["in_dist", "ood"]):
+                        if domain_examples[k] is not None:
+                            validation_examples = self.get_domain_examples(mode, dist)
 
-        for domain_name, latent in latents.items():
-            # Demi cycles
-            predictions = self.adapt(self.predict(self.project(latents, [domain_name])))
-            x_reconstructed = self.domain_mods[domain_name].decode(predictions[domain_name])
-            self.domain_mods[domain_name].log_domain(
-                logger, x_reconstructed,
-                f"{slug}/demi_cycles/{domain_name}", max_examples
-            )
+                            if self.validation_example_list is not None:
+                                self.log_original_domains(logger, validation_examples, f"{mode}/{dist}")
 
-            for domain_name_2 in latents.keys():
-                if domain_name_2 != domain_name:
-                    # Full cycles
-                    cycle_predictions = self.predict(self.project(predictions, [domain_name_2]))
-                    x_reconstructed = self.domain_mods[domain_name].decode(cycle_predictions[domain_name])
-                    self.domain_mods[domain_name].log_domain(
-                        logger, x_reconstructed,
-                        f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
-                        max_examples
-                    )
+                    if "train" in self.domain_examples and self.domain_examples["train"][0] is not None:
+                        train_examples = self.get_domain_examples("train", "in_dist")
+                        self.log_original_domains(logger, train_examples, "train")
 
-                    # Translations
-                    domain_end_pred = self.domain_mods[domain_name_2].decode(predictions[domain_name_2])
-                    self.domain_mods[domain_name_2].log_domain(
-                        logger, domain_end_pred,
-                        f"{slug}/translation/{domain_name}_to_{domain_name_2}",
-                        max_examples,
-                    )
+                    self.set_unimodal_pass_through(True)
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
         if self.domain_examples is not None:
             for logger in self.loggers:
                 self.set_unimodal_pass_through(False)
-                if self.current_epoch == 0:
-                    if self.trainer.datamodule.ood_boundaries is not None:
-                        logger.log_hyperparams({"ood_boundaries": self.trainer.datamodule.ood_boundaries})
                 # self.logger.experiment["grad_norm_array"].upload(File.as_html(self.grad_norms_bin.values(15)))
                 for k, dist in enumerate(["in_dist", "ood"]):
                     if domain_examples[k] is not None:

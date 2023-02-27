@@ -29,6 +29,9 @@ class DomainModule(LightningModule):
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         raise NotImplementedError
 
+    def log_domain_from_latent(self, logger, z, title, max_examples=None, step=None):
+        return self.log_domain(logger, self.decode(z), title, max_examples, step=step)
+
     def compute_acc(self, acc_metric, predictions, targets):
         raise NotImplementedError
 
@@ -73,6 +76,9 @@ class PassThroughWM(DomainModule):
         if self.use_pass_through:
             return z
         return self.workspace_module.adapt(z)
+
+    def log_domain_from_latent(self, logger, z, title, max_examples=None, step=None):
+        return self.workspace_module.log_domain_from_latent(logger, z, title, max_examples, step=step)
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         return self.workspace_module.log_domain(logger, x, title, max_examples, step=step)
