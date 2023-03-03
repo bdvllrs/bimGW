@@ -15,13 +15,13 @@ if __name__ == '__main__':
     if "--help" in args:
         print("Compresses runs in a run_work_directory.")
         print(
-            "Usage: python compress.py --slurm.run_work_directory <path> [--before <int>] [--after <int>] [-n <name>] [-d] [--dry-run]")
+            "Usage: python compress.py --slurm.run_work_directory <path> ['--before=<int>'] ['--after=<int>'] ['-n=<name>'] [-d] [--dry-run]")
         print("Options:")
-        print("  --before <int>  Compresses run IDs before the given run number.")
-        print("  --after <int>  Compresses run IDs after the given run number.")
-        print("  -n <name>  Name of the compressed file.")
-        print("  -d  Deletes the experiment folders after compressing them.")
-        print("  --dry-run  Performs a dry run, does not compress or delete runs.")
+        print("  '--before=<int>'  Compresses run IDs before the given run number.")
+        print("  '--after=<int>'  Compresses run IDs after the given run number.")
+        print("  '-n=<name>'  Name of the compressed file.")
+        print("   -d  Deletes the experiment folders after compressing them.")
+        print("   --dry-run  Performs a dry run, does not compress or delete runs.")
         exit(0)
 
     assert "run_work_directory" in args.slurm, "You must specify a run_work_directory in your slurm config."
