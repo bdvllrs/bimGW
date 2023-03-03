@@ -7,8 +7,6 @@ from omegaconf import OmegaConf
 from bim_gw.utils import get_args
 
 if __name__ == '__main__':
-    work_dir = Path(__file__).absolute().parent.parent
-
     args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False)
     cli_args = OmegaConf.from_cli()
     args = OmegaConf.merge(args, cli_args)
