@@ -19,21 +19,20 @@ if __name__ == '__main__':
     files_to_compress = []
     for file in run_work_directory.iterdir():
         if file.is_dir() and file.name.isdigit():
-            files_to_compress.append(file)
+            files_to_compress.append(file.resolve().as_posix())
     print(f"Compressing {len(files_to_compress)} directories...")
     time = datetime.now()
+    command = f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {'/* '.join(files_to_compress)}/*"
     if "--dry-run" not in args:
-        os.system(
-            f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join([file.resolve().as_posix() for file in files_to_compress])}")
+        os.system(command)
     else:
-        print(
-            f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join([file.resolve().as_posix() for file in files_to_compress])}")
+        print(command)
         print(f"Dry run, not compressing {len(files_to_compress)} runs.")
     print(f"Done compressing {len(files_to_compress)} directories.")
     if "-d" in args or "--delete" in args:
         print("Cleaning runs...")
         for file in files_to_compress:
             if "--dry-run" not in args:
-                file.unlink()
+                os.system(f"rm -rf {file}")
             else:
                 print("[dry-run mode] would deleting", file)
