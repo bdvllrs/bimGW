@@ -18,11 +18,14 @@ if __name__ == '__main__':
     parent_directory = run_work_directory.parent
     files_to_compress = []
     for file in run_work_directory.iterdir():
-        if file.is_dir() and file.name.isdigit():
+        if file.is_dir() and file.name.isdigit() and (
+                not "--before" in args or int(file.name) < int(args["--before"])) and (
+                not "--after" in args or int(file.name) > int(args["--after"])):
             files_to_compress.append(file.resolve().as_posix())
     print(f"Compressing {len(files_to_compress)} directories...")
     time = str(datetime.now()).replace(" ", "_").replace(":", "-").replace(".", "-")
-    command = f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join(files_to_compress)}"
+    compressed_filename = f"compressed_{time}" if "-n" not in args else args["-n"]
+    command = f"tar -czvf {parent_directory}/{compressed_filename}.tar.gz {' '.join(files_to_compress)}"
     if "--dry-run" not in args:
         os.system(command)
     else:
