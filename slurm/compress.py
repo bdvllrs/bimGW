@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parent_directory = run_work_directory.parent
     files_to_compress = []
     for file in run_work_directory.iterdir():
-        if file.is_dir():
+        if file.is_dir() and file.name.isdigit():
             files_to_compress.append(file)
     print(f"Compressing {len(files_to_compress)} directories...")
     time = datetime.now()
