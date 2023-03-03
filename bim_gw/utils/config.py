@@ -48,11 +48,12 @@ def load_resolvers_if_needed():
         OmegaConf.register_new_resolver("coef_slug", loss_coef_slug_resolver)
 
 
-def get_args(debug=False, additional_config_files=None, cli=True):
+def get_args(debug=False, additional_config_files=None, cli=True, verbose=True):
     load_resolvers_if_needed()
 
-    print("Cli args")
-    print(sys.argv)
+    if verbose:
+        print("Cli args")
+        print(sys.argv)
 
     # Configurations
     default_args = OmegaConf.create(
@@ -86,9 +87,10 @@ def get_args(debug=False, additional_config_files=None, cli=True):
 
     args = OmegaConf.merge(args, cli_args)
 
-    print(OmegaConf.to_yaml(cli_args))
-    print("Complete args")
-    print(OmegaConf.to_yaml(args))
+    if verbose:
+        print(OmegaConf.to_yaml(cli_args))
+        print("Complete args")
+        print(OmegaConf.to_yaml(args))
 
     args.debug = args.debug or debug
 

@@ -7,10 +7,22 @@ from omegaconf import OmegaConf
 from bim_gw.utils import get_args
 
 if __name__ == '__main__':
-    args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False)
+    args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
     cli_args = OmegaConf.from_cli()
     args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
+
+    if "--help" in args:
+        print("Compresses runs in a run_work_directory.")
+        print(
+            "Usage: python compress.py --slurm.run_work_directory <path> [--before <int>] [--after <int>] [-n <name>] [-d] [--dry-run]")
+        print("Options:")
+        print("  --before <int>  Compresses run IDs before the given run number.")
+        print("  --after <int>  Compresses run IDs after the given run number.")
+        print("  -n <name>  Name of the compressed file.")
+        print("  -d  Deletes the experiment folders after compressing them.")
+        print("  --dry-run  Performs a dry run, does not compress or delete runs.")
+        exit(0)
 
     assert "run_work_directory" in args.slurm, "You must specify a run_work_directory in your slurm config."
 
