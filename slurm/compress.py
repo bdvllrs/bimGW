@@ -23,9 +23,11 @@ if __name__ == '__main__':
     print(f"Compressing {len(files_to_compress)} directories...")
     time = datetime.now()
     if "--dry-run" not in args:
-        os.system(f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join(str(files_to_compress))}")
+        os.system(
+            f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join([file.resolve().as_posix() for file in files_to_compress])}")
     else:
-        print(f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join(str(files_to_compress))}")
+        print(
+            f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join([file.resolve().as_posix() for file in files_to_compress])}")
         print(f"Dry run, not compressing {len(files_to_compress)} runs.")
     print(f"Done compressing {len(files_to_compress)} directories.")
     if "-d" in args or "--delete" in args:
