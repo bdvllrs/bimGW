@@ -22,7 +22,7 @@ if __name__ == '__main__':
             files_to_compress.append(file.resolve().as_posix())
     print(f"Compressing {len(files_to_compress)} directories...")
     time = datetime.now()
-    command = f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {'/* '.join(files_to_compress)}/*"
+    command = f"tar -czvf {parent_directory}/compressed_{time}.tar.gz {' '.join(files_to_compress)}"
     if "--dry-run" not in args:
         os.system(command)
     else:
