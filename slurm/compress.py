@@ -12,9 +12,9 @@ if __name__ == '__main__':
     args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 
-    assert "run_work_directory" in args.slurm.slurm, "You must specify a run_work_directory in your slurm config."
+    assert "run_work_directory" in args.slurm, "You must specify a run_work_directory in your slurm config."
 
-    run_work_directory = Path(args.slurm.slurm.run_work_directory)
+    run_work_directory = Path(args.slurm.run_work_directory)
     parent_directory = run_work_directory.parent
     files_to_compress = []
     for file in run_work_directory.iterdir():
