@@ -39,6 +39,9 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
     "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
+  pre_modules: null  # modules to load before starting the job
+  run_modules: null # modules to load when the job has started
+  python_environment: null  # path to the python environment to use or name of the conda environment to use
 
 dataloader:
   num_workers: 0
