@@ -83,7 +83,7 @@ class SimpleShapesText(DomainModule):
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
             nn.Linear(self.bert_size // 2, self.z_size * 2),
-            SymLog(1),
+            nn.Tanh(),
         )
 
         self.decoder = nn.Sequential(
@@ -136,7 +136,7 @@ class SimpleShapesText(DomainModule):
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            SymLog(1)
+            nn.Tanh(),
         ]
 
         self.losses = [
