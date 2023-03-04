@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -24,6 +25,17 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
         plt.show()
 
 
+@contextmanager
+def log_if_save_last_images(logger):
+    if logger is not None and getattr(logger, "do_save_last_images", False):
+        save_images = getattr(logger, "do_save_images", False)
+        logger.save_images(True)
+        yield
+        logger.save_images(save_images)
+        return
+    yield
+
+
 def logger_save_images(logger, mode=True):
     if logger is not None and hasattr(logger, "save_images"):
         logger.save_images(mode)
@@ -31,7 +43,7 @@ def logger_save_images(logger, mode=True):
 
 def loggers_save_images(loggers, mode=True):
     for logger in loggers:
-        if hasattr(logger, "do_save_last_images") and logger.do_save_last_images:
+        if getattr(logger, "do_save_last_images", False):
             logger_save_images(logger, mode)
 
 

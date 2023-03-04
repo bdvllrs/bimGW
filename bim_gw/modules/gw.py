@@ -9,7 +9,7 @@ from torch import nn
 
 from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
-from bim_gw.utils.utils import logger_save_images
+from bim_gw.utils.utils import log_if_save_last_images
 
 
 def check_domains_eq(domains_ori, domains_comp):
@@ -447,17 +447,12 @@ class GlobalWorkspace(LightningModule):
     def log_original_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
-            save_images = False
-            if logger.do_save_last_images:
-                save_images = getattr(logger, "do_save_images", False)
-                logger_save_images(logger, True)
-            for domain_name, domain_example in examples.items():
-                self.domain_mods[domain_name].log_domain(
-                    logger, domain_example,
-                    f"{slug}/original/domain_{domain_name}", max_examples
-                )
-            if logger.do_save_last_images:
-                logger_save_images(logger, save_images)
+            with log_if_save_last_images(logger):
+                for domain_name, domain_example in examples.items():
+                    self.domain_mods[domain_name].log_domain(
+                        logger, domain_example,
+                        f"{slug}/original/domain_{domain_name}", max_examples
+                    )
 
     def on_train_start(self) -> None:
         for mode in ["train", "val"]:

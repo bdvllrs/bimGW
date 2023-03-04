@@ -9,6 +9,7 @@ from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesA
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_choices_from_structure_category, inspect_all_choices
+from bim_gw.utils.utils import log_if_save_last_images
 from bim_gw.utils.vae import reparameterize
 
 
@@ -355,16 +356,17 @@ class SimpleShapesText(DomainModule):
                 self.attribute_domain.log_domain(logger, predictions, f"{mode}/predictions_reconstruction")
 
                 if self.current_epoch == 0:
-                    self.attribute_domain.log_domain(
-                        logger, domain_examples["attr"][1:],
-                        f"{mode}/target_reconstruction"
-                    )
-                    if hasattr(logger, "log_table"):
-                        logger.log_table(
-                            f"{mode}/target_text", columns=["Text"],
-                            data=[[domain_examples['t'][2][k]] for k in
-                                  range(len(domain_examples['t'][2]))]
+                    with log_if_save_last_images(logger):
+                        self.attribute_domain.log_domain(
+                            logger, domain_examples["attr"][1:],
+                            f"{mode}/target_reconstruction"
                         )
+                        if hasattr(logger, "log_table"):
+                            logger.log_table(
+                                f"{mode}/target_text", columns=["Text"],
+                                data=[[domain_examples['t'][2][k]] for k in
+                                      range(len(domain_examples['t'][2]))]
+                            )
 
     def validation_epoch_end(self, outputs):
         self.epoch_end("val")

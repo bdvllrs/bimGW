@@ -5,7 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
-from bim_gw.utils.utils import log_image
+from bim_gw.utils.utils import log_if_save_last_images, log_image
 from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 
 
@@ -158,7 +158,8 @@ class VAE(DomainModule):
                 _, x_reconstructed = self(x)
 
                 if self.current_epoch == 0:
-                    log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
+                    with log_if_save_last_images(logger):
+                        log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
 
                 log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], f"{mode}_reconstruction")
                 sampled_images = self.decoder(self.validation_sampling_z)
