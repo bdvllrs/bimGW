@@ -23,7 +23,8 @@ if __name__ == '__main__':
         args.slurm.python_environment,
         pre_modules=args.slurm.pre_modules,
         run_modules=args.slurm.run_modules,
-        setup_experiment=False
+        setup_experiment=False,
+        exclude_in_rsync=["images", "tests"],
     )
 
     args = args.slurm
