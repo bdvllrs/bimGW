@@ -1,5 +1,7 @@
 import logging
+import os
 import sys
+from pathlib import Path
 
 import numpy as np
 from omegaconf import OmegaConf
@@ -62,7 +64,8 @@ def get_args(debug=False, additional_config_files=None, cli=True, verbose=True):
         }
     )
 
-    config_path = PROJECT_DIR / "config"
+    config_path_env = os.getenv("BIMGW_CONFIG_PATH", None)
+    config_path = PROJECT_DIR / "config" if config_path_env is None else Path(config_path_env)
     main_args = OmegaConf.load(str((config_path / "main.yaml").resolve()))
     if debug and (config_path / "debug.yaml").exists():
         debug_args = OmegaConf.load(str((config_path / "debug.yaml").resolve()))

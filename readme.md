@@ -27,6 +27,9 @@ create a new `config/local.yaml` with updated values.
 You can also create a `config/debug.yaml` which will only be loaded if the `DEBUG` environment
 variable is set to `1`.
 
+When installing the project, copy the folder `config` to a folder of your choosing, and set the environment
+variable `BIMGW_CONFIG_PATH` to the path of the folder.
+
 ## Structure
 
 This repo contains the library containing the modules, dataset and dataloader, and the scripts used to train,
