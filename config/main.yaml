@@ -46,6 +46,34 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
 dataloader:
   num_workers: 0
 
+run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
+# ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
+loggers: [ ]
+#  - logger: WandbLogger
+#    save_images: true
+#    save_last_images: true  # whether to save the images generated after the last epoch.
+#    watch_model: true
+#    args:
+#      save_dir: "path/to/wandb/log/dir"
+#      project: "bimGW"
+# Additional args to wandb.init
+#  - logger: TensorBoardLogger
+#    save_images: true
+#    args:
+#      save_dir: "../logs/tensor_board_logger"
+#  - logger: CSVLogger
+#    save_images: true
+#    args:
+#      save_dir: "../logs/csv_logger"
+#  - logger: NeptuneLogger
+#    save_images: true
+#    args:
+#      project: null
+#      api_key: null
+#      mode: async
+#      run: null
+
+
 fetchers: # Additional fetcher parameters.
   t: # for text fetcher
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
@@ -207,32 +235,6 @@ losses:
     translation: 1.
     cosine: 0.
     contrastive: 1.
-
-run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
-# ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
-loggers: [ ]
-#  - logger: WandbLogger
-#    save_images: true
-#    watch_model: true
-#    args:
-#      save_dir: "path/to/wandb/log/dir"
-#      project: "bimGW"
-# Additional args to wandb.init
-#  - logger: TensorBoardLogger
-#    save_images: true
-#    args:
-#      save_dir: "../logs/tensor_board_logger"
-#  - logger: CSVLogger
-#    save_images: true
-#    args:
-#      save_dir: "../logs/csv_logger"
-#  - logger: NeptuneLogger
-#    save_images: true
-#    args:
-#      project: null
-#      api_key: null
-#      mode: async
-#      run: null
 
 # =====
 # Odd-one-out experiment parameters
