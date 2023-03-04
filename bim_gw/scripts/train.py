@@ -104,6 +104,8 @@ def train_lm(args):
     )
     trainer.fit(lm, data)
     best_checkpoint = "best" if not args.fast_dev_run else None
+
+    loggers_save_images(trainer.loggers, True)
     trainer.validate(lm, data, best_checkpoint)
     trainer.test(lm, data, best_checkpoint)
 
@@ -142,6 +144,7 @@ def train_ae(args):
     )
     trainer.fit(ae, data)
     best_checkpoint = "best" if not args.fast_dev_run else None
+    loggers_save_images(trainer.loggers, True)
     trainer.validate(ae, data, best_checkpoint)
     trainer.test(ae, data, best_checkpoint)
 
@@ -182,5 +185,6 @@ def train_vae(args):
     trainer.fit(vae, data)
     # vae.n_FID_samples = data.val_dataset_size  # all the dataset
     best_checkpoint = "best" if not args.fast_dev_run else None
+    loggers_save_images(trainer.loggers, True)
     trainer.validate(vae, data, best_checkpoint)
     trainer.test(vae, data, best_checkpoint)
