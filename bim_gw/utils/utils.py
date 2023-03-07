@@ -27,6 +27,9 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
 
 @contextmanager
 def log_if_save_last_images(logger):
+    """
+    Creates a context manager that saves images if the logger has the attribute do_save_last_images set to True.
+    """
     if logger is not None and getattr(logger, "do_save_last_images", False):
         save_images = getattr(logger, "do_save_images", False)
         logger.save_images(True)
