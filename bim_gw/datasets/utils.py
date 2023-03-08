@@ -16,6 +16,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         args.simple_shapes_path, local_args.batch_size,
         args.dataloader.num_workers,
         local_args.prop_labelled_images,
+        local_args.get("prop_available_images", 1.),
         local_args.remove_sync_domains,
         args.n_validation_examples, local_args.split_ood,
         local_args.selected_domains,

@@ -43,9 +43,10 @@ def load_t_domain(args, img_size=None):
 class SimpleShapesDataModule(DataModule):
     def __init__(
             self, simple_shapes_folder, batch_size,
-            num_workers=0, prop_labelled_images=None,
+            num_workers=0, prop_labelled_images=1.,
+            prop_available_images=1.,
             removed_sync_domains=None,
-            n_validation_domain_examples=None, split_ood=True,
+            n_validation_domain_examples=32, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
             sync_uses_whole_dataset=False,
@@ -53,7 +54,7 @@ class SimpleShapesDataModule(DataModule):
             fetcher_params=None
     ):
         super().__init__(
-            batch_size, num_workers, prop_labelled_images, removed_sync_domains,
+            batch_size, num_workers, prop_labelled_images, prop_available_images, removed_sync_domains,
             n_validation_domain_examples, split_ood, selected_domains, pre_saved_latent_paths,
             add_unimodal, fetcher_params
         )
@@ -62,6 +63,7 @@ class SimpleShapesDataModule(DataModule):
         self.img_size = 32
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
         self.num_channels = 3
+        self.len_train_dataset = 1_000_000
         ds = SimpleShapesDataset(
             simple_shapes_folder, "val", selected_domains=self.selected_domains,
             fetcher_params=self.fetcher_params
@@ -88,12 +90,10 @@ class SimpleShapesDataModule(DataModule):
                     fetcher_params=self.fetcher_params
                 )
 
-                # train_set = SimpleShapesDataset(self.simple_shapes_folder, "train", extend_dataset=False, with_actions=self.with_actions)
-                len_train_dataset = 1_000_000
                 if self.sync_uses_whole_dataset:
-                    sync_indices = np.arange(len_train_dataset)
+                    sync_indices = np.arange(self.len_train_dataset)
                 else:
-                    sync_indices = np.arange(len_train_dataset // 2)
+                    sync_indices = np.arange(self.len_train_dataset // 2)
                 train_set = SimpleShapesDataset(
                     self.simple_shapes_folder, "train",
                     selected_indices=sync_indices,
@@ -124,7 +124,6 @@ class SimpleShapesDataModule(DataModule):
                 if self.add_unimodal:
                     mapping, domain_mapping = self.filter_sync_domains(target_indices)
 
-                    print(f"Loaded {len(target_indices)} examples in train set.")
                     self.train_set = SimpleShapesDataset(
                         self.simple_shapes_folder, "train",
                         mapping=mapping,

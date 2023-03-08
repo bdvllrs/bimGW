@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
@@ -21,9 +23,10 @@ def split_indices_prop(allowed_indices, prop):
 class DataModule(LightningDataModule):
     def __init__(
             self, batch_size,
-            num_workers=0, prop_labelled_images=None,
+            num_workers=0, prop_labelled_images=1.,
+            prop_available_images=1.,
             removed_sync_domains=None,
-            n_validation_domain_examples=None, split_ood=True,
+            n_validation_domain_examples=32, split_ood=True,
             selected_domains=None,
             pre_saved_latent_paths=None,
             add_unimodal=True,
@@ -42,6 +45,9 @@ class DataModule(LightningDataModule):
         self.fetcher_params = fetcher_params
 
         self.prop_labelled_images = prop_labelled_images
+        self.prop_available_images = prop_available_images
+        assert self.prop_available_images >= self.prop_labelled_images, "prop_available_images must be >= prop_labelled_images"
+
         # Remove sync for some combination of domains
         self.remove_sync_domains = removed_sync_domains
 
@@ -117,6 +123,11 @@ class DataModule(LightningDataModule):
                             )
 
     def filter_sync_domains(self, allowed_indices):
+        # Only keep proportion of images in self.prop_available_images.
+        # This split is done regardless of the ood split.
+        allowed_indices, _ = split_indices_prop(allowed_indices, self.prop_available_images)
+        logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
+
         prop_2_domains = self.prop_labelled_images
         # prop_3_domains = self.prop_labelled_images[1]
         # assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"

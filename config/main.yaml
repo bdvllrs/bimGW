@@ -202,7 +202,8 @@ global_workspace:
     decoder: { "t": 0, "attr": 0, "v": 0 }
     decoder_head: { "t": 2, "attr": 2, "v": 2 }
 
-  prop_labelled_images: 1.  # of the allowed classes to be labelled.
+  prop_labelled_images: 1.  # proportion of the allowed classes to be labelled.
+  prop_available_images: 1.  # proportion of available images used in cycles and demi-cycles.
   remove_sync_domains: null
   vae_checkpoint: null
   lm_checkpoint: null
