@@ -8,13 +8,14 @@ from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
 
 class SimpleShapesAttributes(DomainModule):
-    def __init__(self, imsize, use_unpaired=True):
+    def __init__(self, imsize):
         super(SimpleShapesAttributes, self).__init__()
         self.save_hyperparameters()
 
-        self.use_unpaired = use_unpaired
+        # self.use_unpaired = use_unpaired
         self.n_classes = 3
-        self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute if needed
+        # self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute if needed
+        self.z_size = 8
         self.imsize = imsize
 
         self.output_dims = [
@@ -104,8 +105,8 @@ class SimpleShapesAttributes(DomainModule):
 
         # text
         labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
-        if self.use_unpaired:
-            labels.append("u")
+        # if self.use_unpaired:
+        #     labels.append("u")
         text = []
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
@@ -117,8 +118,8 @@ class SimpleShapesAttributes(DomainModule):
 
     def loss(self, predictions, targets):
         loss, losses = super().loss(predictions, targets)
-        if self.use_unpaired:
-            # Add unpaired loss label
-            # Do not add it to loss, as it is already counted. Only for logging.
-            losses["unpaired"] = F.mse_loss(predictions[1][:, -1], targets[1][:, -1])
+        # if self.use_unpaired:
+        #     # Add unpaired loss label
+        #     # Do not add it to loss, as it is already counted. Only for logging.
+        #     losses["unpaired"] = F.mse_loss(predictions[1][:, -1], targets[1][:, -1])
         return loss, losses

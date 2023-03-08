@@ -47,7 +47,6 @@ class SimpleShapesText(DomainModule):
             self, z_size, hidden_size, beta, n_classes, imsize, bert_path,
             optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20, scheduler_gamma=0.5,
             domain_examples=None,
-            attributes_use_unpaired=True,
             train_vae=True,
             train_attr_decoders=True,
             optimize_vae_with_attr_regression=False,
@@ -75,7 +74,7 @@ class SimpleShapesText(DomainModule):
         self.transformer = None
         self.tokenizer = None
 
-        self.attribute_domain = SimpleShapesAttributes(imsize, attributes_use_unpaired)
+        self.attribute_domain = SimpleShapesAttributes(imsize)
         self.attribute_domain.freeze()
 
         self.encoder = nn.Sequential(
@@ -84,7 +83,7 @@ class SimpleShapesText(DomainModule):
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
             nn.Linear(self.bert_size // 2, self.z_size * 2),
-            nn.Tanh(),
+            SymLog(),
         )
 
         self.decoder = nn.Sequential(
@@ -137,7 +136,7 @@ class SimpleShapesText(DomainModule):
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
-            nn.Tanh(),
+            SymLog(),
         ]
 
         self.losses = [

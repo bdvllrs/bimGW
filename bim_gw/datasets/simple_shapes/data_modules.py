@@ -36,7 +36,6 @@ def load_t_domain(args, img_size=None):
         z_size=args.lm.z_size,
         hidden_size=args.lm.hidden_size,
         beta=args.lm.beta,
-        attributes_use_unpaired=args.fetchers.attr.use_unpaired,
     )
 
 

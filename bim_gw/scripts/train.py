@@ -81,7 +81,6 @@ def train_lm(args):
             checkpoint_path, strict=False,
             bert_path=args.global_workspace.bert_path,
             domain_examples=data.domain_examples,
-            attributes_use_unpaired=args.fetchers.attr.use_unpaired,
             train_vae=args.lm.train_vae,
             train_attr_decoders=args.lm.train_attr_decoders,
             optimize_vae_with_attr_regression=args.lm.optimize_vae_with_attr_regression,
@@ -93,7 +92,7 @@ def train_lm(args):
             args.lm.z_size, args.lm.hidden_size, args.lm.beta,
             len(data.classes), data.img_size, args.global_workspace.bert_path,
             args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
-            args.lm.scheduler.gamma, data.domain_examples, args.fetchers.attr.use_unpaired,
+            args.lm.scheduler.gamma, data.domain_examples,
             args.lm.train_vae, args.lm.train_attr_decoders,
             args.lm.optimize_vae_with_attr_regression, args.lm.coef_attr_loss, args.lm.coef_vae_loss,
         )
