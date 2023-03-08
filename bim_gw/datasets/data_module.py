@@ -128,7 +128,7 @@ class DataModule(LightningDataModule):
         allowed_indices, _ = split_indices_prop(allowed_indices, self.prop_available_images)
         logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
 
-        prop_2_domains = self.prop_labelled_images
+        prop_2_domains = self.prop_labelled_images * self.prop_available_images
         # prop_3_domains = self.prop_labelled_images[1]
         # assert prop_3_domains <= prop_2_domains, "Must have less synchronization with 3 than 2 domains"
         mapping = None
