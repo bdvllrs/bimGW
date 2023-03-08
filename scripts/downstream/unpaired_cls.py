@@ -5,9 +5,9 @@ from pytorch_lightning import Trainer
 
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
-from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.scripts import get_domains
 from bim_gw.utils.utils import get_checkpoint_path
 
 if __name__ == "__main__":

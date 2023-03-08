@@ -6,7 +6,7 @@ from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
 from bim_gw.modules.domain_modules import AE, VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesText
-from bim_gw.scripts.utils import get_domains, get_trainer
+from bim_gw.utils.scripts import get_domains, get_trainer
 from bim_gw.utils.utils import get_checkpoint_path, loggers_save_images
 
 

@@ -8,9 +8,9 @@ from bim_gw.datasets.odd_image.data_module import OddImageDataModule
 from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.odd_classifier import OddClassifier
 from bim_gw.modules.workspace_encoders import DomainEncoder
-from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.loggers import get_loggers
+from bim_gw.utils.scripts import get_domains
 from bim_gw.utils.utils import find_best_epoch, get_checkpoint_path, get_runs_dataframe
 
 

@@ -8,8 +8,8 @@ from tqdm import tqdm
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
 from bim_gw.modules.gw import split_domains_available_domains
-from bim_gw.scripts.utils import get_domains
 from bim_gw.utils import get_args
+from bim_gw.utils.scripts import get_domains
 
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
