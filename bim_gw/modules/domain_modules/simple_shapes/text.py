@@ -148,11 +148,9 @@ class SimpleShapesText(DomainModule):
         self.register_buffer("beta", torch.tensor(beta))
 
     def encode(self, sentences):
-        if len(sentences) == 3:
-            bert_latents, sentences, choices = sentences
-            z, _ = self.encode_stats(bert_latents)
-            return [z]
-        return sentences
+        bert_latents, sentences, choices = sentences
+        z, _ = self.encode_stats(bert_latents)
+        return [z]
 
     def get_sentence_predictions(self, z, predictions):
         grammar_prediction = self.get_grammar_prediction(z)
