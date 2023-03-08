@@ -13,28 +13,30 @@ from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.utils import get_checkpoint_path
 
 
-def add_domains_to_registry():
-    registries.register_domain(
-        "v", lambda args, img_size=None: VAE.load_from_checkpoint(
-            get_checkpoint_path(args.global_workspace.vae_checkpoint),
-            mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-            kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
-            strict=False
-        )
+@registries.register_domain("v")
+def load_v_domain(args, im_size=None):
+    return VAE.load_from_checkpoint(
+        get_checkpoint_path(args.global_workspace.vae_checkpoint),
+        mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
+        kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
+        strict=False
     )
-    registries.register_domain(
-        "attr",
-        lambda args, img_size: SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired)
-    )
-    registries.register_domain(
-        "t", lambda args, img_size=None: SimpleShapesText.load_from_checkpoint(
-            get_checkpoint_path(args.global_workspace.lm_checkpoint),
-            bert_path=args.global_workspace.bert_path,
-            z_size=args.lm.z_size,
-            hidden_size=args.lm.hidden_size,
-            beta=args.lm.beta,
-            attributes_use_unpaired=args.fetchers.attr.use_unpaired,
-        )
+
+
+@registries.register_domain("attr")
+def load_attr_domain(args, img_size):
+    return SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired)
+
+
+@registries.register_domain("t")
+def load_t_domain(args, img_size=None):
+    return SimpleShapesText.load_from_checkpoint(
+        get_checkpoint_path(args.global_workspace.lm_checkpoint),
+        bert_path=args.global_workspace.bert_path,
+        z_size=args.lm.z_size,
+        hidden_size=args.lm.hidden_size,
+        beta=args.lm.beta,
+        attributes_use_unpaired=args.fetchers.attr.use_unpaired,
     )
 
 
@@ -67,8 +69,6 @@ class SimpleShapesDataModule(DataModule):
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
         self.is_setup = False
-
-        add_domains_to_registry()
 
     def setup(self, stage=None):
         if not self.is_setup:

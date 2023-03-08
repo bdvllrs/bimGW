@@ -1,6 +1,7 @@
 from bim_gw.utils import registries
 
 
+@registries.register_dataset("shapes")
 def load_simple_shapes_dataset(args, local_args, **kwargs):
     from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
 
@@ -23,6 +24,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
     )
 
 
+# @registries.register_dataset("cmu_mosei")
 def load_cmu_mosei_dataset(args, local_args, **kwargs):
     from bim_gw.datasets.cmu_mosei.data_module import CMUMOSEIDataModule
 
@@ -36,8 +38,6 @@ def load_cmu_mosei_dataset(args, local_args, **kwargs):
 
 
 def load_dataset(args, local_args, **kwargs):
-    registries.register_dataset("shapes", load_simple_shapes_dataset)
-
     try:
         dataset = registries.get_dataset(args.current_dataset)(args, local_args, **kwargs)
     except KeyError:
