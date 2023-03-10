@@ -22,8 +22,6 @@ def test_ood(args):
 
     vae = VAE.load_from_checkpoint(
         args.global_workspace.vae_checkpoint,
-        mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-        kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
     ).eval()
     vae.freeze()
 

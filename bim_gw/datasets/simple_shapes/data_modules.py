@@ -17,15 +17,13 @@ from bim_gw.utils.utils import get_checkpoint_path
 def load_v_domain(args, im_size=None):
     return VAE.load_from_checkpoint(
         get_checkpoint_path(args.global_workspace.vae_checkpoint),
-        mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-        kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
     )
 
 
 @registries.register_domain("attr")
 def load_attr_domain(args, img_size):
-    return SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired)
+    return SimpleShapesAttributes(img_size)
 
 
 @registries.register_domain("t")
