@@ -114,7 +114,8 @@ class SimpleShapesText(DomainModule):
                     nn.ReLU(),
                     nn.Linear(self.z_size, n_outputs)
                 )
-                for name, n_outputs in self.composer_inspection.items()}
+                for name, n_outputs in self.composer_inspection.items()
+            }
         )
 
         if not self.train_attr_decoders:

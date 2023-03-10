@@ -52,9 +52,11 @@ class SimpleShapesDataModule(DataModule):
     ):
         super().__init__(
             batch_size, num_workers, prop_labelled_images, prop_available_images, removed_sync_domains,
-            n_validation_domain_examples, split_ood, selected_domains, pre_saved_latent_paths,
-            add_unimodal, fetcher_params
+            n_validation_domain_examples, split_ood, selected_domains,
         )
+        self.pre_saved_latent_paths = pre_saved_latent_paths
+        self.add_unimodal = add_unimodal
+        self.fetcher_params = fetcher_params
 
         self.simple_shapes_folder = Path(simple_shapes_folder)
         self.img_size = 32

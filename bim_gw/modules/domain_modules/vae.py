@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import log_if_save_last_images, log_image
 from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 
@@ -12,7 +13,7 @@ from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 class VAE(DomainModule):
     def __init__(
             self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
-            vae_type="beta",
+            vae_type: VAEType = VAEType.beta,
             n_validation_examples: int = 32,
             optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
             scheduler_step: int = 20, scheduler_gamma: float = 0.5,
@@ -29,7 +30,6 @@ class VAE(DomainModule):
         self.ae_size = ae_size
         self.z_size = z_size
         self.beta = beta
-        assert vae_type in ["beta", "sigma", "optimal_sigma"]
         self.vae_type = vae_type
         self.n_FID_samples = n_FID_samples
 
@@ -55,7 +55,7 @@ class VAE(DomainModule):
             self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
             self.validation_reconstruction_images = None
 
-        if self.vae_type == "sigma":
+        if self.vae_type == VAEType.sigma:
             self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
         else:
             self.register_buffer("log_sigma", torch.tensor(0.))
@@ -106,7 +106,7 @@ class VAE(DomainModule):
 
     def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
-        if self.vae_type == "optimal_sigma":
+        if self.vae_type == VAEType.optimal_sigma:
             log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
             log_sigma = softclip(log_sigma, -6)
             self.log_sigma = log_sigma.squeeze()

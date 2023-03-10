@@ -7,10 +7,9 @@ from omegaconf import OmegaConf
 from bim_gw.utils import get_args
 
 if __name__ == '__main__':
-    args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
-    cli_args = OmegaConf.from_cli()
-    args = OmegaConf.merge(args, cli_args)
-    OmegaConf.resolve(args)
+    conf = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
+    args = OmegaConf.from_cli()
+    OmegaConf.resolve(conf)
 
     if "--help" in args:
         print("Compresses runs in a run_work_directory.")
@@ -24,9 +23,9 @@ if __name__ == '__main__':
         print("   --dry-run  Performs a dry run, does not compress or delete runs.")
         exit(0)
 
-    assert "run_work_directory" in args.slurm, "You must specify a run_work_directory in your slurm config."
+    assert "run_work_directory" in conf.slurm, "You must specify a run_work_directory in your slurm config."
 
-    run_work_directory = Path(args.slurm.run_work_directory)
+    run_work_directory = Path(conf.slurm.run_work_directory)
     parent_directory = run_work_directory.parent
     files_to_compress = []
     for file in run_work_directory.iterdir():

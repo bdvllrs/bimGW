@@ -28,9 +28,6 @@ class DataModule(LightningDataModule):
             removed_sync_domains=None,
             n_validation_domain_examples=32, split_ood=True,
             selected_domains=None,
-            pre_saved_latent_paths=None,
-            add_unimodal=True,
-            fetcher_params=None
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -40,9 +37,6 @@ class DataModule(LightningDataModule):
         self.domain_examples = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
-        self.pre_saved_latent_paths = pre_saved_latent_paths
-        self.add_unimodal = add_unimodal
-        self.fetcher_params = fetcher_params
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images

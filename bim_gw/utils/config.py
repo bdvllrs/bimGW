@@ -7,6 +7,7 @@ import numpy as np
 from omegaconf import OmegaConf
 
 from bim_gw.utils.constants import PROJECT_DIR
+from bim_gw.utils.types import BIMConfig
 
 
 def has_internet_connection(host='https://google.com'):
@@ -50,7 +51,7 @@ def load_resolvers_if_needed():
         OmegaConf.register_new_resolver("coef_slug", loss_coef_slug_resolver)
 
 
-def get_args(debug=False, additional_config_files=None, cli=True, verbose=True):
+def get_args(debug=False, additional_config_files=None, cli=True, verbose=True, use_schema=True):
     load_resolvers_if_needed()
 
     if verbose:
@@ -117,4 +118,7 @@ def get_args(debug=False, additional_config_files=None, cli=True, verbose=True):
         )
         args.fetchers.attr.use_unpaired = False
 
+    if use_schema:
+        schema = OmegaConf.structured(BIMConfig)
+        args = OmegaConf.merge(schema, args)
     return args

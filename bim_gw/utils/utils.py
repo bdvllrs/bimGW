@@ -9,6 +9,8 @@ import torchvision
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
+from bim_gw.utils.types import LoadFromData
+
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
     # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
@@ -94,9 +96,9 @@ def update_df_for_legacy_code(df):
 
 
 def get_runs_dataframe(args):
-    if args.load_from == "csv":
+    if args.load_from == LoadFromData.csv:
         return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
-    elif args.load_from == "wandb":
+    elif args.load_from == LoadFromData.wandb:
         import wandb
 
         api = wandb.Api()
