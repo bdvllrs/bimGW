@@ -49,6 +49,15 @@ def loggers_save_images(loggers, mode=True):
         if getattr(logger, "do_save_last_images", False):
             logger_save_images(logger, mode)
 
+def logger_save_tables(logger, mode=True):
+    if logger is not None and hasattr(logger, "save_tables"):
+        logger.save_tables(mode)
+
+
+def loggers_save_tables(loggers, mode=True):
+    for logger in loggers:
+        if getattr(logger, "do_save_last_images", False):
+            logger_save_tables(logger, mode)
 
 def val_or_default(d, key, default=None):
     """
