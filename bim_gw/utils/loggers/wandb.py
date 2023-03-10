@@ -27,6 +27,9 @@ class WandbLogger(WandbLoggerBase):
 
     def save_images(self, mode=True):
         self.do_save_images = mode
+    
+    def save_tables(self, mode=True):
+        self.do_save_tables = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
@@ -35,7 +38,7 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
-        if self.log_tables:
+        if self.do_log_tables:
             if not isinstance(text, list):
                 text = [[text]]
             else:
