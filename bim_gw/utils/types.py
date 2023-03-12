@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-import numpy as np
+from numpy.typing import ArrayLike
 from omegaconf import ListConfig, MISSING
 
 WandbFilterT = Dict[str, Any]
 
 SplitLiteral = Literal["train", "val", "test"]
-ListType = Union[List, ListConfig, np.ndarray]
+ListType = Union[List, ListConfig, ArrayLike]
 
 
 class VAEType(Enum):

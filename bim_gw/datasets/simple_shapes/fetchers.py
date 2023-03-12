@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from numpy.typing import ArrayLike
 from PIL import Image
 
 from bim_gw.utils.text_composer.composer import composer
@@ -136,7 +137,7 @@ class TextDataFetcher(DataFetcher):
         bert_latents = self.fetcher_args['bert_latents']
         pca_dim = self.fetcher_args['pca_dim']
 
-        self.bert_data: Optional[np.ndarray] = None
+        self.bert_data: Optional[ArrayLike] = None
         self.bert_mean = None
         self.bert_std = None
         if bert_latents is not None:

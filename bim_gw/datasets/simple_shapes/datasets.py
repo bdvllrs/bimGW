@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Type, Union
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.fetchers import (
@@ -29,7 +30,7 @@ class SimpleShapesDataset:
             split: SplitLiteral = "train",
             mapping: List[int] = None,
             domain_mapping: List[List[str]] = None,
-            selected_indices: Union[List[int], np.ndarray[int]] = None,
+            selected_indices: Optional[ArrayLike[int]] = None,
             selected_domains: List[AvailableDomainsType] = None,
             pre_saved_latent_path: Optional[Dict[str, str]] = None,
             transform: Optional[Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
