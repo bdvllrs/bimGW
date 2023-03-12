@@ -120,5 +120,7 @@ def get_args(debug=False, additional_config_files=None, cli=True, verbose=True, 
 
     if use_schema:
         schema = OmegaConf.structured(BIMConfig)
+        OmegaConf.set_struct(schema, False)
         args = OmegaConf.merge(schema, args)
+
     return args
