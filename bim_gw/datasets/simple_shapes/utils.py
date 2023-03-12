@@ -1,5 +1,6 @@
 import itertools
 import random
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -21,7 +22,7 @@ class ComposeWithExtraParameters:
         return tuple(x)
 
 
-def get_preprocess(augmentation=False):
+def get_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
     transformations = []
     if augmentation:
         transformations.append(transforms.RandomHorizontalFlip())
@@ -36,7 +37,7 @@ def get_preprocess(augmentation=False):
     return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
 
 
-def in_interval(x, xmin, xmax, val_min, val_max):
+def in_interval(x: float, xmin: float, xmax: float, val_min: float, val_max: float) -> bool:
     if val_min <= xmin <= xmax <= val_max:
         return xmin <= x <= xmax
     if xmax < xmin:

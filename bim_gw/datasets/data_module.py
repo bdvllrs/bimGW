@@ -1,4 +1,5 @@
 import logging
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -6,7 +7,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 
 
-def split_indices_prop(allowed_indices, prop):
+def split_indices_prop(allowed_indices: List[int], prop: float) -> Tuple[List[int], List[int]]:
     # Unlabel randomly some elements
     n_targets = len(allowed_indices)
     assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
@@ -22,12 +23,12 @@ def split_indices_prop(allowed_indices, prop):
 
 class DataModule(LightningDataModule):
     def __init__(
-            self, batch_size,
-            num_workers=0, prop_labelled_images=1.,
-            prop_available_images=1.,
-            removed_sync_domains=None,
-            n_validation_domain_examples=32, split_ood=True,
-            selected_domains=None,
+            self, batch_size: int,
+            num_workers: int = 0, prop_labelled_images: float = 1.,
+            prop_available_images: float = 1.,
+            removed_sync_domains: Optional[List[List[str]]] = None,
+            n_validation_domain_examples: int = 32, split_ood: bool = True,
+            selected_domains: Optional[List[str]] = None,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -116,7 +117,7 @@ class DataModule(LightningDataModule):
                                 self.domain_examples[set_name][used_dist][domain]
                             )
 
-    def filter_sync_domains(self, allowed_indices):
+    def filter_sync_domains(self, allowed_indices: List[int]) -> Tuple[List[int], List[List[str]]]:
         # Only keep proportion of images in self.prop_available_images.
         # This split is done regardless of the ood split.
         allowed_indices, _ = split_indices_prop(allowed_indices, self.prop_available_images)
@@ -154,7 +155,7 @@ class DataModule(LightningDataModule):
 
         return mapping, domain_mapping
 
-    def train_dataloader(self, shuffle=True):
+    def train_dataloader(self, shuffle: bool = True) -> torch.utils.data.DataLoader:
         return torch.utils.data.DataLoader(
             self.train_set,
             shuffle=shuffle,
@@ -163,7 +164,7 @@ class DataModule(LightningDataModule):
             pin_memory=True
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> List[torch.utils.data.DataLoader]:
         dataloaders = [
             torch.utils.data.DataLoader(
                 self.val_set["in_dist"], self.batch_size,
@@ -179,7 +180,7 @@ class DataModule(LightningDataModule):
             )
         return dataloaders
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> List[torch.utils.data.DataLoader]:
         dataloaders = [
             torch.utils.data.DataLoader(
                 self.test_set["in_dist"], self.batch_size,

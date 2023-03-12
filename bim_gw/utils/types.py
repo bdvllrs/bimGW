@@ -1,10 +1,14 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from omegaconf import MISSING
+import numpy as np
+from omegaconf import ListConfig, MISSING
 
 WandbFilterT = Dict[str, Any]
+
+SplitLiteral = Literal["train", "val", "test"]
+ListType = Union[List, ListConfig, np.ndarray]
 
 
 class VAEType(Enum):
