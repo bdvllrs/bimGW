@@ -27,16 +27,10 @@ if __name__ == '__main__':
         exclude_in_rsync=["images", "tests"],
     )
 
-    args = args.slurm
-    slurm_args = args.slurm
-    del args.slurm
-    args.slurm = OmegaConf.create({"slurm": slurm_args, **OmegaConf.to_object(args)})
-    del args.script
-
-    sbatch = SBatch(slurm_args, OmegaConf.merge(args, cli_args),
-        grid_search=args.grid_search,
+    sbatch = SBatch(args.slurm.slurm, cli_args,
+        grid_search=args.slurm.grid_search,
         experiment_handler=handler)
     sbatch(
-        args.command,
+        args.slurm.command,
         schedule_all_tasks=True
     )
