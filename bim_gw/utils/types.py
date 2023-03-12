@@ -96,6 +96,7 @@ class DataloaderConfig:
 class LoggerConfig:
     logger: AvailableLoggers = MISSING
     save_images: bool = MISSING
+    save_table: bool = MISSING
     save_last_images: bool = MISSING
     watch_model: bool = MISSING
     args: Dict[str, Any] = MISSING
