@@ -30,7 +30,7 @@ class SimpleShapesDataset:
             split: SplitLiteral = "train",
             mapping: List[int] = None,
             domain_mapping: List[List[str]] = None,
-            selected_indices: Optional[ArrayLike[int]] = None,
+            selected_indices: Optional[ArrayLike] = None,
             selected_domains: List[AvailableDomainsType] = None,
             pre_saved_latent_path: Optional[Dict[str, str]] = None,
             transform: Optional[Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
