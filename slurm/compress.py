@@ -7,9 +7,7 @@ from omegaconf import OmegaConf
 from bim_gw.utils import get_args
 
 if __name__ == '__main__':
-    conf = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
     args = OmegaConf.from_cli()
-    OmegaConf.resolve(conf)
 
     if "--help" in args:
         print("Compresses runs in a run_work_directory.")
@@ -22,6 +20,9 @@ if __name__ == '__main__':
         print("   -d  Deletes the experiment folders after compressing them.")
         print("   --dry-run  Performs a dry run, does not compress or delete runs.")
         exit(0)
+
+    conf = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
+    OmegaConf.resolve(conf)
 
     assert "run_work_directory" in conf.slurm, "You must specify a run_work_directory in your slurm config."
 
