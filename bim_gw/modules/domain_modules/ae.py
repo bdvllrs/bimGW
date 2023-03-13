@@ -102,7 +102,8 @@ class AE(DomainModule):
 
                 if self.current_epoch == 0:
                     with log_if_save_last_images(logger):
-                        log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
+                        with log_if_save_last_tables(logger):
+                            log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
 
                 log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], f"{mode}_reconstruction")
 

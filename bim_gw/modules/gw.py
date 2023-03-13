@@ -448,11 +448,12 @@ class GlobalWorkspace(LightningModule):
         available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
             with log_if_save_last_images(logger):
-                for domain_name, domain_example in examples.items():
-                    self.domain_mods[domain_name].log_domain(
-                        logger, domain_example,
-                        f"{slug}/original/domain_{domain_name}", max_examples
-                    )
+                with log_if_save_last_tables(logger):
+                    for domain_name, domain_example in examples.items():
+                        self.domain_mods[domain_name].log_domain(
+                            logger, domain_example,
+                            f"{slug}/original/domain_{domain_name}", max_examples
+                        )
 
     def on_train_start(self) -> None:
         for mode in ["train", "val"]:
