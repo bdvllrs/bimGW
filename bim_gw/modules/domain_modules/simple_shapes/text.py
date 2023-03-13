@@ -10,7 +10,7 @@ from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import (
     get_choices_from_structure_category, inspect_all_choices
 )
-from bim_gw.utils.utils import log_if_save_last_images
+from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 from bim_gw.utils.vae import reparameterize
 from .attributes import SimpleShapesAttributes
 

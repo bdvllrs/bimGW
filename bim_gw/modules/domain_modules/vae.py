@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
-    log_if_save_last_images, log_image
+    log_if_save_last_images, log_if_save_last_tables, log_image
 )
 from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 
