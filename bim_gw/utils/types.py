@@ -98,6 +98,7 @@ class LoggerConfig:
     save_images: bool = MISSING
     save_tables: bool = MISSING
     save_last_images: bool = MISSING
+    save_last_tables: bool = MISSING
     watch_model: bool = MISSING
     args: Dict[str, Any] = MISSING
 

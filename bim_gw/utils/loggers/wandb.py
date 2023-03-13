@@ -10,7 +10,9 @@ from bim_gw.utils.loggers.utils import ImageType
 
 
 class WandbLogger(WandbLoggerBase):
-    def __init__(self, *params, save_images=True, save_last_images=True, save_last_tables=True, save_tables=True, **kwargs):
+    def __init__(
+            self, *params, save_images=True, save_last_images=True, save_last_tables=True, save_tables=True, **kwargs
+    ):
         super().__init__(*params, **kwargs)
 
         self.do_save_images = save_images
@@ -28,7 +30,7 @@ class WandbLogger(WandbLoggerBase):
 
     def save_images(self, mode=True):
         self.do_save_images = mode
-    
+
     def save_tables(self, mode=True):
         self.do_save_tables = mode
 
