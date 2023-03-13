@@ -5,6 +5,8 @@ checkoint/
 test/checkpoint/
 data/
 
+.idea
+
 ### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/
