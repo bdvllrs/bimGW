@@ -52,6 +52,7 @@ loggers: [ ]
 #  - logger: WandbLogger
 #    save_images: true
 #    save_last_images: true  # whether to save the images generated after the last epoch.
+#    save_last_tables: true
 #    watch_model: true
 #    args:
 #      save_dir: "path/to/wandb/log/dir"
