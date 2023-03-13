@@ -32,16 +32,20 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 
 slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
 slurm: # slurm parameters if started on slurm with the slurm/launch.py command
-  script: train  # which script to start
   slurm: # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)
     "-N": 1
     "-J": ${name}
     "--gres": "gpu:${devices}"
     "--time": "12:00:00"
     "--mem": 5000
+  script: train  # which script to start
+  # Before scheduling the run, the project code and config will be copied to a working directory for reproducibility.
+  # path to the folder where all copies will be made.
+  run_work_directory: null
   pre_modules: null  # modules to load before starting the job
   run_modules: null # modules to load when the job has started
   python_environment: null  # path to the python environment to use or name of the conda environment to use
+  grid_search: null
 
 dataloader:
   num_workers: 0
@@ -53,6 +57,7 @@ loggers: [ ]
 #    save_images: true
 #    save_last_images: true  # whether to save the images generated after the last epoch.
 #    save_last_tables: true
+#    save_tables: true
 #    watch_model: true
 #    args:
 #      save_dir: "path/to/wandb/log/dir"
@@ -180,8 +185,6 @@ lm:
 # GW parameters
 # =====
 global_workspace:
-  monitor_grad_norms: false  # if true, logs gradients (for debug, training is a bit slower)
-
   batch_size: 128
   selected_domains: [ ]  # domains to load dict where keys are names used in the loggers, and values are among "v" for vision, "t" for text and "attr" for attributes
   sync_uses_whole_dataset: false  # dataset has 1 000 000 examples to test training VAE and GW on different splits. If true will use the 1 000 000 examples for training, otherwise half. Default to half.

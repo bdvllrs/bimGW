@@ -1,5 +1,4 @@
 import torch
-from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
@@ -24,22 +23,15 @@ def train_gw(args, mode="train"):
             domain_mods=get_domains(args, data.img_size),
             domain_examples=data.domain_examples, )
     else:
-        global_workspace = GlobalWorkspace(
-            get_domains(args, data.img_size), args.global_workspace.z_size,
-            args.global_workspace.hidden_size,
-            args.global_workspace.n_layers.encoder,
-            args.global_workspace.n_layers.decoder,
-            args.global_workspace.n_layers.decoder_head,
-            len(data.classes),
-            args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
-            args.losses.coefs.translation, args.losses.coefs.cosine,
-            args.losses.coefs.contrastive,
-            args.global_workspace.optim.lr, args.global_workspace.optim.weight_decay,
-            args.global_workspace.scheduler.mode, args.global_workspace.scheduler.interval,
-            args.global_workspace.scheduler.step, args.global_workspace.scheduler.gamma,
-            args.losses.schedules, data.domain_examples,
-            args.global_workspace.monitor_grad_norms,
-            args.global_workspace.remove_sync_domains, )
+        global_workspace = GlobalWorkspace(get_domains(args, data.img_size), args.global_workspace.z_size,
+            args.global_workspace.hidden_size, args.global_workspace.n_layers.encoder,
+            args.global_workspace.n_layers.decoder, args.global_workspace.n_layers.decoder_head, len(data.classes),
+            args.losses.coefs.demi_cycles, args.losses.coefs.cycles, args.losses.coefs.translation,
+            args.losses.coefs.cosine, args.losses.coefs.contrastive, args.global_workspace.optim.lr,
+            args.global_workspace.optim.weight_decay, args.global_workspace.scheduler.mode,
+            args.global_workspace.scheduler.interval, args.global_workspace.scheduler.step,
+            args.global_workspace.scheduler.gamma, args.losses.schedules, data.domain_examples,
+            args.global_workspace.monitor_grad_norms, args.global_workspace.remove_sync_domains)
 
     trainer = get_trainer(
         "train_gw", args, global_workspace,
@@ -65,13 +57,7 @@ def train_gw(args, mode="train"):
 def train_lm(args):
     seed_everything(args.seed)
 
-    args.lm.prop_labelled_images = 1.
-    args.lm.split_ood = False
-    args.lm.selected_domains = OmegaConf.create(["attr", "t"])
-    args.lm.data_augmentation = False
-    args.lm.remove_sync_domains = None
-
-    data = load_dataset(args, args.lm, add_unimodal=False)
+    data = load_dataset(args, args.lm, add_unimodal=False, selected_domains=["attr", "t"])
     data.prepare_data()
     data.setup(stage="fit")
 
@@ -112,12 +98,7 @@ def train_lm(args):
 def train_ae(args):
     seed_everything(args.seed)
 
-    args.vae.prop_sync_domains = OmegaConf.create({"all": 1.})
-    args.vae.split_ood = False
-    args.vae.selected_domains = OmegaConf.create(["v"])
-    args.vae.remove_sync_domains = None
-
-    data = load_dataset(args, args.vae)
+    data = load_dataset(args, args.vae, selected_domains=["v"])
 
     data.prepare_data()
     data.setup(stage="fit")
@@ -151,12 +132,7 @@ def train_ae(args):
 def train_vae(args):
     seed_everything(args.seed)
 
-    args.vae.prop_labelled_images = 1.
-    args.vae.split_ood = False
-    args.vae.selected_domains = OmegaConf.create(["v"])
-    args.vae.remove_sync_domains = None
-
-    data = load_dataset(args, args.vae)
+    data = load_dataset(args, args.vae, selected_domains=["v"])
 
     data.prepare_data()
     data.setup(stage="fit")
@@ -170,12 +146,9 @@ def train_vae(args):
             validation_reconstruction_images=data.domain_examples["val"][0]["v"][1]
         )
     else:
-        vae = VAE(
-            data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
-            args.n_validation_examples,
-            args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
-            data.domain_examples["val"][0]["v"][1], args.vae.n_FID_samples
-        )
+        vae = VAE(data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
+            args.n_validation_examples, args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step,
+            args.vae.scheduler.gamma, data.domain_examples["val"][0]["v"][1], args.vae.n_FID_samples)
 
     trainer = get_trainer(
         "train_vae", args, vae, monitor_loss="val_total_loss",

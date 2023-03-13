@@ -9,6 +9,7 @@ from torch import nn
 
 from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
+from bim_gw.utils.types import SchedulerInterval, SchedulerMode
 from bim_gw.utils.utils import log_if_save_last_images
 
 
@@ -30,8 +31,10 @@ class GlobalWorkspace(LightningModule):
             self, domain_mods, z_size, hidden_size, n_layers_encoder, n_layers_decoder, n_layers_decoder_head,
             n_classes=1000,
             loss_coef_demi_cycles=1., loss_coef_cycles=1., loss_coef_translation=1., loss_coef_cosine=0.,
-            loss_coef_contrastive=0., optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_mode="fixed",
-            scheduler_interval="epoch", scheduler_step=20, scheduler_gamma=0.5, loss_schedules=None,
+            loss_coef_contrastive=0., optim_lr=3e-4, optim_weight_decay=1e-5,
+            scheduler_mode: SchedulerMode = SchedulerMode.fixed,
+            scheduler_interval: SchedulerInterval = SchedulerInterval.epoch, scheduler_step=20, scheduler_gamma=0.5,
+            loss_schedules=None,
             domain_examples: Optional[dict] = None,
             monitor_grad_norms: bool = False,
             remove_sync_domains=None,
@@ -526,18 +529,18 @@ class GlobalWorkspace(LightningModule):
         scheduler_interval = self.hparams.scheduler_interval
         scheduler_step = self.hparams.scheduler_step
         scheduler_gamma = self.hparams.scheduler_gamma
-        if self.hparams.scheduler_mode == "adaptive":
+        if self.hparams.scheduler_mode == SchedulerMode.adaptive:
             # Convert into step interval if adaptive mode.
             size_dataset = len(self.trainer.datamodule.train_set["sync_"])
             batch_size = self.trainer.datamodule.batch_size
-            if scheduler_interval == "step":
+            if scheduler_interval == SchedulerInterval.step:
                 n_step_per_epoch = int(size_dataset / batch_size)
                 scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend on the synchronised data
             prop_labelled_images = 1. - self.trainer.datamodule.prop_sync_domains["all"]
             steps_per_new_epoch = int(scheduler_step * (size_dataset * prop_labelled_images) / batch_size)
             scheduler_step = max(1, steps_per_new_epoch)
-            scheduler_interval = "step"
+            scheduler_interval = SchedulerInterval.step
             print(f"Scheduler will be updated every {scheduler_step} step(s).")
 
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, scheduler_step, scheduler_gamma)
@@ -545,7 +548,7 @@ class GlobalWorkspace(LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "interval": scheduler_interval,
+                "interval": scheduler_interval.value,
                 "frequency": 1
             }
         }

@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
+import torch
 from torch.utils.data import Subset
 
 from bim_gw.datasets.data_module import DataModule
-from bim_gw.datasets.simple_shapes.datasets import SimpleShapesDataset
+from bim_gw.datasets.simple_shapes.datasets import AvailableDomainsType, SimpleShapesDataset
 from bim_gw.datasets.simple_shapes.utils import create_ood_split, get_preprocess, split_ood_sets
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesAttributes, SimpleShapesText
@@ -17,15 +19,13 @@ from bim_gw.utils.utils import get_checkpoint_path
 def load_v_domain(args, im_size=None):
     return VAE.load_from_checkpoint(
         get_checkpoint_path(args.global_workspace.vae_checkpoint),
-        mmd_loss_coef=args.global_workspace.vae_mmd_loss_coef,
-        kl_loss_coef=args.global_workspace.vae_kl_loss_coef,
         strict=False
     )
 
 
 @registries.register_domain("attr")
 def load_attr_domain(args, img_size):
-    return SimpleShapesAttributes(img_size, args.fetchers.attr.use_unpaired)
+    return SimpleShapesAttributes(img_size)
 
 
 @registries.register_domain("t")
@@ -41,28 +41,33 @@ def load_t_domain(args, img_size=None):
 
 class SimpleShapesDataModule(DataModule):
     def __init__(
-            self, simple_shapes_folder, batch_size,
-            num_workers=0, prop_labelled_images=1.,
-            prop_available_images=1.,
-            removed_sync_domains=None,
-            n_validation_domain_examples=32, split_ood=True,
-            selected_domains=None,
-            pre_saved_latent_paths=None,
-            sync_uses_whole_dataset=False,
-            add_unimodal=True,
-            fetcher_params=None
+            self,
+            simple_shapes_folder: str,
+            batch_size: int,
+            num_workers: int = 0, prop_labelled_images: float = 1.,
+            prop_available_images: float = 1.,
+            removed_sync_domains: Optional[List[List[str]]] = None,
+            n_validation_domain_examples: int = 32,
+            split_ood: bool = True,
+            selected_domains: Optional[List[AvailableDomainsType]] = None,
+            pre_saved_latent_paths: Optional[Dict[str, str]] = None,
+            sync_uses_whole_dataset: bool = False,
+            add_unimodal: bool = True,
+            fetcher_params: Optional[Dict[str, Any]] = None
     ):
         super().__init__(
             batch_size, num_workers, prop_labelled_images, prop_available_images, removed_sync_domains,
-            n_validation_domain_examples, split_ood, selected_domains, pre_saved_latent_paths,
-            add_unimodal, fetcher_params
+            n_validation_domain_examples, split_ood, selected_domains,
         )
+        self.pre_saved_latent_paths = pre_saved_latent_paths
+        self.add_unimodal = add_unimodal
+        self.fetcher_params = fetcher_params
 
         self.simple_shapes_folder = Path(simple_shapes_folder)
-        self.img_size = 32
+        self.img_size: int = 32
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
-        self.num_channels = 3
-        self.len_train_dataset = 1_000_000
+        self.num_channels: int = 3
+        self.len_train_dataset: int = 1_000_000
         ds = SimpleShapesDataset(
             simple_shapes_folder, "val", selected_domains=self.selected_domains,
             fetcher_params=self.fetcher_params
@@ -71,10 +76,10 @@ class SimpleShapesDataModule(DataModule):
         self.val_dataset_size = len(ds)
         self.is_setup = False
 
-    def setup(self, stage=None):
+    def setup(self, stage: Optional[str] = None) -> None:
         if not self.is_setup:
-            val_transforms = {"v": get_preprocess()}
-            train_transforms = {"v": get_preprocess()}
+            val_transforms: Dict[AvailableDomainsType, Callable[[Any], Any]] = {"v": get_preprocess()}
+            train_transforms: Dict[AvailableDomainsType, Callable[[Any], Any]] = {"v": get_preprocess()}
             if stage == "fit" or stage is None:
                 self.val_set = SimpleShapesDataset(
                     self.simple_shapes_folder, "val",
@@ -151,7 +156,7 @@ class SimpleShapesDataModule(DataModule):
 
         self.is_setup = True
 
-    def compute_inception_statistics(self, batch_size, device):
+    def compute_inception_statistics(self, batch_size: int, device: Union[torch.device, str]) -> None:
         train_ds = SimpleShapesDataset(
             self.simple_shapes_folder, "train",
             transform={"v": get_preprocess()},
