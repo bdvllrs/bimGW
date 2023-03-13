@@ -355,16 +355,17 @@ class SimpleShapesText(DomainModule):
 
                 if self.current_epoch == 0:
                     with log_if_save_last_images(logger):
-                        self.attribute_domain.log_domain(
-                            logger, domain_examples["attr"][1:],
-                            f"{mode}/target_reconstruction"
-                        )
-                        if hasattr(logger, "log_table"):
-                            logger.log_table(
-                                f"{mode}/target_text", columns=["Text"],
-                                data=[[domain_examples['t'][2][k]] for k in
-                                      range(len(domain_examples['t'][2]))]
+                        with log_if_save_last_tables(logger):
+                            self.attribute_domain.log_domain(
+                                logger, domain_examples["attr"][1:],
+                                f"{mode}/target_reconstruction"
                             )
+                            if hasattr(logger, "log_table"):
+                                logger.log_table(
+                                    f"{mode}/target_text", columns=["Text"],
+                                    data=[[domain_examples['t'][2][k]] for k in
+                                          range(len(domain_examples['t'][2]))]
+                                )
 
     def validation_epoch_end(self, outputs):
         self.epoch_end("val")

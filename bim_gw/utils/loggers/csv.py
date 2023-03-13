@@ -33,6 +33,9 @@ class CSVLogger(CSVLoggerBase):
     def save_images(self, mode=True):
         self.do_save_images = mode
 
+    def save_tables(self, mode=True):
+        pass
+
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
         if self.do_save_images:

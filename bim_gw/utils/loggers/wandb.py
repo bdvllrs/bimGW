@@ -10,15 +10,16 @@ from bim_gw.utils.loggers.utils import ImageType
 
 
 class WandbLogger(WandbLoggerBase):
-    def __init__(self, *params, save_images=True, save_last_images=True, save_tables=True, **kwargs):
+    def __init__(self, *params, save_images=True, save_last_images=True, save_last_tables=True, save_tables=True, **kwargs):
         super().__init__(*params, **kwargs)
 
         self.do_save_images = save_images
         self.do_save_last_images = save_last_images
-        self.do_log_tables = save_tables
+        self.do_save_tables = save_tables
+        self.do_save_last_tables = save_last_tables
         if not self.do_save_images:
             logging.warning("WandbLogger will not save the images. Set `save_images' to true to log them.")
-        if not self.do_log_tables:
+        if not self.do_save_tables:
             logging.warning("WandbLogger will not save the tables. Set `save_tables' to true to log them.")
 
     def set_summary(self, name, mode="min"):
@@ -27,6 +28,9 @@ class WandbLogger(WandbLoggerBase):
 
     def save_images(self, mode=True):
         self.do_save_images = mode
+    
+    def save_tables(self, mode=True):
+        self.do_save_tables = mode
 
     @rank_zero_only
     def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
@@ -35,7 +39,7 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
-        if self.log_tables:
+        if self.do_save_tables:
             if not isinstance(text, list):
                 text = [[text]]
             else:
@@ -44,7 +48,7 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
-        if self.do_log_tables:
+        if self.do_save_tables:
             super(WandbLogger, self).log_table(key=log_name, columns=columns, data=data, step=step)
 
 
@@ -52,6 +56,7 @@ def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
     logger = WandbLogger(
         save_images=log_args.save_images,
         save_last_images=log_args.save_last_images,
+        save_last_tables=log_args.save_last_tables,
         save_tables=log_args.save_tables if "save_tables" in log_args else True,
         tags=tags,
         **OmegaConf.to_object(log_args.args)

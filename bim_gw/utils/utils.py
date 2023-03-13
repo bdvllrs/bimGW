@@ -52,6 +52,30 @@ def loggers_save_images(loggers, mode=True):
             logger_save_images(logger, mode)
 
 
+@contextmanager
+def log_if_save_last_tables(logger):
+    """
+    Creates a context manager that saves tables if the logger has the attribute do_save_last_tables set to True.
+    """
+    if logger is not None and getattr(logger, "do_save_last_tables", False):
+        save_tables = getattr(logger, "do_save_tables", False)
+        logger.save_tables(True)
+        yield
+        logger.save_tables(save_tables)
+        return
+    yield
+
+
+def logger_save_tables(logger, mode=True):
+    if logger is not None and hasattr(logger, "save_tables"):
+        logger.save_tables(mode)
+
+
+def loggers_save_tables(loggers, mode=True):
+    for logger in loggers:
+        if getattr(logger, "do_save_last_images", False):
+            logger_save_tables(logger, mode)
+
 def val_or_default(d, key, default=None):
     """
     Returns the value of a dict, or default value if key is not in the dict.
