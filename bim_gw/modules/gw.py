@@ -10,7 +10,7 @@ from torch import nn
 from bim_gw.modules.domain_modules import PassThroughWM
 from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
-from bim_gw.utils.utils import log_if_save_last_images
+from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
 
 def check_domains_eq(domains_ori, domains_comp):
