@@ -39,6 +39,7 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
     "--time": "12:00:00"
     "--mem": 5000
   script: train  # which script to start
+  command: null
   # Before scheduling the run, the project code and config will be copied to a working directory for reproducibility.
   # path to the folder where all copies will be made.
   run_work_directory: null
