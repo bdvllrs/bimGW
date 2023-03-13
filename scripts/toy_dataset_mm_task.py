@@ -16,8 +16,12 @@ def closest_item(ref, labels, keys):
 
 
 def far_item(ref1, ref2, labels, keys):
-    dists = np.minimum(np.min(np.abs(labels - ref1), axis=1), np.min(np.abs(labels - ref2), axis=1))
-    # dists += np.linalg.norm(labels[:, keys] - ref1[keys], axis=1) + np.linalg.norm(labels[:, keys] - ref2[keys], axis=1)
+    dists = np.minimum(
+        np.min(np.abs(labels - ref1), axis=1),
+        np.min(np.abs(labels - ref2), axis=1)
+    )
+    # dists += np.linalg.norm(labels[:, keys] - ref1[keys], axis=1) +
+    # np.linalg.norm(labels[:, keys] - ref2[keys], axis=1)
     sorted_dists = np.argsort(-dists)
     # return sorted_dists[0]
     return np.random.choice(sorted_dists[:sorted_dists.shape[0] // 1000], 1)[0]
@@ -70,10 +74,15 @@ if __name__ == "__main__":
             rd = far_item(ref, labels[closest_key], labels, key)
             order = np.random.permutation(3)
             idx = [i, closest_key, rd]
-            dataset.append([idx[order[0]], idx[order[1]], idx[order[2]], np.where(order == 2)[0][0]])
+            dataset.append(
+                [idx[order[0]], idx[order[1]], idx[order[2]],
+                 np.where(order == 2)[0][0]]
+            )
             axes[i, order[0]].imshow(get_img(root_path, split, i))
             axes[i, order[1]].imshow(get_img(root_path, split, closest_key))
-            axes[i, order[2]].imshow(frame_image(get_img(root_path, split, rd), 2))
+            axes[i, order[2]].imshow(
+                frame_image(get_img(root_path, split, rd), 2)
+            )
             print(key)
             for k in range(3):
                 axes[i, k].set_xticks([])

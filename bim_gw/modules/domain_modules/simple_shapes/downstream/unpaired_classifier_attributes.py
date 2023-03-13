@@ -10,7 +10,9 @@ from bim_gw.utils.text_composer.utils import inspect_all_choices
 
 
 class UnpairedClassifierAttributes(LightningModule):
-    def __init__(self, global_workspace, optimizer_lr=1e-3, optimizer_weight_decay=1e-5):
+    def __init__(
+        self, global_workspace, optimizer_lr=1e-3, optimizer_weight_decay=1e-5
+    ):
         super(UnpairedClassifierAttributes, self).__init__()
         self.save_hyperparameters(ignore=["global_workspace"])
 
@@ -38,7 +40,10 @@ class UnpairedClassifierAttributes(LightningModule):
         prediction = self.regressor(state)
         loss = F.mse_loss(prediction, latents['attr'][1][:, -1].unsqueeze(-1))
         bs = available_domains['attr'].shape[0]
-        self.log(f"{mode}/loss", loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+        self.log(
+            f"{mode}/loss", loss, logger=True, on_epoch=(mode != "train"),
+            batch_size=bs
+        )
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -51,4 +56,7 @@ class UnpairedClassifierAttributes(LightningModule):
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
-        return torch.optim.Adam(params, lr=self.hparams.optimizer_lr, weight_decay=self.hparams.optimizer_weight_decay)
+        return torch.optim.Adam(
+            params, lr=self.hparams.optimizer_lr,
+            weight_decay=self.hparams.optimizer_weight_decay
+        )

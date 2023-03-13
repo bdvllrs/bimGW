@@ -1,2 +1,7 @@
-from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
-from bim_gw.modules.domain_modules.simple_shapes.text import SimpleShapesText
+from .attributes import SimpleShapesAttributes
+from .text import SimpleShapesText
+
+__all__ = [
+    "SimpleShapesAttributes",
+    "SimpleShapesText",
+]

@@ -1,3 +1,5 @@
-from bim_gw.modules.domain_modules.ae import AE
-from bim_gw.modules.domain_modules.domain_module import DomainModule, PassThroughWM
-from bim_gw.modules.domain_modules.vae import VAE
+from .ae import AE
+from .domain_module import DomainModule, PassThroughWM
+from .vae import VAE
+
+__all__ = ["AE", "VAE", "DomainModule", "PassThroughWM"]

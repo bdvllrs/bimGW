@@ -19,8 +19,14 @@ if __name__ == "__main__":
     data.prepare_data()
     data.setup(stage="fit")
 
-    assert args.downstream.unpaired_cls.checkpoint is not None, "You must provide a checkpoint for this script."
-    checkpoint_path = get_checkpoint_path(args.downstream.unpaired_cls.checkpoint)
+    assert args.downstream.unpaired_cls.checkpoint is not None, "You must " \
+                                                                "provide a " \
+                                                                "checkpoint " \
+                                                                "for this " \
+                                                                "script."
+    checkpoint_path = get_checkpoint_path(
+        args.downstream.unpaired_cls.checkpoint
+    )
     domain_mods = get_domains(args, data.img_size)
     global_workspace = GlobalWorkspace.load_from_checkpoint(
         checkpoint_path,
@@ -46,7 +52,10 @@ if __name__ == "__main__":
         tags = ["slurm"]
     source_files = ['../**/*.py', '../readme.md',
                     '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers("train_odd_image", version, args.loggers, global_workspace, args, tags, source_files)
+    loggers = get_loggers(
+        "train_odd_image", version, args.loggers, global_workspace, args, tags,
+        source_files
+    )
 
     trainer = Trainer(
         default_root_dir=args.checkpoints_dir,

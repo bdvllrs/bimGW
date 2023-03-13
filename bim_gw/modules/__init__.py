@@ -1,2 +1,4 @@
-from bim_gw.modules.gw import GlobalWorkspace
-from bim_gw.modules.odd_classifier import OddClassifier
+from .gw import GlobalWorkspace
+from .odd_classifier import OddClassifier
+
+__all__ = ['GlobalWorkspace', 'OddClassifier']

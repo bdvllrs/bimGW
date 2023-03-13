@@ -35,10 +35,12 @@ def mmd_loss(x, target, bandwidth=None, squared_mmd=False):
 class MMDLoss(nn.Module):
     def __init__(self, bandwidth=None, squared_mmd=False):
         """
-        MMDLoss with gaussian kernel as defined in http://www.gatsby.ucl.ac.uk/~gretton/papers/GreBorRasSchSmo07.pdf
+        MMDLoss with gaussian kernel as defined in
+        http://www.gatsby.ucl.ac.uk/~gretton/papers/GreBorRasSchSmo07.pdf
         Args:
             bandwidth: coefficient for the gaussian kernel
-            squared_mmd: if true, use the MMD squared loss. Defaults to the sqrt(MMDLoss) as explained in
+            squared_mmd: if true, use the MMD squared loss. Defaults to the
+            sqrt(MMDLoss) as explained in
             http://proceedings.mlr.press/v37/li15.pdf
         """
         super(MMDLoss, self).__init__()

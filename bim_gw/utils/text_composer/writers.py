@@ -1,36 +1,47 @@
 import numpy as np
-from attributes_to_language.utils import COLORS_LARGE_SET, COLORS_SPARSE, COLORS_XKCD
+from attributes_to_language.utils import (
+    COLORS_LARGE_SET, COLORS_SPARSE,
+    COLORS_XKCD
+)
 from attributes_to_language.writers import (
-    Bins2dWriter, BinsWriter, ContinuousAngleWriter, OptionsWriter, QuantizedWriter
+    Bins2dWriter, BinsWriter, ContinuousAngleWriter, OptionsWriter,
+    QuantizedWriter
 )
 
 shapes_writer = OptionsWriter(
     caption="{val}",
     choices={
         2: ["isosceles triangle", "triangle"],
-        1: ["egg", "water droplet", "isosceles triangle that has round corners", "bullet",
-            "oval shaped structure", "triangle-like shape with rounded vertices", "guitar pick"],
-        0: ["diamond", "trapezoidal shape", "four-sided shape", "kite", "quadrilateral", "arrow-shaped polygon",
+        1: ["egg", "water droplet",
+            "isosceles triangle that has round corners", "bullet",
+            "oval shaped structure",
+            "triangle-like shape with rounded vertices", "guitar pick"],
+        0: ["diamond", "trapezoidal shape", "four-sided shape", "kite",
+            "quadrilateral", "arrow-shaped polygon",
             "deformed square shape"],
     }
 )
 
 cardinal_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4,
+         3 * np.pi / 2, 7 * np.pi / 4]
     ),
     caption="{rotated} {val}",
     variants={
         "of_image": ["", "of the image"],
         "rotated": ["pointing to the", "pointing towards the", "pointing"]
     },
-    labels=["north", "northwest", "west", "southwest", "south", "southeast", "east", "northeast"]
+    labels=["north", "northwest", "west", "southwest", "south", "southeast",
+            "east", "northeast"]
 )
 
 cardinal_rotation_preicions_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
-         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
+        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8,
+         3 * np.pi / 4, 7 * np.pi / 8,
+         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2,
+         13 * np.pi / 8, 7 * np.pi / 4,
          15 * np.pi / 8]
     ),
     caption="{rotated} {val}",
@@ -38,14 +49,17 @@ cardinal_rotation_preicions_writer = QuantizedWriter(
         "of_image": ["", "of the image"],
         "rotated": ["pointing to the", "pointing towards the", "pointing"]
     },
-    labels=["north", "north-northwest", "northwest", "west-northwest", "west", "west-southwest",
-            "southwest", "south-southwest", "south", "south-southeast", "southeast", "east-southeast", "east",
+    labels=["north", "north-northwest", "northwest", "west-northwest", "west",
+            "west-southwest",
+            "southwest", "south-southwest", "south", "south-southeast",
+            "southeast", "east-southeast", "east",
             "east-northeast", "northeast", "north-northeast"]
 )
 
 corner_rotation_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4, 3 * np.pi / 2, 7 * np.pi / 4]
+        [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi, 5 * np.pi / 4,
+         3 * np.pi / 2, 7 * np.pi / 4]
     ),
     caption="{rotated} the {val}",
     variants={
@@ -54,14 +68,17 @@ corner_rotation_writer = QuantizedWriter(
         "corner": ["", " corner"],
         "side": ["", " side"]
     },
-    labels=["top", "top-left{corner}", "left{side}", "bottom-left{corner}", "bottom", "bottom-right{corner}",
+    labels=["top", "top-left{corner}", "left{side}", "bottom-left{corner}",
+            "bottom", "bottom-right{corner}",
             "right{side}", "top-right{corner}"],
 )
 
 corner_rotation_precision_writer = QuantizedWriter(
     quantized_values=np.array(
-        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8, 3 * np.pi / 4, 7 * np.pi / 8,
-         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2, 13 * np.pi / 8, 7 * np.pi / 4,
+        [0, np.pi / 8, np.pi / 4, 3 * np.pi / 8, np.pi / 2, 5 * np.pi / 8,
+         3 * np.pi / 4, 7 * np.pi / 8,
+         np.pi, 9 * np.pi / 8, 5 * np.pi / 4, 11 * np.pi / 8, 3 * np.pi / 2,
+         13 * np.pi / 8, 7 * np.pi / 4,
          15 * np.pi / 8]
     ),
     caption="{rotated} the {val}",
@@ -71,10 +88,14 @@ corner_rotation_precision_writer = QuantizedWriter(
         "corner": ["", " corner"],
         "side": ["", " side"]
     },
-    labels=["top", "top top-left{corner}", "top-left{corner}", "left top-left{corner}",
-            "left{side}", "left bottom-left{corner}", "bottom-left{corner}", "bottom bottom-left{corner}",
-            "bottom", "bottom bottom-right{corner}", "bottom-right{corner}", "right bottom-right{corner}",
-            "right{side}", "right top-right{corner}", "top-right{corner}", "top top-right{corner}"],
+    labels=["top", "top top-left{corner}", "top-left{corner}",
+            "left top-left{corner}",
+            "left{side}", "left bottom-left{corner}", "bottom-left{corner}",
+            "bottom bottom-left{corner}",
+            "bottom", "bottom bottom-right{corner}", "bottom-right{corner}",
+            "right bottom-right{corner}",
+            "right{side}", "right top-right{corner}", "top-right{corner}",
+            "top top-right{corner}"],
 )
 
 continuous_rotation_writer = ContinuousAngleWriter(
@@ -101,7 +122,8 @@ location_writer = QuantizedWriter(
     ),
     caption="{located?}{val}",
     labels=[
-        ["{at_the} {bottom} left{side?}", "{at_the} {bottom}, {on_the} left{side?}"],
+        ["{at_the} {bottom} left{side?}",
+         "{at_the} {bottom}, {on_the} left{side?}"],
         ["{at_the} {bottom} {middle}", "{at_the} {bottom}"],
         ["{at_the} {bottom} right{side?}"],
         ["{in_the} {middle} left{side?}"],
@@ -255,7 +277,8 @@ color_sparse_writer = QuantizedWriter(
 writers = {
     "shape": [shapes_writer],
     "rotation": [corner_rotation_writer, cardinal_rotation_writer,
-                 corner_rotation_precision_writer, cardinal_rotation_preicions_writer],
+                 corner_rotation_precision_writer,
+                 cardinal_rotation_preicions_writer],
     "size": [size_writer],
     "color": [color_large_set_writer],
     "location": [location_precision_writer_bins, location_writer]

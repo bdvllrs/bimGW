@@ -14,7 +14,8 @@ from bim_gw.utils.scripts import get_domains
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    assert args.global_workspace.load_pre_saved_latents is not None, "Pre-saved latent path should be defined."
+    assert args.global_workspace.load_pre_saved_latents is not None, \
+        "Pre-saved latent path should be defined."
 
     args.seed = 0
     bert_latents = args.fetchers.t.bert_latents
@@ -56,7 +57,14 @@ if __name__ == '__main__':
         ):
             available_domains, domains = split_domains_available_domains(batch)
             latents = global_workspace.encode_uni_modal(domains)
-            predictions = global_workspace.adapt(global_workspace.predict(global_workspace.project(latents, ["attr"])))
+            predictions = global_workspace.adapt(
+                global_workspace.predict(
+                    global_workspace.project(latents, ["attr"])
+                )
+            )
             all_latents.append(predictions["t"][0].detach().numpy())
 
-        np.save(str(path / f"{name}_predicted_{bert_latents}"), np.concatenate(all_latents, axis=0))
+        np.save(
+            str(path / f"{name}_predicted_{bert_latents}"),
+            np.concatenate(all_latents, axis=0)
+        )

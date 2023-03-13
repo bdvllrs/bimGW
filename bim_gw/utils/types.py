@@ -132,8 +132,12 @@ class DataSelectorAxesConfig:
 class AxesGWResultConfig:
     selected_curves: List[str] = MISSING
 
-    attributes: DataSelectorAxesConfig = field(default_factory=DataSelectorAxesConfig)
-    text: DataSelectorAxesConfig = field(default_factory=DataSelectorAxesConfig)
+    attributes: DataSelectorAxesConfig = field(
+        default_factory=DataSelectorAxesConfig
+    )
+    text: DataSelectorAxesConfig = field(
+        default_factory=DataSelectorAxesConfig
+    )
 
 
 @dataclass
@@ -141,9 +145,13 @@ class GWResultVisualizationConfig:
     saved_figure_path: str = MISSING
     total_num_examples: int = MISSING
 
-    loss_definitions: LossDefinitionsGWResultsConfig = field(default_factory=LossDefinitionsGWResultsConfig)
+    loss_definitions: LossDefinitionsGWResultsConfig = field(
+        default_factory=LossDefinitionsGWResultsConfig
+    )
     axes: AxesGWResultConfig = field(default_factory=AxesGWResultConfig)
-    mix_loss_coefficients: MixLossCoefficientsGWResultConfig = field(default_factory=MixLossCoefficientsGWResultConfig)
+    mix_loss_coefficients: MixLossCoefficientsGWResultConfig = field(
+        default_factory=MixLossCoefficientsGWResultConfig
+    )
     legend: LegendGWResultConfig = field(default_factory=LegendGWResultConfig)
 
 
@@ -155,7 +163,9 @@ class VisualizationConfig:
     font_size_title: int = MISSING
     line_width: int = MISSING
 
-    gw_results: GWResultVisualizationConfig = field(default_factory=GWResultVisualizationConfig)
+    gw_results: GWResultVisualizationConfig = field(
+        default_factory=GWResultVisualizationConfig
+    )
 
 
 @dataclass
@@ -219,8 +229,12 @@ class GlobalWorkspaceConfig:
     lm_checkpoint: Optional[str] = MISSING
     early_stopping_patience: int = MISSING
 
-    hidden_size: HiddenSizeGlobalWorkspaceConfig = field(default_factory=HiddenSizeGlobalWorkspaceConfig)
-    n_layers: NLayersGlobalWorkspaceConfig = field(default_factory=NLayersGlobalWorkspaceConfig)
+    hidden_size: HiddenSizeGlobalWorkspaceConfig = field(
+        default_factory=HiddenSizeGlobalWorkspaceConfig
+    )
+    n_layers: NLayersGlobalWorkspaceConfig = field(
+        default_factory=NLayersGlobalWorkspaceConfig
+    )
     optim: GWOptimConfig = field(default_factory=GWOptimConfig)
     scheduler: GWSchedulerConfig = field(default_factory=GWSchedulerConfig)
 
@@ -259,7 +273,9 @@ class OddImageConfig:
     batch_size: int = MISSING
     select_row_from_index: Optional[int] = MISSING
     select_row_from_current_coefficients: bool = MISSING
-    encoder: EncoderOddImageConfig = field(default_factory=EncoderOddImageConfig)
+    encoder: EncoderOddImageConfig = field(
+        default_factory=EncoderOddImageConfig
+    )
     optimizer: OptimConfig = field(default_factory=OptimConfig)
 
 
@@ -272,7 +288,9 @@ class UnpairedCLSDownstreamConfig:
 
 @dataclass
 class DownstreamConfig:
-    unpaired_cls: UnpairedCLSDownstreamConfig = field(default_factory=UnpairedCLSDownstreamConfig)
+    unpaired_cls: UnpairedCLSDownstreamConfig = field(
+        default_factory=UnpairedCLSDownstreamConfig
+    )
 
 
 @dataclass
@@ -314,10 +332,14 @@ class BIMConfig:
 
     slurm: SlurmConfig = field(default_factory=SlurmConfig)
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)
-    visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
+    visualization: VisualizationConfig = field(
+        default_factory=VisualizationConfig
+    )
     vae: VAEConfig = field(default_factory=VAEConfig)
     lm: LMConfig = field(default_factory=LMConfig)
-    global_workspace: GlobalWorkspaceConfig = field(default_factory=GlobalWorkspaceConfig)
+    global_workspace: GlobalWorkspaceConfig = field(
+        default_factory=GlobalWorkspaceConfig
+    )
     losses: LossesConfig = field(default_factory=LossesConfig)
     odd_image: OddImageConfig = field(default_factory=OddImageConfig)
     downstream: DownstreamConfig = field(default_factory=DownstreamConfig)

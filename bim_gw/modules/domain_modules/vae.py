@@ -6,26 +6,30 @@ from torch.nn import functional as F
 
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.types import VAEType
-from bim_gw.utils.utils import log_if_save_last_images, log_image
+from bim_gw.utils.utils import (
+    log_if_save_last_images, log_image
+)
 from bim_gw.utils.vae import gaussian_nll, reparameterize, softclip
 
 
 class VAE(DomainModule):
     def __init__(
-            self, image_size: int, channel_num: int, ae_size: int, z_size: int, beta: float = 1,
-            vae_type: VAEType = VAEType.beta,
-            n_validation_examples: int = 32,
-            optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
-            scheduler_step: int = 20, scheduler_gamma: float = 0.5,
-            validation_reconstruction_images: Optional[torch.Tensor] = None,
-            n_FID_samples=1000, ):
+        self, image_size: int, channel_num: int, ae_size: int, z_size: int,
+        beta: float = 1,
+        vae_type: VAEType = VAEType.beta,
+        n_validation_examples: int = 32,
+        optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
+        scheduler_step: int = 20, scheduler_gamma: float = 0.5,
+        validation_reconstruction_images: Optional[torch.Tensor] = None,
+        n_FID_samples=1000, ):
         # configurations
         super().__init__()
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
 
         self.image_size = image_size
         assert channel_num in [1, 3]
-        assert beta >= 0. and optim_lr >= 0 and optim_weight_decay >= 0 and scheduler_step >= 0
+        assert beta >= 0. and optim_lr >= 0 and optim_weight_decay >= 0 and \
+               scheduler_step >= 0
         self.channel_num = channel_num
         self.ae_size = ae_size
         self.z_size = z_size
@@ -42,17 +46,27 @@ class VAE(DomainModule):
             # lambda x, y: (
             #     F.mse_loss(x, y)
             #     + mmd_loss_coef * mmd_loss(x, y)
-            #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0), x.var(0).log())
+            #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0),
+            #     x.var(0).log())
             # )
         ]
 
         # val sampling
-        self.register_buffer("validation_sampling_z", torch.randn(n_validation_examples, self.z_size))
+        self.register_buffer(
+            "validation_sampling_z",
+            torch.randn(n_validation_examples, self.z_size)
+        )
 
         if validation_reconstruction_images is not None:
-            self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
+            self.register_buffer(
+                "validation_reconstruction_images",
+                validation_reconstruction_images
+            )
         else:
-            self.register_buffer("validation_reconstruction_images", validation_reconstruction_images)
+            self.register_buffer(
+                "validation_reconstruction_images",
+                validation_reconstruction_images
+            )
             self.validation_reconstruction_images = None
 
         if self.vae_type == VAEType.sigma:
@@ -69,14 +83,20 @@ class VAE(DomainModule):
         #
         # # decoder
         # self.decoder = ResNetDecoder(z_size)
-        self.encoder = CEncoderV2(channel_num, image_size, ae_size=ae_size, batchnorm=True)
+        self.encoder = CEncoderV2(
+            channel_num, image_size, ae_size=ae_size, batchnorm=True
+        )
 
         self.q_mean = nn.Linear(self.encoder.out_size, self.z_size)
         self.q_logvar = nn.Linear(self.encoder.out_size, self.z_size)
 
-        self.decoder = CDecoderV2(channel_num, image_size, ae_size=ae_size, z_size=self.z_size, batchnorm=True)
+        self.decoder = CDecoderV2(
+            channel_num, image_size, ae_size=ae_size, z_size=self.z_size,
+            batchnorm=True
+        )
 
-    def encode_stats(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode_stats(self, x: torch.Tensor) -> Tuple[
+        torch.Tensor, torch.Tensor]:
         out = self.encoder(x)
         out = out.view(out.size(0), -1)
 
@@ -95,7 +115,8 @@ class VAE(DomainModule):
         z = z[0]
         return [self.decoder(z)]
 
-    def forward(self, x: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Tuple[
+        Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)
         z = reparameterize(mean, logvar)
 
@@ -104,16 +125,22 @@ class VAE(DomainModule):
 
         return (mean, logvar), x_reconstructed
 
-    def reconstruction_loss(self, x_reconstructed: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    def reconstruction_loss(
+        self, x_reconstructed: torch.Tensor, x: torch.Tensor
+    ) -> torch.Tensor:
         assert x_reconstructed.size() == x.size()
         if self.vae_type == VAEType.optimal_sigma:
-            log_sigma = ((x - x_reconstructed) ** 2).mean([0, 1, 2, 3], keepdim=True).sqrt().log()
+            log_sigma = ((x - x_reconstructed) ** 2).mean(
+                [0, 1, 2, 3], keepdim=True
+            ).sqrt().log()
             log_sigma = softclip(log_sigma, -6)
             self.log_sigma = log_sigma.squeeze()
         loss = gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
         return loss
 
-    def kl_divergence_loss(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+    def kl_divergence_loss(
+        self, mean: torch.Tensor, logvar: torch.Tensor
+    ) -> torch.Tensor:
         kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         return kl
 
@@ -135,8 +162,14 @@ class VAE(DomainModule):
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
 
-        self.log(f"{mode}_reconstruction_loss", reconstruction_loss, logger=True, on_epoch=(mode != "train"))
-        self.log(f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True, on_epoch=(mode != "train"))
+        self.log(
+            f"{mode}_reconstruction_loss", reconstruction_loss, logger=True,
+            on_epoch=(mode != "train")
+        )
+        self.log(
+            f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True,
+            on_epoch=(mode != "train")
+        )
         self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"))
         if mode == "train":
             self.log("log_sigma", self.log_sigma, logger=True)
@@ -160,9 +193,16 @@ class VAE(DomainModule):
                 if self.current_epoch == 0:
                     with log_if_save_last_images(logger):
                         with log_if_save_last_tables(logger):
-                            log_image(logger, x[:self.hparams.n_validation_examples], f"{mode}_original_images")
+                            log_image(
+                                logger, x[:self.hparams.n_validation_examples],
+                                f"{mode}_original_images"
+                            )
 
-                log_image(logger, x_reconstructed[:self.hparams.n_validation_examples], f"{mode}_reconstruction")
+                log_image(
+                    logger,
+                    x_reconstructed[:self.hparams.n_validation_examples],
+                    f"{mode}_reconstruction"
+                )
                 sampled_images = self.decoder(self.validation_sampling_z)
                 log_image(logger, sampled_images, f"{mode}_sampling")
 
@@ -178,15 +218,20 @@ class VAE(DomainModule):
                 # self.log(f"{mode}_mse", mse)
 
                 #
-                # stat_train = np.load(self.trainer.datamodule.inception_stats_path_train, allow_pickle=True).item()
+                # stat_train = np.load(
+                # self.trainer.datamodule.inception_stats_path_train,
+                # allow_pickle=True).item()
                 # mu_dataset_train = stat_train['mu']
                 # sigma_dataset_train = stat_train['sigma']
                 #
-                # stat_test = np.load(self.trainer.datamodule.inception_stats_path_val, allow_pickle=True).item()
+                # stat_test = np.load(
+                # self.trainer.datamodule.inception_stats_path_val,
+                # allow_pickle=True).item()
                 # mu_dataset_test = stat_test['mu']
                 # sigma_dataset_test = stat_test['sigma']
                 #
-                # fid_value = calculate_frechet_distance(mu_dataset_train, sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
+                # fid_value = calculate_frechet_distance(mu_dataset_train,
+                # sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
                 # self.print("FID test: ", fid_value)
 
     def validation_epoch_end(self, outputs):
@@ -211,11 +256,14 @@ class VAE(DomainModule):
 
 
 class CEncoderV2(nn.Module):
-    def __init__(self, num_channels, input_size, ae_size=1028, batchnorm=False):
+    def __init__(
+        self, num_channels, input_size, ae_size=1028, batchnorm=False
+    ):
         super().__init__()
 
         if input_size >= 32:
-            sizes = [ae_size // (2 ** i) for i in reversed(range(4))]  # 1 2 4 8 # 32 64 128 256
+            sizes = [ae_size // (2 ** i) for i in
+                     reversed(range(4))]  # 1 2 4 8 # 32 64 128 256
         else:
             sizes = [32, 64, 128, 256]
 
@@ -232,21 +280,34 @@ class CEncoderV2(nn.Module):
             sizes[-1] = ae_size
 
         self.layers = nn.Sequential(
-            nn.Conv2d(num_channels, sizes[0], kernel_size=kernel_size, stride=2, padding=padding, bias=not batchnorm),
+            nn.Conv2d(
+                num_channels, sizes[0], kernel_size=kernel_size, stride=2,
+                padding=padding, bias=not batchnorm
+            ),
             nn.BatchNorm2d(sizes[0]) if batchnorm else nn.Identity(),
             nn.ReLU(),
-            nn.Conv2d(sizes[0], sizes[1], kernel_size=kernel_size, stride=2, padding=padding, bias=not batchnorm),
+            nn.Conv2d(
+                sizes[0], sizes[1], kernel_size=kernel_size, stride=2,
+                padding=padding, bias=not batchnorm
+            ),
             nn.BatchNorm2d(sizes[1]) if batchnorm else nn.Identity(),
             nn.ReLU(),
-            nn.Conv2d(sizes[1], sizes[2], kernel_size=kernel_size, stride=2, padding=padding, bias=not batchnorm),
+            nn.Conv2d(
+                sizes[1], sizes[2], kernel_size=kernel_size, stride=2,
+                padding=padding, bias=not batchnorm
+            ),
             nn.BatchNorm2d(sizes[2]) if batchnorm else nn.Identity(),
             nn.ReLU(),
-            nn.Conv2d(sizes[2], sizes[3], kernel_size=kernel_size, stride=2, padding=padding, bias=not batchnorm),
+            nn.Conv2d(
+                sizes[2], sizes[3], kernel_size=kernel_size, stride=2,
+                padding=padding, bias=not batchnorm
+            ),
             nn.BatchNorm2d(sizes[3]) if batchnorm else nn.Identity(),
             nn.ReLU(),
         )
 
-        self.out_size = sizes[3] * 2 * 2 * (input_size // 32) * (input_size // 32)
+        self.out_size = sizes[3] * 2 * 2 * (input_size // 32) * (
+                input_size // 32)
 
     def forward(self, x):
         # x = self.layers(x).view(x.size(0), -1)
@@ -256,12 +317,15 @@ class CEncoderV2(nn.Module):
 
 
 class CDecoderV2(nn.Module):
-    def __init__(self, num_channels, input_size, z_size, ae_size=1028, batchnorm=False):
+    def __init__(
+        self, num_channels, input_size, z_size, ae_size=1028, batchnorm=False
+    ):
         super().__init__()
 
         if input_size <= 32:
             if input_size >= 32:
-                sizes = [ae_size // (2 ** i) for i in reversed(range(3))]  # 1 2 4 8 # 32 64 128 256
+                sizes = [ae_size // (2 ** i) for i in
+                         reversed(range(3))]  # 1 2 4 8 # 32 64 128 256
             else:
                 sizes = [64, 128, 256]
 
@@ -272,17 +336,22 @@ class CDecoderV2(nn.Module):
             padding = 1
 
             self.layers = nn.Sequential(
-                nn.ConvTranspose2d(z_size, sizes[2], kernel_size=8, stride=1, bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    z_size, sizes[2], kernel_size=8, stride=1,
+                    bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[2]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
                 nn.ConvTranspose2d(
-                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
+                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2,
+                    padding=padding,
                     bias=not batchnorm
                 ),
                 nn.BatchNorm2d(sizes[1]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
                 nn.ConvTranspose2d(
-                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
+                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2,
+                    padding=padding,
                     bias=not batchnorm
                 ),
                 nn.BatchNorm2d(sizes[0]) if batchnorm else nn.Identity(),
@@ -301,23 +370,29 @@ class CDecoderV2(nn.Module):
             padding = 2
 
             self.layers = nn.Sequential(
-                nn.ConvTranspose2d(z_size, sizes[3], kernel_size=8, stride=1, bias=not batchnorm),
+                nn.ConvTranspose2d(
+                    z_size, sizes[3], kernel_size=8, stride=1,
+                    bias=not batchnorm
+                ),
                 nn.BatchNorm2d(sizes[3]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
                 nn.ConvTranspose2d(
-                    sizes[3], sizes[2], kernel_size=kernel_size, stride=2, padding=padding,
+                    sizes[3], sizes[2], kernel_size=kernel_size, stride=2,
+                    padding=padding,
                     output_padding=1, bias=not batchnorm
                 ),
                 nn.BatchNorm2d(sizes[2]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
                 nn.ConvTranspose2d(
-                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2, padding=padding,
+                    sizes[2], sizes[1], kernel_size=kernel_size, stride=2,
+                    padding=padding,
                     output_padding=1, bias=not batchnorm
                 ),
                 nn.BatchNorm2d(sizes[1]) if batchnorm else nn.Identity(),
                 nn.ReLU(),
                 nn.ConvTranspose2d(
-                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2, padding=padding,
+                    sizes[1], sizes[0], kernel_size=kernel_size, stride=2,
+                    padding=padding,
                     output_padding=1, bias=not batchnorm
                 ),
                 nn.BatchNorm2d(sizes[0]) if batchnorm else nn.Identity(),
@@ -330,7 +405,10 @@ class CDecoderV2(nn.Module):
 
         self.out_layer = nn.Sequential(
             out_padding_layer,
-            nn.Conv2d(sizes[0], num_channels, kernel_size=kernel_size, stride=1, padding=padding),
+            nn.Conv2d(
+                sizes[0], num_channels, kernel_size=kernel_size, stride=1,
+                padding=padding
+            ),
             nn.Sigmoid()
         )
 

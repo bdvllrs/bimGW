@@ -10,7 +10,8 @@ class Sampler(BaseSampler):
         """
         Args:
             batch_size:
-            domain_map: of the form: {"['t', 'v']": [0, 2, ...], "['t']": [1, ...], ...}
+            domain_map: of the form: {"['t', 'v']": [0, 2, ...], "['t']": [
+            1, ...], ...}
         """
         self.batch_size = batch_size
         self.domain_map = domain_map
@@ -25,12 +26,20 @@ class Sampler(BaseSampler):
         for k in range(self.n_items // self.batch_size):
             batch = []
             for i, (key, possible_keys) in enumerate(self.domain_map.items()):
-                intersected_items = self.seen_items[key].intersection(possible_keys)
+                intersected_items = self.seen_items[key].intersection(
+                    possible_keys
+                )
                 if len(intersected_items):
                     if i == len(self.domain_map.keys()) - 1:
                         n_items = self.batch_size - len(batch)
                     else:
-                        n_items = self.batch_size // len(self.domain_map.keys())
-                    batch.extend(random.sample(list(intersected_items), n_items))
-                    self.seen_items[key] = self.seen_items[key].union(set(batch))
+                        n_items = self.batch_size // len(
+                            self.domain_map.keys()
+                        )
+                    batch.extend(
+                        random.sample(list(intersected_items), n_items)
+                    )
+                    self.seen_items[key] = self.seen_items[key].union(
+                        set(batch)
+                    )
             yield batch

@@ -15,7 +15,9 @@ AttributesDataType = Tuple[torch.FloatTensor, int, torch.FloatTensor]
 TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
 
 
-def transform(data: Any, transformation: Optional[Callable[[Any], Any]]) -> Any:
+def transform(
+    data: Any, transformation: Optional[Callable[[Any], Any]]
+) -> Any:
     if transformation is not None:
         data = transformation(data)
     return data
@@ -25,13 +27,13 @@ class DataFetcher:
     modality: str = None
 
     def __init__(
-            self,
-            root_path: pathlib.Path,
-            split: SplitLiteral,
-            ids: List[int],
-            labels,
-            transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
-            **kwargs
+        self,
+        root_path: pathlib.Path,
+        split: SplitLiteral,
+        ids: List[int],
+        labels,
+        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        **kwargs
     ):
         self.root_path = root_path
         self.split = split
@@ -46,8 +48,11 @@ class DataFetcher:
     def get_item(self, item: int):
         raise NotImplementedError
 
-    def get_items(self, item: int) -> Union[VisualDataType, AttributesDataType, TextDataType]:
-        item = self.get_item(item) if item is not None else self.get_null_item()
+    def get_items(self, item: int) -> Union[
+        VisualDataType, AttributesDataType, TextDataType]:
+        item = self.get_item(
+            item
+        ) if item is not None else self.get_null_item()
         return transform(item, self.transforms)
 
 
@@ -55,15 +60,17 @@ class VisualDataFetcher(DataFetcher):
     modality = "v"
 
     def __init__(
-            self,
-            root_path: pathlib.Path,
-            split: SplitLiteral,
-            ids: List[int],
-            labels,
-            transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
-            **kwargs
+        self,
+        root_path: pathlib.Path,
+        split: SplitLiteral,
+        ids: List[int],
+        labels,
+        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        **kwargs
     ):
-        super(VisualDataFetcher, self).__init__(root_path, split, ids, labels, transforms, **kwargs)
+        super(VisualDataFetcher, self).__init__(
+            root_path, split, ids, labels, transforms, **kwargs
+        )
         self.null_image = None
 
     def get_null_item(self) -> VisualDataType:
@@ -74,7 +81,9 @@ class VisualDataFetcher(DataFetcher):
             self.null_image = Image.fromarray(img)
         return torch.tensor(0.).float(), self.null_image
 
-    def get_item(self, item: int, path: Optional[pathlib.Path] = None) -> VisualDataType:
+    def get_item(
+        self, item: int, path: Optional[pathlib.Path] = None
+    ) -> VisualDataType:
         if path is None:
             path = self.root_path
 
@@ -121,18 +130,23 @@ class TextDataFetcher(DataFetcher):
     modality = "t"
 
     def __init__(
-            self,
-            root_path: pathlib.Path,
-            split: SplitLiteral,
-            ids: List[int],
-            labels,
-            transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
-            **kwargs
+        self,
+        root_path: pathlib.Path,
+        split: SplitLiteral,
+        ids: List[int],
+        labels,
+        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        **kwargs
     ):
-        super(TextDataFetcher, self).__init__(root_path, split, ids, labels, transforms, **kwargs)
+        super(TextDataFetcher, self).__init__(
+            root_path, split, ids, labels, transforms, **kwargs
+        )
 
-        assert 'bert_latents' in self.fetcher_args, 'bert_latents must be specified for text fetcher'
-        assert 'pca_dim' in self.fetcher_args, 'pca_dim must be specified for text fetcher'
+        assert 'bert_latents' in self.fetcher_args, 'bert_latents must be ' \
+                                                    'specified for text ' \
+                                                    'fetcher'
+        assert 'pca_dim' in self.fetcher_args, 'pca_dim must be specified ' \
+                                               'for text fetcher'
 
         bert_latents = self.fetcher_args['bert_latents']
         pca_dim = self.fetcher_args['pca_dim']
@@ -141,20 +155,34 @@ class TextDataFetcher(DataFetcher):
         self.bert_mean = None
         self.bert_std = None
         if bert_latents is not None:
-            if pca_dim < 768 and (root_path / f"{split}_reduced_{pca_dim}_{bert_latents}").exists():
-                self.bert_data = np.load(root_path / f"{split}_reduced_{pca_dim}_{bert_latents}")[ids]
-                self.bert_mean = np.load(root_path / f"mean_reduced_{pca_dim}_{bert_latents}")
-                self.bert_std = np.load(root_path / f"std_reduced_{pca_dim}_{bert_latents}")
+            if pca_dim < 768 and (
+                    root_path / f"{split}_reduced_{pca_dim}_{
+                bert_latents}").exists():
+                self.bert_data = np.load(
+                    root_path / f"{split}_reduced_{pca_dim}_{bert_latents}"
+                )[ids]
+                self.bert_mean = np.load(
+                    root_path / f"mean_reduced_{pca_dim}_{bert_latents}"
+                )
+                self.bert_std = np.load(
+                    root_path / f"std_reduced_{pca_dim}_{bert_latents}"
+                )
             elif pca_dim == 768:
-                self.bert_data = np.load(root_path / f"{split}_{bert_latents}")[ids]
+                self.bert_data = \
+                    np.load(root_path / f"{split}_{bert_latents}")[ids]
                 self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
                 self.bert_std = np.load(root_path / f"std_{bert_latents}")
             else:
                 raise ValueError("No PCA data found")
-            self.bert_data: np.ndarray = (self.bert_data - self.bert_mean) / self.bert_std
+            self.bert_data: np.ndarray = (
+                                                 self.bert_data -
+                                                 self.bert_mean) / \
+                                         self.bert_std
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
-        self.choices = np.load(str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True)
+        self.choices = np.load(
+            str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True
+        )
         self.null_choice = None
 
     def get_item(self, item: int) -> TextDataType:
@@ -184,10 +212,14 @@ class PreSavedLatentDataFetcher:
         return self.data[0].shape[0]
 
     def get_null_item(self):
-        return [torch.tensor(0.).float()] + [np.zeros_like(self.data[k][0][0]) for k in range(len(self.data))]
+        return [torch.tensor(0.).float()] + [np.zeros_like(self.data[k][0][0])
+                                             for k in range(len(self.data))]
 
     def get_item(self, item: int):
-        return [torch.tensor(1.).float()] + [self.data[k][item][0] for k in range(len(self.data))]
+        return [torch.tensor(1.).float()] + [self.data[k][item][0] for k in
+                                             range(len(self.data))]
 
     def get_items(self, item: int):
-        return self.get_item(item) if item is not None else self.get_null_item()
+        return self.get_item(
+            item
+        ) if item is not None else self.get_null_item()

@@ -29,8 +29,12 @@ class DomainModule(LightningModule):
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         raise NotImplementedError
 
-    def log_domain_from_latent(self, logger, z, title, max_examples=None, step=None):
-        return self.log_domain(logger, self.decode(z), title, max_examples, step=step)
+    def log_domain_from_latent(
+        self, logger, z, title, max_examples=None, step=None
+    ):
+        return self.log_domain(
+            logger, self.decode(z), title, max_examples, step=step
+        )
 
     def compute_acc(self, acc_metric, predictions, targets):
         raise NotImplementedError
@@ -51,11 +55,15 @@ class PassThroughWM(DomainModule):
         self.workspace_module = workspace_module
         self.z_size = self.workspace_module.z_size
         self.output_dims = self.workspace_module.output_dims
-        self.decoder_activation_fn = self.workspace_module.decoder_activation_fn
+        self.decoder_activation_fn = \
+            self.workspace_module.decoder_activation_fn
         self.losses = self.workspace_module.losses
-        self.workspace_encoder_cls = self.workspace_module.workspace_encoder_cls
-        self.workspace_decoder_cls = self.workspace_module.workspace_decoder_cls
-        # self.requires_acc_computation = self.workspace_module.requires_acc_computation
+        self.workspace_encoder_cls = \
+            self.workspace_module.workspace_encoder_cls
+        self.workspace_decoder_cls = \
+            self.workspace_module.workspace_decoder_cls
+        # self.requires_acc_computation =
+        # self.workspace_module.requires_acc_computation
 
         self.use_pass_through = True
 
@@ -77,8 +85,14 @@ class PassThroughWM(DomainModule):
             return z
         return self.workspace_module.adapt(z)
 
-    def log_domain_from_latent(self, logger, z, title, max_examples=None, step=None):
-        return self.workspace_module.log_domain_from_latent(logger, z, title, max_examples, step=step)
+    def log_domain_from_latent(
+        self, logger, z, title, max_examples=None, step=None
+    ):
+        return self.workspace_module.log_domain_from_latent(
+            logger, z, title, max_examples, step=step
+        )
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
-        return self.workspace_module.log_domain(logger, x, title, max_examples, step=step)
+        return self.workspace_module.log_domain(
+            logger, x, title, max_examples, step=step
+        )

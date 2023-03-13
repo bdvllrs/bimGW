@@ -11,8 +11,9 @@ from bim_gw.utils.loggers.utils import ImageType, text_from_table, to_pil_image
 
 class CSVLogger(CSVLoggerBase):
     def __init__(
-            self, *params, save_images=True, save_last_images=True, image_location="images", text_location="texts",
-            source_location="sources", **kwargs
+        self, *params, save_images=True, save_last_images=True,
+        image_location="images", text_location="texts",
+        source_location="sources", **kwargs
     ):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
@@ -25,7 +26,10 @@ class CSVLogger(CSVLoggerBase):
         self._image_last_step = {}
         self._text_last_step = {}
         if not self.do_save_images:
-            logging.warning("CSVLogger will not save the images. Set `save_images' to true to log them.")
+            logging.warning(
+                "CSVLogger will not save the images. Set `save_images' to "
+                "true to log them."
+            )
 
     def set_summary(self, name, mode="max"):
         pass
@@ -37,22 +41,32 @@ class CSVLogger(CSVLoggerBase):
         pass
 
     @rank_zero_only
-    def log_image(self, log_name: str, image: ImageType, step: Optional[int] = None) -> None:
+    def log_image(
+        self, log_name: str, image: ImageType, step: Optional[int] = None
+    ) -> None:
         if self.do_save_images:
             if step is None:
                 if log_name not in self._image_last_step:
                     self._image_last_step[log_name] = 0
                 step = self._image_last_step[log_name]
                 self._image_last_step[log_name] += 1
-            path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step={step}.png")
+            path = os.path.join(
+                self.log_dir,
+                f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
+            )
             os.makedirs(os.path.dirname(path), exist_ok=True)
             image = to_pil_image(image)
             self._images.append((path, image))
-            path = os.path.join(self.log_dir, f"{self._image_location}/{log_name}/{log_name}_step=last.png")
+            path = os.path.join(
+                self.log_dir,
+                f"{self._image_location}/{log_name}/{log_name}_step=last.png"
+            )
             self._images.append((path, image))
 
     @rank_zero_only
-    def log_text(self, log_name: str, text: Union[List, str], step: Optional[int] = None) -> None:
+    def log_text(
+        self, log_name: str, text: Union[List, str], step: Optional[int] = None
+    ) -> None:
         if step is None:
             if log_name not in self._text_last_step:
                 self._text_last_step[log_name] = 0
@@ -60,14 +74,19 @@ class CSVLogger(CSVLoggerBase):
             self._text_last_step[log_name] += 1
         if isinstance(text, list):
             text = "\n".join(text)
-        path = os.path.join(self.log_dir, f"{self._text_location}/{log_name}/{log_name}.txt")
+        path = os.path.join(
+            self.log_dir, f"{self._text_location}/{log_name}/{log_name}.txt"
+        )
         text = f"# step={step}\n{text}\n"
         if path not in self._texts:
             self._texts[path] = ""
         self._texts[path] += text
 
     @rank_zero_only
-    def log_table(self, log_name: str, columns: List[str], data: List[List[str]], step: Optional[int] = None):
+    def log_table(
+        self, log_name: str, columns: List[str], data: List[List[str]],
+        step: Optional[int] = None
+    ):
         self.log_text(log_name, text_from_table(columns, data), step)
 
     @rank_zero_only

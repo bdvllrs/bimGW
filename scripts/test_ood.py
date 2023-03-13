@@ -85,16 +85,22 @@ def test_ood(args):
 
     plot_image_grid(data.validation_domain_examples["v"], "Original images")
     plot_image_grid(v_image, "VAE reconstruction")
-    plot_image_grid(v_recons_demi_cycle, "Reconstruction demi-cycle (v → gw → v)")
+    plot_image_grid(
+        v_recons_demi_cycle, "Reconstruction demi-cycle (v → gw → v)"
+    )
     plot_image_grid(v_recons, "Reconstruction full cycle (v → t → v)")
     render_semantic(t_recons, "Rendered images after translation (v → t)")
 
     print("Look at global workspace")
 
-    latent_t = global_workspace.domain_mods["t"].encode(data.validation_domain_examples["t"])
+    latent_t = global_workspace.domain_mods["t"].encode(
+        data.validation_domain_examples["t"]
+    )
     z_t = global_workspace.encoders["t"](latent_t)
 
-    latent_v = global_workspace.domain_mods["v"].encode(data.validation_domain_examples["v"])
+    latent_v = global_workspace.domain_mods["v"].encode(
+        data.validation_domain_examples["v"]
+    )
     z_v = global_workspace.encoders["v"](latent_v)
 
     print(torch.nn.functional.mse_loss(z_t, z_v))

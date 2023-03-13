@@ -14,7 +14,8 @@ class SimpleShapesAttributes(DomainModule):
 
         # self.use_unpaired = use_unpaired
         self.n_classes = 3
-        # self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute if needed
+        # self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute
+        # if needed
         self.z_size = 8
         self.imsize = imsize
 
@@ -71,8 +72,14 @@ class SimpleShapesAttributes(DomainModule):
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
 
-    def sample(self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46, max_lightness=256):
-        samples = generate_dataset(size, min_scale, max_scale, min_lightness, max_lightness, 32, classes)
+    def sample(
+        self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46,
+        max_lightness=256
+    ):
+        samples = generate_dataset(
+            size, min_scale, max_scale, min_lightness, max_lightness, 32,
+            classes
+        )
         cls = samples["classes"]
         x, y = samples["locations"][:, 0], samples["locations"][:, 1]
         radius = samples["sizes"]
@@ -81,11 +88,17 @@ class SimpleShapesAttributes(DomainModule):
         rotation_y = (np.sin(rotation) + 1) / 2
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
-        r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples["colors"][:, 2]
+        r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples[
+                                                                        "colors"][
+                                                                    :, 2]
 
         labels = (
             torch.from_numpy(cls),
-            torch.from_numpy(np.stack([x, y, radius, rotation_x, rotation_y, r, g, b], axis=1)).to(torch.float),
+            torch.from_numpy(
+                np.stack(
+                    [x, y, radius, rotation_x, rotation_y, r, g, b], axis=1
+                )
+            ).to(torch.float),
         )
         return labels
 
@@ -111,7 +124,9 @@ class SimpleShapesAttributes(DomainModule):
         for k in range(len(classes)):
             text.append([classes[k].item()] + latents[k].tolist())
         if logger is not None and hasattr(logger, "log_table"):
-            logger.log_table(name + "_text", columns=labels, data=text, step=step)
+            logger.log_table(
+                name + "_text", columns=labels, data=text, step=step
+            )
         else:
             print(labels)
             print(text)
@@ -120,6 +135,8 @@ class SimpleShapesAttributes(DomainModule):
         loss, losses = super().loss(predictions, targets)
         # if self.use_unpaired:
         #     # Add unpaired loss label
-        #     # Do not add it to loss, as it is already counted. Only for logging.
-        #     losses["unpaired"] = F.mse_loss(predictions[1][:, -1], targets[1][:, -1])
+        #     # Do not add it to loss, as it is already counted. Only for
+        #     logging.
+        #     losses["unpaired"] = F.mse_loss(predictions[1][:, -1],
+        #     targets[1][:, -1])
         return loss, losses

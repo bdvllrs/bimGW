@@ -9,7 +9,9 @@ from bim_gw.utils import get_args
 if __name__ == '__main__':
     work_dir = Path(__file__).absolute().parent.parent
 
-    args = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False)
+    args = get_args(
+        debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
+    )
     cli_args = OmegaConf.from_cli()
     args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
@@ -27,9 +29,11 @@ if __name__ == '__main__':
         exclude_in_rsync=["images", "tests"],
     )
 
-    sbatch = SBatch(args.slurm.slurm, cli_args,
+    sbatch = SBatch(
+        args.slurm.slurm, cli_args,
         grid_search=args.slurm.grid_search,
-        experiment_handler=handler)
+        experiment_handler=handler
+    )
     sbatch(
         args.slurm.command,
         schedule_all_tasks=True

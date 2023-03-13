@@ -7,7 +7,10 @@ from bim_gw.datasets.odd_image.dataset import OddImageDataset
 
 
 class OddImageDataModule(LightningDataModule):
-    def __init__(self, root_path, pre_saved_latent_path, batch_size, num_workers, selected_domains, bert_latent):
+    def __init__(
+        self, root_path, pre_saved_latent_path, batch_size, num_workers,
+        selected_domains, bert_latent
+    ):
         super(OddImageDataModule, self).__init__()
 
         self.root_path = Path(root_path)
@@ -22,15 +25,18 @@ class OddImageDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         self.train_set = OddImageDataset(
-            self.root_path, "train", self.pre_saved_latent_path, self.selected_domains,
+            self.root_path, "train", self.pre_saved_latent_path,
+            self.selected_domains,
             self.bert_latent
         )
         self.val_set = OddImageDataset(
-            self.root_path, "val", self.pre_saved_latent_path, self.selected_domains,
+            self.root_path, "val", self.pre_saved_latent_path,
+            self.selected_domains,
             self.bert_latent
         )
         self.test_set = OddImageDataset(
-            self.root_path, "test", self.pre_saved_latent_path, self.selected_domains,
+            self.root_path, "test", self.pre_saved_latent_path,
+            self.selected_domains,
             self.bert_latent
         )
 

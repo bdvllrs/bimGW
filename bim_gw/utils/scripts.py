@@ -2,7 +2,10 @@ import os
 from pathlib import Path
 
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import (
+    EarlyStopping, LearningRateMonitor,
+    ModelCheckpoint
+)
 
 from bim_gw.modules.domain_modules.domain_module import PassThroughWM
 from bim_gw.utils import registries
@@ -16,7 +19,8 @@ def get_domain(domain_name, args, img_size=None):
     except KeyError:
         raise ValueError(f"Domain {domain_name} not found in registry.")
 
-    if args.global_workspace.use_pre_saved and domain_name in args.global_workspace.load_pre_saved_latents.keys():
+    if args.global_workspace.use_pre_saved and domain_name in \
+            args.global_workspace.load_pre_saved_latents.keys():
         domain = PassThroughWM(domain)
 
     domain.eval()
@@ -26,11 +30,15 @@ def get_domain(domain_name, args, img_size=None):
 
 def get_domains(args, img_size=None):
     return {
-        domain: get_domain(domain, args, img_size) for domain in args.global_workspace.selected_domains
+        domain: get_domain(domain, args, img_size) for domain in
+        args.global_workspace.selected_domains
     }
 
 
-def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping_patience=None, trainer_args=None):
+def get_trainer(
+    name, args, model, monitor_loss="val_total_loss",
+    early_stopping_patience=None, trainer_args=None
+):
     slurm_job_id = os.getenv("SLURM_JOBID", None)
 
     tags = None
@@ -46,7 +54,9 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
             logger.args.id = args.logger_resume_id
             logger.args.resume = True
 
-    loggers = get_loggers(name, version, args.loggers, model, args, tags, source_files)
+    loggers = get_loggers(
+        name, version, args.loggers, model, args, tags, source_files
+    )
 
     # Callbacks
     callbacks = []
@@ -55,14 +65,25 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
             LearningRateMonitor(logging_interval="epoch")
         )
         if early_stopping_patience is not None:
-            callbacks.append(EarlyStopping(monitor=monitor_loss, patience=early_stopping_patience))
+            callbacks.append(
+                EarlyStopping(
+                    monitor=monitor_loss, patience=early_stopping_patience
+                )
+            )
     if len(loggers) and args.checkpoints_dir is not None:
         logger = loggers[0]
         if slurm_job_id is not None:
             save_dir = Path(args.checkpoints_dir) / "checkpoints"
         else:
-            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(logger.version) / "checkpoints"
-        callbacks.append(ModelCheckpoint(dirpath=save_dir, save_top_k=1, mode="min", monitor=monitor_loss))
+            save_dir = Path(args.checkpoints_dir) / str(logger.name) / str(
+                logger.version
+            ) / "checkpoints"
+        callbacks.append(
+            ModelCheckpoint(
+                dirpath=save_dir, save_top_k=1, mode="min",
+                monitor=monitor_loss
+            )
+        )
 
     _trainer_args = {
         "default_root_dir": args.checkpoints_dir,
@@ -72,7 +93,9 @@ def get_trainer(name, args, model, monitor_loss="val_total_loss", early_stopping
         "strategy": (args.distributed_backend if args.devices > 1 else None),
         "logger": loggers,
         "callbacks": callbacks,
-        "resume_from_checkpoint": get_checkpoint_path(args.resume_from_checkpoint),
+        "resume_from_checkpoint": get_checkpoint_path(
+            args.resume_from_checkpoint
+        ),
         "max_epochs": args.max_epochs,
         "max_steps": args.max_steps,
         "multiple_trainloader_mode": "min_size",

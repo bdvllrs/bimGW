@@ -37,14 +37,19 @@ def text_from_column_data(x):
 def text_from_table(columns, data):
     text = ""
     for k in range(len(data)):
-        text += f"{k + 1} - " + ", ".join(map(text_from_column_data, zip(columns, data[k]))) + "\n"
+        text += f"{k + 1} - " + ", ".join(
+            map(text_from_column_data, zip(columns, data[k]))
+        ) + "\n"
     text += "---- \n"
     return text
 
 
 class NullLogger:
     def __init__(self, *params, **kwarg):
-        raise ValueError("This Logger is not available. Please install the associated package to use this logger.")
+        raise ValueError(
+            "This Logger is not available. Please install the associated "
+            "package to use this logger."
+        )
 
 
 class LoggerBase:

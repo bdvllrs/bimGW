@@ -13,7 +13,8 @@ from bim_gw.utils.scripts import get_domains
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    assert args.global_workspace.load_pre_saved_latents is not None, "Pre-saved latent path should be defined."
+    assert args.global_workspace.load_pre_saved_latents is not None, \
+        "Pre-saved latent path should be defined."
 
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
@@ -22,7 +23,8 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.global_workspace.selected_domains = OmegaConf.create(
-        [domain for domain in args.global_workspace.load_pre_saved_latents.keys()]
+        [domain for domain in
+         args.global_workspace.load_pre_saved_latents.keys()]
     )
 
     data = load_dataset(args, args.global_workspace, with_actions=True)
@@ -41,7 +43,8 @@ if __name__ == '__main__':
     }
 
     for domain_key in domains.keys():
-        assert domain_key in args.global_workspace.load_pre_saved_latents, f"Path for domain {domain_key} is not provided."
+        assert domain_key in args.global_workspace.load_pre_saved_latents, \
+            f"Path for domain {domain_key} is not provided."
 
     path = Path(args.simple_shapes_path) / "saved_latents"
     path.mkdir(exist_ok=True)
@@ -76,8 +79,14 @@ if __name__ == '__main__':
             paths = []
             for k in range(len(l)):
                 x = np.concatenate(l[k])
-                p = path / name / args.global_workspace.load_pre_saved_latents[domain_name]
+                p = path / name / args.global_workspace.load_pre_saved_latents[
+                    domain_name]
                 p = p.with_stem(p.stem + f"_part_{k}")
                 paths.append(p.name)
                 np.save(str(p), x)
-            np.save(str(path / name / args.global_workspace.load_pre_saved_latents[domain_name]), np.array(paths))
+            np.save(
+                str(
+                    path / name / args.global_workspace.load_pre_saved_latents[
+                        domain_name]
+                ), np.array(paths)
+            )

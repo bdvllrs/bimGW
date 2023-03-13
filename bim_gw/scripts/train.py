@@ -23,15 +23,25 @@ def train_gw(args, mode="train"):
             domain_mods=get_domains(args, data.img_size),
             domain_examples=data.domain_examples, )
     else:
-        global_workspace = GlobalWorkspace(get_domains(args, data.img_size), args.global_workspace.z_size,
-            args.global_workspace.hidden_size, args.global_workspace.n_layers.encoder,
-            args.global_workspace.n_layers.decoder, args.global_workspace.n_layers.decoder_head, len(data.classes),
-            args.losses.coefs.demi_cycles, args.losses.coefs.cycles, args.losses.coefs.translation,
-            args.losses.coefs.cosine, args.losses.coefs.contrastive, args.global_workspace.optim.lr,
-            args.global_workspace.optim.weight_decay, args.global_workspace.scheduler.mode,
-            args.global_workspace.scheduler.interval, args.global_workspace.scheduler.step,
-            args.global_workspace.scheduler.gamma, args.losses.schedules, data.domain_examples,
-            args.global_workspace.monitor_grad_norms, args.global_workspace.remove_sync_domains)
+        global_workspace = GlobalWorkspace(
+            get_domains(args, data.img_size), args.global_workspace.z_size,
+            args.global_workspace.hidden_size,
+            args.global_workspace.n_layers.encoder,
+            args.global_workspace.n_layers.decoder,
+            args.global_workspace.n_layers.decoder_head, len(data.classes),
+            args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
+            args.losses.coefs.translation,
+            args.losses.coefs.cosine, args.losses.coefs.contrastive,
+            args.global_workspace.optim.lr,
+            args.global_workspace.optim.weight_decay,
+            args.global_workspace.scheduler.mode,
+            args.global_workspace.scheduler.interval,
+            args.global_workspace.scheduler.step,
+            args.global_workspace.scheduler.gamma, args.losses.schedules,
+            data.domain_examples,
+            args.global_workspace.monitor_grad_norms,
+            args.global_workspace.remove_sync_domains
+        )
 
     trainer = get_trainer(
         "train_gw", args, global_workspace,
@@ -57,7 +67,9 @@ def train_gw(args, mode="train"):
 def train_lm(args):
     seed_everything(args.seed)
 
-    data = load_dataset(args, args.lm, add_unimodal=False, selected_domains=["attr", "t"])
+    data = load_dataset(
+        args, args.lm, add_unimodal=False, selected_domains=["attr", "t"]
+    )
     data.prepare_data()
     data.setup(stage="fit")
 
@@ -69,7 +81,8 @@ def train_lm(args):
             domain_examples=data.domain_examples,
             train_vae=args.lm.train_vae,
             train_attr_decoders=args.lm.train_attr_decoders,
-            optimize_vae_with_attr_regression=args.lm.optimize_vae_with_attr_regression,
+            optimize_vae_with_attr_regression=args.lm
+            .optimize_vae_with_attr_regression,
             ceof_attr_loss=args.lm.coef_attr_loss,
             ceof_vae_loss=args.lm.coef_vae_loss,
         )
@@ -77,10 +90,12 @@ def train_lm(args):
         lm = SimpleShapesText(
             args.lm.z_size, args.lm.hidden_size, args.lm.beta,
             len(data.classes), data.img_size, args.global_workspace.bert_path,
-            args.lm.optim.lr, args.lm.optim.weight_decay, args.lm.scheduler.step,
+            args.lm.optim.lr, args.lm.optim.weight_decay,
+            args.lm.scheduler.step,
             args.lm.scheduler.gamma, data.domain_examples,
             args.lm.train_vae, args.lm.train_attr_decoders,
-            args.lm.optimize_vae_with_attr_regression, args.lm.coef_attr_loss, args.lm.coef_vae_loss,
+            args.lm.optimize_vae_with_attr_regression, args.lm.coef_attr_loss,
+            args.lm.coef_vae_loss,
         )
 
     trainer = get_trainer(
@@ -108,13 +123,16 @@ def train_ae(args):
         ae = AE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=data.domain_examples["val"][0]["v"][1]
+            validation_reconstruction_images=
+            data.domain_examples["val"][0]["v"][1]
         )
     else:
         ae = AE(
-            data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size,
+            data.img_size, data.num_channels, args.vae.ae_size,
+            args.vae.z_size,
             args.n_validation_examples,
-            args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step, args.vae.scheduler.gamma,
+            args.vae.optim.lr, args.vae.optim.weight_decay,
+            args.vae.scheduler.step, args.vae.scheduler.gamma,
             data.domain_examples["val"][0]["v"][1]
         )
 
@@ -136,19 +154,27 @@ def train_vae(args):
 
     data.prepare_data()
     data.setup(stage="fit")
-    data.compute_inception_statistics(32, torch.device("cuda" if args.accelerator == "gpu" else "cpu"))
+    data.compute_inception_statistics(
+        32, torch.device("cuda" if args.accelerator == "gpu" else "cpu")
+    )
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
         vae = VAE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=data.domain_examples["val"][0]["v"][1]
+            validation_reconstruction_images=
+            data.domain_examples["val"][0]["v"][1]
         )
     else:
-        vae = VAE(data.img_size, data.num_channels, args.vae.ae_size, args.vae.z_size, args.vae.beta, args.vae.type,
-            args.n_validation_examples, args.vae.optim.lr, args.vae.optim.weight_decay, args.vae.scheduler.step,
-            args.vae.scheduler.gamma, data.domain_examples["val"][0]["v"][1], args.vae.n_FID_samples)
+        vae = VAE(
+            data.img_size, data.num_channels, args.vae.ae_size,
+            args.vae.z_size, args.vae.beta, args.vae.type,
+            args.n_validation_examples, args.vae.optim.lr,
+            args.vae.optim.weight_decay, args.vae.scheduler.step,
+            args.vae.scheduler.gamma, data.domain_examples["val"][0]["v"][1],
+            args.vae.n_FID_samples
+        )
 
     trainer = get_trainer(
         "train_vae", args, vae, monitor_loss="val_total_loss",

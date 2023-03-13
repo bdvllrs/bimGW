@@ -7,14 +7,16 @@ from numpy.typing import ArrayLike
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.fetchers import (
-    AttributesDataFetcher, AttributesDataType, DataFetcher, PreSavedLatentDataFetcher, TextDataFetcher,
+    AttributesDataFetcher, AttributesDataType, DataFetcher,
+    PreSavedLatentDataFetcher, TextDataFetcher,
     TextDataType, VisualDataFetcher, VisualDataType
 )
 from bim_gw.utils.types import SplitLiteral
 
 AvailableDomainsType = Literal["v", "attr", "t"]
 
-SelectedDomainType = Dict[str, Union[VisualDataType, AttributesDataType, TextDataType]]
+SelectedDomainType = Dict[
+    str, Union[VisualDataType, AttributesDataType, TextDataType]]
 
 
 class SimpleShapesDataset:
@@ -25,17 +27,19 @@ class SimpleShapesDataset:
     }
 
     def __init__(
-            self,
-            path: Union[str, pathlib.Path],
-            split: SplitLiteral = "train",
-            mapping: List[int] = None,
-            domain_mapping: List[List[str]] = None,
-            selected_indices: Optional[ArrayLike] = None,
-            selected_domains: List[AvailableDomainsType] = None,
-            pre_saved_latent_path: Optional[Dict[str, str]] = None,
-            transform: Optional[Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
-            output_transform: Optional[Callable[[SelectedDomainType], SelectedDomainType]] = None,
-            fetcher_params: Optional[Dict[str, Any]] = None
+        self,
+        path: Union[str, pathlib.Path],
+        split: SplitLiteral = "train",
+        mapping: List[int] = None,
+        domain_mapping: List[List[str]] = None,
+        selected_indices: Optional[ArrayLike] = None,
+        selected_domains: List[AvailableDomainsType] = None,
+        pre_saved_latent_path: Optional[Dict[str, str]] = None,
+        transform: Optional[
+            Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
+        output_transform: Optional[
+            Callable[[SelectedDomainType], SelectedDomainType]] = None,
+        fetcher_params: Optional[Dict[str, Any]] = None
     ):
         """
         Args:
@@ -47,9 +51,11 @@ class SimpleShapesDataset:
         """
         assert split in ["train", "val", "test"]
         self.selected_domains = [domain for domain in
-                                 self.available_domains.keys()] if selected_domains is None else selected_domains
+                                 self.available_domains.keys()] if \
+            selected_domains is None else selected_domains
         self.root_path = Path(path)
-        self.transforms = {domain: (transform[domain] if (transform is not None and domain in transform) else None)
+        self.transforms = {domain: (transform[domain] if (
+                transform is not None and domain in transform) else None)
                            for domain in self.available_domains.keys()}
         self.output_transform = output_transform
         self.split = split
@@ -79,7 +85,8 @@ class SimpleShapesDataset:
 
         self.data_fetchers = {
             domain: self.available_domains[domain](
-                self.root_path, self.split, self.ids, self.labels, self.transforms, **fetcher_params[domain]
+                self.root_path, self.split, self.ids, self.labels,
+                self.transforms, **fetcher_params[domain]
             )
             for domain in self.selected_domains
         }
@@ -88,14 +95,19 @@ class SimpleShapesDataset:
         if pre_saved_latent_path is not None:
             self.use_pre_saved_latents(pre_saved_latent_path)
 
-    def use_pre_saved_latents(self, pre_saved_latent_path: Optional[Dict[str, Any]]) -> None:
+    def use_pre_saved_latents(
+        self, pre_saved_latent_path: Optional[Dict[str, Any]]
+    ) -> None:
         if pre_saved_latent_path is not None:
             for domain_key in self.selected_domains:
                 if domain_key in pre_saved_latent_path.keys():
                     self.pre_saved_data[domain_key] = load_pre_saved_latent(
-                        self.root_path, self.split, pre_saved_latent_path, domain_key, self.ids
+                        self.root_path, self.split, pre_saved_latent_path,
+                        domain_key, self.ids
                     )
-                    self.data_fetchers[domain_key] = PreSavedLatentDataFetcher(self.pre_saved_data[domain_key])
+                    self.data_fetchers[domain_key] = PreSavedLatentDataFetcher(
+                        self.pre_saved_data[domain_key]
+                    )
 
     def __len__(self) -> int:
         return self.mapping.shape[0]

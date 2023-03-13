@@ -10,7 +10,8 @@ except ImportError:
 
 # Inception weights ported to Pytorch from
 # http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz
-FID_WEIGHTS_URL = 'https://github.com/mseitzer/pytorch-fid/releases/download/fid_weights/pt_inception-2015-12-05-6726825d.pth'
+FID_WEIGHTS_URL = 'https://github.com/mseitzer/pytorch-fid/releases/download' \
+                  '/fid_weights/pt_inception-2015-12-05-6726825d.pth'
 
 
 class InceptionV3(nn.Module):
@@ -29,12 +30,12 @@ class InceptionV3(nn.Module):
     }
 
     def __init__(
-            self,
-            output_blocks=[DEFAULT_BLOCK_INDEX],
-            resize_input=True,
-            normalize_input=True,
-            requires_grad=False,
-            use_fid_inception=True
+        self,
+        output_blocks=[DEFAULT_BLOCK_INDEX],
+        resize_input=True,
+        normalize_input=True,
+        requires_grad=False,
+        use_fid_inception=True
     ):
         """Build pretrained InceptionV3
         Parameters

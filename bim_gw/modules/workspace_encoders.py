@@ -15,7 +15,10 @@ def get_n_layers(n_layers, hidden_size):
 
 
 class DomainDecoder(torch.nn.Module):
-    def __init__(self, in_dim, hidden_size, n_layers, n_layers_head, out_dims=0, activation_fn=None):
+    def __init__(
+        self, in_dim, hidden_size, n_layers, n_layers_head, out_dims=0,
+        activation_fn=None
+    ):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
         self.hidden_size = hidden_size
@@ -29,7 +32,8 @@ class DomainDecoder(torch.nn.Module):
 
         assert len(out_dims) == len(
             activation_fn
-        ), "The model is missing some loss_functions or output_dimensions for the outputs."
+        ), "The model is missing some loss_functions or output_dimensions " \
+           "for the outputs."
 
         self.out_dims = out_dims
         self.activation_fn = activation_fn

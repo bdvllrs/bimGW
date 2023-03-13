@@ -10,7 +10,10 @@ from bim_gw.utils.text_composer.utils import inspect_all_choices
 
 
 class UnpairedClassifierText(LightningModule):
-    def __init__(self, global_workspace, hidden_size=64, optimizer_lr=1e-3, optimizer_weight_decay=1e-5):
+    def __init__(
+        self, global_workspace, hidden_size=64, optimizer_lr=1e-3,
+        optimizer_weight_decay=1e-5
+    ):
         super(UnpairedClassifierText, self).__init__()
         self.save_hyperparameters(ignore=["global_workspace"])
 
@@ -43,10 +46,12 @@ class UnpairedClassifierText(LightningModule):
         )
 
         self.grammar_train_acc = nn.ModuleDict(
-            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()}
+            {name: torchmetrics.Accuracy() for name in
+             self.composer_inspection.keys()}
         )
         self.grammar_val_acc = nn.ModuleDict(
-            {name: torchmetrics.Accuracy() for name in self.composer_inspection.keys()}
+            {name: torchmetrics.Accuracy() for name in
+             self.composer_inspection.keys()}
         )
 
     def step(self, batch, mode="train"):
@@ -56,19 +61,30 @@ class UnpairedClassifierText(LightningModule):
         z = self.projection(state)
         total_loss = 0
         bs = available_domains['t'].shape[0]
-        for grammar_type, grammar_classifier in self.grammar_classifiers.items():
+        for grammar_type, grammar_classifier in \
+                self.grammar_classifiers.items():
             prediction = grammar_classifier(z)
-            loss_grammar = F.cross_entropy(prediction, domains['t'][2][grammar_type])
+            loss_grammar = F.cross_entropy(
+                prediction, domains['t'][2][grammar_type]
+            )
             total_loss += loss_grammar
-            acc_fn = self.grammar_train_acc[grammar_type] if mode == "train" else self.grammar_val_acc[grammar_type]
+            acc_fn = self.grammar_train_acc[
+                grammar_type] if mode == "train" else self.grammar_val_acc[
+                grammar_type]
             res = acc_fn(prediction.softmax(-1), domains['t'][2][grammar_type])
             self.log(
-                f"{mode}/loss_{grammar_type}", loss_grammar, logger=True, on_epoch=(mode != "train"),
+                f"{mode}/loss_{grammar_type}", loss_grammar, logger=True,
+                on_epoch=(mode != "train"),
                 batch_size=bs
             )
-            self.log(f"{mode}_{grammar_type}_acc", res, on_epoch=(mode != "train"))
+            self.log(
+                f"{mode}_{grammar_type}_acc", res, on_epoch=(mode != "train")
+            )
 
-        self.log(f"{mode}/total_loss", total_loss, logger=True, on_epoch=(mode != "train"), batch_size=bs)
+        self.log(
+            f"{mode}/total_loss", total_loss, logger=True,
+            on_epoch=(mode != "train"), batch_size=bs
+        )
 
         return total_loss
 
@@ -82,4 +98,7 @@ class UnpairedClassifierText(LightningModule):
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
-        return torch.optim.Adam(params, lr=self.hparams.optimizer_lr, weight_decay=self.hparams.optimizer_weight_decay)
+        return torch.optim.Adam(
+            params, lr=self.hparams.optimizer_lr,
+            weight_decay=self.hparams.optimizer_weight_decay
+        )

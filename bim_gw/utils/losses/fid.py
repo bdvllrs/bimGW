@@ -209,7 +209,10 @@ def output_mse(data_loader, generation_model, device):
         batch = to_image(batch, normalize=True)
         # print('data', batch.shape, batch.min(), batch.max())
         # print('reco', reco.shape, reco.min(), reco.max())
-        mse = F.mse_loss(reco.view(reco.size(0), -1), batch.view(batch.size(0), -1), reduction='none')
+        mse = F.mse_loss(
+            reco.view(reco.size(0), -1), batch.view(batch.size(0), -1),
+            reduction='none'
+        )
 
         all_mse.append(mse.sum(dim=1).detach().cpu())
 
@@ -237,11 +240,15 @@ def output_mse(data_loader, generation_model, device):
 
 # args.dataset, model, args
 
-def generate_data(generation_model, activation_model, args, n_fid_samples=None, batch_size=128):
+def generate_data(
+    generation_model, activation_model, args, n_fid_samples=None,
+    batch_size=128
+):
     generation_model.eval()
 
     if n_fid_samples is None:
-        n_fid_samples = args.n_fid_samples if 'n_fid_samples' in args.__dict__ else 50000
+        n_fid_samples = args.n_fid_samples if 'n_fid_samples' in \
+                                              args.__dict__ else 50000
 
     # for i, (batch, _) in enumerate(data_loader):
     all_generation = []
@@ -264,7 +271,8 @@ def generate_data(generation_model, activation_model, args, n_fid_samples=None, 
         if generation_model.input_type == 'multinomial':
             # Find largest class logit
             tmp = generated.view(-1, 256, *args.input_size).max(dim=1)[1]
-            # tmp = generated.view(-1, 256, *generation_model.input_size).max(dim=1)[1]
+            # tmp = generated.view(-1, 256,
+            # *generation_model.input_size).max(dim=1)[1]
             generated = tmp.float() / (256 - 1.)
 
         elif generated.min() < 0:
@@ -280,7 +288,9 @@ def generate_data(generation_model, activation_model, args, n_fid_samples=None, 
     return all_generation
 
 
-def get_activations_from_generation_(data_loader, generation, activation_model, args):
+def get_activations_from_generation_(
+    data_loader, generation, activation_model, args
+):
     activation_model.eval()
     generation = torch.tensor(generation)
     if args.cuda:
@@ -296,7 +306,9 @@ def get_activations_from_generation_(data_loader, generation, activation_model, 
         if i == 0:
             pred_arr = pred.view(pred.size(0), -1).cpu().data
         else:
-            pred_arr = torch.cat((pred_arr, pred.view(pred.size(0), -1).cpu().data), dim=0)
+            pred_arr = torch.cat(
+                (pred_arr, pred.view(pred.size(0), -1).cpu().data), dim=0
+            )
 
     return pred_arr.numpy()
 
@@ -312,7 +324,8 @@ def get_activations_from_generation_(data_loader, generation, activation_model, 
 #             image = image.float() / num_classes
 #         return image
 #     elif args.input_type == 'gaussian':
-#         if ('normalize_pixels' in args.__dict__ and args.normalize_pixels) or tensor.min()<0:
+#         if ('normalize_pixels' in args.__dict__ and args.normalize_pixels)
+#         or tensor.min()<0:
 #             tensor = (tensor+1)/2
 
 #         image = tensor.mul(255).long()
@@ -322,7 +335,8 @@ def get_activations_from_generation_(data_loader, generation, activation_model, 
 #         return image
 
 #     elif args.input_type == 'logistic':
-#         if ('normalize_pixels' in args.__dict__ and args.normalize_pixels) or tensor.min()<0:
+#         if ('normalize_pixels' in args.__dict__ and args.normalize_pixels)
+#         or tensor.min()<0:
 #             tensor = (tensor+1)/2
 
 #         image = tensor.mul(255).long()
@@ -340,7 +354,9 @@ def get_activations_from_generation_(data_loader, generation, activation_model, 
 #     else:
 #         raise ValueError('Invalid input type {}'.format(args.input_type))
 
-def get_activations_from_generation(model, inception_model, z_size, device, n_fid_samples=1000, batch_size=128):
+def get_activations_from_generation(
+    model, inception_model, z_size, device, n_fid_samples=1000, batch_size=128
+):
     activations = []
     i = 0
     while i < n_fid_samples:
@@ -371,8 +387,9 @@ def get_activations_from_generation(model, inception_model, z_size, device, n_fi
 
 
 def get_activations_from_loader(
-        data_loader, activation_model, device, z_size=None, batch_stop=None, verbose=False,
-        generation_model=None, reconstruction_model=None
+    data_loader, activation_model, device, z_size=None, batch_stop=None,
+    verbose=False,
+    generation_model=None, reconstruction_model=None
 ):
     activation_model.eval()
     if generation_model is not None:
@@ -409,8 +426,8 @@ def get_activations_from_loader(
 
 
 def get_activations(
-        file, model, batch_size=50, dims=2048,
-        cuda=False, verbose=False, dataset='CelebA', loader=True
+    file, model, batch_size=50, dims=2048,
+    cuda=False, verbose=False, dataset='CelebA', loader=True
 ):
     """Calculates the activations of the pool_3 layer for all images.
     Params:
@@ -432,7 +449,8 @@ def get_activations(
     """
     model.eval()
     data_arr = imread_custom(file, dataset)
-    if dataset == 'CelebA' and (type(data_arr) is torch.utils.data.dataloader.DataLoader):
+    if dataset == 'CelebA' and (
+            type(data_arr) is torch.utils.data.dataloader.DataLoader):
         pred_arr = np.empty((len(data_arr) * 50, dims))
         # Model evaluation
         for i, (batch, _) in tqdm(enumerate(data_arr)):
@@ -441,13 +459,16 @@ def get_activations(
             # batch = ((batch/torch.max(batch))*255-127)/127
             pred = model(batch)[0]
 
-            # If model output is not scalar, apply global spatial average pooling.
+            # If model output is not scalar, apply global spatial average
+            # pooling.
             # This happens if you choose a dimensionality not equal 2048.
             if pred.size(2) != 1 or pred.size(3) != 1:
                 pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
 
             if pred.size(0) == 50:
-                pred_arr[i:i + pred.size(0)] = pred.cpu().data.numpy().reshape(pred.size(0), -1)
+                pred_arr[i:i + pred.size(0)] = pred.cpu().data.numpy().reshape(
+                    pred.size(0), -1
+                )
 
         if verbose:
             print(' done')
@@ -458,17 +479,22 @@ def get_activations(
 
         # Model evaluation
         for i in tqdm(range(0, len(data_arr), batch_size)):
-            batch = torch.from_numpy(data_arr[i:i + batch_size]).type(torch.FloatTensor)
+            batch = torch.from_numpy(data_arr[i:i + batch_size]).type(
+                torch.FloatTensor
+            )
             if cuda:
                 batch = batch.cuda()
 
             pred = model(batch)[0]
 
-            # If model output is not scalar, apply global spatial average pooling.
+            # If model output is not scalar, apply global spatial average
+            # pooling.
             # This happens if you choose a dimensionality not equal 2048.
             if pred.size(2) != 1 or pred.size(3) != 1:
                 pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
-            pred_arr[i:i + batch_size] = pred.cpu().data.numpy().reshape(pred.size(0), -1)
+            pred_arr[i:i + batch_size] = pred.cpu().data.numpy().reshape(
+                pred.size(0), -1
+            )
 
         if verbose:
             print(' done')
@@ -533,8 +559,8 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 def calculate_activation_statistics(
-        file, model, batch_size=50,
-        dims=2048, cuda=False, verbose=False, loader=False
+    file, model, batch_size=50,
+    dims=2048, cuda=False, verbose=False, loader=False
 ):
     """Calculation of the statistics used by the FID.
     Params:
@@ -553,13 +579,17 @@ def calculate_activation_statistics(
     -- sigma : The covariance matrix of the activations of the pool_3 layer of
                the inception model.
     """
-    act = get_activations(file, model, batch_size, dims, cuda, verbose, loader=loader)
+    act = get_activations(
+        file, model, batch_size, dims, cuda, verbose, loader=loader
+    )
     mu = np.mean(act, axis=0)
     sigma = np.cov(act, rowvar=False)
     return mu, sigma
 
 
-def _compute_statistics_of_path(path, model, batch_size, dims, cuda, loader=False):
+def _compute_statistics_of_path(
+    path, model, batch_size, dims, cuda, loader=False
+):
     if path.endswith('.npz'):
         f = np.load(path)
         m, s = f['mu'][:], f['sigma'][:]
@@ -567,11 +597,15 @@ def _compute_statistics_of_path(path, model, batch_size, dims, cuda, loader=Fals
     else:
         # path = pathlib.Path(path)
         # files = list(path.glob('*.jpg')) + list(path.glob('*.png'))
-        m, s = calculate_activation_statistics(path, model, batch_size, dims, cuda, loader)
+        m, s = calculate_activation_statistics(
+            path, model, batch_size, dims, cuda, loader
+        )
     return m, s
 
 
-def calculate_fid_given_paths(paths, batch_size, cuda, dims, model, m1=None, s1=None):
+def calculate_fid_given_paths(
+    paths, batch_size, cuda, dims, model, m1=None, s1=None
+):
     """Calculates the FID of two paths"""
     for p in paths:
         if not os.path.exists(p):
@@ -597,17 +631,22 @@ def calculate_fid_given_paths(paths, batch_size, cuda, dims, model, m1=None, s1=
     return fid_value, m1, s1, m2, s2
 
 
-# paths = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/AE_CIFAR_100_good_conv_2',
-#         '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/AE_CIFAR_baseline_236',
-#        '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/CIFAR_100_final_2']
+# paths = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results
+# /AE_CIFAR_100_good_conv_2',
+#         '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results
+#         /AE_CIFAR_baseline_236',
+#        '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results
+#        /CIFAR_100_final_2']
 
 def FID_comp(paths):
     for path in paths:
         FIDS = []
         for k in np.logspace(-3, 1, 10):
             print('testing model : ', k)
-            args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
-                         path + '/0/10000_samples_KD_{}.npy'.format(k)]
+            args.path = [
+                '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10'
+                '-batches-py/test_batch',
+                path + '/0/10000_samples_KD_{}.npy'.format(k)]
             fid_value = calculate_fid_given_paths(
                 args.path,
                 args.batch_size,
@@ -630,25 +669,41 @@ if __name__ == '__main__':
     model = InceptionV3([block_idx])
     comp = '___'
     if comp == 'AE':
-        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST/MNIST/processed/test.pt',
-        #         '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results/AE_encoder_vanilla_100epochs_rec_run2/recos_100.npy']
-        args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
-                     '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/AE_CIFAR_100_good_conv_2/0/recos_20.npy']
+        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST
+        # /MNIST/processed/test.pt',
+        #         '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results
+        #         /AE_encoder_vanilla_100epochs_rec_run2/recos_100.npy']
+        args.path = [
+            '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10'
+            '-batches-py/test_batch',
+            '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results'
+            '/AE_CIFAR_100_good_conv_2/0/recos_20.npy']
     elif comp == 'ODE':
-        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST/MNIST/processed/test.pt',
-        #        '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results/MNIST_t=10_activations_100epochs/recos_10.npy']
-        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST/MNIST/processed/test.pt',
-        #         '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results/MNIST_t=10_init_gaussian/5/10000_samples_GMM.npy']
-        args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
-                     '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/CIFAR_100_final_2/0/recos_100.npy']
+        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST
+        # /MNIST/processed/test.pt',
+        #        '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results
+        #        /MNIST_t=10_activations_100epochs/recos_10.npy']
+        # args.path = ['/media/data_cifs/mchalvid/Project_synchrony/MNIST
+        # /MNIST/processed/test.pt',
+        #         '/media/data_cifs/mchalvid/Project_synchrony/MNIST/results
+        #         /MNIST_t=10_init_gaussian/5/10000_samples_GMM.npy']
+        args.path = [
+            '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10'
+            '-batches-py/test_batch',
+            '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results'
+            '/CIFAR_100_final_2/0/recos_100.npy']
     elif comp == 'search':
         FIDS = []
         for i in [int(np.ceil(i)) for i in np.logspace(1, 4, 10)]:
             print('testing model : ', i)
-            args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10-batches-py/test_batch',
-                         '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results/CIFAR_100_final_2/0/10000_samples_GMM_{}_components_search.npy'.format(
-                             i
-                         )]
+            args.path = [
+                '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/cifar-10'
+                '-batches-py/test_batch',
+                '/media/data_cifs/mchalvid/Project_synchrony/CIFAR/results'
+                '/CIFAR_100_final_2/0/10000_samples_GMM_{'
+                '}_components_search.npy'.format(
+                    i
+                )]
             fid_value = calculate_fid_given_paths(
                 args.path,
                 args.batch_size,
@@ -660,4 +715,5 @@ if __name__ == '__main__':
             print('FID : ', fid_value)
     elif comp == 'CelebA_debug':
         args.path = ['/media/data_cifs/mchalvid/Project_synchrony/CelebA/2/',
-                     '/media/data_cifs/mchalvid/Project_synchrony/CelebA/2/results/CelebA_100_debug_4_nodatanorm/0/recos_40.npy']
+                     '/media/data_cifs/mchalvid/Project_synchrony/CelebA/2'
+                     '/results/CelebA_100_debug_4_nodatanorm/0/recos_40.npy']

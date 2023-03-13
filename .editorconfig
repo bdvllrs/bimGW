@@ -1,18 +1,18 @@
 [*]
 charset = utf-8
-end_of_line = crlf
+end_of_line = lf
 indent_size = 4
 indent_style = space
 insert_final_newline = false
-max_line_length = 120
+max_line_length = 79
 tab_width = 4
 ij_continuation_indent_size = 8
 ij_formatter_tags_enabled = false
 ij_smart_tabs = false
-ij_visual_guides = none
-ij_wrap_on_typing = false
+ij_wrap_on_typing = true
 
 [{*.py,*.pyw}]
+ij_visual_guides = none
 ij_python_align_collections_and_comprehensions = true
 ij_python_align_multiline_imports = false
 ij_python_align_multiline_parameters = false
@@ -24,8 +24,8 @@ ij_python_blank_lines_around_class = 1
 ij_python_blank_lines_around_method = 1
 ij_python_blank_lines_around_top_level_classes_functions = 2
 ij_python_blank_lines_before_first_method = 0
-ij_python_call_parameters_new_line_after_left_paren = false
-ij_python_call_parameters_right_paren_on_new_line = false
+ij_python_call_parameters_new_line_after_left_paren = true
+ij_python_call_parameters_right_paren_on_new_line = true
 ij_python_call_parameters_wrap = normal
 ij_python_dict_alignment = 0
 ij_python_dict_new_line_after_left_brace = true
@@ -44,7 +44,7 @@ ij_python_keep_line_breaks = true
 ij_python_method_parameters_new_line_after_left_paren = true
 ij_python_method_parameters_right_paren_on_new_line = true
 ij_python_method_parameters_wrap = normal
-ij_python_new_line_after_colon = false
+ij_python_new_line_after_colon = true
 ij_python_new_line_after_colon_multi_clause = true
 ij_python_optimize_imports_always_split_from_imports = false
 ij_python_optimize_imports_case_insensitive_order = true
@@ -81,11 +81,12 @@ ij_python_spaces_within_method_call_parentheses = false
 ij_python_spaces_within_method_parentheses = false
 ij_python_use_continuation_indent_for_arguments = false
 ij_python_use_continuation_indent_for_collection_and_comprehensions = false
-ij_python_use_continuation_indent_for_parameters = true
-ij_python_wrap_long_lines = false
+ij_python_use_continuation_indent_for_parameters = false
+ij_python_wrap_long_lines = true
 
 [{*.yaml,*.yml,pubspec.lock}]
 indent_size = 2
+ij_visual_guides = none
 ij_yaml_align_values_properties = do_not_align
 ij_yaml_autoinsert_sequence_marker = true
 ij_yaml_block_mapping_on_new_line = false

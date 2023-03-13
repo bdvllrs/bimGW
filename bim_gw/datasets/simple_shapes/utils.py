@@ -9,7 +9,8 @@ from torchvision import transforms
 
 class ComposeWithExtraParameters:
     """
-    DataFetchers return [active_items, modality] we apply the transform only on the modality
+    DataFetchers return [active_items, modality] we apply the transform only
+    on the modality
     """
 
     def __init__(self, transform, index=0):
@@ -37,7 +38,9 @@ def get_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
     return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
 
 
-def in_interval(x: float, xmin: float, xmax: float, val_min: float, val_max: float) -> bool:
+def in_interval(
+    x: float, xmin: float, xmax: float, val_min: float, val_max: float
+) -> bool:
     if val_min <= xmin <= xmax <= val_max:
         return xmin <= x <= xmax
     if xmax < xmin:
@@ -58,16 +61,19 @@ def split_in_out_dist(dataset, ood_attrs):
         keep = True
         for k in range(3):
             n_cond_checked = 0
-            if "shape" in ood_attrs["selected_attributes"][k] and ood_attrs["shape"][k] == cls:
+            if "shape" in ood_attrs["selected_attributes"][k] and \
+                    ood_attrs["shape"][k] == cls:
                 n_cond_checked += 1
-            if "position" in ood_attrs["selected_attributes"][k] and in_interval(
-                    x, ood_attrs["x"][k],
-                    ood_attrs["x"][(k + 1) % 3], 0, 32
+            if "position" in ood_attrs["selected_attributes"][
+                k] and in_interval(
+                x, ood_attrs["x"][k],
+                ood_attrs["x"][(k + 1) % 3], 0, 32
             ):
                 n_cond_checked += 1
-            if "position" in ood_attrs["selected_attributes"][k] and in_interval(
-                    y, ood_attrs["y"][k],
-                    ood_attrs["y"][(k + 1) % 3], 0, 32
+            if "position" in ood_attrs["selected_attributes"][
+                k] and in_interval(
+                y, ood_attrs["y"][k],
+                ood_attrs["y"][(k + 1) % 3], 0, 32
             ):
                 n_cond_checked += 1
             if "color" in ood_attrs["selected_attributes"][k] and in_interval(
@@ -80,10 +86,11 @@ def split_in_out_dist(dataset, ood_attrs):
                     ood_attrs["size"][(k + 1) % 3], 0, 25
             ):
                 n_cond_checked += 1
-            if "rotation" in ood_attrs["selected_attributes"][k] and in_interval(
-                    rotation, ood_attrs["rotation"][k],
-                    ood_attrs["rotation"][(k + 1) % 3],
-                    0, 2 * np.pi
+            if "rotation" in ood_attrs["selected_attributes"][
+                k] and in_interval(
+                rotation, ood_attrs["rotation"][k],
+                ood_attrs["rotation"][(k + 1) % 3],
+                0, 2 * np.pi
             ):
                 n_cond_checked += 1
             if n_cond_checked >= len(ood_attrs["selected_attributes"][k]):
@@ -104,23 +111,33 @@ def create_ood_split(datasets):
     Returns:
     """
     shape_boundary = random.randint(0, 2)
-    shape_boundaries = shape_boundary, (shape_boundary + 1) % 3, (shape_boundary + 2) % 3
+    shape_boundaries = shape_boundary, (shape_boundary + 1) % 3, (
+            shape_boundary + 2) % 3
 
     color_boundary = random.randint(0, 255)
-    color_boundaries = color_boundary, (color_boundary + 85) % 256, (color_boundary + 170) % 256
+    color_boundaries = color_boundary, (color_boundary + 85) % 256, (
+            color_boundary + 170) % 256
 
     size_boundary = random.randint(10, 25)
-    size_boundaries = size_boundary, 10 + (size_boundary - 5) % 16, 10 + size_boundary % 16
+    size_boundaries = size_boundary, 10 + (
+            size_boundary - 5) % 16, 10 + size_boundary % 16
 
     rotation_boundary = random.random() * 2 * np.pi
-    rotation_boundaries = rotation_boundary, (rotation_boundary + 2 * np.pi / 3) % (2 * np.pi), (
-            rotation_boundary + 4 * np.pi / 3) % (2 * np.pi)
+    rotation_boundaries = rotation_boundary, (
+                                                     rotation_boundary +
+                                                     2 * np.pi / 3) % (
+                                                     2 * np.pi), (
+                                                     rotation_boundary + 4 *
+                                                     np.pi / 3) % (
+                                                     2 * np.pi)
 
     x_boundary = random.random() * 32
-    x_boundaries = x_boundary, (x_boundary + 11.6) % 32, (x_boundary + 23.2) % 32
+    x_boundaries = x_boundary, (x_boundary + 11.6) % 32, (
+            x_boundary + 23.2) % 32
 
     y_boundary = random.random() * 32
-    y_boundaries = y_boundary, (y_boundary + 11.6) % 32, (y_boundary + 23.2) % 32
+    y_boundaries = y_boundary, (y_boundary + 11.6) % 32, (
+            y_boundary + 23.2) % 32
 
     print("boundaries")
     print("shape", shape_boundaries)
@@ -160,8 +177,12 @@ def create_ood_split(datasets):
 
 def split_ood_sets(dataset, id_ood_split=None):
     return {
-        "in_dist": torch.utils.data.Subset(dataset, id_ood_split[1][0]) if id_ood_split is not None else dataset,
-        "ood": torch.utils.data.Subset(dataset, id_ood_split[1][1]) if id_ood_split is not None else None,
+        "in_dist": torch.utils.data.Subset(
+            dataset, id_ood_split[1][0]
+        ) if id_ood_split is not None else dataset,
+        "ood": torch.utils.data.Subset(
+            dataset, id_ood_split[1][1]
+        ) if id_ood_split is not None else None,
     }
 
 
@@ -176,9 +197,11 @@ def sample_domains(available_domains, possible_domains, size):
         return combs[sample]
     elif possible_domains == "2d0a1t":
         if random.randint(0, 1) == 0:
-            domains = [key for key, val in available_domains.items() if val != "a" and "_f" in val]
+            domains = [key for key, val in available_domains.items() if
+                       val != "a" and "_f" in val]
         else:
-            domains = [key for key, val in available_domains.items() if val != "a" and "_f" not in val]
+            domains = [key for key, val in available_domains.items() if
+                       val != "a" and "_f" not in val]
         assert len(domains) >= 2
         combs = np.array(list(itertools.combinations(domains, 2)))
         sample = np.random.randint(len(combs), size=size)
@@ -188,7 +211,10 @@ def sample_domains(available_domains, possible_domains, size):
         assert len(domains) >= 2
         combs = np.array(list(itertools.combinations(domains, 2)))
         sample = np.random.randint(len(combs), size=size)
-        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+        return np.concatenate(
+            [combs[sample], np.array([['a'] for _ in range(sample.shape[0])])],
+            axis=1
+        )
     elif possible_domains == "3d0a2t":
         domains = [key for key, val in available_domains.items() if val != "a"]
         assert len(domains) >= 3
@@ -200,7 +226,10 @@ def sample_domains(available_domains, possible_domains, size):
         assert len(domains) >= 3
         combs = np.array(list(itertools.combinations(domains, 3)))
         sample = np.random.randint(len(combs), size=size)
-        return np.concatenate([combs[sample], np.array([['a'] for _ in range(sample.shape[0])])], axis=1)
+        return np.concatenate(
+            [combs[sample], np.array([['a'] for _ in range(sample.shape[0])])],
+            axis=1
+        )
     elif possible_domains == "all":
         domains = list(available_domains.keys())
         return np.array([domains for _ in range(size)])

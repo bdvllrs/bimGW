@@ -3,16 +3,20 @@ from bim_gw.utils import registries
 
 @registries.register_dataset("shapes")
 def load_simple_shapes_dataset(args, local_args, **kwargs):
-    from bim_gw.datasets.simple_shapes.data_modules import SimpleShapesDataModule
+    from bim_gw.datasets.simple_shapes.data_modules import \
+        SimpleShapesDataModule
 
     print("Loading Shapes.")
     pre_saved_latent_paths = None
     sync_uses_whole_dataset = False
     if "use_pre_saved" in local_args and local_args.use_pre_saved:
         pre_saved_latent_paths = args.global_workspace.load_pre_saved_latents
-    if "sync_uses_whole_dataset" in local_args and local_args.sync_uses_whole_dataset:
+    if "sync_uses_whole_dataset" in local_args and \
+            local_args.sync_uses_whole_dataset:
         sync_uses_whole_dataset = True
-    selected_domains = local_args.get("selected_domains", None) or kwargs.get("selected_domains", None)
+    selected_domains = local_args.get("selected_domains", None) or kwargs.get(
+        "selected_domains", None
+    )
     if "selected_domains" in kwargs:
         del kwargs["selected_domains"]
     return SimpleShapesDataModule(
@@ -35,7 +39,8 @@ def load_cmu_mosei_dataset(args, local_args, **kwargs):
     # TODO: finish cmu_mosei. But how to handle sequences?
     print("Loading CMU MOSEI.")
     return CMUMOSEIDataModule(
-        args.cmu_mosei.path, local_args.batch_size, args.dataloader.num_workers,
+        args.cmu_mosei.path, local_args.batch_size,
+        args.dataloader.num_workers,
         local_args.selected_domains, args.cmu_mosei.validate,
         args.cmu_mosei.seq_length
     )

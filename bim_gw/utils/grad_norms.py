@@ -22,11 +22,13 @@ class GradNormLogger:
                 norms[model] = {}
             for loss_name in self.grad_norms[model].keys():
                 if window_size == 1:
-                    norms[model][loss_name] = self.grad_norms[model][loss_name][-1]
+                    norms[model][loss_name] = \
+                        self.grad_norms[model][loss_name][-1]
                 else:
                     norms[model][loss_name] = (
                             np.convolve(
-                                self.grad_norms[model][loss_name][-window_size:], np.ones(window_size),
+                                self.grad_norms[model][loss_name][
+                                -window_size:], np.ones(window_size),
                                 'valid'
                             ) / window_size)[-1]
 

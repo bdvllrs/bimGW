@@ -4,11 +4,17 @@ import numpy as np
 import torch
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.fetchers import AttributesDataFetcher, PreSavedLatentDataFetcher, TextDataFetcher
+from bim_gw.datasets.simple_shapes.fetchers import (
+    AttributesDataFetcher,
+    PreSavedLatentDataFetcher, TextDataFetcher
+)
 
 
 class OddImageDataset:
-    def __init__(self, root_path, split, pre_saved_latent_path, selected_domains, bert_latent):
+    def __init__(
+        self, root_path, split, pre_saved_latent_path, selected_domains,
+        bert_latent
+    ):
         self.root_path = Path(root_path)
         self.split = split
         self.selected_domains = selected_domains
@@ -25,13 +31,21 @@ class OddImageDataset:
         labels = np.load(str(self.root_path / f"train_labels.npy"))
         fetchers = {
             "v": PreSavedLatentDataFetcher(
-                # split always train, we used the end 500_000 as val/test for this dataset.
-                # We only used the 500 000 first examples for training the other models, we use the 500 000 unseen elements
+                # split always train, we used the end 500_000 as val/test
+                # for this dataset.
+                # We only used the 500 000 first examples for training the
+                # other models, we use the 500 000 unseen elements
                 # from the train set
-                load_pre_saved_latent(self.root_path, "train", pre_saved_latent_path, "v")
+                load_pre_saved_latent(
+                    self.root_path, "train", pre_saved_latent_path, "v"
+                )
             ),
-            "attr": AttributesDataFetcher(self.root_path, "train", ids, labels, {"attr": None}),
-            "t": TextDataFetcher(self.root_path, "train", ids, labels, {"t": None}, bert_latent),
+            "attr": AttributesDataFetcher(
+                self.root_path, "train", ids, labels, {"attr": None}
+            ),
+            "t": TextDataFetcher(
+                self.root_path, "train", ids, labels, {"t": None}, bert_latent
+            ),
         }
         self.fetchers = {name: fetchers[name] for name in selected_domains}
 
@@ -41,9 +55,13 @@ class OddImageDataset:
     def __getitem__(self, item):
         label = self.labels[item]
         data = {
-            name: (self.fetchers[name].get_item(label[0] + self.shift_ref_item)[1:],
-                   self.fetchers[name].get_item(label[1] + self.shift_ref_item)[1:],
-                   self.fetchers[name].get_item(label[2] + self.shift_ref_item)[1:])
+            name: (
+                self.fetchers[name].get_item(label[0] + self.shift_ref_item)[
+                1:],
+                self.fetchers[name].get_item(label[1] + self.shift_ref_item)[
+                1:],
+                self.fetchers[name].get_item(label[2] + self.shift_ref_item)[
+                1:])
             for name in self.fetchers.keys()
         }
         data["label"] = torch.tensor(label[3], dtype=torch.long)

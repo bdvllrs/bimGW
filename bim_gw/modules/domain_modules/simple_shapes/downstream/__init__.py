@@ -1,3 +1,7 @@
-from bim_gw.modules.domain_modules.simple_shapes.downstream.unpaired_classifier_attributes import \
-    UnpairedClassifierAttributes
-from bim_gw.modules.domain_modules.simple_shapes.downstream.unpaired_classifier_text import UnpairedClassifierText
+from .unpaired_classifier_attributes import UnpairedClassifierAttributes
+from .unpaired_classifier_text import UnpairedClassifierText
+
+__all__ = [
+    "UnpairedClassifierAttributes",
+    "UnpairedClassifierText",
+]
