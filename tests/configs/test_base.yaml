@@ -83,7 +83,7 @@ vae:
   ae_size: 512  # hidden size dimension
   type: "beta"  # in "beta", "sigma", "optimal_sigma"
 
-  n_FID_samples: 4  # num of samples to compute FID
+  n_fid_samples: 4  # num of samples to compute FID
 
   early_stopping_patience: null  # no early stopping
 

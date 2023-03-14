@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
 from pathlib import Path
 
 from bim_gw.scripts.train import train_gw, train_lm, train_vae
@@ -9,7 +8,7 @@ from bim_gw.utils import get_args
 
 def test_train_vae():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml")
         ]
     )
@@ -18,7 +17,7 @@ def test_train_vae():
 
 def test_train_lm():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml")
         ]
     )
@@ -27,7 +26,7 @@ def test_train_lm():
 
 def test_train_gw_with_attributes():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
             Path("configs/test_gw_with_attributes.yaml")
@@ -38,7 +37,7 @@ def test_train_gw_with_attributes():
 
 def test_train_gw_with_text():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
             Path("configs/test_gw_with_text.yaml")
@@ -49,7 +48,7 @@ def test_train_gw_with_text():
 
 def test_train_gw_with_unsync_examples():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
             Path("configs/test_gw_with_unsync_examples.yaml")
@@ -60,7 +59,7 @@ def test_train_gw_with_unsync_examples():
 
 def test_train_gw_with_split_ood():
     args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), additional_config_files=[
+        additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
             Path("configs/test_gw_with_split_ood.yaml")
