@@ -1,3 +1,2 @@
 [flake8]
 exclude = .git,__pycache__,images,config
-max-complexity = 10
