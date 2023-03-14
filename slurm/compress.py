@@ -2,9 +2,20 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 
 from bim_gw.utils import get_args
+
+
+def should_keep_file(file_path: Path, args: DictConfig):
+    return (
+            file_path.is_dir() and file_path.name.isdigit()
+            and ("--before" not in args
+                 or int(file_path.name) < int(args["--before"]))
+            and ("--after" not in args
+                 or int(file_path.name) > int(args["--after"]))
+    )
+
 
 if __name__ == '__main__':
     args = OmegaConf.from_cli()
@@ -35,30 +46,26 @@ if __name__ == '__main__':
     conf = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
     OmegaConf.resolve(conf)
 
-    assert "run_work_directory" in conf.slurm, "You must specify a " \
-                                               "run_work_directory in your " \
-                                               "slurm config."
+    if "run_work_directory" not in conf.slurm:
+        raise ValueError(
+            "You must specify a run_work_directory in your slurm config."
+        )
 
     run_work_directory = Path(conf.slurm.run_work_directory)
     parent_directory = run_work_directory.parent
     files_to_compress = []
     for file in run_work_directory.iterdir():
-        if file.is_dir() and file.name.isdigit() and (
-                not "--before" in args or int(file.name) < int(
-            args["--before"]
-        )) and (
-                not "--after" in args or int(file.name) > int(
-            args["--after"]
-        )):
+        if should_keep_file(file, args):
             files_to_compress.append(file.resolve().as_posix())
     print(f"Compressing {len(files_to_compress)} directories...")
-    time = str(datetime.now()).replace(" ", "_").replace(":", "-").replace(
-        ".", "-"
-    )
-    compressed_filename = f"compressed_{time}" if "-n" not in args else args[
-        "-n"]
-    command = f"tar -czvf {parent_directory}/{compressed_filename}.tar.gz " \
-              f"{' '.join(files_to_compress)}"
+    time = str(datetime.now()).replace(" ", "_")
+    time = time.replace(":", "-").replace(".", "-")
+    compressed_filename = f"compressed_{time}"
+    if "-n" in args:
+        compressed_filename = args["-n"]
+
+    command = f"tar -czvf {parent_directory}/{compressed_filename}.tar.gz "
+    command += f"{' '.join(files_to_compress)}"
     if "--dry-run" not in args:
         os.system(command)
     else:

@@ -133,25 +133,20 @@ def get_fig_from_specs(
 
     gs = gridspec.GridSpec(
         nrows, ncols,
-        # wspace=0,
         wspace=1 / 10,
-        # hspace=0,
         hspace=1 / 10,
         left=0,
-        # right=(1 - 1 / imsize),
         right=1,
         bottom=0,
         top=1
-        # bottom=1 / imsize,
-        # top=(1 - 1 / imsize)
     )
     for i in range(nrows):
         for j in range(ncols):
             k = i * ncols + j
             ax = plt.subplot(gs[i, j])
             generate_image(
-                ax, cls[k], locations[k], radii[k], rotations[k], colors[k],
-                imsize
+                ax, cls[k], locations[k], radii[k],
+                rotations[k], colors[k], imsize
             )
             ax.set_facecolor("black")
     return fig
@@ -186,7 +181,6 @@ def log_shape_fig(logger, classes, latents, name, step=None):
 def generate_scale(n_samples, min_val, max_val):
     assert max_val > min_val
     return np.random.randint(min_val, max_val + 1, n_samples)
-    # return np.full(n_samples, 32)
 
 
 def generate_color(n_samples, min_lightness=0, max_lightness=256):
@@ -203,9 +197,6 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
 
 def generate_rotation(n_samples):
     rotations = np.random.rand(n_samples) * 2 * np.pi
-    # rotations[classes == 1] = 0  # circles don't have rotations
-    # rotations[classes == 0] = rotations[classes == 0] % 90
-    # return np.zeros(n_samples)
     return rotations
 
 
@@ -213,7 +204,6 @@ def generate_location(n_samples, max_scale, imsize):
     assert max_scale <= imsize
     margin = max_scale / 2
     locations = np.random.randint(margin, imsize - margin, (n_samples, 2))
-    # locations = np.full((n_samples, 2), imsize // 2)
     return locations
 
 
@@ -242,33 +232,34 @@ def generate_transformations(labels, target_labels):
             if transfo == 0:  # class
                 transformations[k, 0] = target_labels["classes"][k]
             elif transfo == 1:  # scale
-                transformations[k, 1] = target_labels["sizes"][k] - \
-                                        labels["sizes"][k]
+                transformations[k, 1] = (target_labels["sizes"][k]
+                                         - labels["sizes"][k])
             elif transfo == 2:  # location
-                transformations[k, 2] = target_labels["locations"][k, 0] - \
-                                        labels["locations"][k, 0]
-                transformations[k, 3] = target_labels["locations"][k, 1] - \
-                                        labels["locations"][k, 1]
+                transformations[k, 2] = (target_labels["locations"][k, 0]
+                                         - labels["locations"][k, 0])
+                transformations[k, 3] = (target_labels["locations"][k, 1]
+                                         - labels["locations"][k, 1])
             elif transfo == 3:  # rotation
-                transformations[k, 4] = target_labels["rotations"][k] - \
-                                        labels["rotations"][k]
+                transformations[k, 4] = (target_labels["rotations"][k]
+                                         - labels["rotations"][k])
             elif transfo == 4:  # color
-                transformations[k, 5] = target_labels["colors"][k, 0] - \
-                                        labels["colors"][k, 0]
-                transformations[k, 6] = target_labels["colors"][k, 1] - \
-                                        labels["colors"][k, 1]
-                transformations[k, 7] = target_labels["colors"][k, 2] - \
-                                        labels["colors"][k, 2]
-                transformations[k, 8] = target_labels["colors_hls"][k, 0] - \
-                                        labels["colors_hls"][k, 0]
-                transformations[k, 9] = target_labels["colors_hls"][k, 1] - \
-                                        labels["colors_hls"][k, 1]
-                transformations[k, 10] = target_labels["colors_hls"][k, 2] - \
-                                         labels["colors_hls"][k, 2]
+                transformations[k, 5] = (target_labels["colors"][k, 0]
+                                         - labels["colors"][k, 0])
+                transformations[k, 6] = (target_labels["colors"][k, 1]
+                                         - labels["colors"][k, 1])
+                transformations[k, 7] = (target_labels["colors"][k, 2]
+                                         - labels["colors"][k, 2])
+                transformations[k, 8] = (target_labels["colors_hls"][k, 0]
+                                         - labels["colors_hls"][k, 0])
+                transformations[k, 9] = (target_labels["colors_hls"][k, 1]
+                                         - labels["colors_hls"][k, 1])
+                transformations[k, 10] = (target_labels["colors_hls"][k, 2]
+                                          - labels["colors_hls"][k, 2])
             else:
                 transformations[k, 11] = 0
-    return transformed_labels(labels, transformations), labels_from_transfo(
-        transformations
+    return (
+        transformed_labels(labels, transformations),
+        labels_from_transfo(transformations)
     )
 
 
@@ -318,23 +309,20 @@ def generate_dataset(
 
 def save_dataset(path_root, dataset, imsize):
     dpi = 1
-    classes, locations, radii = dataset["classes"], dataset["locations"], \
-        dataset["sizes"]
+    classes, locations = dataset["classes"], dataset["locations"]
+    radii = dataset["sizes"]
     rotations, colors = dataset["rotations"], dataset["colors"]
-    for k, (cls, location, scale, rotation, color) in tqdm(
-            enumerate(zip(classes, locations, radii, rotations, colors)),
-            total=len(classes)
-    ):
+    enumerator = tqdm(
+        enumerate(zip(classes, locations, radii, rotations, colors)),
+        total=len(classes)
+    )
+    for k, (cls, location, scale, rotation, color) in enumerator:
         path_file = path_root / f"{k}.png"
 
         fig, ax = plt.subplots(figsize=(imsize / dpi, imsize / dpi), dpi=dpi)
         generate_image(ax, cls, location, scale, rotation, color, imsize)
         ax.set_facecolor("black")
-        # patch = patches.Circle((location[0], location[1]), 1,
-        # facecolor="white")
-        # ax.add_patch(patch)
         plt.tight_layout(pad=0)
-        # plt.show()
         plt.savefig(path_file, dpi=dpi, format="png")
         plt.close(fig)
 
@@ -384,21 +372,20 @@ def load_labels(path_root):
 
 
 def save_labels(path_root, dataset, dataset_transfo):
-    classes, locations, sizes = dataset["classes"], dataset["locations"], \
-        dataset["sizes"]
+    classes, locations = dataset["classes"], dataset["locations"]
+    sizes = dataset["sizes"]
     rotations, colors = dataset["rotations"], dataset["colors"]
     colors_hls = dataset["colors_hls"]
     unpaired_attr = dataset["unpaired"]
-    classes_transfo, locations_transfo, sizes_transfo = dataset_transfo[
-        "classes"], dataset_transfo["locations"], \
-        dataset_transfo["sizes"]
-    rotations_transfo, colors_transfo = dataset_transfo["rotations"], \
-        dataset_transfo["colors"]
+    classes_transfo = dataset_transfo["classes"]
+    locations_transfo = dataset_transfo["locations"]
+
+    sizes_transfo = dataset_transfo["sizes"]
+    rotations_transfo = dataset_transfo["rotations"]
+
+    colors_transfo = dataset_transfo["colors"]
     colors_hls_transfo = dataset_transfo["colors_hls"]
     unpaired_attr_transfo = dataset_transfo["unpaired"]
-    # header = ["class", "x", "y", "scale", "rotation", "r", "g", "b", "h",
-    # "l", "s", "t_class", "d_x", "d_y", "d_scale",
-    #           "d_rotation", "d_r", "d_g", "d_b", "d_h", "d_s", "d_l"]
     # TODO: add transformation to unpaired examples
     labels = np.concatenate(
         [

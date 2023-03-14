@@ -9,11 +9,11 @@ import torchvision
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
+from bim_gw.utils.errors import ConfigError
 from bim_gw.utils.types import LoadFromData
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
-    # sample_imgs = denormalize(sample_imgs, video_mean, video_std, clamp=True)
     sample_imgs = sample_imgs - sample_imgs.min()
     sample_imgs = sample_imgs / sample_imgs.max()
     img_grid = torchvision.utils.make_grid(sample_imgs, pad_value=1, **kwargs)
@@ -184,9 +184,10 @@ def find_best_epoch(ckpt_folder):
     last = sorted(files, key=lambda x: x[0], reverse=True)[0][0]
     loaded_path = torch.load(last, map_location=torch.device('cpu'))
     for callback_name, callback in loaded_path['callbacks'].items():
-        if 'ModelCheckpoint' in callback_name and 'best_model_path' in \
-                callback and os.path.isfile(
-            callback['best_model_path']
+        if (
+                'ModelCheckpoint' in callback_name
+                and 'best_model_path' in callback
+                and os.path.isfile(callback['best_model_path'])
         ):
             return callback['best_model_path']
     return last
@@ -216,40 +217,35 @@ def get_checkpoint_path(path):
 
     elif path is not None and 'load_from' in path and path.load_from == \
             "local":
-        assert 'local_path' in path, "Missing local_path in value when using " \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "load_from='local'"
+        if 'local_path' not in path:
+            raise ConfigError(
+                'local_path',
+                'Missing local_path in value when using load_from=\'local\''
+            )
         return get_checkpoint_path(path.local_path)
 
-    elif path is not None and 'load_from' in path and path.load_from == \
-            "remote":
-        assert 'local_path' in path, "Missing local_path in value when using " \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "" \
-                                     "load_from='remote'"
-        assert 'remote_server' in path, "Missing remote_server in value when" \
-                                        " using load_from='remote'"
-        assert 'remote_checkpoint_path' in path, "Missing " \
-                                                 "remote_checkpoint_path in " \
-                                                 "value when using " \
-                                                 "load_from='remote'"
+    elif (
+            path is not None and 'load_from' in path
+            and path.load_from == "remote"
+    ):
+
+        if 'local_path' not in path:
+            raise ConfigError(
+                'local_path',
+                'Missing local_path in value when using load_from=\'remote\''
+            )
+        if 'remote_server' not in path:
+            raise ConfigError(
+                'remote_server',
+                'Missing remote_server in value when using '
+                'load_from=\'remote\''
+            )
+        if 'remote_checkpoint_path' not in path:
+            raise ConfigError(
+                'remote_checkpoint_path',
+                'Missing remote_checkpoint_path in value when using '
+                'load_from=\'remote\''
+            )
 
         logging.info(
             f"Downloading checkpoint from {path.remote_server} in "
@@ -268,8 +264,9 @@ def get_checkpoint_path(path):
         from scp import SCPClient
 
         remote_user = path.remote_user if 'remote_user' in path else None
-        remote_password = path.remote_password if 'remote_password' in path \
-            else None
+        remote_password = None
+        if 'remote_password' in path:
+            remote_password = path.remote_password
         with SSHClient() as ssh:
             ssh.load_system_host_keys()
             ssh.connect(

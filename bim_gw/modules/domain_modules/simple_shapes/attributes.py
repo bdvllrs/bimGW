@@ -12,29 +12,23 @@ class SimpleShapesAttributes(DomainModule):
         super(SimpleShapesAttributes, self).__init__()
         self.save_hyperparameters()
 
-        # self.use_unpaired = use_unpaired
         self.n_classes = 3
-        # self.z_size = 8 + int(self.use_unpaired)  # add unpaired attribute
-        # if needed
         self.z_size = 8
         self.imsize = imsize
 
         self.output_dims = [
             self.n_classes,
             self.z_size,
-            # 1,
         ]
         self.requires_acc_computation = True
         self.decoder_activation_fn = [
             lambda x: torch.log_softmax(x, dim=1),  # shapes
             torch.tanh,  # rest
-            # torch.tanh,  # unpaired
         ]
 
         self.losses = [
             lambda x, y: nll_loss(x, y),  # shapes
             F.mse_loss,  # rest
-            # F.mse_loss,  # unpaired
         ]
 
     def encode(self, x):
@@ -86,11 +80,10 @@ class SimpleShapesAttributes(DomainModule):
         rotation = samples["rotations"]
         rotation_x = (np.cos(rotation) + 1) / 2
         rotation_y = (np.sin(rotation) + 1) / 2
-        # assert 0 <= rotation <= 1
-        # rotation = rotation * 2 * np.pi / 360  # put in radians
-        r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples[
-                                                                        "colors"][
-                                                                    :, 2]
+
+        r = samples["colors"][:, 0]
+        g = samples["colors"][:, 1]
+        b = samples["colors"][:, 2]
 
         labels = (
             torch.from_numpy(cls),

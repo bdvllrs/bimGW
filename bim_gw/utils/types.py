@@ -175,7 +175,7 @@ class VAEConfig:
     z_size: int = MISSING
     ae_size: int = MISSING
     type: VAEType = MISSING
-    n_FID_samples: int = MISSING
+    n_fid_samples: int = MISSING
     early_stopping_patience: Optional[int] = MISSING
     optim: OptimConfig = field(default_factory=OptimConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)

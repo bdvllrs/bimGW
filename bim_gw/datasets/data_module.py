@@ -4,11 +4,12 @@ from typing import List, Optional, Tuple
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import Subset
 
 
-def split_indices_prop(allowed_indices: List[int], prop: float) -> Tuple[
-    List[int], List[int]]:
+def split_indices_prop(
+    allowed_indices: List[int],
+    prop: float
+) -> Tuple[List[int], List[int]]:
     # Unlabel randomly some elements
     n_targets = len(allowed_indices)
     assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
@@ -95,13 +96,13 @@ class DataModule(LightningDataModule):
                                    ("val", val_set), ("test", test_set)]:
             for used_dist in range(2):
                 used_dist_name = "in_dist" if used_dist == 0 else "ood"
-                if reconstruction_indices[set_name][used_dist] is not None:
+                dist_indices = reconstruction_indices[set_name][used_dist]
+                if dist_indices is not None:
                     for domain in self.selected_domains:
                         example_item = used_set[used_dist_name][0][domain]
                         if not isinstance(example_item, tuple):
                             examples = []
-                            for i in reconstruction_indices[set_name][
-                                used_dist]:
+                            for i in dist_indices:
                                 example = used_set[used_dist_name][i][domain]
                                 examples.append(example)
                             if isinstance(example_item, (int, float)):
@@ -116,8 +117,7 @@ class DataModule(LightningDataModule):
                         else:
                             for k in range(len(example_item)):
                                 examples = []
-                                for i in reconstruction_indices[set_name][
-                                    used_dist]:
+                                for i in dist_indices:
                                     example = \
                                         used_set[used_dist_name][i][domain][k]
                                     examples.append(example)
@@ -140,8 +140,9 @@ class DataModule(LightningDataModule):
                                     domain]
                             )
 
-    def filter_sync_domains(self, allowed_indices: List[int]) -> Tuple[
-        List[int], List[List[str]]]:
+    def filter_sync_domains(
+        self, allowed_indices: List[int]
+    ) -> Tuple[List[int], List[List[str]]]:
         # Only keep proportion of images in self.prop_available_images.
         # This split is done regardless of the ood split.
         allowed_indices, _ = split_indices_prop(

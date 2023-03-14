@@ -8,7 +8,6 @@ from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.modules.domain_modules import PassThroughWM
-from bim_gw.utils.grad_norms import GradNormLogger
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
@@ -133,8 +132,6 @@ class GlobalWorkspace(LightningModule):
         )
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
-        self.grad_norms_bin = GradNormLogger()
-
         # val sampling
         self.domain_examples = domain_examples
         if domain_examples is not None:
@@ -143,13 +140,13 @@ class GlobalWorkspace(LightningModule):
                 for dist in range(2):
                     dist_name = "in_dist" if dist == 0 else "ood"
                     if example_dist_vecs[dist] is not None:
-                        for key, example_vecs in example_dist_vecs[
-                            dist].items():
-                            assert key in self.domain_names, f"{key} is not " \
-                                                             f"a valid " \
-                                                             f"domain for " \
-                                                             f"validation " \
-                                                             f"examples."
+                        examples_items = example_dist_vecs[dist].items()
+                        for key, example_vecs in examples_items:
+                            if key not in self.domain_names:
+                                raise ValueError(
+                                    f"{key} is not a valid domain for "
+                                    "validation examples."
+                                )
                             if example_vecs is not None:
                                 self.validation_example_list[key] = len(
                                     example_vecs
@@ -266,9 +263,12 @@ class GlobalWorkspace(LightningModule):
         for loss_name in ["demi_cycles", "cycles", "translation", "cosine"]:
             if loss_name in self.loss_schedules:
                 coef = getattr(self, f"loss_coef_{loss_name}")
-                if (self.current_epoch != 0) and (
-                        self.current_epoch % self.loss_schedules[loss_name][
-                    "step"] == 0):
+                epoch_rest = self.current_epoch
+                epoch_rest %= self.loss_schedules[loss_name]["step"] == 0
+                if (
+                        self.current_epoch != 0
+                        and epoch_rest
+                ):
                     setattr(
                         self, f"loss_coef_{loss_name}",
                         coef * self.loss_schedules[loss_name]["gamma"]
@@ -291,8 +291,10 @@ class GlobalWorkspace(LightningModule):
                 )
                 logit_scale = self.hparams.contrastive_logit_scale[
                     f"{domain_name_1}-{domain_name_2}"].exp()
-                logits = logit_scale * latent_features_d1 @ \
-                         latent_features_d2.t()
+                logits = (
+                        logit_scale * latent_features_d1
+                        @ latent_features_d2.t()
+                )
                 labels = torch.arange(latent_domain_1.size(0)).to(
                     logits.device
                 )
@@ -329,11 +331,6 @@ class GlobalWorkspace(LightningModule):
         return {prefix: torch.tensor(0.).to(self.device)}
 
     def step(self, available_domains, latents, mode="val", prefix=""):
-        # prop_sync = torch.min(available_domains['v'], available_domains[
-        # 't']).sum() / available_domains['v'].size(0)
-        # self.log(f"{mode}/{prefix}prop_sync_batch", prop_sync,
-        # on_step=True, on_epoch=False)
-
         latent_demi_cycle_predictions = {}
         latent_demi_cycle_target = {}
         latent_cycle_predictions = {}
@@ -345,45 +342,21 @@ class GlobalWorkspace(LightningModule):
         states = {}
 
         for domain_name, latent in latents.items():
-            if available_domains[domain_name].any():
+            available_items = available_domains[domain_name]
+            if available_items.any():
                 # Demi-cycles
                 state = self.project(latents, [domain_name])
                 predictions = self.predict(state)
                 latent_demi_cycle_predictions[f"{domain_name}-u"] = [
-                    predictions[domain_name][k][available_domains[domain_name],
-                    :] for k in
-                    range(len(predictions[domain_name]))
+                    predictions[domain_name][k][available_items, :]
+                    for k in range(len(predictions[domain_name]))
                 ]
                 latent_demi_cycle_target[f"{domain_name}-u"] = [
-                    latent[k][available_domains[domain_name], :] for k in
-                    range(len(latent))
+                    latent[k][available_items, :]
+                    for k in range(len(latent))
                 ]
                 for domain_name_target, latent_target in latents.items():
                     if domain_name_target != domain_name:
-                        # Translation
-                        mask = torch.logical_and(
-                            available_domains[domain_name],
-                            available_domains[domain_name_target]
-                        )
-                        if mask.any():
-                            states[f"{domain_name}-{domain_name_target}"] = \
-                                state[mask]
-                            pred = latent_translation_predictions
-                            target = latent_translation_target
-                            if f"{domain_name}-{domain_name_target}" in \
-                                    self.remove_sync_domains_names:
-                                pred = latent_translation_predictions_2
-                                target = latent_translation_target_2
-
-                            pred[f"{domain_name_target}-{domain_name}"] = [
-                                predictions[domain_name_target][k][mask, :] for
-                                k in
-                                range(len(predictions[domain_name_target]))
-                            ]
-                            target[f"{domain_name_target}-{domain_name}"] = [
-                                latent_target[k][mask, :] for k in
-                                range(len(latent_target))
-                            ]
                         # Cycles
                         cycle_state = self.project(
                             self.adapt(predictions), [domain_name_target]
@@ -393,13 +366,45 @@ class GlobalWorkspace(LightningModule):
                         )
                         latent_cycle_predictions[
                             f"{domain_name}-{domain_name_target}"] = [
-                            cycle_prediction[k][available_domains[domain_name],
-                            :] for k in range(len(cycle_prediction))
+                            cycle_prediction[k][available_items, :]
+                            for k in range(len(cycle_prediction))
                         ]
                         latent_cycle_target[
                             f"{domain_name}-{domain_name_target}"] = [
-                            latent[k][available_domains[domain_name], :] for k
+                            latent[k][available_items, :] for k
                             in range(len(latent))
+                        ]
+                        # Translation
+                        mask = torch.logical_and(
+                            available_items,
+                            available_domains[domain_name_target]
+                        )
+                        if not mask.any():
+                            continue
+
+                        states[f"{domain_name}-{domain_name_target}"] = (
+                            state[mask]
+                        )
+                        pred = latent_translation_predictions
+                        target = latent_translation_target
+                        if (
+                                f"{domain_name}-{domain_name_target}" in
+                                self.remove_sync_domains_names
+                        ):
+                            pred = latent_translation_predictions_2
+                            target = latent_translation_target_2
+
+                        pred[f"{domain_name_target}-{domain_name}"] = [
+                            predictions[domain_name_target][k][mask, :]
+                            for k in range(
+                                len(
+                                    predictions[domain_name_target]
+                                )
+                            )
+                        ]
+                        target[f"{domain_name_target}-{domain_name}"] = [
+                            latent_target[k][mask, :] for k in
+                            range(len(latent_target))
                         ]
 
         demi_cycle_losses = self.loss(
@@ -604,8 +609,6 @@ class GlobalWorkspace(LightningModule):
         if self.domain_examples is not None:
             for logger in self.loggers:
                 self.set_unimodal_pass_through(False)
-                # self.logger.experiment["grad_norm_array"].upload(
-                # File.as_html(self.grad_norms_bin.values(15)))
                 for k, dist in enumerate(["in_dist", "ood"]):
                     if domain_examples[k] is not None:
                         validation_examples = self.get_domain_examples(
@@ -666,9 +669,9 @@ class GlobalWorkspace(LightningModule):
                 scheduler_step /= n_step_per_epoch
             # If less data, we need to do more scheduler steps. Must depend
             # on the synchronised data
-            prop_labelled_images = 1. - \
-                                   self.trainer.datamodule.prop_sync_domains[
-                                       "all"]
+            prop_labelled_images = (
+                    1. - self.trainer.datamodule.prop_sync_domains["all"]
+            )
             steps_per_new_epoch = int(
                 scheduler_step * (
                         size_dataset * prop_labelled_images) / batch_size

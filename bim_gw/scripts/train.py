@@ -120,11 +120,11 @@ def train_ae(args):
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
+        validation_images = data.domain_examples["val"][0]["v"][1]
         ae = AE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=
-            data.domain_examples["val"][0]["v"][1]
+            validation_reconstruction_images=validation_images,
         )
     else:
         ae = AE(
@@ -160,11 +160,11 @@ def train_vae(args):
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
+        validation_images = data.domain_examples["val"][0]["v"][1]
         vae = VAE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=
-            data.domain_examples["val"][0]["v"][1]
+            validation_reconstruction_images=validation_images,
         )
     else:
         vae = VAE(
@@ -173,7 +173,7 @@ def train_vae(args):
             args.n_validation_examples, args.vae.optim.lr,
             args.vae.optim.weight_decay, args.vae.scheduler.step,
             args.vae.scheduler.gamma, data.domain_examples["val"][0]["v"][1],
-            args.vae.n_FID_samples
+            args.vae.n_fid_samples
         )
 
     trainer = get_trainer(

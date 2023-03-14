@@ -8,13 +8,17 @@ from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
+from bim_gw.utils.errors import ConfigError
 from bim_gw.utils.scripts import get_domains
 
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    assert args.global_workspace.load_pre_saved_latents is not None, \
-        "Pre-saved latent path should be defined."
+    if args.global_workspace.load_pre_saved_latents is None:
+        raise ConfigError(
+            "global_workspace.load_pre_saved_latents",
+            "This should not be None."
+        )
 
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
@@ -43,8 +47,11 @@ if __name__ == '__main__':
     }
 
     for domain_key in domains.keys():
-        assert domain_key in args.global_workspace.load_pre_saved_latents, \
-            f"Path for domain {domain_key} is not provided."
+        if domain_key not in args.global_workspace.load_pre_saved_latents:
+            raise ConfigError(
+                "global_workspace.load_pre_saved_latents",
+                f"Domain {domain_key} is not provided."
+            )
 
     path = Path(args.simple_shapes_path) / "saved_latents"
     path.mkdir(exist_ok=True)
@@ -59,34 +66,40 @@ if __name__ == '__main__':
                 total=int(len(data_loader.dataset) / data_loader.batch_size)
         ):
             for domain_key in domains.keys():
-                l = None
+                latent_list = None
                 for t in range(len(batch[domain_key])):
                     data = batch[domain_key][t][1:]
                     for k in range(len(data)):
                         if isinstance(data[k], torch.Tensor):
                             data[k] = data[k].to(device)
                     encoded = domains[domain_key].encode(data)
-                    if l is None:
-                        l = [[] for k in range(len(encoded))]
+                    if latent_list is None:
+                        latent_list = [[] for k in range(len(encoded))]
                     for k in range(len(encoded)):
-                        l[k].append(encoded[k].cpu().detach().numpy())
+                        latent_list[k].append(
+                            encoded[k].cpu().detach().numpy()
+                        )
                 if latents[domain_key] is None:
-                    latents[domain_key] = [[] for k in range(len(l))]
-                for k in range(len(l)):
-                    latents[domain_key][k].append(np.stack(l[k], axis=1))
-        for domain_name, l in latents.items():
+                    latents[domain_key] = [[] for k in range(len(latent_list))]
+                for k in range(len(latent_list)):
+                    latents[domain_key][k].append(
+                        np.stack(latent_list[k], axis=1)
+                    )
+        for domain_name, latent_list in latents.items():
             (path / name).mkdir(exist_ok=True)
             paths = []
-            for k in range(len(l)):
-                x = np.concatenate(l[k])
-                p = path / name / args.global_workspace.load_pre_saved_latents[
-                    domain_name]
+            for k in range(len(latent_list)):
+                x = np.concatenate(latent_list[k])
+                p = path / name
+                p /= args.global_workspace.load_pre_saved_latents[domain_name]
                 p = p.with_stem(p.stem + f"_part_{k}")
                 paths.append(p.name)
                 np.save(str(p), x)
+            save_path = path / name
+            save_path /= args.global_workspace.load_pre_saved_latents[
+                domain_name]
             np.save(
                 str(
-                    path / name / args.global_workspace.load_pre_saved_latents[
-                        domain_name]
+                    save_path
                 ), np.array(paths)
             )

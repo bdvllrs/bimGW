@@ -15,7 +15,7 @@ def get_version():
 
 extras_require = {
     "wandb": ["wandb>=0.13.9"],
-    "neptune": ["neptune-client>=0.16.15"],
+    "dev": ["flake8"],
 }
 extras_require["all"] = list(set(sum(extras_require.values(), [])))
 

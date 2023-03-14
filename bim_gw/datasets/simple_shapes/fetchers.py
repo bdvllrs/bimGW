@@ -48,8 +48,9 @@ class DataFetcher:
     def get_item(self, item: int):
         raise NotImplementedError
 
-    def get_items(self, item: int) -> Union[
-        VisualDataType, AttributesDataType, TextDataType]:
+    def get_items(
+        self, item: int
+    ) -> Union[VisualDataType, AttributesDataType, TextDataType]:
         item = self.get_item(
             item
         ) if item is not None else self.get_null_item()
@@ -155,9 +156,11 @@ class TextDataFetcher(DataFetcher):
         self.bert_mean = None
         self.bert_std = None
         if bert_latents is not None:
-            if pca_dim < 768 and (
-                    root_path / f"{split}_reduced_{pca_dim}_{
-                bert_latents}").exists():
+            if (
+                    pca_dim < 768
+                    and (root_path / f"{split}_reduced_{pca_dim}_"
+                                     f"{bert_latents}").exists()
+            ):
                 self.bert_data = np.load(
                     root_path / f"{split}_reduced_{pca_dim}_{bert_latents}"
                 )[ids]
@@ -168,16 +171,16 @@ class TextDataFetcher(DataFetcher):
                     root_path / f"std_reduced_{pca_dim}_{bert_latents}"
                 )
             elif pca_dim == 768:
-                self.bert_data = \
-                    np.load(root_path / f"{split}_{bert_latents}")[ids]
+                self.bert_data = np.load(
+                    root_path / f"{split}_{bert_latents}"
+                )[ids]
                 self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
                 self.bert_std = np.load(root_path / f"std_{bert_latents}")
             else:
                 raise ValueError("No PCA data found")
             self.bert_data: np.ndarray = (
-                                                 self.bert_data -
-                                                 self.bert_mean) / \
-                                         self.bert_std
+                    (self.bert_data - self.bert_mean) / self.bert_std
+            )
 
         self.captions = np.load(str(root_path / f"{split}_captions.npy"))
         self.choices = np.load(

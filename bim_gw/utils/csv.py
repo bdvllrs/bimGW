@@ -10,7 +10,7 @@ def _set_float(val):
         val = val[1:-1]
     try:
         return float(val)
-    except ValueError as e:
+    except ValueError:
         return val
 
 
@@ -30,10 +30,6 @@ class CSVLog:
                                           enumerate(row)}
                 else:
                     row = self._get_dict_row(row)
-                    # if row["metrics/val_supervision_loss (last)"] == '':
-                    #     row["metrics/val_supervision_loss (last)"] = np.inf
-                    # if row["metrics/epoch (last)"] == '':
-                    #     row["metrics/epoch (last)"] = '0'
                     row = {key: _set_float(val) for key, val in row.items()}
                     self.data.append(row)
 
@@ -74,25 +70,34 @@ class CSVLog:
         return new_log
 
     def filter_eq(self, key, val):
-        cond = lambda row: key in row and row[key] == val
+        def cond(row):
+            return key in row and row[key] == val
+
         return self.filter(cond)
 
     def filter_neq(self, key, val):
-        cond = lambda row: key not in row or row[key] != val
+        def cond(row):
+            return key not in row or row[key] != val
+
         return self.filter(cond)
 
     def filter_between(self, key, mini=None, maxi=None):
         mini = mini if mini is not None else -np.inf
         maxi = maxi if maxi is not None else np.inf
-        cond = lambda row: key in row and mini <= row[key] <= maxi
+
+        def cond(row):
+            return key in row and mini <= row[key] <= maxi
+
         return self.filter(cond)
 
     def filter_in(self, key, values):
-        cond = lambda row: key in row and row[key] in values
+        def cond(row):
+            return key in row and row[key] in values
+
         return self.filter(cond)
 
     def zip(self, keys, sort=False):
-        outputs = [[] for k in range(len(keys))]
+        outputs = [[] for _ in range(len(keys))]
         for row in self.data:
             for k, key in enumerate(keys):
                 outputs[k].append(row[key])

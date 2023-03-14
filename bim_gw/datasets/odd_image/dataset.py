@@ -28,7 +28,7 @@ class OddImageDataset:
             self.shift_ref_item = 750_000
 
         ids = np.arange(1_000_000)
-        labels = np.load(str(self.root_path / f"train_labels.npy"))
+        labels = np.load(str(self.root_path / "train_labels.npy"))
         fetchers = {
             "v": PreSavedLatentDataFetcher(
                 # split always train, we used the end 500_000 as val/test
@@ -56,12 +56,15 @@ class OddImageDataset:
         label = self.labels[item]
         data = {
             name: (
-                self.fetchers[name].get_item(label[0] + self.shift_ref_item)[
-                1:],
-                self.fetchers[name].get_item(label[1] + self.shift_ref_item)[
-                1:],
-                self.fetchers[name].get_item(label[2] + self.shift_ref_item)[
-                1:])
+                self.fetchers[name].get_item(
+                    label[0] + self.shift_ref_item
+                )[1:],
+                self.fetchers[name].get_item(
+                    label[1] + self.shift_ref_item
+                )[1:],
+                self.fetchers[name].get_item(
+                    label[2] + self.shift_ref_item
+                )[1:])
             for name in self.fetchers.keys()
         }
         data["label"] = torch.tensor(label[3], dtype=torch.long)

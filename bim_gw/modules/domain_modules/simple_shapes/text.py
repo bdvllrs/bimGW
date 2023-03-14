@@ -217,9 +217,9 @@ class SimpleShapesText(DomainModule):
         rotation = samples["rotations"]
         # assert 0 <= rotation <= 1
         # rotation = rotation * 2 * np.pi / 360  # put in radians
-        r, g, b = samples["colors"][:, 0], samples["colors"][:, 1], samples[
-                                                                        "colors"][
-                                                                    :, 2]
+        r = samples["colors"][:, 0]
+        g = samples["colors"][:, 1]
+        b = samples["colors"][:, 2]
 
         labels, choices = self.text_composer(
             {
@@ -321,12 +321,15 @@ class SimpleShapesText(DomainModule):
         if not self.optimize_vae_with_attr_regression:
             z_predictions = z_mean.detach()
 
-        predictions, attribute_losses, attribute_prediction_loss = \
+        predictions, attribute_losses, attribute_prediction_loss = (
             self.train_attribute_predictions(
                 z_predictions, sentences, targets, mode=mode
             )
-        total_loss = self.coef_vae_loss * vae_loss + self.coef_attr_loss * \
-                     attribute_prediction_loss
+        )
+        total_loss = (
+                self.coef_vae_loss * vae_loss
+                + self.coef_attr_loss * attribute_prediction_loss
+        )
 
         self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
         return total_loss

@@ -21,7 +21,8 @@ class VAE(DomainModule):
         optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
         scheduler_step: int = 20, scheduler_gamma: float = 0.5,
         validation_reconstruction_images: Optional[torch.Tensor] = None,
-        n_FID_samples=1000, ):
+        n_fid_samples=1000,
+    ):
         # configurations
         super().__init__()
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
@@ -35,7 +36,7 @@ class VAE(DomainModule):
         self.z_size = z_size
         self.beta = beta
         self.vae_type = vae_type
-        self.n_FID_samples = n_FID_samples
+        self.n_fid_samples = n_fid_samples
 
         self.output_dims = [self.z_size]
         self.decoder_activation_fn = [
@@ -95,8 +96,7 @@ class VAE(DomainModule):
             batchnorm=True
         )
 
-    def encode_stats(self, x: torch.Tensor) -> Tuple[
-        torch.Tensor, torch.Tensor]:
+    def encode_stats(self, x: torch.Tensor):
         out = self.encoder(x)
         out = out.view(out.size(0), -1)
 
@@ -115,8 +115,10 @@ class VAE(DomainModule):
         z = z[0]
         return [self.decoder(z)]
 
-    def forward(self, x: torch.Tensor) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def forward(
+        self,
+        x: torch.Tensor
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encode_stats(x)
         z = reparameterize(mean, logvar)
 
@@ -358,9 +360,6 @@ class CDecoderV2(nn.Module):
                 nn.ReLU(),
             )
             out_padding_layer = nn.ZeroPad2d((0, 1, 0, 1))
-            final_padding = 1
-
-            out_size = sizes[0]
         else:
             ae_size = 1024 if ae_size is None else ae_size
 
@@ -399,9 +398,6 @@ class CDecoderV2(nn.Module):
                 nn.ReLU(),
             )
             out_padding_layer = nn.Identity()
-            # final_padding = 2
-
-            out_size = sizes[0]
 
         self.out_layer = nn.Sequential(
             out_padding_layer,

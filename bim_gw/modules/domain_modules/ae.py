@@ -69,8 +69,10 @@ class AE(DomainModule):
     def decode(self, z: torch.Tensor):
         return self.decoder(z[0]),
 
-    def forward(self, x: torch.Tensor) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def forward(
+        self,
+        x: torch.Tensor
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         z = self.encode(x)
 
         # reconstruct x from z
@@ -273,9 +275,6 @@ class CDecoderV2(nn.Module):
                 nn.ReLU(),
             )
             out_padding_layer = nn.ZeroPad2d((0, 1, 0, 1))
-            final_padding = 1
-
-            out_size = sizes[0]
         else:
             ae_size = 1024 if ae_size is None else ae_size
 
@@ -314,9 +313,6 @@ class CDecoderV2(nn.Module):
                 nn.ReLU(),
             )
             out_padding_layer = nn.Identity()
-            # final_padding = 2
-
-            out_size = sizes[0]
 
         self.out_layer = nn.Sequential(
             out_padding_layer,
