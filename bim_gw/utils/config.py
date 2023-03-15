@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -65,10 +64,6 @@ def get_args(
 ):
     load_resolvers_if_needed()
 
-    if verbose:
-        print("Cli args")
-        print(sys.argv)
-
     # Configurations
     default_args = OmegaConf.create(
         {
@@ -89,9 +84,7 @@ def get_args(
         debug_args = {}
 
     if cli:
-        cli_args = OmegaConf.from_dotlist(
-            list(map(lambda x: x.replace("--", ""), sys.argv[1:]))
-        )
+        cli_args = OmegaConf.from_cli()
     else:
         cli_args = OmegaConf.create()
     if (config_path / "local.yaml").exists():
