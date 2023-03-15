@@ -95,12 +95,12 @@ class DataloaderConfig:
 @dataclass
 class LoggerConfig:
     logger: AvailableLoggers = MISSING
-    save_images: bool = MISSING
-    save_tables: bool = MISSING
-    save_last_images: bool = MISSING
-    save_last_tables: bool = MISSING
-    watch_model: bool = MISSING
-    args: Dict[str, Any] = MISSING
+    save_images: bool = True
+    save_tables: bool = True
+    save_last_images: bool = True
+    save_last_tables: bool = True
+    watch_model: bool = False
+    args: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -327,8 +327,8 @@ class BIMConfig:
 
     fetchers: Dict[str, Dict[str, Any]] = MISSING
 
-    _code_version: str = MISSING
-    _script_name: str = MISSING
+    _code_version: str = "master"
+    _script_name: str = "debug"
 
     slurm: SlurmConfig = field(default_factory=SlurmConfig)
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)
