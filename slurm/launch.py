@@ -29,8 +29,19 @@ if __name__ == '__main__':
         exclude_in_rsync=["images", "tests"],
     )
 
+    extra_args = cli_args
+    # Add all grid search parameters as parameters to auto_sbatch
+    if args.slurm.grid_search is not None:
+        extra_args = OmegaConf.merge(
+            extra_args,
+            OmegaConf.from_dotlist(
+                [f"{arg}={OmegaConf.select(args, arg, throw_on_missing=True)}"
+                 for arg in args.slurm.grid_search]
+            )
+        )
+
     sbatch = SBatch(
-        args.slurm.slurm, cli_args,
+        args.slurm.slurm, extra_args,
         grid_search=args.slurm.grid_search,
         experiment_handler=handler
     )
