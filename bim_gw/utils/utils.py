@@ -136,7 +136,8 @@ def get_runs_dataframe(args):
 
         api = wandb.Api()
         runs = api.runs(
-            args.wandb_entity_project, OmegaConf.to_object(args.wandb_filter)
+            args.wandb_entity_project,
+            OmegaConf.to_container(args.wandb_filter, resolve=True)
         )
         columns = {}
         for run in runs:

@@ -42,17 +42,3 @@ def text_from_table(columns, data):
         ) + "\n"
     text += "---- \n"
     return text
-
-
-class NullLogger:
-    def __init__(self, *params, **kwarg):
-        raise ValueError(
-            "This Logger is not available. Please install the associated "
-            "package to use this logger."
-        )
-
-
-class LoggerBase:
-    def __init__(self, *params, save_images=True, save_tables=True, **kwargs):
-        self._save_images = save_images
-        self._save_tables = save_tables

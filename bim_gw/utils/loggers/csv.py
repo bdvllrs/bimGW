@@ -103,7 +103,7 @@ class CSVLogger(CSVLoggerBase):
 
 
 def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
-    args = OmegaConf.to_object(log_args.args)
+    args = OmegaConf.to_container(log_args.args, resolve=True)
     args['name'] = name
     args['version'] = version
     args['save_images'] = log_args.save_images
@@ -113,7 +113,7 @@ def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     )
     logger.experiment.log_hparams(
         {
-            "parameters": OmegaConf.to_object(conf),
+            "parameters": OmegaConf.to_container(conf, resolve=True),
             "tags": tags
         }
     )

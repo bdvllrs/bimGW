@@ -66,7 +66,7 @@ class TensorBoardLogger(TensorBoardLoggerBase):
 def get_tensor_board_logger(
     name, version, log_args, model, conf, tags, source_files
 ):
-    args = OmegaConf.to_object(log_args.args)
+    args = OmegaConf.to_container(log_args.args, resolve=True)
     args['name'] = name
     args['version'] = version
     args['save_images'] = log_args.save_images
@@ -74,7 +74,7 @@ def get_tensor_board_logger(
     logger = TensorBoardLogger(
         **args
     )
-    hparams = {"parameters": OmegaConf.to_object(conf)}
+    hparams = {"parameters": OmegaConf.to_container(conf, resolve=True)}
     if tags is not None:
         hparams["tags"] = tags
     logger.log_hyperparams(hparams)
