@@ -32,12 +32,12 @@ if __name__ == '__main__':
     extra_args = cli_args
     # Add all grid search parameters as parameters to auto_sbatch
     if args.slurm.grid_search is not None:
-        extra_args = OmegaConf.merge(
-            extra_args,
+        extra_args = OmegaConf.unsafe_merge(
             OmegaConf.from_dotlist(
                 [f"{arg}={OmegaConf.select(args, arg, throw_on_missing=True)}"
                  for arg in args.slurm.grid_search]
-            )
+            ),
+            extra_args,
         )
 
     sbatch = SBatch(
