@@ -10,7 +10,7 @@ def test_train_vae():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml")
+            Path("../configs/test_base.yaml")
         ]
     )
     train_vae(args)
@@ -20,7 +20,7 @@ def test_train_lm():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml")
+            Path("../configs/test_base.yaml")
         ]
     )
     train_lm(args)
@@ -30,9 +30,9 @@ def test_train_gw_with_attributes():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml"),
-            Path("configs/load_pretrained_models.yaml"),
-            Path("configs/test_gw_with_attributes.yaml")
+            Path("../configs/test_base.yaml"),
+            Path("../configs/load_pretrained_models.yaml"),
+            Path("../configs/test_gw_with_attributes.yaml")
         ]
     )
     train_gw(args)
@@ -42,9 +42,9 @@ def test_train_gw_with_text():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml"),
-            Path("configs/load_pretrained_models.yaml"),
-            Path("configs/test_gw_with_text.yaml")
+            Path("../configs/test_base.yaml"),
+            Path("../configs/load_pretrained_models.yaml"),
+            Path("../configs/test_gw_with_text.yaml")
         ]
     )
     train_gw(args)
@@ -54,9 +54,9 @@ def test_train_gw_with_unsync_examples():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml"),
-            Path("configs/load_pretrained_models.yaml"),
-            Path("configs/test_gw_with_unsync_examples.yaml")
+            Path("../configs/test_base.yaml"),
+            Path("../configs/load_pretrained_models.yaml"),
+            Path("../configs/test_gw_with_unsync_examples.yaml")
         ]
     )
     train_gw(args)
@@ -66,9 +66,9 @@ def test_train_gw_with_split_ood():
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("configs/test_base.yaml"),
-            Path("configs/load_pretrained_models.yaml"),
-            Path("configs/test_gw_with_split_ood.yaml")
+            Path("../configs/test_base.yaml"),
+            Path("../configs/load_pretrained_models.yaml"),
+            Path("../configs/test_gw_with_split_ood.yaml")
         ]
     )
     train_gw(args)
