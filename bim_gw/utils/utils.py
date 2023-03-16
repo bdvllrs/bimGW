@@ -282,3 +282,12 @@ def get_checkpoint_path(path):
         return find_best_epoch(path.local_path)
 
     return path
+
+
+def has_internet_connection(host='https://google.com'):
+    import urllib.request
+    try:
+        urllib.request.urlopen(host)  # Python 3.x
+        return True
+    except Exception:
+        return False

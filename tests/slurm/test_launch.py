@@ -5,7 +5,7 @@ from auto_sbatch import SlurmScriptParser
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.config import get_argv_dotlist
+from bim_gw.utils.cli import get_argv_dotlist
 from slurm.launch import main
 
 

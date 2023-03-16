@@ -5,7 +5,6 @@ from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.config import get_argv_dotlist
 
 
 def should_keep_file(file_path: Path, args: DictConfig):
@@ -19,7 +18,7 @@ def should_keep_file(file_path: Path, args: DictConfig):
 
 
 if __name__ == '__main__':
-    args = OmegaConf.from_dotlist(get_argv_dotlist())
+    args = OmegaConf.from_cli()
 
     if "--help" in args:
         print("Compresses runs in a run_work_directory.")

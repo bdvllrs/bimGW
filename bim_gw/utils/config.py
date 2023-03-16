@@ -1,22 +1,13 @@
 import logging
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 from omegaconf import OmegaConf
 
+from bim_gw.utils.cli import parse_argv_from_structure
 from bim_gw.utils.constants import PROJECT_DIR
 from bim_gw.utils.types import BIMConfig
-
-
-def has_internet_connection(host='https://google.com'):
-    import urllib.request
-    try:
-        urllib.request.urlopen(host)  # Python 3.x
-        return True
-    except Exception:
-        return False
 
 
 def split_resolver(key, value, item=None):
@@ -70,6 +61,7 @@ def get_args(
 ):
     load_resolvers_if_needed()
 
+    schema = OmegaConf.structured(BIMConfig)
     # Configurations
     default_args = OmegaConf.create(
         {
@@ -89,8 +81,12 @@ def get_args(
     else:
         debug_args = {}
 
-    if cli:
-        cli_args = OmegaConf.from_dotlist(get_argv_dotlist())
+    if cli and use_schema:
+        cli_args = OmegaConf.from_dotlist(
+            parse_argv_from_structure(schema)
+        )
+    elif cli:
+        cli_args = OmegaConf.from_cli()
     else:
         cli_args = OmegaConf.create()
     if use_local and (config_path / "local.yaml").exists():
@@ -145,45 +141,7 @@ def get_args(
         args.fetchers.attr.use_unpaired = False
 
     if use_schema:
-        schema = OmegaConf.structured(BIMConfig)
         OmegaConf.set_struct(schema, False)
         args = OmegaConf.merge(schema, args)
 
     return args
-
-
-def get_argv_dotlist(__argv__=None):
-    """
-    Convert sys.argv to a dotlist.
-    Argument can be of the form "key=val", separated by spaces "key val".
-    To use flags, make sure that the keys start with a dash "-".
-
-    Args:
-        __argv__: Provided argument list. If None, sys.argv is used.
-
-    Examples:
-        >>> get_argv_dotlist(["a", "1", "c", "d", "-e", "-f"])
-        ['a=1', 'c=d', '-e=True', '-f=True']
-    """
-    argv = __argv__
-    if argv is None:
-        argv = sys.argv[1:]
-    dotlist = []
-    last_key = None
-    for k in range(len(argv)):
-        arg = argv[k].strip(" ")
-        if arg.startswith("-") and last_key is not None:
-            dotlist.append(f"{last_key}=True")
-            last_key = None
-        if "=" in arg:
-            dotlist.append(arg)
-        elif " " in arg and len(arg.split(" ")) == 2:
-            dotlist.append(arg.replace(" ", "="))
-        elif last_key is None:
-            last_key = arg
-        else:
-            dotlist.append(f"{last_key}={arg}")
-            last_key = None
-    if last_key is not None:  # it was a flag
-        dotlist.append(f"{last_key}=True")
-    return dotlist

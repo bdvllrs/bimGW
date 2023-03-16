@@ -5,7 +5,6 @@ from auto_sbatch import ExperimentHandler, SBatch
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.config import get_argv_dotlist
 
 
 def main(args, cli_args):
@@ -54,5 +53,5 @@ if __name__ == "__main__":
         get_args(
             debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
         ),
-        OmegaConf.from_dotlist(get_argv_dotlist())
+        OmegaConf.from_cli()
     )
