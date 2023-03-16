@@ -33,4 +33,4 @@ jobs:
           python scripts/create_shape_dataset.py
       - name: Test with pytest
         run: |
-          pytest --ignore tests/train
+          pytest tests/
