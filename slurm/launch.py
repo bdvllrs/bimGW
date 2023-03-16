@@ -5,6 +5,7 @@ from auto_sbatch import ExperimentHandler, SBatch
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
+from bim_gw.utils.config import get_argv_dotlist
 
 if __name__ == '__main__':
     work_dir = Path(__file__).absolute().parent.parent
@@ -12,7 +13,7 @@ if __name__ == '__main__':
     args = get_args(
         debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
     )
-    cli_args = OmegaConf.from_cli()
+    cli_args = OmegaConf.from_dotlist(get_argv_dotlist())
     args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 

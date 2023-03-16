@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -84,7 +85,7 @@ def get_args(
         debug_args = {}
 
     if cli:
-        cli_args = OmegaConf.from_cli()
+        cli_args = OmegaConf.from_dotlist(get_argv_dotlist())
     else:
         cli_args = OmegaConf.create()
     if (config_path / "local.yaml").exists():
@@ -144,3 +145,40 @@ def get_args(
         args = OmegaConf.merge(schema, args)
 
     return args
+
+
+def get_argv_dotlist(__argv__=None):
+    """
+    Convert sys.argv to a dotlist.
+    Argument can be of the form "key=val", separated by spaces "key val".
+    To use flags, make sure that the keys start with a dash "-".
+
+    Args:
+        __argv__: Provided argument list. If None, sys.argv is used.
+
+    Examples:
+        >>> get_argv_dotlist(["a", "1", "c", "d", "-e", "-f"])
+        ['a=1', 'c=d', '-e=True', '-f=True']
+    """
+    argv = __argv__
+    if argv is None:
+        argv = sys.argv[1:]
+    dotlist = []
+    last_key = None
+    for k in range(len(argv)):
+        arg = argv[k].strip(" ")
+        if arg.startswith("-") and last_key is not None:
+            dotlist.append(f"{last_key}=True")
+            last_key = None
+        if "=" in arg:
+            dotlist.append(arg)
+        elif " " in arg and len(arg.split(" ")) == 2:
+            dotlist.append(arg.replace(" ", "="))
+        elif last_key is None:
+            last_key = arg
+        else:
+            dotlist.append(f"{last_key}={arg}")
+            last_key = None
+    if last_key is not None:  # it was a flag
+        dotlist.append(f"{last_key}=True")
+    return dotlist
