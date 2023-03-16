@@ -192,7 +192,7 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
         size=(1, n_samples, 3), dtype=np.uint8
     )
     rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
-    return rgb.astype(np.int), hls[0].astype(np.int)
+    return rgb.astype(int), hls[0].astype(int)
 
 
 def generate_rotation(n_samples):
