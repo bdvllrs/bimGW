@@ -52,3 +52,29 @@ def test_get_argv_with_flags():
         "-d=True",
         "--dry-run=True",
     ]
+
+
+def test_get_argv_with_flags_no_dash():
+    dotlist = get_argv_dotlist(
+        [
+            "param2", "3",
+            "param3.param3_2", "5",
+            "param4 6",
+            "param5 7 ",
+            "-d",
+            "param6=8",
+            "-p",  # failing case
+            "param7", "9"
+        ]
+    )
+
+    assert dotlist == [
+        "param2=3",
+        "param3.param3_2=5",
+        "param4=6",
+        "param5=7",
+        "-d=True",
+        "param6=8",
+        "-p=param7",
+        "9=True"
+    ]
