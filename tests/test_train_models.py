@@ -8,6 +8,7 @@ from bim_gw.utils import get_args
 
 def test_train_vae():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml")
         ]
@@ -17,6 +18,7 @@ def test_train_vae():
 
 def test_train_lm():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml")
         ]
@@ -26,6 +28,7 @@ def test_train_lm():
 
 def test_train_gw_with_attributes():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
@@ -37,6 +40,7 @@ def test_train_gw_with_attributes():
 
 def test_train_gw_with_text():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
@@ -48,6 +52,7 @@ def test_train_gw_with_text():
 
 def test_train_gw_with_unsync_examples():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),
@@ -59,6 +64,7 @@ def test_train_gw_with_unsync_examples():
 
 def test_train_gw_with_split_ood():
     args = get_args(
+        use_local=False,
         additional_config_files=[
             Path("configs/test_base.yaml"),
             Path("configs/load_pretrained_models.yaml"),

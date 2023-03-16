@@ -60,7 +60,12 @@ def load_resolvers_if_needed():
 
 
 def get_args(
-    debug=False, additional_config_files=None, cli=True, verbose=True,
+    *,
+    debug=False,
+    additional_config_files=None,
+    use_local=True,
+    cli=True,
+    verbose=True,
     use_schema=True
 ):
     load_resolvers_if_needed()
@@ -88,7 +93,7 @@ def get_args(
         cli_args = OmegaConf.from_dotlist(get_argv_dotlist())
     else:
         cli_args = OmegaConf.create()
-    if (config_path / "local.yaml").exists():
+    if use_local and (config_path / "local.yaml").exists():
         local_args = OmegaConf.load(
             str((config_path / "local.yaml").resolve())
         )
