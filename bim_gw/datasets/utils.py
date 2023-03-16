@@ -28,7 +28,10 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         args.n_validation_examples, local_args.get("split_ood", False),
         selected_domains,
         pre_saved_latent_paths,
-        sync_uses_whole_dataset, fetcher_params=args.fetchers, **kwargs
+        sync_uses_whole_dataset,
+        fetcher_params=args.fetchers,
+        len_train_dataset=args.datasets.shapes.n_train_examples,
+        **kwargs
     )
 
 

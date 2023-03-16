@@ -62,7 +62,8 @@ class SimpleShapesDataModule(DataModule):
         pre_saved_latent_paths: Optional[Dict[str, str]] = None,
         sync_uses_whole_dataset: bool = False,
         add_unimodal: bool = True,
-        fetcher_params: Optional[Dict[str, Any]] = None
+        fetcher_params: Optional[Dict[str, Any]] = None,
+        len_train_dataset: int = 1_000_000,
     ):
         super().__init__(
             batch_size, num_workers, prop_labelled_images,
@@ -77,7 +78,7 @@ class SimpleShapesDataModule(DataModule):
         self.img_size: int = 32
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
         self.num_channels: int = 3
-        self.len_train_dataset: int = 1_000_000
+        self.len_train_dataset: int = len_train_dataset
         ds = SimpleShapesDataset(
             simple_shapes_folder, "val",
             selected_domains=self.selected_domains,
