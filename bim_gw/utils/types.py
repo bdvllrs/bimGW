@@ -294,6 +294,22 @@ class DownstreamConfig:
 
 
 @dataclass
+class ShapesConfig:
+    n_train_examples: int = MISSING
+    n_val_examples: int = MISSING
+    n_test_examples: int = MISSING
+    min_scale: int = MISSING
+    max_scale: int = MISSING
+    min_lightness: int = MISSING
+    max_lightness: int = MISSING
+
+
+@dataclass
+class DatasetsConfig:
+    shapes: ShapesConfig = field(default_factory=ShapesConfig)
+
+
+@dataclass
 class BIMConfig:
     debug: bool = MISSING
     devices: int = MISSING
@@ -329,6 +345,8 @@ class BIMConfig:
 
     _code_version: str = "master"
     _script_name: str = "debug"
+
+    datasets: DatasetsConfig = field(default_factory=DatasetsConfig)
 
     slurm: SlurmConfig = field(default_factory=SlurmConfig)
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)

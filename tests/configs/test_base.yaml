@@ -15,6 +15,18 @@ resume_from_checkpoint: null  # path to a checkpoint to continue training. For t
 logger_resume_id: null  # if not null, will resume the logged run (such as wandb run) with this id.
 checkpoint: null  # path to the GW model for evaluation
 
+simple_shapes_path: "./data/shapes"
+
+datasets:
+  shapes:
+    n_train_examples: 4
+    n_val_examples: 2
+    n_test_examples: 2
+    min_scale: 7
+    max_scale: 14
+    min_lightness: 46
+    max_lightness: 256
+
 slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
 slurm: # slurm parameters if started on slurm with the slurm/launch.py command
   script: test  # which script to start

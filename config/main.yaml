@@ -30,6 +30,16 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 #  remote_checkpoint_path: "/path/to/checkpoint"  # can be folder or file. If folder, the latest model will be loaded.
 #  local_path: "../local/path/to/save/checkpoint"  # must be folder
 
+datasets:
+  shapes:
+    n_train_examples: 1_000_000
+    n_val_examples: 50_000
+    n_test_examples: 50_000
+    min_scale: 7
+    max_scale: 14
+    min_lightness: 46
+    max_lightness: 256
+
 slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
 slurm: # slurm parameters if started on slurm with the slurm/launch.py command
   slurm: # slurm parameters (see https://slurm.schedmd.com/sbatch.html#SECTION_OPTIONS)

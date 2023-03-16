@@ -24,16 +24,17 @@ def main():
     dataset_location = Path(args.simple_shapes_path)
     dataset_location.mkdir(exist_ok=True)
 
-    size_train_set = 1_000_000
-    size_val_set = 50_000
-    size_test_set = 50_000
+    size_train_set = args.datasets.shapes.n_train_examples
+    size_val_set = args.datasets.shapes.n_val_examples
+    size_test_set = args.datasets.shapes.n_test_examples
 
     # in pixels
-    min_scale = 7
-    max_scale = 14
-    min_lightness = 46  # of the HSL format. Higher value generates lighter
-    # images. Min 0, Max 256
-    max_lightness = 256
+    min_scale = args.datasets.shapes.min_scale
+    max_scale = args.datasets.shapes.max_scale
+    # of the HSL format. Higher value generates lighter images.
+    # Min 0, Max 256
+    min_lightness = args.datasets.shapes.min_lightness
+    max_lightness = args.datasets.shapes.max_lightness
 
     np.random.seed(seed)
 
