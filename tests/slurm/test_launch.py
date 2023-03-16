@@ -81,7 +81,7 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
                 "slurm.run_work_directory='tests/slurm'",
                 "slurm.script='train'",
                 f"slurm.command='{slurm_command}'",
-                f"slurm.grid_search=['seed']"
+                "slurm.grid_search=['seed']"
             ]
         )
     )

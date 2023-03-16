@@ -271,7 +271,7 @@ def transformed_labels(labels, transfo):
         rotations=labels["rotations"] + transfo[:, 4],
         colors=labels["colors"] + transfo[:, 5:8],
         colors_hls=labels["colors_hls"] + transfo[:, 8:11],
-        unpaired=labels["unpaired"] + transfo[:, 12]
+        unpaired=labels["unpaired"] + transfo[:, 11]
     )
 
 
@@ -283,7 +283,7 @@ def labels_from_transfo(transfo):
         rotations=transfo[:, 4],
         colors=transfo[:, 5:8],
         colors_hls=transfo[:, 8:11],
-        unpaired=transfo[:, 12]
+        unpaired=transfo[:, 11]
     )
 
 
