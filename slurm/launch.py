@@ -7,13 +7,10 @@ from omegaconf import OmegaConf
 from bim_gw.utils import get_args
 from bim_gw.utils.config import get_argv_dotlist
 
-if __name__ == '__main__':
+
+def main(args, cli_args):
     work_dir = Path(__file__).absolute().parent.parent
 
-    args = get_args(
-        debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
-    )
-    cli_args = OmegaConf.from_dotlist(get_argv_dotlist())
     args = OmegaConf.merge(args, cli_args)
     OmegaConf.resolve(args)
 
@@ -49,4 +46,13 @@ if __name__ == '__main__':
     sbatch(
         args.slurm.command,
         schedule_all_tasks=True
+    )
+
+
+if __name__ == "__main__":
+    main(
+        get_args(
+            debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
+        ),
+        OmegaConf.from_dotlist(get_argv_dotlist())
     )
