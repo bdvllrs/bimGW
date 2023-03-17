@@ -1,117 +1,137 @@
+import dataclasses
 import sys
 from typing import List, Optional
 
-from omegaconf import (
-    BooleanNode, Container, ListConfig,
-    OmegaConf, ValidationError, ValueNode
-)
-
-_cached_nodes = {}
+import yaml
 
 
-def select_node(
-    structure: Container,
-    key: str
-):
-    if key in _cached_nodes.keys():
-        return _cached_nodes[key]
+def _get_real_field(fields, name):
+    if name in fields.keys():
+        return fields[name]
+    for field in fields.values():
+        if field.metadata.get("cli", field.name) == name:
+            return field
+    return None
 
-    _node = None
 
-    def gather(_cfg: Container) -> None:
-        nonlocal _node
-        if isinstance(_cfg, ListConfig):
-            itr = range(len(_cfg))
+def _is_valid_dataclass_type(dataclass_type, loaded_value):
+    sub_fields = {
+        field.name: field
+        for field in dataclasses.fields(dataclass_type)
+    }
+    for val_name, sub_val in loaded_value.items():
+        real_field = _get_real_field(sub_fields, val_name)
+        if real_field is None:
+            return False
+        if not _is_valid_field(real_field.type, sub_val):
+            return False
+    return True
+
+
+def _is_valid_list(field_type, loaded_value):
+    if not isinstance(loaded_value, (list, tuple)):
+        return False
+    for val in loaded_value:
+        field_type = field_type.__args__[0]
+        if not _is_valid_field(field_type, val):
+            return False
+    return True
+
+
+def _is_valid_field(field_type, loaded_value):
+    if isinstance(loaded_value, (list, tuple)):
+        return _is_valid_list(field_type, loaded_value)
+    if is_dataclass(field_type):
+        return _is_valid_dataclass_type(field_type, loaded_value)
+    return isinstance(loaded_value, field_type)
+
+
+def is_valid_field(field, value):
+    loaded_value = yaml.load(value, Loader=yaml.SafeLoader)
+    return _is_valid_field(field.type, loaded_value)
+
+
+def is_field_flag(field):
+    return field.type is bool
+
+
+def is_dataclass(structure):
+    return (
+            dataclasses.is_dataclass(structure)
+            and isinstance(structure, type)
+    )
+
+
+def split_argv(argv):
+    new_argv = []
+    for arg in argv:
+        if "=" in arg:
+            new_argv.extend(arg.split("="))
         else:
-            itr = _cfg
-
-        for k in itr:
-            _cached_nodes[_cfg._get_full_key(k)] = _cfg._get_node(k)
-
-            if OmegaConf.is_config(_cfg._get_node(k)):
-                gather(_cfg[k])
-            elif _cfg._get_full_key(k) == key:
-                _node = _cfg._get_node(k)
-
-    gather(structure)
-    return _node
+            new_argv.append(arg)
+    return new_argv
 
 
-def validate_node(node, value):
-    if isinstance(node, ValueNode):
-        return node.validate_and_convert(value)
+def get_field(structure, key: str):
+    key_parts = key.split(".")
+    fields = {field.name: field for field in dataclasses.fields(structure)}
+    field = None
+    for key in key_parts:
+        field = _get_real_field(fields, key)
+        if field is None:
+            return None
 
-    return OmegaConf.merge(node, OmegaConf.create(value))
+        if is_dataclass(field.type):
+            structure = field.type
+            fields = {field.name: field
+                      for field in dataclasses.fields(structure)}
+    return field
 
 
 def parse_argv_from_structure(
-    structure: Container,
-    argv: Optional[List[str]] = None
+    structure,
+    argv: Optional[List[str]] = None,
 ):
+    if not is_dataclass(structure):
+        raise TypeError("Structure must be a dataclass")
+
     if argv is None:
         argv = sys.argv[1:]
     dotlist = []
+    # remove all = and split keys and values
+    argv = split_argv(argv)
+
     last_key = None
-    last_flag = False
-    for k in range(len(argv) + 1):
-        key, val = None, None
-        if k < len(argv):
-            arg = argv[k].strip(" ")
-            if "=" in arg:
-                key, val = arg.split("=")
-            elif last_key is not None:
-                val = arg
-            else:
-                key = arg
-        elif last_key is None:
-            break
+    last_field = None
+    for arg in argv:
+        arg_field = get_field(structure, arg)
+        is_arg_valid_key = arg_field is not None
 
-        if (last_flag
-                and last_key is not None
-                and key is None and val is not None):
-            node = select_node(structure, last_key)
-            try:
-                validate_node(node, val)
-            except ValidationError:
-                raise ValueError(f"Invalid value for {last_key}: {val}")
-            dotlist.append(f"{last_key}={val}")
-            last_flag = False
-            last_key = None
-            continue
-        elif last_flag and last_key is not None and val is None:
+        # Last key was a flag
+        if (
+                is_arg_valid_key
+                and last_field is not None
+                and is_field_flag(structure, last_field)
+        ):
             dotlist.append(f"{last_key}=True")
-            last_flag = False
-            last_key = None
+            last_key, last_field = None, None
+
+        # This arg is a value
+        if last_key is not None and is_valid_field(last_field, arg):
+            dotlist.append(f"{last_key}={arg}")
+            last_key, last_field = None, None
             continue
 
-        if key is None and last_key is not None:
-            key = last_key
-
-        try:
-            OmegaConf.select(
-                structure, key,
-                throw_on_missing=False,
-                throw_on_resolution_failure=True
-            )
-        except Exception:
-            raise ValueError(f"Invalid argument: {key}")
-
-        node = select_node(structure, key)
-
-        if val is not None:
-            try:
-                validate_node(node, val)
-            except ValidationError:
-                raise ValueError(f"Invalid value for {key}: {val}")
-            dotlist.append(f"{key}={val}")
-            last_key = None
+        # This arg is a valid key
+        if is_arg_valid_key:
+            last_key, last_field = arg, arg_field
             continue
 
-        if isinstance(node, BooleanNode) and val is None:
-            last_flag = True
-            last_key = key
-            continue
+        raise ValueError("Invalid key: " + arg)
 
-        last_key = key
+    # Last key was a flag
+    if (last_field is not None
+            and is_field_flag(last_field)):
+        dotlist.append(f"{last_key}=True")
 
     return dotlist

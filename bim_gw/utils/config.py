@@ -104,6 +104,10 @@ def get_args(
                 args = OmegaConf.merge(
                     args, OmegaConf.load(str(file.resolve()))
                 )
+            else:
+                logging.warning(
+                    f"Config file {file} does not exist. Ignoring."
+                )
 
     args = OmegaConf.merge(args, cli_args)
 
