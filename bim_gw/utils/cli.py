@@ -1,5 +1,6 @@
 import dataclasses
 import sys
+from enum import Enum
 from typing import List, Optional
 
 import yaml
@@ -24,10 +25,7 @@ def _isinstance(obj, type_):
 
 
 def _is_valid_dataclass_type(dataclass_type, loaded_value):
-    sub_fields = {
-        field.name: field
-        for field in dataclasses.fields(dataclass_type)
-    }
+    sub_fields = _get_fields(dataclass_type)
     for val_name, sub_val in loaded_value.items():
         real_field = _get_real_field(sub_fields, val_name)
         if real_field is None:
@@ -47,9 +45,17 @@ def _is_valid_list(field_type, loaded_value):
     return True
 
 
+def _is_valid_enum(field_type, loaded_value):
+    if not issubclass(field_type, Enum):
+        return False
+    return loaded_value in field_type.__members__.keys()
+
+
 def _is_valid_field_from_type(field_type, loaded_value):
     if isinstance(loaded_value, (list, tuple)):
         return _is_valid_list(field_type, loaded_value)
+    if isinstance(field_type, type) and issubclass(field_type, Enum):
+        return _is_valid_enum(field_type, loaded_value)
     if _is_dataclass(field_type):
         return _is_valid_dataclass_type(field_type, loaded_value)
     return _isinstance(loaded_value, field_type)
@@ -71,6 +77,11 @@ def _is_dataclass(structure):
     )
 
 
+def _get_fields(structure):
+    fields = getattr(structure, "__dataclass_fields__")
+    return fields
+
+
 def _split_argv(argv):
     new_argv = []
     for arg in argv:
@@ -83,7 +94,7 @@ def _split_argv(argv):
 
 def _get_field(structure, key: str):
     key_parts = key.split(".")
-    fields = {field.name: field for field in dataclasses.fields(structure)}
+    fields = _get_fields(structure)
     field = None
     for key in key_parts:
         field = _get_real_field(fields, key)
@@ -92,8 +103,7 @@ def _get_field(structure, key: str):
 
         if _is_dataclass(field.type):
             structure = field.type
-            fields = {field.name: field
-                      for field in dataclasses.fields(structure)}
+            fields = _get_fields(structure)
     return field
 
 

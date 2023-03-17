@@ -1,10 +1,16 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from omegaconf import MISSING
 
 from bim_gw.utils.cli import parse_argv_from_dataclass
+
+
+class EnumValues(Enum):
+    val1 = "a"
+    val2 = "b"
 
 
 @dataclass
@@ -25,6 +31,7 @@ class StructuredConfig:
     param7: Any = "ok"
     param8: Optional[int] = None
     param9: Union[float, int] = field(default=42)
+    param10: EnumValues = field(default=EnumValues.val1)
 
 
 def test_parse_argv_from_structure():
@@ -160,4 +167,20 @@ def test_parse_argv_from_structure_with_union_fail():
         parse_argv_from_dataclass(
             StructuredConfig,
             ["param9=nok"]
+        )
+
+
+def test_parse_argv_from_structure_with_enum():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["param10=val1"]
+    )
+    assert dotlist == ["param10=val1"]
+
+
+def test_parse_argv_from_structure_with_enum_fail():
+    with pytest.raises(ValueError):
+        parse_argv_from_dataclass(
+            StructuredConfig,
+            ["param10=val4"]
         )
