@@ -5,8 +5,9 @@ from auto_sbatch import SlurmScriptParser
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.cli import get_argv_dotlist
 from slurm.launch import main
+
+tests_folder = Path(__file__).absolute().parent.parent
 
 
 def mock_run(command):
@@ -35,20 +36,18 @@ def test_launch(p_open_mock, subprocess_mock, capsys):
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("../configs/test_base.yaml")
+            tests_folder / "configs/test_base.yaml",
         ],
         verbose=False,
         use_schema=False,
     )
     slurm_command = "python {script_name} {all_params}"
     cli_args = OmegaConf.from_dotlist(
-        get_argv_dotlist(
-            [
-                "slurm.run_work_directory='tests/slurm'",
-                "slurm.script='train'",
-                f"slurm.command='{slurm_command}'",
-            ]
-        )
+        [
+            "slurm.run_work_directory='tests/slurm'",
+            "slurm.script='train'",
+            f"slurm.command='{slurm_command}'",
+        ]
     )
     main(args, cli_args)
 
@@ -68,22 +67,20 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
     args = get_args(
         use_local=False,
         additional_config_files=[
-            Path("../configs/test_base.yaml"),
-            Path("../configs/test_slurm_launch_grid_search.yaml"),
+            tests_folder / "configs/test_base.yaml",
+            tests_folder / "configs/test_slurm_launch_grid_search.yaml",
         ],
         verbose=False,
         use_schema=False,
     )
     slurm_command = "python {script_name} {all_params}"
     cli_args = OmegaConf.from_dotlist(
-        get_argv_dotlist(
-            [
-                "slurm.run_work_directory='tests/slurm'",
-                "slurm.script='train'",
-                f"slurm.command='{slurm_command}'",
-                "slurm.grid_search=['seed']"
-            ]
-        )
+        [
+            "slurm.run_work_directory='tests/slurm'",
+            "slurm.script='train'",
+            f"slurm.command='{slurm_command}'",
+            "slurm.grid_search=['seed']"
+        ]
     )
     main(args, cli_args)
 
