@@ -1,10 +1,13 @@
 import os
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from omegaconf import DictConfig, OmegaConf
 
 from bim_gw.utils import get_args
+from bim_gw.utils.cli import parse_argv_from_structure
 
 
 def should_keep_file(file_path: Path, args: DictConfig):
@@ -17,25 +20,61 @@ def should_keep_file(file_path: Path, args: DictConfig):
     )
 
 
+@dataclass
+class CompressArgs:
+    help: bool = field(
+        default=False, metadata={
+            "cli_names": ["--help", "-h"],
+        }
+    )
+    before: Optional[int] = field(
+        default=None, metadata={
+            "cli_names": ["--before"],
+        }
+    )
+    after: Optional[int] = field(
+        default=None, metadata={
+            "cli_names": ["--after"],
+        }
+    )
+    name: Optional[str] = field(
+        default=None, metadata={
+            "cli_names": ["--name", "-n"],
+        }
+    )
+    delete: bool = field(
+        default=False, metadata={
+            "cli_names": ["--delete", "-d"],
+        }
+    )
+    dry_run: bool = field(
+        default=False, metadata={
+            "cli_names": ["--dry-run"],
+        }
+    )
+
+
 if __name__ == '__main__':
-    args = OmegaConf.from_cli()
+    args = OmegaConf.from_dotlist(
+        parse_argv_from_structure(CompressArgs)
+    )
 
     if "--help" in args:
         print("Compresses runs in a run_work_directory.")
         print(
-            "Usage: python compress.py --slurm.run_work_directory <path> ["
-            "'--before=<int>'] ['--after=<int>'] ['-n=<name>'] [-d] ["
-            "--dry-run]"
+            "Usage: python compress.py --slurm.run_work_directory <path> "
+            "[--before <int>] [--after <int>] [-n <name>] [-d] "
+            "[--dry-run]"
         )
         print("Options:")
         print(
-            "  '--before=<int>'  Compresses run IDs before the given run "
+            "  '--before <int>'  Compresses run IDs before the given run "
             "number."
         )
         print(
-            "  '--after=<int>'  Compresses run IDs after the given run number."
+            "  '--after <int>'  Compresses run IDs after the given run number."
         )
-        print("  '-n=<name>'  Name of the compressed file.")
+        print("  '-n <name>'  Name of the compressed file.")
         print("   -d  Deletes the experiment folders after compressing them.")
         print(
             "   --dry-run  Performs a dry run, does not compress or delete "
