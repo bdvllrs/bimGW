@@ -7,7 +7,7 @@ from typing import Optional
 from omegaconf import DictConfig, OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.cli import parse_argv_from_structure
+from bim_gw.utils.cli import parse_argv_from_dataclass
 
 
 def should_keep_file(file_path: Path, args: DictConfig):
@@ -56,7 +56,7 @@ class CompressArgs:
 
 if __name__ == '__main__':
     args = OmegaConf.from_dotlist(
-        parse_argv_from_structure(CompressArgs)
+        parse_argv_from_dataclass(CompressArgs)
     )
 
     if "--help" in args:

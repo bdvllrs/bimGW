@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import pytest
 from omegaconf import MISSING
 
-from bim_gw.utils.cli import parse_argv_from_structure
+from bim_gw.utils.cli import parse_argv_from_dataclass
 
 
 @dataclass
@@ -28,7 +28,7 @@ class StructuredConfig:
 
 
 def test_parse_argv_from_structure():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param1=2", "param2=True"]
     )
@@ -36,7 +36,7 @@ def test_parse_argv_from_structure():
 
 
 def test_parse_argv_from_structure_with_flag():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param2", "param1=2"]
     )
@@ -44,7 +44,7 @@ def test_parse_argv_from_structure_with_flag():
 
 
 def test_parse_argv_from_structure_with_flag_last():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param2"]
     )
@@ -52,7 +52,7 @@ def test_parse_argv_from_structure_with_flag_last():
 
 
 def test_parse_argv_from_structure_with_complex_type():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param4={param4_1: {}}"]
     )
@@ -60,7 +60,7 @@ def test_parse_argv_from_structure_with_complex_type():
 
 
 def test_parse_argv_from_structure_with_complex_type_list():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param6=[{param4_1: {}}]"]
     )
@@ -69,14 +69,14 @@ def test_parse_argv_from_structure_with_complex_type_list():
 
 def test_parse_argv_from_structure_with_complex_type_list_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param6=[{param4_1: nok}]"]
         )
 
 
 def test_parse_argv_from_structure_with_dot_notation():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param4.param4_1={}"]
     )
@@ -85,7 +85,7 @@ def test_parse_argv_from_structure_with_dot_notation():
 
 def test_parse_argv_from_structure_with_dot_notation_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param4.param4_1=nok"]
         )
@@ -93,7 +93,7 @@ def test_parse_argv_from_structure_with_dot_notation_fail():
 
 def test_parse_argv_from_structure_wrong_type():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param1='ok'"]
         )
@@ -101,14 +101,14 @@ def test_parse_argv_from_structure_wrong_type():
 
 def test_parse_argv_from_structure_wrong_type_complex_type():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param4={param4_1: 'ok'}"]
         )
 
 
 def test_parse_argv_from_structure_with_metadata():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["--param5", "ok"]
     )
@@ -116,7 +116,7 @@ def test_parse_argv_from_structure_with_metadata():
 
 
 def test_parse_argv_from_structure_with_optional():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param8=1"]
     )
@@ -124,7 +124,7 @@ def test_parse_argv_from_structure_with_optional():
 
 
 def test_parse_argv_from_structure_with_optional_null():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param8=null"]
     )
@@ -133,14 +133,14 @@ def test_parse_argv_from_structure_with_optional_null():
 
 def test_parse_argv_from_structure_with_optional_null_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param8=nok"]
         )
 
 
 def test_parse_argv_from_structure_with_union_type_1():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param9=0.3"]
     )
@@ -148,7 +148,7 @@ def test_parse_argv_from_structure_with_union_type_1():
 
 
 def test_parse_argv_from_structure_with_union_type_2():
-    dotlist = parse_argv_from_structure(
+    dotlist = parse_argv_from_dataclass(
         StructuredConfig,
         ["param9=3"]
     )
@@ -157,7 +157,7 @@ def test_parse_argv_from_structure_with_union_type_2():
 
 def test_parse_argv_from_structure_with_union_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_structure(
+        parse_argv_from_dataclass(
             StructuredConfig,
             ["param9=nok"]
         )

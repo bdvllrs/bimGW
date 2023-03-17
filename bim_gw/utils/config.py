@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from omegaconf import OmegaConf
 
-from bim_gw.utils.cli import parse_argv_from_structure
+from bim_gw.utils.cli import parse_argv_from_dataclass
 from bim_gw.utils.constants import PROJECT_DIR
 from bim_gw.utils.types import BIMConfig
 
@@ -83,7 +83,7 @@ def get_args(
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
-            parse_argv_from_structure(schema)
+            parse_argv_from_dataclass(schema)
         )
     elif cli:
         cli_args = OmegaConf.from_cli()

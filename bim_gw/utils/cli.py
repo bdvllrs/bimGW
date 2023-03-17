@@ -97,7 +97,7 @@ def _get_field(structure, key: str):
     return field
 
 
-def parse_argv_from_structure(
+def parse_argv_from_dataclass(
     structure,
     argv: Optional[List[str]] = None,
 ):
