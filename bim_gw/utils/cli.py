@@ -67,6 +67,8 @@ def _is_valid_field(field, value):
 
 
 def _is_field_flag(field):
+    if hasattr(field.type, "__args__"):
+        return bool in field.type.__args__
     return field.type is bool
 
 
@@ -142,7 +144,7 @@ def parse_argv_from_dataclass(
             continue
 
         # This arg is a valid key
-        if is_arg_valid_key:
+        if last_key is None and is_arg_valid_key:
             last_key, last_field = arg, arg_field
             continue
 
@@ -152,5 +154,7 @@ def parse_argv_from_dataclass(
     if (last_field is not None
             and _is_field_flag(last_field)):
         dotlist.append(f"{last_key}=True")
+    elif last_key is not None:
+        raise ValueError("Invalid key: " + last_key)
 
     return dotlist

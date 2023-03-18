@@ -32,6 +32,7 @@ class StructuredConfig:
     param8: Optional[int] = None
     param9: Union[float, int] = field(default=42)
     param10: EnumValues = field(default=EnumValues.val1)
+    param11: Optional[bool] = None
 
 
 def test_parse_argv_from_structure():
@@ -56,6 +57,22 @@ def test_parse_argv_from_structure_with_flag_last():
         ["param2"]
     )
     assert dotlist == ["param2=True"]
+
+
+def test_parse_argv_from_structure_with_flag_last_fail():
+    with pytest.raises(ValueError):
+        parse_argv_from_dataclass(
+            StructuredConfig,
+            ["param1"]
+        )
+
+
+def test_parse_argv_from_structure_with_flag_optional():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["param11"]
+    )
+    assert dotlist == ["param11=True"]
 
 
 def test_parse_argv_from_structure_with_complex_type():
