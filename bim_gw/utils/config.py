@@ -83,7 +83,7 @@ def get_args(
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
-            parse_argv_from_dataclass(schema)
+            parse_argv_from_dataclass(BIMConfig)
         )
     elif cli:
         cli_args = OmegaConf.from_cli()
