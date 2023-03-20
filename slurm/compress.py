@@ -24,7 +24,7 @@ def should_keep_file(file_path: Path, args: DictConfig):
 class CompressArgs:
     help: bool = field(
         default=False, metadata={
-            "cli_names": ["--help", "-h"],
+            "cli_names": ["--help"],
         }
     )
     before: Optional[int] = field(
@@ -39,12 +39,12 @@ class CompressArgs:
     )
     name: Optional[str] = field(
         default=None, metadata={
-            "cli_names": ["--name", "-n"],
+            "cli_names": ["-n"],
         }
     )
     delete: bool = field(
         default=False, metadata={
-            "cli_names": ["--delete", "-d"],
+            "cli_names": ["-d"],
         }
     )
     dry_run: bool = field(

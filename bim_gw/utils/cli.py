@@ -4,6 +4,7 @@ from enum import Enum
 from typing import List, Optional
 
 import yaml
+from omegaconf import OmegaConf
 
 
 def _get_real_field(fields, name):
@@ -158,3 +159,9 @@ def parse_argv_from_dataclass(
         raise ValueError("Invalid key: " + last_key)
 
     return dotlist
+
+
+def parse_args(cls, argv=None):
+    cfg = OmegaConf.from_dotlist(parse_argv_from_dataclass(cls, argv))
+    schema = OmegaConf.structured(cls)
+    return OmegaConf.merge(schema, cfg)
