@@ -19,6 +19,13 @@ class NestedConfig:
 
 
 @dataclass
+class NestedConfigRenamed:
+    param12_1: str = field(
+        default="ok", metadata={"cli_names": ["--param12_1"]}
+    )
+
+
+@dataclass
 class StructuredConfig:
     param1: int = 1
     param2: bool = True
@@ -33,6 +40,10 @@ class StructuredConfig:
     param9: Union[float, int] = field(default=42)
     param10: EnumValues = field(default=EnumValues.val1)
     param11: Optional[bool] = None
+    param12: NestedConfigRenamed = field(
+        default_factory=NestedConfigRenamed,
+        metadata={"cli_names": ["--param12"]}
+    )
 
 
 def test_parse_argv_from_structure():
@@ -136,7 +147,15 @@ def test_parse_argv_from_structure_with_metadata():
         StructuredConfig,
         ["--param5", "ok"]
     )
-    assert dotlist == ["--param5=ok"]
+    assert dotlist == ["param5=ok"]
+
+
+def test_parse_argv_from_structure_with_metadata_nested():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["--param12.--param12_1", "ok"]
+    )
+    assert dotlist == ["param12.param12_1=ok"]
 
 
 def test_parse_argv_from_structure_with_optional():

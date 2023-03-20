@@ -7,16 +7,16 @@ from typing import Optional
 from omegaconf import DictConfig, OmegaConf
 
 from bim_gw.utils import get_args
-from bim_gw.utils.cli import parse_argv_from_dataclass
+from bim_gw.utils.cli import parse_args
 
 
 def should_keep_file(file_path: Path, args: DictConfig):
     return (
             file_path.is_dir() and file_path.name.isdigit()
-            and ("--before" not in args
-                 or int(file_path.name) < int(args["--before"]))
-            and ("--after" not in args
-                 or int(file_path.name) > int(args["--after"]))
+            and (args.before is None
+                 or int(file_path.name) < args.before)
+            and (args.after is None
+                 or int(file_path.name) > args.after)
     )
 
 
@@ -24,7 +24,7 @@ def should_keep_file(file_path: Path, args: DictConfig):
 class CompressArgs:
     help: bool = field(
         default=False, metadata={
-            "cli_names": ["--help"],
+            "cli_names": ["--help", "-h"],
         }
     )
     before: Optional[int] = field(
@@ -39,12 +39,12 @@ class CompressArgs:
     )
     name: Optional[str] = field(
         default=None, metadata={
-            "cli_names": ["-n"],
+            "cli_names": ["-n", "--name"],
         }
     )
     delete: bool = field(
         default=False, metadata={
-            "cli_names": ["-d"],
+            "cli_names": ["-d", "--delete"],
         }
     )
     dry_run: bool = field(
@@ -55,11 +55,9 @@ class CompressArgs:
 
 
 if __name__ == '__main__':
-    args = OmegaConf.from_dotlist(
-        parse_argv_from_dataclass(CompressArgs)
-    )
+    args = parse_args(CompressArgs)
 
-    if "--help" in args:
+    if args.help:
         print("Compresses runs in a run_work_directory.")
         print(
             "Usage: python compress.py --slurm.run_work_directory <path> "
@@ -100,21 +98,21 @@ if __name__ == '__main__':
     time = str(datetime.now()).replace(" ", "_")
     time = time.replace(":", "-").replace(".", "-")
     compressed_filename = f"compressed_{time}"
-    if "-n" in args:
-        compressed_filename = args["-n"]
+    if args.name is not None:
+        compressed_filename = args.name
 
     command = f"tar -czvf {parent_directory}/{compressed_filename}.tar.gz "
     command += f"{' '.join(files_to_compress)}"
-    if "--dry-run" not in args:
+    if not args.dry_run:
         os.system(command)
     else:
         print(command)
         print(f"Dry run, not compressing {len(files_to_compress)} runs.")
     print(f"Done compressing {len(files_to_compress)} directories.")
-    if "-d" in args or "--delete" in args:
+    if args.delete:
         print("Cleaning runs...")
         for file in files_to_compress:
-            if "--dry-run" not in args:
+            if not args.dry_run:
                 os.system(f"rm -rf {file}")
             else:
                 print("[dry-run mode] would deleting", file)

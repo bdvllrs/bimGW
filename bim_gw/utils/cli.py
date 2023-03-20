@@ -97,17 +97,19 @@ def _split_argv(argv):
 
 def _get_field(structure, key: str):
     key_parts = key.split(".")
+    renamed_key = []
     fields = _get_fields(structure)
     field = None
     for key in key_parts:
         field = _get_real_field(fields, key)
         if field is None:
-            return None
+            return None, None
+        renamed_key.append(field.name)
 
         if _is_dataclass(field.type):
             structure = field.type
             fields = _get_fields(structure)
-    return field
+    return field, ".".join(renamed_key)
 
 
 def parse_argv_from_dataclass(
@@ -126,7 +128,7 @@ def parse_argv_from_dataclass(
     last_key = None
     last_field = None
     for arg in argv:
-        arg_field = _get_field(structure, arg)
+        arg_field, renamed_key = _get_field(structure, arg)
         is_arg_valid_key = arg_field is not None
 
         # Last key was a flag
@@ -146,7 +148,7 @@ def parse_argv_from_dataclass(
 
         # This arg is a valid key
         if last_key is None and is_arg_valid_key:
-            last_key, last_field = arg, arg_field
+            last_key, last_field = renamed_key, arg_field
             continue
 
         raise ValueError("Invalid key: " + arg)
