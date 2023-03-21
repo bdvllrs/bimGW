@@ -145,7 +145,6 @@ class SimpleShapesDataModule(DataModule):
 
                 if self.add_unimodal:
                     mapping, domain_mapping = self.filter_sync_domains(
-                        len(sync_indices),
                         target_indices
                     )
 
