@@ -85,6 +85,7 @@ class SlurmConfig:
     command: Optional[str] = MISSING
     run_work_directory: Optional[str] = MISSING
     grid_search: Optional[List[str]] = MISSING
+    grid_search_exclude: Optional[List[Dict[str, Any]]] = MISSING
 
 
 @dataclass

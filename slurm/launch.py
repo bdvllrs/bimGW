@@ -40,6 +40,7 @@ def main(args, cli_args):
     sbatch = SBatch(
         args.slurm.slurm, extra_args,
         grid_search=args.slurm.grid_search,
+        grid_search_exclude=args.slurm.grid_search_exclude,
         experiment_handler=handler
     )
     sbatch(

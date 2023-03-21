@@ -57,6 +57,7 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
   run_modules: null # modules to load when the job has started
   python_environment: null  # path to the python environment to use or name of the conda environment to use
   grid_search: null
+  grid_search_exclude: null
 
 dataloader:
   num_workers: 0
