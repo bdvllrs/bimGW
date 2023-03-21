@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 import numpy as np
 import torch
@@ -7,19 +7,17 @@ from pytorch_lightning import LightningDataModule
 
 
 def split_indices_prop(
-    allowed_indices: List[int],
+    all_indices,
+    allowed_indices: Set[int],
     prop: float
 ) -> Tuple[List[int], List[int]]:
     # Unlabel randomly some elements
     n_targets = len(allowed_indices)
-    assert np.unique(allowed_indices, return_counts=True)[1].max() == 1
-    np.random.shuffle(allowed_indices)
+    all_indices = np.random.permutation(all_indices)
+    allowed_indices = [i for i in all_indices if i in allowed_indices]
     num_labelled = int(prop * n_targets)
     selected = allowed_indices[:num_labelled]
     rest = allowed_indices[num_labelled:]
-    assert len(selected) + len(rest) == len(allowed_indices)
-    assert len(selected) / len(allowed_indices) == prop
-    assert np.intersect1d(selected, rest).shape[0] == 0
     return selected, rest
 
 
@@ -36,16 +34,19 @@ class DataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.split_ood = split_ood
-        self.n_domain_examples = n_validation_domain_examples if \
-            n_validation_domain_examples is not None else batch_size
+        self.n_domain_examples = batch_size
+        if n_validation_domain_examples is not None:
+            self.n_domain_examples = n_validation_domain_examples
         self.domain_examples = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images
-        assert self.prop_available_images >= self.prop_labelled_images, \
-            "prop_available_images must be >= prop_labelled_images"
+        if self.prop_available_images < self.prop_labelled_images:
+            raise ValueError(
+                "prop_available_images must be >= prop_labelled_images"
+            )
 
         # Remove sync for some combination of domains
         self.remove_sync_domains = removed_sync_domains
@@ -98,12 +99,13 @@ class DataModule(LightningDataModule):
                 used_dist_name = "in_dist" if used_dist == 0 else "ood"
                 dist_indices = reconstruction_indices[set_name][used_dist]
                 if dist_indices is not None:
+                    cur_set = used_set[used_dist_name]
                     for domain in self.selected_domains:
-                        example_item = used_set[used_dist_name][0][domain]
+                        example_item = cur_set[0][domain]
                         if not isinstance(example_item, tuple):
                             examples = []
                             for i in dist_indices:
-                                example = used_set[used_dist_name][i][domain]
+                                example = cur_set[i][domain]
                                 examples.append(example)
                             if isinstance(example_item, (int, float)):
                                 self.domain_examples[set_name][used_dist][
@@ -118,8 +120,7 @@ class DataModule(LightningDataModule):
                             for k in range(len(example_item)):
                                 examples = []
                                 for i in dist_indices:
-                                    example = \
-                                        used_set[used_dist_name][i][domain][k]
+                                    example = cur_set[i][domain][k]
                                     examples.append(example)
                                 if isinstance(example_item[k], (int, float)):
                                     self.domain_examples[set_name][used_dist][
@@ -141,11 +142,13 @@ class DataModule(LightningDataModule):
                             )
 
     def filter_sync_domains(
-        self, allowed_indices: List[int]
+        self, n_total_examples: int, allowed_indices: Set[int]
     ) -> Tuple[List[int], List[List[str]]]:
+        all_indices = np.arange(n_total_examples)
         # Only keep proportion of images in self.prop_available_images.
         # This split is done regardless of the ood split.
         allowed_indices, _ = split_indices_prop(
+            all_indices,
             allowed_indices, self.prop_available_images
         )
         logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
@@ -168,9 +171,9 @@ class DataModule(LightningDataModule):
             # labelled_elems, rest_elems = split_indices_prop(
             # allowed_indices, prop_3_domains)
 
-            done = [] if self.remove_sync_domains is None else \
-                self.remove_sync_domains[
-                :]
+            done = []
+            if self.remove_sync_domains is not None:
+                done = self.remove_sync_domains[:]
             # Add sync domains
             for domain_1 in domains:
                 mapping.extend(allowed_indices[:])
@@ -182,7 +185,8 @@ class DataModule(LightningDataModule):
                             domain_1, domain_2) not in done:
                         done.append((domain_1, domain_2))
                         domain_items, _ = split_indices_prop(
-                            allowed_indices, prop_2_domains
+                            all_indices,
+                            set(allowed_indices), prop_2_domains
                         )
                         domain_items = np.tile(domain_items, n_repeats)
                         mapping.extend(domain_items)

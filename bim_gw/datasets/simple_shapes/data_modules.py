@@ -98,6 +98,10 @@ class SimpleShapesDataModule(DataModule):
                 AvailableDomainsType, Callable[[Any], Any]] = {
                 "v": get_preprocess()
             }
+            if self.sync_uses_whole_dataset:
+                sync_indices = np.arange(self.len_train_dataset)
+            else:
+                sync_indices = np.arange(self.len_train_dataset // 2)
             if stage == "fit" or stage is None:
                 self.val_set = SimpleShapesDataset(
                     self.simple_shapes_folder, "val",
@@ -112,10 +116,6 @@ class SimpleShapesDataModule(DataModule):
                     fetcher_params=self.fetcher_params
                 )
 
-                if self.sync_uses_whole_dataset:
-                    sync_indices = np.arange(self.len_train_dataset)
-                else:
-                    sync_indices = np.arange(self.len_train_dataset // 2)
                 train_set = SimpleShapesDataset(
                     self.simple_shapes_folder, "train",
                     selected_indices=sync_indices,
@@ -130,7 +130,7 @@ class SimpleShapesDataModule(DataModule):
                     )
                     self.ood_boundaries = ood_boundaries
 
-                    target_indices = np.unique(id_ood_splits[0][0])
+                    target_indices = set(np.unique(id_ood_splits[0][0]))
 
                     print("Val set in dist size", len(id_ood_splits[1][0]))
                     print("Val set OOD size", len(id_ood_splits[1][1]))
@@ -138,13 +138,14 @@ class SimpleShapesDataModule(DataModule):
                     print("Test set OOD size", len(id_ood_splits[2][1]))
                 else:
                     id_ood_splits = None
-                    target_indices = train_set.ids
+                    target_indices = set(train_set.ids)
 
                 self.val_set = split_ood_sets(self.val_set, id_ood_splits)
                 self.test_set = split_ood_sets(self.test_set, id_ood_splits)
 
                 if self.add_unimodal:
                     mapping, domain_mapping = self.filter_sync_domains(
+                        len(sync_indices),
                         target_indices
                     )
 
