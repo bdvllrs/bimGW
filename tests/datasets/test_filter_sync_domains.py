@@ -15,14 +15,14 @@ def test_split_indices_prop_increasing_consistency_equal_sub():
         all_indices, selected_indices, prop=0.4
     )
     selected_sub_low, rest_sub_low = split_indices_prop(
-        all_indices, selected_indices, prop=0.1
+        all_indices, set(selected_low), prop=0.1
     )
     np.random.seed(0)
     selected_high, rest_high = split_indices_prop(
         all_indices, selected_indices, prop=0.7
     )
     selected_sub_high, rest_sub_high = split_indices_prop(
-        all_indices, selected_indices, prop=0.1
+        all_indices, set(selected_high), prop=0.1
     )
     # all elements of low should be in high
     assert len(np.setdiff1d(selected_low, selected_high)) == 0
@@ -39,14 +39,14 @@ def test_split_indices_prop_increasing_consistency_increasing_sub():
         all_indices, selected_indices, prop=0.4
     )
     selected_sub_low, rest_sub_low = split_indices_prop(
-        all_indices, selected_indices, prop=0.2
+        all_indices, set(selected_low), prop=0.2
     )
     np.random.seed(0)
     selected_high, rest_high = split_indices_prop(
         all_indices, selected_indices, prop=0.7
     )
     selected_sub_high, rest_sub_high = split_indices_prop(
-        all_indices, selected_indices, prop=0.1
+        all_indices, set(selected_high), prop=0.1
     )
     # all elements of low should be in high
     assert len(np.setdiff1d(selected_low, selected_high)) == 0
