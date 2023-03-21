@@ -5,7 +5,7 @@ from auto_sbatch import SlurmScriptParser
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
-from slurm.launch import main
+from slurm.launch import grid_search_exclusion_from_past_search, main
 
 tests_folder = Path(__file__).absolute().parent.parent
 
@@ -91,3 +91,13 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
     assert "slurm" in slurm_script.params.keys()
     assert "script" in slurm_script.params.slurm.keys()
     assert "seed" in slurm_script.params.keys()
+
+
+def test_grid_search_exclusion_from_past_search():
+    result = grid_search_exclusion_from_past_search(
+        ["seed=[0.]", "losses.coefs.contrastive=[0.1,0.2]"]
+    )
+    assert result == [
+        {"seed": 0., "losses.coefs.contrastive": 0.1},
+        {"seed": 0., "losses.coefs.contrastive": 0.2},
+    ]

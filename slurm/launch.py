@@ -2,9 +2,30 @@ import os
 from pathlib import Path
 
 from auto_sbatch import ExperimentHandler, SBatch
+from auto_sbatch.sbatch import get_grid_combinations
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
+
+
+def grid_search_exclusion_from_past_search(dotlist):
+    def walk_omegaconf(cfg, idx, prefix=""):
+        result = {}
+        for key, value in cfg.items():
+            if OmegaConf.is_dict(value):
+                result.update(
+                    walk_omegaconf(
+                        value, idx, prefix=f"{prefix}{key}."
+                    )
+                )
+            else:
+                result[f"{prefix}{key}"] = value[idx]
+        return result
+
+    args = OmegaConf.from_dotlist(dotlist)
+    grid_search_params = [x.split("=")[0] for x in dotlist]
+    n, past_search = get_grid_combinations(args, grid_search_params)
+    return [walk_omegaconf(past_search, k) for k in range(n)]
 
 
 def main(args, cli_args):
