@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from bim_gw.datasets.utils import load_simple_shapes_dataset
 from bim_gw.utils import get_args
 
@@ -80,7 +82,7 @@ def test_filter_sync_domains():
     assert domain_mapping is None
 
 
-def test_filter_sync_domains_low_prop_labelled_images():
+def test_filter_sync_domains_nonzero_prop_labelled_images():
     args = get_test_args()
     args.global_workspace.prop_labelled_images = 0.1
     datamodule = get_datamodule(args)
@@ -95,12 +97,50 @@ def test_filter_sync_domains_low_prop_labelled_images():
     expected_counts = {
         "v": n_train_examples,
         "t": n_train_examples,
-        "vt": 2 * n_train_examples,
+        "tv": 2 * n_train_examples,
     }
     expected_unique = {
         "v": n_train_examples,
         "t": n_train_examples,
-        "vt": n_sync_examples,
+        "tv": n_sync_examples,
+    }
+    check_domain_mapping(domain_mapping, expected_counts)
+    check_mapping(mapping, domain_mapping, expected_unique)
+
+
+def test_filter_sync_domains_nonzero_prop_available_images_fail():
+    with pytest.raises(ValueError):
+        args = get_test_args()
+        args.global_workspace.prop_available_images = 0.5
+        args.global_workspace.prop_labelled_images = 1
+        datamodule = get_datamodule(args)
+        datamodule.setup(stage="fit")
+
+
+def test_filter_sync_domains_nonzero_prop_available_images():
+    args = get_test_args()
+    args.global_workspace.prop_available_images = 0.4
+    args.global_workspace.prop_labelled_images = 0.1
+    datamodule = get_datamodule(args)
+    allowed_indices = list(range(args.datasets.shapes.n_train_examples))
+    mapping, domain_mapping = datamodule.filter_sync_domains(allowed_indices)
+
+    n_train_examples = int(
+        args.global_workspace.prop_available_images * len(allowed_indices)
+    )
+    n_sync_examples = int(
+        args.global_workspace.prop_labelled_images
+        * len(allowed_indices)
+    )
+    expected_counts = {
+        "v": n_train_examples,
+        "t": n_train_examples,
+        "tv": 2 * n_train_examples,
+    }
+    expected_unique = {
+        "v": n_train_examples,
+        "t": n_train_examples,
+        "tv": n_sync_examples,
     }
     check_domain_mapping(domain_mapping, expected_counts)
     check_mapping(mapping, domain_mapping, expected_unique)

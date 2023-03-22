@@ -8,18 +8,6 @@ from pytorch_lightning import LightningDataModule
 from bim_gw.datasets.simple_shapes.datasets import AVAILABLE_DOMAINS
 
 
-def split_indices_prop(
-    permutation,
-    prop: float
-) -> Tuple[List[int], List[int]]:
-    # Unlabel randomly some elements
-    n_targets = len(permutation)
-    num_labelled = int(prop * n_targets)
-    selected = permutation[:num_labelled]
-    rest = permutation[num_labelled:]
-    return selected, rest
-
-
 class DataModule(LightningDataModule):
     def __init__(
         self, batch_size: int,
@@ -150,38 +138,41 @@ class DataModule(LightningDataModule):
         logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
 
         prop_2_domains = self.prop_labelled_images / self.prop_available_images
-        mapping = None
-        domain_mapping = None
-        if prop_2_domains < 1 or self.prop_available_images < 1:
-            original_size = int(
-                len(allowed_indices) * self.prop_available_images
-            )
+        original_size = int(
+            len(allowed_indices) * self.prop_available_images
+        )
+
+        if prop_2_domains == 1 and self.prop_available_images == 1:
+            return None, None
+
+        sync_split = int(prop_2_domains * original_size)
+        sync_items = permuted_indices[:sync_split]
+        rest = permuted_indices[sync_split:]
+
+        mapping = []
+        domain_mapping = []
+        if prop_2_domains < 1:
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
                          int(original_size % labelled_size > 0))
-            mapping = []
-            domain_mapping = []
 
-            sync_items, rest = split_indices_prop(
-                permuted_indices, prop_2_domains
-            )
-            # Add sync
             domain_items = np.tile(sync_items, n_repeats)
             mapping.extend(domain_items)
             domain_mapping.extend(
                 [domains] * len(domain_items)
             )
-            # Add unsync
-            unsync_items, _ = split_indices_prop(
-                rest,
-                (self.prop_available_images - self.prop_labelled_images)
-                * len(allowed_indices) / len(rest)
-            )
+
+        unsync_domain_items = permuted_indices
+        if self.prop_available_images < 1:
+            n_unsync = int(
+                self.prop_available_images * len(allowed_indices)
+            ) - sync_split
+            unsync_items = rest[:n_unsync]
             unsync_domain_items = np.concatenate((unsync_items, sync_items))
-            mapping.extend(unsync_domain_items)
-            domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
-            mapping.extend(unsync_domain_items)
-            domain_mapping.extend([[domains[1]]] * len(unsync_domain_items))
+        mapping.extend(unsync_domain_items)
+        domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
+        mapping.extend(unsync_domain_items)
+        domain_mapping.extend([[domains[1]]] * len(unsync_domain_items))
 
         return mapping, domain_mapping
 
