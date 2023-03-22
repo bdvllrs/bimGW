@@ -6,15 +6,13 @@ def load_pre_saved_latent(
 ):
     if ids is None:
         ids = slice(None)
-    path = root_path / "saved_latents" / split / pre_saved_latent_path[
-        domain_key]
+    latent_dir = root_path / "saved_latents" / split
+    path = latent_dir / pre_saved_latent_path[domain_key]
     data = np.load(str(path))
     if data.ndim == 1 and isinstance(data[0], np.str):
         d = []
         for path in data:
-            d.append(
-                np.load(str(root_path / "saved_latents" / split / path))[ids]
-            )
+            d.append(np.load(str(latent_dir / path))[ids])
         return d
     else:
         return [data[ids]]
