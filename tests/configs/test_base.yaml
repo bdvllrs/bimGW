@@ -10,7 +10,7 @@ current_dataset: "shapes"  # dataset to use. For now, only "shapes"
 img_size: 32  # width and height of images in the dataset
 n_validation_examples: 4  # number of validation examples for the images logged (only for text and images, losses will use the whole val dataset)
 
-checkpoints_dir: "./checkpoints"  # path to save checkpoints artifacts
+checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
 resume_from_checkpoint: null  # path to a checkpoint to continue training. For train_lm path to the LM, for train_vae path to the VAE...
 logger_resume_id: null  # if not null, will resume the logged run (such as wandb run) with this id.
 checkpoint: null  # path to the GW model for evaluation

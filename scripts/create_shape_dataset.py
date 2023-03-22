@@ -16,8 +16,7 @@ from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
 
 
-def main():
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+def main(args):
     seed = args.seed
     image_size = args.img_size
 
@@ -175,4 +174,4 @@ def other():
 
 
 if __name__ == '__main__':
-    main()
+    main(get_args(debug=int(os.getenv("DEBUG", 0))))
