@@ -138,7 +138,7 @@ class SimpleShapesDataModule(DataModule):
                     print("Test set OOD size", len(id_ood_splits[2][1]))
                 else:
                     id_ood_splits = None
-                    target_indices = set(train_set.ids)
+                    target_indices = train_set.ids
 
                 self.val_set = split_ood_sets(self.val_set, id_ood_splits)
                 self.test_set = split_ood_sets(self.test_set, id_ood_splits)

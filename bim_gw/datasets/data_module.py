@@ -139,41 +139,51 @@ class DataModule(LightningDataModule):
                             )
 
     def filter_sync_domains(
-        self, allowed_indices: Set[int]
+        self, allowed_indices
     ) -> Tuple[List[int], List[List[str]]]:
         domains = list(self.selected_domains)
         # permute for number of couples of domains
         permuted_indices = np.random.permutation(allowed_indices)
         logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
 
-        prop_2_domains = self.prop_labelled_images
+        prop_2_domains = self.prop_labelled_images / self.prop_available_images
         mapping = None
         domain_mapping = None
-        if prop_2_domains < 1:
-            original_size = len(allowed_indices)
+        if self.prop_labelled_images < 1:
+            original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
-            n_repeats = ((len(domains) * original_size) // labelled_size +
-                         int(original_size % labelled_size > 0))
+            n_repeats = int(
+                (len(domains) * original_size) // labelled_size +
+                int(original_size % labelled_size > 0)
+                )
             mapping = []
             domain_mapping = []
 
-            domain_items, rest = split_indices_prop(
-                permuted_indices, prop_2_domains
+            data, _ = split_indices_prop(
+                permuted_indices, self.prop_available_images
             )
-            # Add sync
-            domain_items = np.tile(domain_items, n_repeats)
-            mapping.extend(domain_items)
-            domain_mapping.extend(
-                [domains] * len(domain_items)
-            )
-            # Add unsync
-            unsync_items, _ = split_indices_prop(
-                rest, self.prop_available_images - self.prop_labelled_images
-            )
-            mapping.extend(unsync_items)
-            domain_mapping.extend([[domains[0]]] * len(unsync_items))
-            mapping.extend(unsync_items)
-            domain_mapping.extend([[domains[1]]] * len(unsync_items))
+
+            done = [] if self.remove_sync_domains is None else \
+                self.remove_sync_domains[
+                :]
+
+            for domain_1 in domains:
+                mapping.extend(data[:])
+                domain_mapping.extend([[domain_1]] * len(data))
+
+                for domain_2 in domains:
+                    if domain_1 != domain_2 and (
+                            domain_2, domain_1) not in done and (
+                            domain_1, domain_2) not in done:
+                        done.append((domain_1, domain_2))
+                        domain_items, _ = split_indices_prop(
+                            data, prop_2_domains
+                        )
+                        domain_items = np.tile(domain_items, n_repeats)
+                        mapping.extend(domain_items)
+                        domain_mapping.extend(
+                            [[domain_1, domain_2]] * len(domain_items)
+                        )
 
         return mapping, domain_mapping
 
