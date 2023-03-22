@@ -85,16 +85,21 @@ class DataModule(LightningDataModule):
         if self.split_ood:
             for set_name in ["val", "test"]:
                 self.domain_examples[set_name][1] = {
-                    domain: [[] for _ in range(self.n_time_steps)] for domain
-                    in
-                    self.selected_domains}
+                    domain: [[] for _ in range(self.n_time_steps)]
+                    for domain in self.selected_domains
+                }
 
-        # add t examples
-        for set_name, used_set in [("train", {"in_dist": train_set}),
-                                   ("val", val_set), ("test", test_set)]:
+        all_sets = [
+            ("train", {"in_dist": train_set}),
+            ("val", val_set),
+            ("test", test_set)
+        ]
+
+        for set_name, used_set in all_sets:
             for used_dist in range(2):
                 used_dist_name = "in_dist" if used_dist == 0 else "ood"
                 dist_indices = reconstruction_indices[set_name][used_dist]
+                dist_examples = self.domain_examples[set_name][used_dist]
                 if dist_indices is not None:
                     cur_set = used_set[used_dist_name]
                     for domain in self.selected_domains:
@@ -105,14 +110,13 @@ class DataModule(LightningDataModule):
                                 example = cur_set[i][domain]
                                 examples.append(example)
                             if isinstance(example_item, (int, float)):
-                                self.domain_examples[set_name][used_dist][
-                                    domain] = torch.tensor(examples)
+                                dist_examples[domain] = torch.tensor(examples)
                             elif isinstance(example_item, torch.Tensor):
-                                self.domain_examples[set_name][used_dist][
-                                    domain] = torch.stack(examples, dim=0)
+                                dist_examples[domain] = torch.stack(
+                                    examples, dim=0
+                                )
                             else:
-                                self.domain_examples[set_name][used_dist][
-                                    domain] = examples
+                                dist_examples[domain] = examples
                         else:
                             for k in range(len(example_item)):
                                 examples = []
@@ -120,22 +124,17 @@ class DataModule(LightningDataModule):
                                     example = cur_set[i][domain][k]
                                     examples.append(example)
                                 if isinstance(example_item[k], (int, float)):
-                                    self.domain_examples[set_name][used_dist][
-                                        domain].append(
+                                    dist_examples[domain].append(
                                         torch.tensor(examples)
                                     )
                                 elif isinstance(example_item[k], torch.Tensor):
-                                    self.domain_examples[set_name][used_dist][
-                                        domain].append(
+                                    dist_examples[domain].append(
                                         torch.stack(examples, dim=0)
                                     )
                                 else:
-                                    self.domain_examples[set_name][used_dist][
-                                        domain].append(examples)
-                            self.domain_examples[set_name][used_dist][
-                                domain] = tuple(
-                                self.domain_examples[set_name][used_dist][
-                                    domain]
+                                    dist_examples[domain].append(examples)
+                            dist_examples[domain] = tuple(
+                                dist_examples[domain]
                             )
 
     def filter_sync_domains(
@@ -149,7 +148,7 @@ class DataModule(LightningDataModule):
         prop_2_domains = self.prop_labelled_images / self.prop_available_images
         mapping = None
         domain_mapping = None
-        if (prop_2_domains < 1) or (self.prop_available_images < 1):
+        if prop_2_domains < 1 or self.prop_available_images < 1:
             original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
@@ -168,9 +167,9 @@ class DataModule(LightningDataModule):
             )
             # Add unsync
             unsync_items, _ = split_indices_prop(
-                rest, (self.prop_available_images
-                       - self.prop_labelled_images) * len(allowed_indices)
-                / len(rest)
+                rest,
+                (self.prop_available_images - self.prop_labelled_images)
+                * len(allowed_indices) / len(rest)
             )
             unsync_domain_items = np.concatenate((unsync_items, sync_items))
             mapping.extend(unsync_domain_items)
