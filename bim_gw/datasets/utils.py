@@ -3,16 +3,14 @@ from bim_gw.utils import registries
 
 @registries.register_dataset("shapes")
 def load_simple_shapes_dataset(args, local_args, **kwargs):
-    from bim_gw.datasets.simple_shapes.data_modules import \
-        SimpleShapesDataModule
+    from .simple_shapes.data_modules import SimpleShapesDataModule
 
     print("Loading Shapes.")
     pre_saved_latent_paths = None
     sync_uses_whole_dataset = False
-    if "use_pre_saved" in local_args and local_args.use_pre_saved:
+    if local_args.get("use_pre_saved", False):
         pre_saved_latent_paths = args.global_workspace.load_pre_saved_latents
-    if "sync_uses_whole_dataset" in local_args and \
-            local_args.sync_uses_whole_dataset:
+    if local_args.get("sync_uses_whole_dataset", False):
         sync_uses_whole_dataset = True
     selected_domains = local_args.get("selected_domains", None) or kwargs.get(
         "selected_domains", None
