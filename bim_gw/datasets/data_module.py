@@ -153,9 +153,9 @@ class DataModule(LightningDataModule):
             original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = int(
-                (len(domains) * original_size) // labelled_size +
-                int(original_size % labelled_size > 0)
-                )
+                (len(domains) * original_size) // labelled_size
+                + int(original_size % labelled_size > 0)
+            )
             mapping = []
             domain_mapping = []
 
