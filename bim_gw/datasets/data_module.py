@@ -146,34 +146,37 @@ class DataModule(LightningDataModule):
         permuted_indices = np.random.permutation(allowed_indices)
         logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
 
-        prop_2_domains = self.prop_labelled_images
+        prop_2_domains = self.prop_labelled_images / self.prop_available_images
         mapping = None
         domain_mapping = None
-        if prop_2_domains < 1:
-            original_size = len(allowed_indices)
+        if (prop_2_domains < 1) or (self.prop_available_images < 1):
+            original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
                          int(original_size % labelled_size > 0))
             mapping = []
             domain_mapping = []
 
-            domain_items, rest = split_indices_prop(
+            sync_items, rest = split_indices_prop(
                 permuted_indices, prop_2_domains
             )
             # Add sync
-            domain_items = np.tile(domain_items, n_repeats)
+            domain_items = np.tile(sync_items, n_repeats)
             mapping.extend(domain_items)
             domain_mapping.extend(
                 [domains] * len(domain_items)
             )
             # Add unsync
             unsync_items, _ = split_indices_prop(
-                rest, self.prop_available_images - self.prop_labelled_images
+                rest, (self.prop_available_images
+                       - self.prop_labelled_images) * len(allowed_indices)
+                / len(rest)
             )
-            mapping.extend(unsync_items)
-            domain_mapping.extend([[domains[0]]] * len(unsync_items))
-            mapping.extend(unsync_items)
-            domain_mapping.extend([[domains[1]]] * len(unsync_items))
+            unsync_domain_items = np.concatenate((unsync_items, sync_items))
+            mapping.extend(unsync_domain_items)
+            domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
+            mapping.extend(unsync_domain_items)
+            domain_mapping.extend([[domains[1]]] * len(unsync_domain_items))
 
         return mapping, domain_mapping
 
