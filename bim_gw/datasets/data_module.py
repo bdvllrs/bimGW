@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
