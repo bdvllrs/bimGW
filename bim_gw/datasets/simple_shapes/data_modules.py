@@ -130,7 +130,7 @@ class SimpleShapesDataModule(DataModule):
                     )
                     self.ood_boundaries = ood_boundaries
 
-                    target_indices = set(np.unique(id_ood_splits[0][0]))
+                    target_indices = np.unique(id_ood_splits[0][0])
 
                     print("Val set in dist size", len(id_ood_splits[1][0]))
                     print("Val set OOD size", len(id_ood_splits[1][1]))
@@ -138,7 +138,7 @@ class SimpleShapesDataModule(DataModule):
                     print("Test set OOD size", len(id_ood_splits[2][1]))
                 else:
                     id_ood_splits = None
-                    target_indices = set(train_set.ids)
+                    target_indices = train_set.ids
 
                 self.val_set = split_ood_sets(self.val_set, id_ood_splits)
                 self.test_set = split_ood_sets(self.test_set, id_ood_splits)

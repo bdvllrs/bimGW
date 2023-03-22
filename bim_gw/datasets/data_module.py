@@ -1,9 +1,11 @@
 import logging
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
+
+from bim_gw.datasets.simple_shapes.datasets import AVAILABLE_DOMAINS
 
 
 def split_indices_prop(
@@ -37,6 +39,8 @@ class DataModule(LightningDataModule):
         self.domain_examples = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
+        if self.selected_domains is None:
+            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images
@@ -138,7 +142,7 @@ class DataModule(LightningDataModule):
                             )
 
     def filter_sync_domains(
-        self, allowed_indices: Set[int]
+        self, allowed_indices: List[int]
     ) -> Tuple[List[int], List[List[str]]]:
         domains = list(self.selected_domains)
         # permute for number of couples of domains
@@ -149,7 +153,9 @@ class DataModule(LightningDataModule):
         mapping = None
         domain_mapping = None
         if prop_2_domains < 1 or self.prop_available_images < 1:
-            original_size = len(allowed_indices * self.prop_available_images)
+            original_size = int(
+                len(allowed_indices) * self.prop_available_images
+            )
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
                          int(original_size % labelled_size > 0))

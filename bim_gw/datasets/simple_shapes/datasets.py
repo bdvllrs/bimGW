@@ -1,14 +1,14 @@
 import pathlib
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.fetchers import (
-    AttributesDataFetcher, AttributesDataType, DataFetcher,
-    PreSavedLatentDataFetcher, TextDataFetcher,
+    AttributesDataFetcher, AttributesDataType, PreSavedLatentDataFetcher,
+    TextDataFetcher,
     TextDataType, VisualDataFetcher, VisualDataType
 )
 from bim_gw.utils.types import SplitLiteral
@@ -18,13 +18,14 @@ AvailableDomainsType = Literal["v", "attr", "t"]
 SelectedDomainType = Dict[
     str, Union[VisualDataType, AttributesDataType, TextDataType]]
 
+AVAILABLE_DOMAINS = {
+    "v": VisualDataFetcher,
+    "attr": AttributesDataFetcher,
+    "t": TextDataFetcher,
+}
+
 
 class SimpleShapesDataset:
-    available_domains: Dict[AvailableDomainsType, Type[DataFetcher]] = {
-        "v": VisualDataFetcher,
-        "attr": AttributesDataFetcher,
-        "t": TextDataFetcher,
-    }
 
     def __init__(
         self,
@@ -51,12 +52,12 @@ class SimpleShapesDataset:
         """
         assert split in ["train", "val", "test"]
         self.selected_domains = [domain for domain in
-                                 self.available_domains.keys()] if \
+                                 AVAILABLE_DOMAINS.keys()] if \
             selected_domains is None else selected_domains
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (
                 transform is not None and domain in transform) else None)
-                           for domain in self.available_domains.keys()}
+                           for domain in AVAILABLE_DOMAINS.keys()}
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
@@ -79,12 +80,12 @@ class SimpleShapesDataset:
 
         if fetcher_params is None:
             fetcher_params = dict()
-        for domain in self.available_domains.keys():
+        for domain in AVAILABLE_DOMAINS.keys():
             if domain not in fetcher_params:
                 fetcher_params[domain] = dict()
 
         self.data_fetchers = {
-            domain: self.available_domains[domain](
+            domain: AVAILABLE_DOMAINS[domain](
                 self.root_path, self.split, self.ids, self.labels,
                 self.transforms, **fetcher_params[domain]
             )
