@@ -152,7 +152,7 @@ class DataModule(LightningDataModule):
         rest = allowed_indices
         sync_items = allowed_indices
         n_repeats = 1
-        if self.prop_2_domains < 1:
+        if prop_2_domains < 1:
             original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
             n_repeats = ((len(domains) * original_size) // labelled_size +
