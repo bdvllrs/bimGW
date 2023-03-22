@@ -149,17 +149,21 @@ class DataModule(LightningDataModule):
         prop_2_domains = self.prop_labelled_images / self.prop_available_images
         mapping = None
         domain_mapping = None
-        if self.prop_labelled_images < 1:
+        rest = allowed_indices
+        sync_items = allowed_indices
+        n_repeats = 1
+        if self.prop_2_domains < 1:
             original_size = len(allowed_indices * self.prop_available_images)
             labelled_size = int(original_size * prop_2_domains)
-            n_repeats = int((len(domains) * original_size) // labelled_size +
-                            int(original_size % labelled_size > 0))
+            n_repeats = ((len(domains) * original_size) // labelled_size +
+                         int(original_size % labelled_size > 0))
             mapping = []
             domain_mapping = []
 
             sync_items, rest = split_indices_prop(
                 permuted_indices, prop_2_domains
             )
+        if self.prop_labelled_images < 1:
             # Add sync
             domain_items = np.tile(sync_items, n_repeats)
             mapping.extend(domain_items)
