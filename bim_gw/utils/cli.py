@@ -1,7 +1,7 @@
 import dataclasses
 import sys
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from omegaconf import OmegaConf
@@ -15,6 +15,8 @@ def _get_real_field(fields, name):
 
 
 def _isinstance(obj, type_):
+    if type_ is Any:
+        return True
     try:
         subtypes = type_.__args__
         for subtype in subtypes:
@@ -40,8 +42,8 @@ def _is_valid_list(field_type, loaded_value):
     if not isinstance(loaded_value, (list, tuple)):
         return False
     for val in loaded_value:
-        field_type = field_type.__args__[0]
-        if not _is_valid_field_from_type(field_type, val):
+        field_subtype = field_type.__args__[0]
+        if not _is_valid_field_from_type(field_subtype, val):
             return False
     return True
 
@@ -67,10 +69,40 @@ def _is_valid_field(field, value):
     return _is_valid_field_from_type(field.type, loaded_value)
 
 
+def _is_union_type(type_):
+    return hasattr(type_, "__origin__") and type_.__origin__ is Union
+
+
+# from https://github.com/omry/omegaconf/blob
+# /deeee0475759c385583b6876d963dd9a8f47a108/omegaconf/_utils.py#LL630-L641C44
+def _is_dict(type_: Any) -> bool:
+    if type_ in (dict, Dict):
+        return True
+    origin = getattr(type_, "__origin__", None)
+    # type_dict is a bit hard to detect.
+    # this support is tentative, if it eventually causes issues in other
+    # areas it may be dropped.
+    if sys.version_info < (3, 7, 0):  # pragma: no cover
+        typed_dict = hasattr(type_, "__base__") and type_.__base__ == Dict
+        return origin is Dict or type_ is Dict or typed_dict
+    else:  # pragma: no cover
+        typed_dict = hasattr(type_, "__base__") and type_.__base__ == dict
+        return origin is dict or typed_dict
+
+
+def _is_type(type_, type_check):
+    if type_check is Any or type_ is Any:
+        return True
+    if hasattr(type_, "__args__") and _is_union_type(type_):
+        for t in type_.__args__:
+            if _is_type(t, type_check):
+                return True
+        return False
+    return type_ is type_check
+
+
 def _is_field_flag(field):
-    if hasattr(field.type, "__args__"):
-        return bool in field.type.__args__
-    return field.type is bool
+    return _is_type(field.type, bool)
 
 
 def _is_dataclass(structure):
@@ -83,6 +115,12 @@ def _is_dataclass(structure):
 def _get_fields(structure):
     fields = getattr(structure, "__dataclass_fields__")
     return fields
+
+
+def _get_dict_type(type_):
+    if hasattr(type_, "__args__"):
+        return type_.__args__[1]
+    return Any
 
 
 def _split_argv(argv):
@@ -99,9 +137,19 @@ def _get_field(structure, key: str):
     key_parts = key.split(".")
     renamed_key = []
     fields = _get_fields(structure)
+    is_dict = False
+    dict_type = None
     field = None
-    for key in key_parts:
-        field = _get_real_field(fields, key)
+    for k, key in enumerate(key_parts):
+        if is_dict:
+            field = dataclasses.field()
+            field.name = key
+            field.type = dict_type
+            is_dict = False
+            dict_type = None
+        else:
+            field = _get_real_field(fields, key)
+
         if field is None:
             return None, None
         renamed_key.append(field.name)
@@ -109,6 +157,13 @@ def _get_field(structure, key: str):
         if _is_dataclass(field.type):
             structure = field.type
             fields = _get_fields(structure)
+            continue
+
+        if _is_dict(field.type) or field.type == Any:
+            is_dict = True
+            dict_type = _get_dict_type(field.type)
+            continue
+
     return field, ".".join(renamed_key)
 
 

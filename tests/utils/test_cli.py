@@ -44,6 +44,9 @@ class StructuredConfig:
         default_factory=NestedConfigRenamed,
         metadata={"cli_names": ["--param12"]}
     )
+    param13: Dict[str, Any] = field(default_factory=dict)
+    param14: Dict[str, str] = field(default_factory=dict)
+    param15: List[str] = field(default_factory=list)
 
 
 def test_parse_argv_from_structure():
@@ -220,3 +223,35 @@ def test_parse_argv_from_structure_with_enum_fail():
             StructuredConfig,
             ["param10=val4"]
         )
+
+
+def test_parse_argv_from_structure_with_dict_value_any_type():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["param13.a='ok'", "param13.b=1", "param13.c.a=2"]
+    )
+    assert dotlist == ["param13.a='ok'", "param13.b=1", "param13.c.a=2"]
+
+
+def test_parse_argv_from_structure_with_dict_value_str_type():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["param14.a='ok'"]
+    )
+    assert dotlist == ["param14.a='ok'"]
+
+
+def test_parse_argv_from_structure_with_dict_value_str_type_fail():
+    with pytest.raises(ValueError):
+        parse_argv_from_dataclass(
+            StructuredConfig,
+            ["param14.a.b='ok'"]
+        )
+
+
+def test_parse_argv_from_structure_with_list():
+    dotlist = parse_argv_from_dataclass(
+        StructuredConfig,
+        ["param15=['v','t']"]
+    )
+    assert dotlist == ["param15=['v','t']"]
