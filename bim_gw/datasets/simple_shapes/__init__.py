@@ -1,20 +1,19 @@
 from .data_modules import SimpleShapesDataModule
 from .datasets import SimpleShapesDataset
-from .fetchers import (
-    AttributesDataFetcher, AttributesDataType, DataFetcher,
-    PreSavedLatentDataFetcher, TextDataFetcher,
-    TextDataType, VisualDataFetcher, VisualDataType
+from .domain_loaders import (
+    AttributesDataType, AttributesLoader, DomainLoader, PreSavedLatentLoader,
+    TextDataType, TextLoader, VisionLoader, VisualDataType
 )
 
 __all__ = [
     'SimpleShapesDataModule',
     'SimpleShapesDataset',
-    'AttributesDataFetcher',
+    'AttributesLoader',
     'AttributesDataType',
-    'DataFetcher',
-    'PreSavedLatentDataFetcher',
-    'TextDataFetcher',
+    'DomainLoader',
+    'PreSavedLatentLoader',
+    'TextLoader',
     'TextDataType',
-    'VisualDataFetcher',
+    'VisionLoader',
     'VisualDataType'
 ]

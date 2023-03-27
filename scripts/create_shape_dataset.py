@@ -134,8 +134,8 @@ def main(args):
         )
 
     print("Extracting BERT features...")
-    bert_latents = args.fetchers.t.bert_latents
-    args.fetchers.t.bert_latents = None
+    bert_latents = args.domain_loader.t.bert_latents
+    args.domain_loader.t.bert_latents = None
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
     args.global_workspace.split_ood = False

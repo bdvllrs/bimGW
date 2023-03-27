@@ -189,7 +189,7 @@ class GlobalWorkspace(LightningModule):
 
     def get_null_latent(self, batch_size, domain_name):
         items = list(
-            self.trainer.datamodule.train_set.data_fetchers[
+            self.trainer.datamodule.train_set.domain_loaders[
                 domain_name].get_null_item()
         )
         batch = [items for k in range(batch_size)]

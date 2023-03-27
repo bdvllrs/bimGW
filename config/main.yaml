@@ -92,8 +92,8 @@ loggers: [ ]
 #      run: null
 
 
-fetchers: # Additional fetcher parameters.
-  t: # for text fetcher
+domain_loader: # Additional domain loader parameters.
+  t: # for text domain loader
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
     pca_dim: 768  # dimension of the PCA projection of the BERT features. If 768, no PCA is applied
   attr:

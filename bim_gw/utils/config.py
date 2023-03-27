@@ -135,12 +135,15 @@ def get_args(
             "future, use `losses.coefs.translation` instead."
         )
         args.losses.coefs.translation = args.losses.coefs.supervision
-    if "attr" not in args.fetchers or "use_unpaired" not in args.fetchers.attr:
+    if ("attr" not in args.domain_loader
+            or "use_unpaired" not in args.domain_loader.attr
+    ):
+
         logging.warning(
-            "Missing mandatory value `fetchers.attr.use_unpaired`. "
+            "Missing mandatory value `domain_loader.attr.use_unpaired`. "
             "Automatically set to false."
         )
-        args.fetchers.attr.use_unpaired = False
+        args.domain_loader.attr.use_unpaired = False
 
     if use_schema:
         OmegaConf.set_struct(schema, False)

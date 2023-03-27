@@ -40,8 +40,8 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
 dataloader:
   num_workers: 0
 
-fetchers: # Additional fetcher parameters.
-  t: # for text fetcher
+domain_loader: # Additional domain loader parameters.
+  t: # for text domain loader
     bert_latents: bert-base-uncased.npy  # path to the extracted BERT features
     pca_dim: 768  # dimension of the PCA projection of the BERT features. If 768, no PCA is applied
   attr:
@@ -110,7 +110,7 @@ vae:
 # Language model parameters
 # =====
 lm:
-  z_size: ${fetchers.t.pca_dim}
+  z_size: ${domain_loader.t.pca_dim}
   hidden_size: 64
 
   batch_size: 4

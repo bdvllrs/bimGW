@@ -4,9 +4,9 @@ import numpy as np
 import torch
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.fetchers import (
-    AttributesDataFetcher,
-    PreSavedLatentDataFetcher, TextDataFetcher
+from bim_gw.datasets.simple_shapes.domain_loaders import (
+    AttributesLoader,
+    PreSavedLatentLoader, TextLoader
 )
 
 
@@ -29,8 +29,8 @@ class OddImageDataset:
 
         ids = np.arange(1_000_000)
         labels = np.load(str(self.root_path / "train_labels.npy"))
-        fetchers = {
-            "v": PreSavedLatentDataFetcher(
+        domain_loaders = {
+            "v": PreSavedLatentLoader(
                 # split always train, we used the end 500_000 as val/test
                 # for this dataset.
                 # We only used the 500 000 first examples for training the
@@ -40,14 +40,15 @@ class OddImageDataset:
                     self.root_path, "train", pre_saved_latent_path, "v"
                 )
             ),
-            "attr": AttributesDataFetcher(
+            "attr": AttributesLoader(
                 self.root_path, "train", ids, labels, {"attr": None}
             ),
-            "t": TextDataFetcher(
+            "t": TextLoader(
                 self.root_path, "train", ids, labels, {"t": None}, bert_latent
             ),
         }
-        self.fetchers = {name: fetchers[name] for name in selected_domains}
+        self.domain_loaders = {name: domain_loaders[name] for name in
+                               selected_domains}
 
     def __len__(self):
         return self.labels.shape[0]
@@ -56,16 +57,16 @@ class OddImageDataset:
         label = self.labels[item]
         data = {
             name: (
-                self.fetchers[name].get_item(
+                self.domain_loaders[name].get_item(
                     label[0] + self.shift_ref_item
                 )[1:],
-                self.fetchers[name].get_item(
+                self.domain_loaders[name].get_item(
                     label[1] + self.shift_ref_item
                 )[1:],
-                self.fetchers[name].get_item(
+                self.domain_loaders[name].get_item(
                     label[2] + self.shift_ref_item
                 )[1:])
-            for name in self.fetchers.keys()
+            for name in self.domain_loaders.keys()
         }
         data["label"] = torch.tensor(label[3], dtype=torch.long)
         return data

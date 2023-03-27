@@ -23,7 +23,7 @@ def transform(
     return data
 
 
-class DataFetcher:
+class DomainLoader:
     modality: str = None
 
     def __init__(
@@ -40,7 +40,7 @@ class DataFetcher:
         self.ids = ids
         self.labels = labels
         self.transforms = transforms[self.modality]
-        self.fetcher_args = kwargs
+        self.domain_loader_args = kwargs
 
     def get_null_item(self):
         raise NotImplementedError
@@ -57,7 +57,7 @@ class DataFetcher:
         return transform(item, self.transforms)
 
 
-class VisualDataFetcher(DataFetcher):
+class VisionLoader(DomainLoader):
     modality = "v"
 
     def __init__(
@@ -69,7 +69,7 @@ class VisualDataFetcher(DataFetcher):
         transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
         **kwargs
     ):
-        super(VisualDataFetcher, self).__init__(
+        super(VisionLoader, self).__init__(
             root_path, split, ids, labels, transforms, **kwargs
         )
         self.null_image = None
@@ -95,7 +95,7 @@ class VisualDataFetcher(DataFetcher):
         return torch.tensor(1.).float(), img
 
 
-class AttributesDataFetcher(DataFetcher):
+class AttributesLoader(DomainLoader):
     modality = "attr"
 
     def get_null_item(self) -> AttributesDataType:
@@ -117,7 +117,7 @@ class AttributesDataFetcher(DataFetcher):
         unpaired = label[11]
 
         attributes = [x, y, size, rotation_x, rotation_y, r, g, b]
-        if self.fetcher_args['use_unpaired']:
+        if self.domain_loader_args['use_unpaired']:
             attributes.append(unpaired)
 
         return (
@@ -127,7 +127,7 @@ class AttributesDataFetcher(DataFetcher):
         )
 
 
-class TextDataFetcher(DataFetcher):
+class TextLoader(DomainLoader):
     modality = "t"
 
     def __init__(
@@ -139,18 +139,17 @@ class TextDataFetcher(DataFetcher):
         transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
         **kwargs
     ):
-        super(TextDataFetcher, self).__init__(
+        super(TextLoader, self).__init__(
             root_path, split, ids, labels, transforms, **kwargs
         )
 
-        assert 'bert_latents' in self.fetcher_args, 'bert_latents must be ' \
-                                                    'specified for text ' \
-                                                    'fetcher'
-        assert 'pca_dim' in self.fetcher_args, 'pca_dim must be specified ' \
-                                               'for text fetcher'
+        if 'bert_latentes' not in self.domain_loader_args:
+            raise ValueError('bert_latents must be specified for text loader')
+        if 'pca_dim' not in self.domain_loader_args:
+            raise ValueError('pca_dim must be specified for text loader')
 
-        bert_latents = self.fetcher_args['bert_latents']
-        pca_dim = self.fetcher_args['pca_dim']
+        bert_latents = self.domain_loader_args['bert_latents']
+        pca_dim = self.domain_loader_args['pca_dim']
 
         self.bert_data: Optional[ArrayLike] = None
         self.bert_mean = None
@@ -207,7 +206,7 @@ class TextDataFetcher(DataFetcher):
         return torch.tensor(0.).float(), x, "", self.null_choice
 
 
-class PreSavedLatentDataFetcher:
+class PreSavedLatentLoader:
     def __init__(self, data):
         self.data = data
 

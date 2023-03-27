@@ -33,7 +33,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         selected_domains,
         pre_saved_latent_paths,
         sync_uses_whole_dataset,
-        fetcher_params=args.fetchers,
+        domain_loader_params=args.domain_loader,
         len_train_dataset=args.datasets.shapes.n_train_examples,
         **kwargs
     )

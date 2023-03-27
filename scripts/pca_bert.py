@@ -9,18 +9,19 @@ from bim_gw.utils import get_args
 if __name__ == '__main__':
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     shapes_path = Path(args.simple_shapes_path)
+    domain_args = args.domain_loader
 
     bert_data_train = np.load(
-        str(shapes_path / f"train_{args.fetchers.t.bert_latents}")
+        str(shapes_path / f"train_{domain_args.t.bert_latents}")
     )
     bert_data_val = np.load(
-        str(shapes_path / f"val_{args.fetchers.t.bert_latents}")
+        str(shapes_path / f"val_{domain_args.t.bert_latents}")
     )
     bert_data_test = np.load(
-        str(shapes_path / f"test_{args.fetchers.t.bert_latents}")
+        str(shapes_path / f"test_{domain_args.t.bert_latents}")
     )
-    bert_mean = np.load(shapes_path / f"mean_{args.fetchers.t.bert_latents}")
-    bert_std = np.load(shapes_path / f"std_{args.fetchers.t.bert_latents}")
+    bert_mean = np.load(shapes_path / f"mean_{domain_args.t.bert_latents}")
+    bert_std = np.load(shapes_path / f"std_{domain_args.t.bert_latents}")
     bert_data_train = (bert_data_train - bert_mean) / bert_std
     bert_data_val = (bert_data_val - bert_mean) / bert_std
     bert_data_test = (bert_data_test - bert_mean) / bert_std
@@ -33,18 +34,18 @@ if __name__ == '__main__':
         np.save(
             str(
                 shapes_path / f"train_reduced_{k}_"
-                              f"{args.fetchers.t.bert_latents}"
+                              f"{domain_args.t.bert_latents}"
             ), bert_reduced_train
         )
         np.save(
             str(
-                shapes_path / f"val_reduced_{k}_{args.fetchers.t.bert_latents}"
+                shapes_path / f"val_reduced_{k}_{domain_args.t.bert_latents}"
             ), bert_reduced_val
         )
         np.save(
             str(
                 shapes_path / f"tes"
-                              f"t_reduced_{k}_{args.fetchers.t.bert_latents}"
+                              f"t_reduced_{k}_{domain_args.t.bert_latents}"
             ), bert_reduced_test
         )
         mean = bert_reduced_train.mean(axis=0)
@@ -52,11 +53,11 @@ if __name__ == '__main__':
         np.save(
             str(
                 shapes_path / f"mean_reduced_{k}_"
-                              f"{args.fetchers.t.bert_latents}"
+                              f"{domain_args.t.bert_latents}"
             ), mean
         )
         np.save(
             str(
-                shapes_path / f"std_reduced_{k}_{args.fetchers.t.bert_latents}"
+                shapes_path / f"std_reduced_{k}_{domain_args.t.bert_latents}"
             ), std
         )

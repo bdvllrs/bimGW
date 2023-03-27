@@ -342,7 +342,7 @@ class BIMConfig:
 
     loggers: List[LoggerConfig] = MISSING
 
-    fetchers: Dict[str, Dict[str, Any]] = MISSING
+    domain_loader: Dict[str, Dict[str, Any]] = MISSING
 
     _code_version: str = "master"
     _script_name: str = "debug"

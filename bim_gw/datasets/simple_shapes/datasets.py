@@ -6,10 +6,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.fetchers import (
-    AttributesDataFetcher, AttributesDataType, PreSavedLatentDataFetcher,
-    TextDataFetcher,
-    TextDataType, VisualDataFetcher, VisualDataType
+from bim_gw.datasets.simple_shapes.domain_loaders import (
+    AttributesDataType, AttributesLoader, PreSavedLatentLoader, TextDataType,
+    TextLoader, VisionLoader, VisualDataType
 )
 from bim_gw.utils.types import SplitLiteral
 
@@ -19,9 +18,9 @@ SelectedDomainType = Dict[
     str, Union[VisualDataType, AttributesDataType, TextDataType]]
 
 AVAILABLE_DOMAINS = {
-    "v": VisualDataFetcher,
-    "attr": AttributesDataFetcher,
-    "t": TextDataFetcher,
+    "v": VisionLoader,
+    "attr": AttributesLoader,
+    "t": TextLoader,
 }
 
 
@@ -40,7 +39,7 @@ class SimpleShapesDataset:
             Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
         output_transform: Optional[
             Callable[[SelectedDomainType], SelectedDomainType]] = None,
-        fetcher_params: Optional[Dict[str, Any]] = None
+        domain_loader_params: Optional[Dict[str, Any]] = None
     ):
         """
         Args:
@@ -78,16 +77,16 @@ class SimpleShapesDataset:
             domains = list(self.selected_domains)
             self.available_domains_mapping = [domains] * self.mapping.shape[0]
 
-        if fetcher_params is None:
-            fetcher_params = dict()
+        if domain_loader_params is None:
+            domain_loader_params = dict()
         for domain in AVAILABLE_DOMAINS.keys():
-            if domain not in fetcher_params:
-                fetcher_params[domain] = dict()
+            if domain not in domain_loader_params:
+                domain_loader_params[domain] = dict()
 
-        self.data_fetchers = {
+        self.domain_loaders = {
             domain: AVAILABLE_DOMAINS[domain](
                 self.root_path, self.split, self.ids, self.labels,
-                self.transforms, **fetcher_params[domain]
+                self.transforms, **domain_loader_params[domain]
             )
             for domain in self.selected_domains
         }
@@ -106,7 +105,7 @@ class SimpleShapesDataset:
                         self.root_path, self.split, pre_saved_latent_path,
                         domain_key, self.ids
                     )
-                    self.data_fetchers[domain_key] = PreSavedLatentDataFetcher(
+                    self.domain_loaders[domain_key] = PreSavedLatentLoader(
                         self.pre_saved_data[domain_key]
                     )
 
@@ -120,13 +119,13 @@ class SimpleShapesDataset:
         selected_domains = {}
         n_domains = 0
 
-        for domain_key, fetcher in self.data_fetchers.items():
+        for domain_key, domain_loader in self.domain_loaders.items():
             if domain_key in mapping:
-                fetched_items = fetcher.get_items(idx)
+                domain_items = domain_loader.get_items(idx)
             else:
-                fetched_items = fetcher.get_items(None)
-            n_domains += fetched_items[0].item()
-            selected_domains[domain_key] = fetched_items
+                domain_items = domain_loader.get_items(None)
+            n_domains += domain_items[0].item()
+            selected_domains[domain_key] = domain_items
         assert n_domains == len(mapping)
         if self.output_transform is not None:
             return self.output_transform(selected_domains)

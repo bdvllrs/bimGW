@@ -14,8 +14,8 @@ if __name__ == '__main__':
         "Pre-saved latent path should be defined."
 
     args.seed = 0
-    bert_latents = args.fetchers.t.bert_latents
-    args.fetchers.t.bert_latents = None
+    bert_latents = args.domain_loader.t.bert_latents
+    args.domain_loader.t.bert_latents = None
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.
     args.global_workspace.split_ood = False
