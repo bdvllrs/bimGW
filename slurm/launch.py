@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from auto_sbatch import ExperimentHandler, SBatch
+from auto_sbatch.grid_search import GridSearch
 from auto_sbatch.sbatch import get_grid_combinations
 from omegaconf import OmegaConf
 
@@ -58,13 +59,16 @@ def main(args, cli_args):
             extra_args,
         )
 
+    grid_search = GridSearch(
+        args.slurm.grid_search, args.slurm.grid_search_exclude
+    )
+
     sbatch = SBatch(
         args.slurm.slurm, extra_args,
-        grid_search=args.slurm.grid_search,
-        grid_search_exclude=args.slurm.grid_search_exclude,
+        grid_search=grid_search,
         experiment_handler=handler
     )
-    sbatch(
+    sbatch.run(
         args.slurm.command,
         schedule_all_tasks=True
     )
