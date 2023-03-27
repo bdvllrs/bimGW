@@ -9,7 +9,7 @@ from torchvision import transforms
 
 class ComposeWithExtraParameters:
     """
-    DataFetchers return [active_items, modality] we apply the transform only
+    DomainLoaders return DomainItems we apply the transform only
     on the modality
     """
 
@@ -18,7 +18,7 @@ class ComposeWithExtraParameters:
 
     def __call__(self, x):
         for key, transform in self.transforms.items():
-            x.items[key] = transform(x.items[key])
+            x.update(key, transform(x[key]))
         return x
 
 

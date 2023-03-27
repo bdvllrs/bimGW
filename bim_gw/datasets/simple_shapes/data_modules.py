@@ -15,7 +15,7 @@ from bim_gw.datasets.simple_shapes.utils import (
     create_ood_split,
     get_v_preprocess, split_ood_sets
 )
-from bim_gw.datasets.utils import filter_sync_domains, set_validation_examples
+from bim_gw.datasets.utils import filter_sync_domains, get_validation_examples
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
@@ -187,13 +187,11 @@ class SimpleShapesDataModule(LightningDataModule):
                 else:
                     self.train_set = train_set
 
-            set_validation_examples(
+            self.domain_examples = get_validation_examples(
                 self.train_set,
                 self.val_set,
                 self.test_set,
-                self.selected_domains,
                 self.n_domain_examples,
-                self.split_ood,
             )
 
             # Use pre saved latents if provided.

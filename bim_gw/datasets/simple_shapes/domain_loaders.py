@@ -76,10 +76,10 @@ class VisionLoader(DomainLoader):
         )
         self.null_image = None
 
-    def get_null_item(self) -> VisualDataType:
+    def get_null_item(self) -> DomainItem:
         if self.null_image is None:
-            _, x = self.get_item(0)
-            shape = list(x.size) + [3]
+            item = self.get_item(0)
+            shape = list(item.img.size) + [3]
             img = np.zeros(shape, np.uint8)
             self.null_image = Image.fromarray(img)
 
@@ -90,7 +90,7 @@ class VisionLoader(DomainLoader):
 
     def get_item(
         self, item: int, path: Optional[pathlib.Path] = None
-    ) -> VisualDataType:
+    ) -> DomainItem:
         if path is None:
             path = self.root_path
 
@@ -105,16 +105,16 @@ class VisionLoader(DomainLoader):
 class AttributesLoader(DomainLoader):
     modality = "attr"
 
-    def get_null_item(self) -> AttributesDataType:
-        _, cls, attr = self.get_item(0)
+    def get_null_item(self) -> DomainItem:
+        item = self.get_item(0)
 
         return DomainItem(
             cls=0,
-            attributes=torch.zeros_like(attr),
+            attributes=torch.zeros_like(item.attributes),
             is_available=False
         )
 
-    def get_item(self, item: int) -> AttributesDataType:
+    def get_item(self, item: int) -> DomainItem:
         label = self.labels[item]
         cls = int(label[0])
         x, y = label[1], label[2]
@@ -195,7 +195,7 @@ class TextLoader(DomainLoader):
         )
         self.null_choice = None
 
-    def get_item(self, item: int) -> TextDataType:
+    def get_item(self, item: int) -> DomainItem:
         sentence = self.captions[item]
         choice = get_categories(composer, self.choices[item])
 
@@ -211,7 +211,7 @@ class TextLoader(DomainLoader):
             choices=choice
         )
 
-    def get_null_item(self) -> TextDataType:
+    def get_null_item(self) -> DomainItem:
         if self.null_choice is None:
             self.null_choice = get_categories(composer, self.choices[0])
             self.null_choice = {key: 0 for key in self.null_choice}

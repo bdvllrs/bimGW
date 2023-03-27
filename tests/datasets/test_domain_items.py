@@ -18,8 +18,8 @@ def test_collate_domain_items():
         for _ in range(batch_size)
     ]
 
-    collate_fn = DomainItems.get_collate_fn()
-    collated_items = collate_fn(items)
+    domain_collate_fn = DomainItems.get_collate_fn()
+    collated_items = domain_collate_fn(items)
     assert isinstance(collated_items, DomainItems)
     assert collated_items.available_masks.ndim == 1
     assert collated_items.available_masks.size(0) == batch_size
