@@ -3,17 +3,18 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
+from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 
-from bim_gw.datasets.data_module import DataModule
 from bim_gw.datasets.simple_shapes.datasets import (
-    AvailableDomainsType,
+    AVAILABLE_DOMAINS, AvailableDomainsType,
     SimpleShapesDataset
 )
 from bim_gw.datasets.simple_shapes.utils import (
     create_ood_split,
     get_preprocess, split_ood_sets
 )
+from bim_gw.datasets.utils import filter_sync_domains, set_validation_examples
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
@@ -48,7 +49,7 @@ def load_t_domain(args, img_size=None):
     )
 
 
-class SimpleShapesDataModule(DataModule):
+class SimpleShapesDataModule(LightningDataModule):
     def __init__(
         self,
         simple_shapes_folder: str,
@@ -65,11 +66,10 @@ class SimpleShapesDataModule(DataModule):
         fetcher_params: Optional[Dict[str, Any]] = None,
         len_train_dataset: int = 1_000_000,
     ):
-        super().__init__(
-            batch_size, num_workers, prop_labelled_images,
-            prop_available_images, removed_sync_domains,
-            n_validation_domain_examples, split_ood, selected_domains,
-        )
+        super().__init__()
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.split_ood = split_ood
         self.pre_saved_latent_paths = pre_saved_latent_paths
         self.add_unimodal = add_unimodal
         self.fetcher_params = fetcher_params
@@ -79,6 +79,22 @@ class SimpleShapesDataModule(DataModule):
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
         self.num_channels: int = 3
         self.len_train_dataset: int = len_train_dataset
+        self.n_domain_examples = batch_size
+        if n_validation_domain_examples is not None:
+            self.n_domain_examples = n_validation_domain_examples
+        self.domain_examples = None
+        self.ood_boundaries = None
+        self.selected_domains = selected_domains
+        if self.selected_domains is None:
+            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
+
+        self.prop_labelled_images = prop_labelled_images
+        self.prop_available_images = prop_available_images
+        if self.prop_available_images < self.prop_labelled_images:
+            raise ValueError(
+                "prop_available_images must be >= prop_labelled_images"
+            )
+
         ds = SimpleShapesDataset(
             simple_shapes_folder, "val",
             selected_domains=self.selected_domains,
@@ -86,6 +102,13 @@ class SimpleShapesDataModule(DataModule):
         )
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
+
+        # Remove sync for some combination of domains
+        self.remove_sync_domains = removed_sync_domains
+
+        self.train_set = None
+        self.val_set = None
+        self.test_set = None
         self.is_setup = False
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -144,8 +167,11 @@ class SimpleShapesDataModule(DataModule):
                 self.test_set = split_ood_sets(self.test_set, id_ood_splits)
 
                 if self.add_unimodal:
-                    mapping, domain_mapping = self.filter_sync_domains(
-                        target_indices
+                    mapping, domain_mapping = filter_sync_domains(
+                        self.selected_domains,
+                        target_indices,
+                        self.prop_labelled_images,
+                        self.prop_available_images,
                     )
 
                     self.train_set = SimpleShapesDataset(
@@ -160,10 +186,13 @@ class SimpleShapesDataModule(DataModule):
                 else:
                     self.train_set = train_set
 
-            self.set_validation_examples(
+            set_validation_examples(
                 self.train_set,
                 self.val_set,
-                self.test_set
+                self.test_set,
+                self.selected_domains,
+                self.n_domain_examples,
+                self.split_ood,
             )
 
             # Use pre saved latents if provided.
@@ -217,3 +246,38 @@ class SimpleShapesDataModule(DataModule):
             test_ds, self.simple_shapes_folder, "shapes_test",
             batch_size, device
         )
+
+    def train_dataloader(
+        self, shuffle: bool = True
+    ) -> torch.utils.data.DataLoader:
+        return torch.utils.data.DataLoader(
+            self.train_set,
+            shuffle=shuffle,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
+
+    def get_val_test_dataloader(
+        self, dataset
+    ) -> List[torch.utils.data.DataLoader]:
+        dataloaders = [
+            torch.utils.data.DataLoader(
+                dataset["in_dist"], self.batch_size,
+                num_workers=self.num_workers, pin_memory=True
+            ),
+        ]
+        if dataset["ood"] is not None:
+            dataloaders.append(
+                torch.utils.data.DataLoader(
+                    dataset["ood"], self.batch_size,
+                    num_workers=self.num_workers, pin_memory=True
+                )
+            )
+        return dataloaders
+
+    def val_dataloader(self) -> List[torch.utils.data.DataLoader]:
+        return self.get_val_test_dataloader(self.val_set)
+
+    def test_dataloader(self) -> List[torch.utils.data.DataLoader]:
+        return self.get_val_test_dataloader(self.test_set)
