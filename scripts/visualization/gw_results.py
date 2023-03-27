@@ -46,7 +46,7 @@ if __name__ == '__main__':
     gw_results_args = args.visualization.gw_results
 
     language_domains = ["attributes", "text"]
-    loss_evaluations = ["mix_loss", "translation", "contrastive"]
+    loss_evaluations = ["translation", "contrastive"]
     dataframes = {}
     for language_domain in language_domains:
         df = get_runs_dataframe(
@@ -178,7 +178,7 @@ if __name__ == '__main__':
         fontsize=args.visualization.font_size
     )
     # fig.tight_layout()
-    plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
+    plt.subplots_adjust(bottom=0.16, hspace=0.3, top=0.97)
     fig.patch.set_facecolor(args.visualization.bg_color)
     plt.savefig(
         Path(
