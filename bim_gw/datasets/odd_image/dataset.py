@@ -38,7 +38,8 @@ class OddImageDataset:
                 # from the train set
                 load_pre_saved_latent(
                     self.root_path, "train", pre_saved_latent_path, "v"
-                )
+                ),
+                {0: "img"}
             ),
             "attr": AttributesLoader(
                 self.root_path, "train", ids, labels, {"attr": None}

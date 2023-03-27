@@ -124,13 +124,20 @@ def set_validation_examples(
     reconstruction_indices = {
         "train": [
             torch.randint(len(train_set), size=(n_domain_examples,)),
-            None],
-        "val": [torch.randint(
-            len(val_set["in_dist"]), size=(n_domain_examples,)
-        ), None],
-        "test": [torch.randint(
-            len(test_set["in_dist"]), size=(n_domain_examples,)
-        ), None]
+            None
+        ],
+        "val": [
+            torch.randint(
+                len(val_set["in_dist"]), size=(n_domain_examples,)
+            ),
+            None
+        ],
+        "test": [
+            torch.randint(
+                len(test_set["in_dist"]), size=(n_domain_examples,)
+            ),
+            None
+        ]
     }
 
     if val_set["ood"] is not None:
