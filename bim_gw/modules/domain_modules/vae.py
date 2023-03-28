@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
@@ -44,12 +45,6 @@ class VAE(DomainModule):
         ]
         self.losses = [
             F.mse_loss
-            # lambda x, y: (
-            #     F.mse_loss(x, y)
-            #     + mmd_loss_coef * mmd_loss(x, y)
-            #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0),
-            #     x.var(0).log())
-            # )
         ]
 
         # val sampling
@@ -75,15 +70,6 @@ class VAE(DomainModule):
         else:
             self.register_buffer("log_sigma", torch.tensor(0.))
 
-        # self.encoder = torchvision.models.resnet18(False)
-        # self.encoder.fc = nn.Identity()
-        #
-        # # q
-        # self.q_mean = nn.Linear(512, self.z_size)
-        # self.q_logvar = nn.Linear(512, self.z_size)
-        #
-        # # decoder
-        # self.decoder = ResNetDecoder(z_size)
         self.encoder = CEncoderV2(
             channel_num, image_size, ae_size=ae_size, batchnorm=True
         )
@@ -104,16 +90,18 @@ class VAE(DomainModule):
         var_z = self.q_logvar(out)
         return mean_z, var_z
 
-    def encode(self, x: torch.Tensor):
-        x = x[0]
-        mean_z, _ = self.encode_stats(x)
+    def encode(self, visual_domain: DomainItems):
+        mean_z, _ = self.encode_stats(visual_domain.img)
+        return DomainItems(
+            visual_domain.available_masks,
+            img=mean_z,
+        )
 
-        # z = reparameterize(mean_z, var_z)
-        return [mean_z]
-
-    def decode(self, z: torch.Tensor):
-        z = z[0]
-        return [self.decoder(z)]
+    def decode(self, visual_latents: DomainItems):
+        return DomainItems(
+            visual_latents.available_masks,
+            img=self.decoder(visual_latents.img),
+        )
 
     def forward(
         self,

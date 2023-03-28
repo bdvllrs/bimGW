@@ -2,14 +2,14 @@ import random
 
 import torch
 
-from bim_gw.datasets.domain import collate_fn, DomainItem, DomainItems
+from bim_gw.datasets.domain import collate_fn, DomainItems
 
 
 def test_collate_domain_items():
     batch_size = 16
 
     items = [
-        DomainItem(
+        DomainItems.singular(
             attr1=torch.randn(3),
             attr2=torch.randn(8),
             is_available=random.randint(0, 1)
@@ -21,6 +21,7 @@ def test_collate_domain_items():
     domain_collate_fn = DomainItems.get_collate_fn()
     collated_items = domain_collate_fn(items)
     assert isinstance(collated_items, DomainItems)
+    assert collated_items.is_batch()
     assert collated_items.available_masks.ndim == 1
     assert collated_items.available_masks.size(0) == batch_size
 
@@ -40,12 +41,12 @@ def test_collate_fn():
 
     items = [
         {
-            "d1": DomainItem(
+            "d1": DomainItems.singular(
                 attr1=torch.randn(3),
                 attr2=torch.randn(8),
                 is_available=random.randint(0, 1)
             ),
-            "d2": DomainItem(
+            "d2": DomainItems.singular(
                 attr3=torch.randn(5),
                 is_available=random.randint(0, 1)
             ),

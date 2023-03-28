@@ -18,7 +18,7 @@ class ComposeWithExtraParameters:
 
     def __call__(self, x):
         for key, transform in self.transforms.items():
-            x.update(key, transform(x[key]))
+            x[key] = transform(x[key])
         return x
 
 

@@ -131,7 +131,7 @@ class SimpleShapesDataset:
                 domain_items = domain_loader.get_items(idx)
             else:
                 domain_items = domain_loader.get_items(None)
-            n_domains += domain_items.available_mask.item()
+            n_domains += domain_items.available_masks.item()
             selected_domains[domain_key] = domain_items
         assert n_domains == len(mapping)
         if self.output_transform is not None:

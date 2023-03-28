@@ -51,14 +51,18 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_translation = loss_coef_translation
         self.loss_coef_contrastive = loss_coef_contrastive
         self.loss_coef_cosine = loss_coef_cosine
-        self.loss_schedules = loss_schedules if loss_schedules is not None \
-            else {}
-        self.remove_sync_domains = remove_sync_domains if \
-            remove_sync_domains is not None else []
-        self.remove_sync_domains_names = [f"{n1}-{n2}" for n1, n2 in
-                                          self.remove_sync_domains]
-        self.remove_sync_domains_names += [f"{n2}-{n1}" for n1, n2 in
-                                           self.remove_sync_domains]
+        self.loss_schedules = {}
+        if loss_schedules is not None:
+            self.loss_schedules = loss_schedules
+        self.remove_sync_domains = []
+        if remove_sync_domains is not None:
+            self.remove_sync_domains = remove_sync_domains
+        self.remove_sync_domains_names = [
+            f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains
+        ]
+        self.remove_sync_domains_names += [
+            f"{n2}-{n1}" for n1, n2 in self.remove_sync_domains
+        ]
 
         self.z_size = z_size
         self.hidden_size = hidden_size
@@ -73,7 +77,6 @@ class GlobalWorkspace(LightningModule):
 
         self.domain_mods = nn.ModuleDict(domain_mods)
         self.domain_names = list(domain_mods.keys())
-        self.validation_example_list = None
 
         self.hparams["contrastive_logit_scale"] = {
             f"{n1}-{n2}": torch.ones([]) * np.log(1 / 0.07)
@@ -132,43 +135,10 @@ class GlobalWorkspace(LightningModule):
         )
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
-        # val sampling
         self.domain_examples = domain_examples
-        if domain_examples is not None:
-            self.validation_example_list = dict()
-            for set_name, example_dist_vecs in domain_examples.items():
-                for dist in range(2):
-                    dist_name = "in_dist" if dist == 0 else "ood"
-                    if example_dist_vecs[dist] is not None:
-                        examples_items = example_dist_vecs[dist].items()
-                        for key, example_vecs in examples_items:
-                            if key not in self.domain_names:
-                                raise ValueError(
-                                    f"{key} is not a valid domain for "
-                                    "validation examples."
-                                )
-                            if example_vecs is not None:
-                                self.validation_example_list[key] = len(
-                                    example_vecs
-                                )
-                                for k, example_vec in enumerate(example_vecs):
-                                    if type(example_vec) is list:
-                                        setattr(
-                                            self,
-                                            f"{set_name}_"
-                                            f"{dist_name}_examples_domain_"
-                                            f"{key}_{k}",
-                                            example_vec
-                                        )
-                                    else:
-                                        self.register_buffer(
-                                            f"{set_name}_"
-                                            f"{dist_name}_examples_domain_"
-                                            f"{key}_{k}",
-                                            example_vec
-                                        )
 
         self.rotation_error_val = []
+        self.collate_fn = None
 
         self.save_hyperparameters(
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
@@ -177,6 +147,12 @@ class GlobalWorkspace(LightningModule):
 
     def setup(self, stage=None):
         self.collate_fn = self.trainer.datamodule.train_dataloader().collate_fn
+
+    def on_fit_start(self) -> None:
+        for dist_examples in self.domain_examples.values():
+            for examples in dist_examples.values():
+                for domain_examples in examples.values():
+                    domain_examples.to_device(self.device)
 
     def encode(self, x, domain_name, add_tanh=True):
         pre_act = self.encoders[domain_name](x)
@@ -218,13 +194,7 @@ class GlobalWorkspace(LightningModule):
         """
         out = dict()
         for domain_name, x in domains.items():
-            z = []
-            for zi in self.domain_mods[domain_name].encode(x):
-                if zi.ndim == 1:
-                    z.append(zi.reshape(-1, 1))
-                else:
-                    z.append(zi)
-            out[domain_name] = z
+            out[domain_name] = self.domain_mods[domain_name].encode(x)
         return out
 
     def decode_uni_modal(self, domains):
@@ -330,7 +300,7 @@ class GlobalWorkspace(LightningModule):
             return indiv_losses
         return {prefix: torch.tensor(0.).to(self.device)}
 
-    def step(self, available_domains, latents, mode="val", prefix=""):
+    def step(self, latents, mode="val", prefix=""):
         latent_demi_cycle_predictions = {}
         latent_demi_cycle_target = {}
         latent_cycle_predictions = {}
@@ -342,7 +312,7 @@ class GlobalWorkspace(LightningModule):
         states = {}
 
         for domain_name, latent in latents.items():
-            available_items = available_domains[domain_name]
+            available_items = latent.available_masks[domain_name]
             if available_items.any():
                 # Demi-cycles
                 state = self.project(latents, [domain_name])
@@ -377,7 +347,7 @@ class GlobalWorkspace(LightningModule):
                         # Translation
                         mask = torch.logical_and(
                             available_items,
-                            available_domains[domain_name_target]
+                            latent.available_masks[domain_name_target]
                         )
                         if not mask.any():
                             continue
@@ -465,61 +435,28 @@ class GlobalWorkspace(LightningModule):
         return losses["total"], losses
 
     def training_step(self, domains, batch_idx):
-        # remove the sync batch
-        available_domains, domains = split_domains_available_domains(domains)
-
-        latents = self.encode_uni_modal(domains)
-
-        total_loss, losses = self.step(
-            available_domains, latents, mode="train"
+        total_loss, _ = self.step(
+            self.encode_uni_modal(domains),
+            mode="train"
         )
-
         return total_loss
 
     def validation_step(self, domains, batch_idx, dataset_idx=0):
-
-        available_domains, domains = split_domains_available_domains(domains)
-
-        latents = self.encode_uni_modal(domains)
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
-        total_loss, losses = self.step(
-            available_domains, latents, mode="val", prefix=prefix
+        total_loss, _ = self.step(
+            self.encode_uni_modal(domains),
+            mode="val",
+            prefix=prefix
         )
-
-        # latent_start = self.domain_mods["v"].encode(domains["v"])
-        # latent_end = self.translate(latent_start, "v", "t")
-        # domain_end_pred = self.domain_mods["t"].decode(latent_end)
-        # rotations_pred = domain_end_pred[1][:, 3].detach().cpu().numpy()
-        # rotations_ori = domains["t"][1][:, 3].detach().cpu().numpy()
-        # diff = rotations_pred - rotations_ori
-        # diff = np.where(diff > np.pi, diff - 2 * np.pi, diff)
-        # self.rotation_error_val.extend((diff * 180 / np.pi).tolist())
         return total_loss
 
     def test_step(self, domains, batch_idx, dataset_idx=0):
-
-        available_domains, domains = split_domains_available_domains(domains)
-
-        latents = self.encode_uni_modal(domains)
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
-        total_loss, losses = self.step(
-            available_domains, latents, mode="test", prefix=prefix
+        total_loss, _ = self.step(
+            self.encode_uni_modal(domains),
+            mode="test", prefix=prefix
         )
         return total_loss
-
-    def get_domain_examples(self, set_name, dist):
-        domain_examples = {}
-        for domain_name, n_items in self.validation_example_list.items():
-            domain_example = [
-                getattr(
-                    self,
-                    f"{set_name}_{dist}_examples_domain_{domain_name}_{k}"
-                ) for k in range(n_items)
-            ]
-            if len(domain_example) == 1:
-                domain_example = domain_example[0]
-            domain_examples[domain_name] = domain_example
-        return domain_examples
 
     def log_domains(self, logger, examples, slug="val", max_examples=None):
         available_domains, examples = split_domains_available_domains(examples)
@@ -569,65 +506,37 @@ class GlobalWorkspace(LightningModule):
                         )
 
     def on_train_start(self) -> None:
-        for mode in ["train", "val"]:
-            domain_examples = self.domain_examples[mode]
-            if self.domain_examples is not None:
-                for logger in self.loggers:
-                    self.set_unimodal_pass_through(False)
-                    if self.trainer.datamodule.ood_boundaries is not None:
-                        logger.log_hyperparams(
-                            {
-                                "ood_boundaries":
-                                    self.trainer.datamodule.ood_boundaries
-                            }
-                        )
-                    for k, dist in enumerate(["in_dist", "ood"]):
-                        if domain_examples[k] is not None:
-                            validation_examples = self.get_domain_examples(
-                                mode, dist
-                            )
-
-                            if self.validation_example_list is not None:
-                                self.log_original_domains(
-                                    logger, validation_examples,
-                                    f"{mode}/{dist}"
-                                )
-
-                    if "train" in self.domain_examples and \
-                            self.domain_examples["train"][0] is not None:
-                        train_examples = self.get_domain_examples(
-                            "train", "in_dist"
-                        )
-                        self.log_original_domains(
-                            logger, train_examples, "train"
-                        )
-
-                    self.set_unimodal_pass_through(True)
+        if self.domain_examples is None:
+            return
+        for mode, domain_examples in self.domain_examples.items():
+            for logger in self.loggers:
+                self.set_unimodal_pass_through(False)
+                if self.trainer.datamodule.ood_boundaries is not None:
+                    logger.log_hyperparams(
+                        {
+                            "ood_boundaries":
+                                self.trainer.datamodule.ood_boundaries
+                        }
+                    )
+                for dist, dist_examples in domain_examples.items():
+                    self.log_original_domains(
+                        logger, dist_examples,
+                        f"{mode}/{dist}"
+                    )
+                self.set_unimodal_pass_through(True)
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
-        if self.domain_examples is not None:
-            for logger in self.loggers:
-                self.set_unimodal_pass_through(False)
-                for k, dist in enumerate(["in_dist", "ood"]):
-                    if domain_examples[k] is not None:
-                        validation_examples = self.get_domain_examples(
-                            mode, dist
-                        )
+        for logger in self.loggers:
+            self.set_unimodal_pass_through(False)
+            for dist, dist_examples in domain_examples.items():
+                self.log_domains(
+                    logger, dist_examples, f"{mode}/{dist}"
+                )
+            self.set_unimodal_pass_through(True)
 
-                        if self.validation_example_list is not None:
-                            self.log_domains(
-                                logger, validation_examples, f"{mode}/{dist}"
-                            )
-
-                if log_train and "train" in self.domain_examples and \
-                        self.domain_examples["train"][0] is not None:
-                    train_examples = self.get_domain_examples(
-                        "train", "in_dist"
-                    )
-                    self.log_domains(logger, train_examples, "train")
-
-                self.set_unimodal_pass_through(True)
+            if log_train:
+                self.epoch_end("train", log_train=False)
 
     def validation_epoch_end(self, outputs):
         self.epoch_end("val", log_train=True)

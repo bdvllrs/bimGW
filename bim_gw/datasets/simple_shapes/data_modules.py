@@ -283,3 +283,8 @@ class SimpleShapesDataModule(LightningDataModule):
 
     def test_dataloader(self) -> List[torch.utils.data.DataLoader]:
         return self.get_val_test_dataloader(self.test_set)
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx=None):
+        for domain_items in batch.values():
+            domain_items.to_device(device)
+        return batch
