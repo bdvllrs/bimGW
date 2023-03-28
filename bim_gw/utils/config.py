@@ -57,7 +57,8 @@ def get_args(
     use_local=True,
     cli=True,
     verbose=True,
-    use_schema=True
+    use_schema=True,
+    schema_config=BIMConfig
 ):
     load_resolvers_if_needed()
 
@@ -83,7 +84,7 @@ def get_args(
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
-            parse_argv_from_dataclass(BIMConfig)
+            parse_argv_from_dataclass(schema_config)
         )
     elif cli:
         cli_args = OmegaConf.from_cli()

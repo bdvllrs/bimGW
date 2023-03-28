@@ -5,9 +5,6 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 
-from bim_gw.datasets.simple_shapes.datasets import AVAILABLE_DOMAINS
-
-
 class DataModule(LightningDataModule):
     def __init__(
         self, batch_size: int,
@@ -27,8 +24,6 @@ class DataModule(LightningDataModule):
         self.domain_examples = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains
-        if self.selected_domains is None:
-            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images
@@ -151,24 +146,23 @@ class DataModule(LightningDataModule):
 
         mapping = []
         domain_mapping = []
-        if prop_2_domains < 1:
-            labelled_size = int(original_size * prop_2_domains)
-            n_repeats = ((len(domains) * original_size) // labelled_size +
-                         int(original_size % labelled_size > 0))
 
-            domain_items = np.tile(sync_items, n_repeats)
-            mapping.extend(domain_items)
-            domain_mapping.extend(
-                [domains] * len(domain_items)
-            )
+        labelled_size = int(original_size * prop_2_domains)
+        n_repeats = ((len(domains) * original_size) // labelled_size +
+                     int(original_size % labelled_size > 0))
+
+        domain_items = np.tile(sync_items, n_repeats)
+        mapping.extend(domain_items)
+        domain_mapping.extend(
+            [domains] * len(domain_items)
+        )
 
         unsync_domain_items = permuted_indices
-        if self.prop_available_images < 1:
-            n_unsync = int(
-                self.prop_available_images * len(allowed_indices)
-            ) - sync_split
-            unsync_items = rest[:n_unsync]
-            unsync_domain_items = np.concatenate((unsync_items, sync_items))
+        n_unsync = int(
+            self.prop_available_images * len(allowed_indices)
+        ) - sync_split
+        unsync_items = rest[:n_unsync]
+        unsync_domain_items = np.concatenate((unsync_items, sync_items))
         mapping.extend(unsync_domain_items)
         domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
         mapping.extend(unsync_domain_items)
