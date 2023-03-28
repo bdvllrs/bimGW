@@ -58,11 +58,14 @@ def get_args(
     cli=True,
     verbose=True,
     use_schema=True,
-    schema_config=BIMConfig
+    schema_config=None
 ):
     load_resolvers_if_needed()
 
-    schema = OmegaConf.structured(BIMConfig)
+    if schema_config is None:
+        schema_config = BIMConfig
+
+    schema = OmegaConf.structured(schema_config)
     # Configurations
     default_args = OmegaConf.create(
         {
