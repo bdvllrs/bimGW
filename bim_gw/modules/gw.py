@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
 import torch
@@ -175,7 +175,10 @@ class GlobalWorkspace(LightningModule):
                 x[k] = x[k].to(self.device)
         return self.encode_uni_modal({domain_name: x})[domain_name]
 
-    def project(self, latents, keep_domains):
+    def project(
+        self, latents: Dict[str, Dict[str, torch.Tensor]],
+        keep_domains
+    ):
         pre_act = 0
         assert len(keep_domains), "Must project at least one domain"
         for domain in keep_domains:
