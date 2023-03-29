@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 
+
 class DataModule(LightningDataModule):
     def __init__(
         self, batch_size: int,
