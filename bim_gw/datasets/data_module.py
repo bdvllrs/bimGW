@@ -5,9 +5,6 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 
-from bim_gw.datasets.simple_shapes.datasets import AVAILABLE_DOMAINS
-
-
 class DataModule(LightningDataModule):
     def __init__(
         self, batch_size: int,
@@ -28,7 +25,7 @@ class DataModule(LightningDataModule):
         self.ood_boundaries = None
         self.selected_domains = selected_domains
         if self.selected_domains is None:
-            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
+            self.selected_domains = list(['v', 'attr', 't'])
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images
