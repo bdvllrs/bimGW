@@ -54,7 +54,7 @@ def test_launch(p_open_mock, subprocess_mock, capsys):
     captured_out = capsys.readouterr().out.strip("\n")
     slurm_script = SlurmScriptParser(captured_out, slurm_command)
     slurm_script.parse()
-    assert slurm_script.script_name == "scripts/train.py"
+    assert slurm_script.script_name == "train.py"
     assert "slurm" in slurm_script.params.keys()
     assert "script" in slurm_script.params.slurm.keys()
 
@@ -87,7 +87,7 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
     captured_out = capsys.readouterr().out.strip("\n")
     slurm_script = SlurmScriptParser(captured_out, slurm_command)
     slurm_script.parse()
-    assert slurm_script.script_name == "scripts/train.py"
+    assert slurm_script.script_name == "train.py"
     assert "slurm" in slurm_script.params.keys()
     assert "script" in slurm_script.params.slurm.keys()
     assert "seed" in slurm_script.params.keys()
