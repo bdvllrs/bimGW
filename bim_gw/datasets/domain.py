@@ -47,7 +47,8 @@ class DomainItems(Collection):
     def __iter__(self):
         return iter(self._sub_parts)
 
-    def get_sub_parts(self):
+    @property
+    def sub_parts(self):
         return self._sub_parts
 
     @staticmethod
@@ -56,12 +57,12 @@ class DomainItems(Collection):
 
     def to_device(self, device):
         self.available_masks = self.available_masks.to(device)
-        self._sub_parts = _to_device(self.get_sub_parts(), device)
+        self._sub_parts = _to_device(self.sub_parts, device)
         return self
 
     def pin_memory(self):
         self.available_masks = self.available_masks.pin_memory()
-        self._sub_parts = _pin_memory(self.get_sub_parts())
+        self._sub_parts = _pin_memory(self.sub_parts)
         return self
 
     # Reimplementation of the MutableMapping interface
@@ -111,7 +112,7 @@ def _pin_memory(value):
 
 
 def domain_collate_fn(batch):
-    items = [(item.available_masks, item.get_sub_parts()) for item in batch]
+    items = [(item.available_masks, item.sub_parts) for item in batch]
     batched_items = default_collate(items)
     return DomainItems(batched_items[0], **batched_items[1])
 
