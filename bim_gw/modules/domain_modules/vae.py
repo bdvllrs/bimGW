@@ -1,10 +1,9 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
@@ -39,13 +38,11 @@ class VAE(DomainModule):
         self.vae_type = vae_type
         self.n_fid_samples = n_fid_samples
 
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            None
-        ]
-        self.losses = [
-            F.mse_loss
-        ]
+        self.output_dims = {"z_img": self.z_size}
+        self.decoder_activation_fn = {"z_img": None}
+        self.losses = {
+            "z_img": F.mse_loss,
+        }
 
         # val sampling
         self.register_buffer(
@@ -90,18 +87,14 @@ class VAE(DomainModule):
         var_z = self.q_logvar(out)
         return mean_z, var_z
 
-    def encode(self, visual_domain: DomainItems):
-        mean_z, _ = self.encode_stats(visual_domain.img)
-        return DomainItems(
-            visual_domain.available_masks,
-            img=mean_z,
-        )
+    def encode(self, visual_domain: Dict[str, torch.Tensor]):
+        mean_z, _ = self.encode_stats(visual_domain['img'])
+        return {"z_img": mean_z}
 
-    def decode(self, visual_latents: DomainItems):
-        return DomainItems(
-            visual_latents.available_masks,
-            img=self.decoder(visual_latents.img),
-        )
+    def decode(self, visual_latents: Dict[str, torch.Tensor]):
+        return {
+            "img": self.decoder(visual_latents['img'])
+        }
 
     def forward(
         self,

@@ -1,10 +1,11 @@
+from typing import Any, Dict
+
 import numpy as np
 import torch
 import torchmetrics
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
@@ -148,24 +149,23 @@ class SimpleShapesText(DomainModule):
 
         self.domain_examples = domain_examples
 
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            SymLog(),
-        ]
+        self.output_dims = {
+            "z": self.z_size
+        }
+        self.decoder_activation_fn = {
+            "z": SymLog(),
+        }
 
-        self.losses = [
-            F.mse_loss
-        ]
+        self.losses = {
+            "z": F.mse_loss
+        }
 
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
 
-    def encode(self, text_item: DomainItems) -> DomainItems:
-        z, _ = self.encode_stats(text_item.bert)
-        return DomainItems(
-            text_item.available_masks,
-            z=z
-        )
+    def encode(self, text_item: Dict[str, Any]):
+        z, _ = self.encode_stats(text_item['bert'])
+        return {"z": z}
 
     def get_sentence_predictions(self, z, predictions):
         grammar_prediction = self.get_grammar_prediction(z)
@@ -195,8 +195,8 @@ class SimpleShapesText(DomainModule):
             final_choices.append(choice)
         return sentence_predictions, final_choices
 
-    def decode(self, domain_item: DomainItems) -> DomainItems:
-        z_mean = domain_item.z
+    def decode(self, domain_item: Dict[str, torch.Tensor]):
+        z_mean = domain_item['z']
         text_latent = self.decoder(z_mean)
         predictions = self.classify(z_mean)
         predictions = self.attribute_domain.decode(predictions)
@@ -204,12 +204,11 @@ class SimpleShapesText(DomainModule):
         sentence_predictions, final_choices = self.get_sentence_predictions(
             z_mean, predictions
         )
-        return DomainItems(
-            domain_item.available_masks,
-            bert=text_latent,
-            text=sentence_predictions,
-            choices=final_choices,
-        )
+        return {
+            "bert": text_latent,
+            "text": sentence_predictions,
+            "choices": final_choices,
+        }
 
     def sample(
         self, size, classes=None, min_scale=10, max_scale=25, min_lightness=46,

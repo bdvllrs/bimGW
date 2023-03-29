@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
@@ -28,11 +28,11 @@ class AE(DomainModule):
         self.ae_size = ae_size
         self.z_size = z_size
 
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            None
-        ]
-        self.losses = [F.mse_loss]
+        self.output_dims = {"img": self.z_size}
+        self.decoder_activation_fn = {"img": None}
+        self.losses = {
+            "img": F.mse_loss,
+        }
         # val sampling
         if validation_reconstruction_images is not None:
             self.register_buffer(
@@ -63,11 +63,11 @@ class AE(DomainModule):
             batchnorm=True
         )
 
-    def encode(self, x: torch.Tensor):
-        return self.q_mean(self.encoder(x[0])),
+    def encode(self, x: Dict[str, torch.Tensor]):
+        return {"z_img": self.q_mean(self.encoder(x[0]))}
 
     def decode(self, z: torch.Tensor):
-        return self.decoder(z[0]),
+        return {"img": self.decoder(z["z_img"])}
 
     def forward(
         self,

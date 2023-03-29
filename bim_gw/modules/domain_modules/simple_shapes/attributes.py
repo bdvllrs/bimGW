@@ -1,8 +1,9 @@
+from typing import Dict
+
 import numpy as np
 import torch
 from torch.nn import functional as F
 
-from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules.domain_module import DomainModule
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
@@ -17,51 +18,47 @@ class SimpleShapesAttributes(DomainModule):
         self.z_size = 8
         self.imsize = imsize
 
-        self.output_dims = [
-            self.n_classes,
-            self.z_size,
-        ]
+        self.output_dims = {
+            "z_cls": self.n_classes,
+            "z_attr": self.z_size,
+        }
         self.requires_acc_computation = True
-        self.decoder_activation_fn = [
-            lambda x: torch.log_softmax(x, dim=1),  # shapes
-            torch.tanh,  # rest
-        ]
+        self.decoder_activation_fn = {
+            "z_cls": lambda x: torch.log_softmax(x, dim=1),  # shapes
+            "z_attr": torch.tanh,  # rest
+        }
 
-        self.losses = [
-            lambda x, y: nll_loss(x, y),  # shapes
-            F.mse_loss,  # rest
-        ]
+        self.losses = {
+            "z_cls": lambda x, y: nll_loss(x, y),  # shapes
+            "z_attr": F.mse_loss,  # rest
+        }
 
-    def encode(self, x: DomainItems) -> DomainItems:
-        out_latents = x.attributes.clone()
-        out_latents[:, 0] = out_latents[:, 0] / self.imsize
-        out_latents[:, 1] = out_latents[:, 1] / self.imsize
-        out_latents[:, 2] = out_latents[:, 2] / self.imsize
+    def encode(self, x: Dict[str, torch.Tensor]):
+        out_latents = torch.empty_like(x['attributes'])
+        out_latents[:, 0] = x['attributes'][:, 0] / self.imsize
+        out_latents[:, 1] = x['attributes'][:, 1] / self.imsize
+        out_latents[:, 2] = x['attributes'][:, 2] / self.imsize
         out_latents = out_latents * 2 - 1
-        return DomainItems(
-            x.available_masks,
-            cls=F.one_hot(x.cls, self.n_classes).type_as(x.attributes),
-            attributes=out_latents,
-        )
+        return {
+            "z_cls": F.one_hot(x['cls'], self.n_classes).type_as(out_latents),
+            "z_attr": out_latents,
+        }
 
-    def decode(self, x: DomainItems) -> DomainItems:
-        out_latents = x.attributes.clone()
-        out_latents = (out_latents + 1) / 2
-        out_latents[:, 0] = out_latents[:, 0] * self.imsize
-        out_latents[:, 1] = out_latents[:, 1] * self.imsize
-        out_latents[:, 2] = out_latents[:, 2] * self.imsize
-        return DomainItems(
-            x.available_masks,
-            cls=torch.argmax(x.cls, dim=-1),
-            attributes=out_latents,
-        )
+    def decode(self, x: Dict[str, torch.Tensor]):
+        out_latents = torch.empty_like(x['z_attr'])
+        out_latents[:, 0] = (x['z_attr'][:, 0] + 1) / 2 * self.imsize
+        out_latents[:, 1] = (x['z_attr'][:, 1] + 1) / 2 * self.imsize
+        out_latents[:, 2] = (x['z_attr'][:, 2] + 1) / 2 * self.imsize
+        return {
+            "cls": torch.argmax(x['z_cls'], dim=-1),
+            "attributes": out_latents,
+        }
 
-    def adapt(self, x: DomainItems) -> DomainItems:
-        return DomainItems(
-            x.available_masks,
-            cls=x.cls.exp(),
-            attributes=x.attributes,
-        )
+    def adapt(self, x: Dict[str, torch.Tensor]):
+        return {
+            "z_cls": x['z_cls'].exp(),
+            "z_attr": x['z_attr'],
+        }
 
     def compute_acc(self, acc_metric, predictions, targets):
         return acc_metric(predictions[0], targets[0].to(torch.int16))
