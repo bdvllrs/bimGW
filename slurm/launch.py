@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
 
-from auto_sbatch import ExperimentHandler, SBatch
-from auto_sbatch.grid_search import GridSearch
-from auto_sbatch.sbatch import get_grid_combinations
+from auto_sbatch import ExperimentHandler, GridSearch, SBatch
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
@@ -25,7 +23,8 @@ def grid_search_exclusion_from_past_search(dotlist):
 
     args = OmegaConf.from_dotlist(dotlist)
     grid_search_params = [x.split("=")[0] for x in dotlist]
-    n, past_search = get_grid_combinations(args, grid_search_params)
+    grid_search = GridSearch(grid_search_params)
+    n, past_search = grid_search.get_combinations(args)
     return [walk_omegaconf(past_search, k) for k in range(n)]
 
 
@@ -49,6 +48,7 @@ def main(args, cli_args):
     )
 
     extra_args = cli_args
+    grid_search = None
     # Add all grid search parameters as parameters to auto_sbatch
     if args.slurm.grid_search is not None:
         extra_args = OmegaConf.unsafe_merge(
@@ -59,9 +59,9 @@ def main(args, cli_args):
             extra_args,
         )
 
-    grid_search = GridSearch(
-        args.slurm.grid_search, args.slurm.grid_search_exclude
-    )
+        grid_search = GridSearch(
+            args.slurm.grid_search, args.slurm.grid_search_exclude
+        )
 
     sbatch = SBatch(
         args.slurm.slurm, extra_args,

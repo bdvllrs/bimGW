@@ -5,7 +5,7 @@ from auto_sbatch import SlurmScriptParser
 from omegaconf import OmegaConf
 
 from bim_gw.utils import get_args
-from slurm.launch import grid_search_exclusion_from_past_search, main
+from slurm.launch import grid_search_exclusion_from_past_search, main as launch
 
 tests_folder = Path(__file__).absolute().parent.parent
 
@@ -49,12 +49,12 @@ def test_launch(p_open_mock, subprocess_mock, capsys):
             f"slurm.command='{slurm_command}'",
         ]
     )
-    main(args, cli_args)
+    launch(args, cli_args)
 
     captured_out = capsys.readouterr().out.strip("\n")
     slurm_script = SlurmScriptParser(captured_out, slurm_command)
     slurm_script.parse()
-    assert slurm_script.run_script == "train.py"
+    assert slurm_script.script_name == "scripts/train.py"
     assert "slurm" in slurm_script.params.keys()
     assert "script" in slurm_script.params.slurm.keys()
 
@@ -82,12 +82,12 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
             "slurm.grid_search=['seed']"
         ]
     )
-    main(args, cli_args)
+    launch(args, cli_args)
 
     captured_out = capsys.readouterr().out.strip("\n")
     slurm_script = SlurmScriptParser(captured_out, slurm_command)
     slurm_script.parse()
-    assert slurm_script.run_script == "train.py"
+    assert slurm_script.script_name == "scripts/train.py"
     assert "slurm" in slurm_script.params.keys()
     assert "script" in slurm_script.params.slurm.keys()
     assert "seed" in slurm_script.params.keys()
