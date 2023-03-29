@@ -139,7 +139,8 @@ def get_args(
             "future, use `losses.coefs.translation` instead."
         )
         args.losses.coefs.translation = args.losses.coefs.supervision
-    if ("attr" not in args.domain_loader
+    if (
+            "attr" not in args.domain_loader
             or "use_unpaired" not in args.domain_loader.attr
     ):
 

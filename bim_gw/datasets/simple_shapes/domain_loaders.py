@@ -143,7 +143,7 @@ class TextLoader(DomainLoader):
             root_path, split, ids, labels, transforms, **kwargs
         )
 
-        if 'bert_latentes' not in self.domain_loader_args:
+        if 'bert_latents' not in self.domain_loader_args:
             raise ValueError('bert_latents must be specified for text loader')
         if 'pca_dim' not in self.domain_loader_args:
             raise ValueError('pca_dim must be specified for text loader')
