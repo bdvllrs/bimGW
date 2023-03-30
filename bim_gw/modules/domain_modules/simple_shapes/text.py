@@ -256,7 +256,7 @@ class SimpleShapesText(DomainModule):
 
         if logger is not None and hasattr(logger, "log_table"):
             sentences, choices = self.get_sentence_predictions(
-                z[0], predictions
+                z["z"], predictions
             )
             text = [[sentence] for sentence in sentences]
             logger.log_table(

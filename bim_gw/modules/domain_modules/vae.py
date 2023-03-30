@@ -104,7 +104,7 @@ class VAE(DomainModule):
 
     def decode(self, visual_latents: Dict[str, torch.Tensor]):
         return {
-            "img": self.decoder(visual_latents['img'])
+            "img": self.decoder(visual_latents["z_img"])
         }
 
     def forward(
