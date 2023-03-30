@@ -1,7 +1,7 @@
-from typing import Dict
-
 import torch
 from torch import nn
+
+from bim_gw.modules.domain_modules.domain_module import DomainSpecs
 
 
 def get_n_layers(n_layers, hidden_size):
@@ -18,9 +18,9 @@ def get_n_layers(n_layers, hidden_size):
 
 class DomainDecoder(torch.nn.Module):
     def __init__(
-        self, in_dim, hidden_size, n_layers, n_layers_head,
-        out_dims: Dict[str, int],
-        activation_fn=None
+        self,
+        domain_specs: DomainSpecs,
+        in_dim, hidden_size, n_layers, n_layers_head,
     ):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
@@ -28,7 +28,9 @@ class DomainDecoder(torch.nn.Module):
         self.n_layers = n_layers
         self.n_layers_head = n_layers_head
 
-        self.item_keys_order = list(out_dims.keys())
+        self.item_keys_order = domain_specs.latent_keys
+        out_dims = domain_specs.output_dims
+        activation_fn = domain_specs.decoder_activation_fn
 
         if activation_fn is None:
             activation_fn = {
@@ -75,14 +77,17 @@ class DomainDecoder(torch.nn.Module):
 
 
 class DomainEncoder(nn.Module):
-    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
+    def __init__(
+        self, domain_specs: DomainSpecs,
+        hidden_size, out_dim, n_layers
+    ):
         super(DomainEncoder, self).__init__()
-        self.in_dims = in_dims
+        self.in_dims = domain_specs.output_dims
         self.out_dim = out_dim
         self.hidden_size = hidden_size
         self.n_layers = n_layers
 
-        self.item_keys_order = list(in_dims.keys())
+        self.item_keys_order = domain_specs.latent_keys
 
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims.values()), self.hidden_size),

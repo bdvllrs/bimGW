@@ -127,12 +127,12 @@ class SimpleShapesAttributes(DomainModule):
             print(labels)
             print(text)
 
-    def loss(self, predictions, targets):
-        loss, losses = super().loss(predictions, targets)
-        # if self.use_unpaired:
-        #     # Add unpaired loss label
-        #     # Do not add it to loss, as it is already counted. Only for
-        #     logging.
-        #     losses["unpaired"] = F.mse_loss(predictions[1][:, -1],
-        #     targets[1][:, -1])
-        return loss, losses
+    # def loss(self, predictions, targets):
+    #     loss, losses = super().loss(predictions, targets)
+    #     # if self.use_unpaired:
+    #     #     # Add unpaired loss label
+    #     #     # Do not add it to loss, as it is already counted. Only for
+    #     #     logging.
+    #     #     losses["unpaired"] = F.mse_loss(predictions[1][:, -1],
+    #     #     targets[1][:, -1])
+    #     return loss, losses

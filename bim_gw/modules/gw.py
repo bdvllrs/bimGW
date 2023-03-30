@@ -94,15 +94,15 @@ class GlobalWorkspace(LightningModule):
             encoder_class = mod.domain_specs.workspace_encoder_cls
             decoder_class = mod.domain_specs.workspace_decoder_cls
             encoders[item] = encoder_class(
-                mod.domain_specs.output_dims,
+                mod.domain_specs,
                 self.hidden_size['encoder'][item],
                 self.z_size, self.n_layers_encoder[item]
             )
             decoders[item] = decoder_class(
+                mod.domain_specs,
                 self.z_size, self.hidden_size['decoder'][item],
-                self.n_layers_decoder[item], self.n_layers_decoder_head[item],
-                mod.domain_specs.output_dims,
-                mod.domain_specs.decoder_activation_fn
+                self.n_layers_decoder[item],
+                self.n_layers_decoder_head[item],
             )
         self.encoders = nn.ModuleDict(encoders)
         self.decoders = nn.ModuleDict(decoders)
@@ -299,8 +299,10 @@ class GlobalWorkspace(LightningModule):
             if "-" in domain_name:
                 loss_domain = domain_name.split("-")[0]
             prediction, target = predictions[domain_name], targets[domain_name]
-            domain_total, domain_indiv_losses = self.domain_mods[
-                loss_domain].loss(prediction, target)
+            (domain_total,
+             domain_indiv_losses) = self.domain_mods[loss_domain].loss(
+                prediction, target
+            )
             indiv_losses.update(
                 {f"{prefix}/domain_{domain_name}_{k}": v for k, v in
                  domain_indiv_losses.items()}
