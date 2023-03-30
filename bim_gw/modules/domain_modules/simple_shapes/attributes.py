@@ -37,7 +37,7 @@ class SimpleShapesAttributes(DomainModule):
                 requires_acc_computation=True
             )
         )
-        self.save_hyperparameters()
+        self.save_hyperparameters("imsize")
 
     def encode(self, x: Dict[str, torch.Tensor]):
         out_latents = x['attr'].clone()

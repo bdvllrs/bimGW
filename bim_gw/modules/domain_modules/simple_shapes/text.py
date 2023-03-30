@@ -306,10 +306,10 @@ class SimpleShapesText(DomainModule):
         return kl
 
     def step(self, batch, batch_idx, mode="train"):
-        sentences, targets = batch["t"][1:], batch["attr"][1:]
-        bs = sentences[0].size(0)
-        targets = self.attribute_domain.encode(targets)
-        x = sentences[0]
+        domain, targets = batch["t"], batch["attr"]
+        bs = domain["bert"].size(0)
+        targets = self.attribute_domain.encode(targets.sub_parts)
+        x = domain["bert"]
         z_mean, z_logvar = self.encode_stats(x)
         z = reparameterize(z_mean, z_logvar)
         x_reconstructed = self.decoder(z)
@@ -337,7 +337,7 @@ class SimpleShapesText(DomainModule):
 
         predictions, attribute_losses, attribute_prediction_loss = (
             self.train_attribute_predictions(
-                z_predictions, sentences, targets, mode=mode
+                z_predictions, domain, targets, mode=mode
             )
         )
         total_loss = (
@@ -345,23 +345,23 @@ class SimpleShapesText(DomainModule):
                 + self.coef_attr_loss * attribute_prediction_loss
         )
 
-        self.log(f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"))
+        self.log(
+            f"{mode}/total_loss", total_loss, on_epoch=(mode != "train"),
+            batch_size=bs
+        )
         return total_loss
 
-    def train_attribute_predictions(self, x, sentences, targets, mode="train"):
-        bs = sentences[0].size(0)
+    def train_attribute_predictions(self, x, domain, targets, mode="train"):
+        bs = domain["bert"].size(0)
         predictions = self.classify(x)
-        losses = []
+        losses = {}
         total_loss = 0
-        for k, (group_pred, loss, target) in enumerate(
-                zip(
-                    predictions,
-                    self.attribute_domain.domain_specs.losses, targets
-                )
+        for k, (key, pred) in enumerate(
+                predictions.items()
         ):
-            group_loss = loss(group_pred, target)
-            predictions.append(group_pred)
-            losses.append(group_loss)
+            loss = self.attribute_domain.domain_specs.losses[key]
+            group_loss = loss(pred, targets[key])
+            losses[key] = group_loss
             total_loss += group_loss
 
             self.log(
@@ -373,23 +373,27 @@ class SimpleShapesText(DomainModule):
         for name, classifier in self.grammar_classifiers.items():
             grammar_prediction = classifier(x.detach())
             loss_grammar = F.cross_entropy(
-                grammar_prediction, sentences[2][name]
+                grammar_prediction, domain["choices"][name]
             )
             total_loss += grammar_coef * loss_grammar
             acc_fn = self.grammar_train_acc[name] if mode == "train" else \
                 self.grammar_val_acc[name]
-            res = acc_fn(grammar_prediction.softmax(-1), sentences[2][name])
+            res = acc_fn(
+                grammar_prediction.softmax(-1), domain["choices"][name]
+            )
             self.log(
                 f"{mode}/loss_grammar_{name}", loss_grammar, logger=True,
                 on_epoch=(mode != "train"), batch_size=bs
             )
             self.log(
-                f"{mode}/grammar_{name}_acc", res, on_epoch=(mode != "train")
+                f"{mode}/grammar_{name}_acc", res, on_epoch=(mode != "train"),
+                batch_size=bs
             )
 
         self.log(
             f"{mode}/attribute_grammar_loss", total_loss,
-            on_epoch=(mode != "train")
+            on_epoch=(mode != "train"),
+            batch_size=bs
         )
 
         return predictions, losses, total_loss
@@ -408,21 +412,13 @@ class SimpleShapesText(DomainModule):
 
     def epoch_end(self, mode="val"):
         if self.domain_examples is not None and mode in self.domain_examples:
-            domain_examples = self.domain_examples[mode][
-                0]  # only keep in dist
+            domain_examples = self.domain_examples[mode]["in_dist"]
             for logger in self.loggers:
-                x = domain_examples["t"][1].to(self.device)
-                encoded_s = self.encode(
-                    [
-                        x,
-                        domain_examples["t"][2],
-                        domain_examples["t"][3]
-                    ]
-                )
-                predictions = self.classify(encoded_s[0])
+                encoded_s = self.encode(domain_examples["t"])
+                predictions = self.classify(encoded_s["z"])
                 predictions = self.attribute_domain.decode(predictions)
                 sentences, choices = self.get_sentence_predictions(
-                    encoded_s[0], predictions
+                    encoded_s["z"], predictions
                 )
 
                 text = [[sentence] for sentence in sentences]
@@ -441,14 +437,18 @@ class SimpleShapesText(DomainModule):
                     with log_if_save_last_images(logger):
                         with log_if_save_last_tables(logger):
                             self.attribute_domain.log_domain(
-                                logger, domain_examples["attr"][1:],
+                                logger, domain_examples["attr"].sub_parts,
                                 f"{mode}/target_reconstruction"
                             )
                             if hasattr(logger, "log_table"):
                                 logger.log_table(
                                     f"{mode}/target_text", columns=["Text"],
-                                    data=[[domain_examples['t'][2][k]] for k in
-                                          range(len(domain_examples['t'][2]))]
+                                    data=[
+                                        [domain_examples['t']["text"][k]]
+                                        for k in range(
+                                            len(domain_examples['t']["text"])
+                                        )
+                                    ]
                                 )
 
     def validation_epoch_end(self, outputs):
@@ -456,6 +456,12 @@ class SimpleShapesText(DomainModule):
 
     def test_epoch_end(self, outputs):
         self.epoch_end("test")
+
+    def on_fit_start(self) -> None:
+        for dist_examples in self.domain_examples.values():
+            for examples in dist_examples.values():
+                for domain_examples in examples.values():
+                    domain_examples.to_device(self.device)
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
