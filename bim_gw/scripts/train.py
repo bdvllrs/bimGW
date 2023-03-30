@@ -123,7 +123,7 @@ def train_vae(args):
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
-        validation_images = data.domain_examples["val"][0]["v"][1]
+        validation_images = data.domain_examples["val"]["in_dist"]["v"]["img"]
         vae = VAE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
@@ -135,7 +135,8 @@ def train_vae(args):
             args.vae.z_size, args.vae.beta, args.vae.type,
             args.n_validation_examples, args.vae.optim.lr,
             args.vae.optim.weight_decay, args.vae.scheduler.step,
-            args.vae.scheduler.gamma, data.domain_examples["val"][0]["v"][1],
+            args.vae.scheduler.gamma,
+            data.domain_examples["val"]["in_dist"]["v"]["img"],
             args.vae.n_fid_samples
         )
 

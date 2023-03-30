@@ -146,27 +146,33 @@ class VAE(DomainModule):
         return self.decode(samples)
 
     def step(self, batch, mode="train"):
-        x = batch["v"][1]
-        # x[:, 0][x[:, 0] != 0] = 1
-        # x[:, 1][x[:, 1] != 0] = 0
-        # x[:, 2][x[:, 2] != 0] = 0
-
+        x = batch["v"]["img"]
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
 
+        batch_size = x.size(0)
+
         self.log(
             f"{mode}_reconstruction_loss", reconstruction_loss, logger=True,
-            on_epoch=(mode != "train")
+            on_epoch=(mode != "train"),
+            batch_size=batch_size
         )
         self.log(
             f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True,
-            on_epoch=(mode != "train")
+            on_epoch=(mode != "train"),
+            batch_size=batch_size
         )
-        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"))
+        self.log(
+            f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"),
+            batch_size=batch_size
+        )
         if mode == "train":
-            self.log("log_sigma", self.log_sigma, logger=True)
+            self.log(
+                "log_sigma", self.log_sigma,
+                logger=True, batch_size=batch_size
+            )
         return total_loss
 
     def training_step(self, batch, batch_idx):
