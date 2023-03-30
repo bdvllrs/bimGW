@@ -3,7 +3,7 @@ from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
 from bim_gw.modules import GlobalWorkspace
-from bim_gw.modules.domain_modules import AE, VAE
+from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import SimpleShapesText
 from bim_gw.utils.scripts import get_domains, get_trainer
 from bim_gw.utils.utils import get_checkpoint_path, loggers_save_images
@@ -108,43 +108,6 @@ def train_lm(args):
     loggers_save_images(trainer.loggers, True)
     trainer.validate(lm, data, best_checkpoint)
     trainer.test(lm, data, best_checkpoint)
-
-
-def train_ae(args):
-    seed_everything(args.seed)
-
-    data = load_dataset(args, args.vae, selected_domains=["v"])
-
-    data.prepare_data()
-    data.setup(stage="fit")
-
-    if "checkpoint" in args and args.checkpoint is not None:
-        checkpoint_path = get_checkpoint_path(args.checkpoint)
-        validation_images = data.domain_examples["val"][0]["v"][1]
-        ae = AE.load_from_checkpoint(
-            checkpoint_path, strict=False,
-            n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=validation_images,
-        )
-    else:
-        ae = AE(
-            data.img_size, data.num_channels, args.vae.ae_size,
-            args.vae.z_size,
-            args.n_validation_examples,
-            args.vae.optim.lr, args.vae.optim.weight_decay,
-            args.vae.scheduler.step, args.vae.scheduler.gamma,
-            data.domain_examples["val"][0]["v"][1]
-        )
-
-    trainer = get_trainer(
-        "train_ae", args, ae, monitor_loss="val_total_loss",
-        early_stopping_patience=args.vae.early_stopping_patience
-    )
-    trainer.fit(ae, data)
-    best_checkpoint = "best" if not args.fast_dev_run else None
-    loggers_save_images(trainer.loggers, True)
-    trainer.validate(ae, data, best_checkpoint)
-    trainer.test(ae, data, best_checkpoint)
 
 
 def train_vae(args):
