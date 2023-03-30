@@ -58,9 +58,9 @@ class DomainModule(LightningModule):
         losses = dict()
         for k, key in enumerate(self.domain_specs.latent_keys):
             loss_fn = self.domain_specs.losses[key]
-
             loss_val = loss_fn(predictions[key], targets[key]).mean()
             loss += loss_val
+            # use k instead of key to keep the same logging keys
             losses[k] = loss_val
         return loss, losses
 
