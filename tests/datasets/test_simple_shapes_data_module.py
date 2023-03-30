@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from bim_gw.datasets.utils import load_simple_shapes_dataset
+from bim_gw.datasets.utils import (
+    filter_sync_domains,
+    load_simple_shapes_dataset
+)
 from bim_gw.utils import get_args
 
 tests_folder = Path(__file__).absolute().parent.parent
@@ -77,7 +80,12 @@ def test_filter_sync_domains():
     datamodule = get_datamodule(args)
     datamodule.setup(stage="fit")
     allowed_indices = list(range(args.datasets.shapes.n_train_examples))
-    mapping, domain_mapping = datamodule.filter_sync_domains(allowed_indices)
+    mapping, domain_mapping = filter_sync_domains(
+        args.global_workspace.selected_domains,
+        allowed_indices,
+        args.global_workspace.prop_labelled_images,
+        args.global_workspace.prop_available_images,
+    )
     assert mapping is None
     assert domain_mapping is None
 
@@ -85,9 +93,13 @@ def test_filter_sync_domains():
 def test_filter_sync_domains_nonzero_prop_labelled_images():
     args = get_test_args()
     args.global_workspace.prop_labelled_images = 0.1
-    datamodule = get_datamodule(args)
     allowed_indices = list(range(args.datasets.shapes.n_train_examples))
-    mapping, domain_mapping = datamodule.filter_sync_domains(allowed_indices)
+    mapping, domain_mapping = filter_sync_domains(
+        args.global_workspace.selected_domains,
+        allowed_indices,
+        args.global_workspace.prop_labelled_images,
+        args.global_workspace.prop_available_images,
+    )
 
     n_train_examples = len(allowed_indices)
     n_sync_examples = int(
@@ -121,9 +133,13 @@ def test_filter_sync_domains_nonzero_prop_available_images():
     args = get_test_args()
     args.global_workspace.prop_available_images = 0.4
     args.global_workspace.prop_labelled_images = 0.1
-    datamodule = get_datamodule(args)
     allowed_indices = list(range(args.datasets.shapes.n_train_examples))
-    mapping, domain_mapping = datamodule.filter_sync_domains(allowed_indices)
+    mapping, domain_mapping = filter_sync_domains(
+        args.global_workspace.selected_domains,
+        allowed_indices,
+        args.global_workspace.prop_labelled_images,
+        args.global_workspace.prop_available_images,
+    )
 
     n_train_examples = int(
         args.global_workspace.prop_available_images * len(allowed_indices)

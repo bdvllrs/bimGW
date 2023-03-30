@@ -1,8 +1,6 @@
 import torch
 from torch import nn
 
-from bim_gw.modules.domain_modules.domain_module import DomainSpecs
-
 
 def get_n_layers(n_layers, hidden_size):
     layers = []
@@ -19,7 +17,7 @@ def get_n_layers(n_layers, hidden_size):
 class DomainDecoder(torch.nn.Module):
     def __init__(
         self,
-        domain_specs: DomainSpecs,
+        domain_specs,
         in_dim, hidden_size, n_layers, n_layers_head,
     ):
         super(DomainDecoder, self).__init__()
@@ -78,7 +76,7 @@ class DomainDecoder(torch.nn.Module):
 
 class DomainEncoder(nn.Module):
     def __init__(
-        self, domain_specs: DomainSpecs,
+        self, domain_specs,
         hidden_size, out_dim, n_layers
     ):
         super(DomainEncoder, self).__init__()
