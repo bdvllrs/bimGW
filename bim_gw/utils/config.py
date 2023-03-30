@@ -57,11 +57,15 @@ def get_args(
     use_local=True,
     cli=True,
     verbose=True,
-    use_schema=True
+    use_schema=True,
+    schema_config=None
 ):
     load_resolvers_if_needed()
 
-    schema = OmegaConf.structured(BIMConfig)
+    if schema_config is None:
+        schema_config = BIMConfig
+
+    schema = OmegaConf.structured(schema_config)
     # Configurations
     default_args = OmegaConf.create(
         {
@@ -83,7 +87,7 @@ def get_args(
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
-            parse_argv_from_dataclass(BIMConfig)
+            parse_argv_from_dataclass(schema_config)
         )
     elif cli:
         cli_args = OmegaConf.from_cli()
@@ -135,7 +139,8 @@ def get_args(
             "future, use `losses.coefs.translation` instead."
         )
         args.losses.coefs.translation = args.losses.coefs.supervision
-    if ("attr" not in args.domain_loader
+    if (
+            "attr" not in args.domain_loader
             or "use_unpaired" not in args.domain_loader.attr
     ):
 
