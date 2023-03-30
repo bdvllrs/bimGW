@@ -71,14 +71,6 @@ class PassThroughWM(DomainModule):
         super(PassThroughWM, self).__init__(
             domain_specs=workspace_module.domain_specs
         )
-        if (
-                len(workspace_module.domain_specs.input_keys)
-                != len(workspace_module.domain_specs.latent_keys)
-        ):
-            raise ValueError(
-                "Cannot use PassThroughWM with a domain that has different "
-                "number of input and latent keys."
-            )
         self.workspace_module = workspace_module
         self.use_pass_through = True
 
@@ -87,24 +79,12 @@ class PassThroughWM(DomainModule):
 
     def encode(self, x):
         if self.use_pass_through:
-            return {
-                latent_key: x[input_key]
-                for latent_key, input_key in zip(
-                    self.workspace_module.domain_specs.latent_keys,
-                    self.workspace_module.domain_specs.input_keys
-                )
-            }
+            return x
         return self.workspace_module.encode(x)
 
     def decode(self, z):
         if self.use_pass_through:
-            return {
-                input_key: z[latent_key]
-                for latent_key, input_key in zip(
-                    self.workspace_module.domain_specs.latent_keys,
-                    self.workspace_module.domain_specs.input_keys
-                )
-            }
+            return z
         return self.workspace_module.decode(z)
 
     def adapt(self, z):

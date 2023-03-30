@@ -24,9 +24,9 @@ AVAILABLE_DOMAINS = {
 }
 
 domain_item_name_mapping = {
-    "v": {0: "img"},
-    "attr": {0: "cls", 1: "attr"},
-    "t": {0: "bert", 1: "text", 2: "choices"}
+    "v": {0: "z_img"},
+    "attr": {0: "z_cls", 1: "z_attr"},
+    "t": {0: "z"}
 }
 
 
