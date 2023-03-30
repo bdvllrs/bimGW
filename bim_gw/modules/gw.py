@@ -475,14 +475,20 @@ class GlobalWorkspace(LightningModule):
         )
         return total_loss
 
-    def log_domains(self, logger, examples, slug="val", max_examples=None):
-        available_domains, examples = split_domains_available_domains(examples)
+    def log_domains(
+        self, logger, examples: DomainItems, slug="val",
+        max_examples=None
+    ):
         latents = self.encode_uni_modal(examples)
+        latents_sub_parts = {
+            key: latent.sub_parts for key, latent in
+            latents.items()
+        }
 
         for domain_name, latent in latents.items():
             # Demi cycles
             predictions = self.adapt(
-                self.predict(self.project(latents, [domain_name]))
+                self.predict(self.project(latents_sub_parts, [domain_name]))
             )
             self.domain_mods[domain_name].log_domain_from_latent(
                 logger, predictions[domain_name],
@@ -509,15 +515,14 @@ class GlobalWorkspace(LightningModule):
                     )
 
     def log_original_domains(
-        self, logger, examples, slug="val", max_examples=None
+        self, logger, examples: DomainItems, slug="val", max_examples=None
     ):
-        available_domains, examples = split_domains_available_domains(examples)
         if self.current_epoch == 0:
             with log_if_save_last_images(logger):
                 with log_if_save_last_tables(logger):
                     for domain_name, domain_example in examples.items():
                         self.domain_mods[domain_name].log_domain(
-                            logger, domain_example,
+                            logger, domain_example.sub_parts,
                             f"{slug}/original/domain_{domain_name}",
                             max_examples
                         )

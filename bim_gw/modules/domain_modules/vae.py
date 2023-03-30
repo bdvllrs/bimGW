@@ -247,7 +247,7 @@ class VAE(DomainModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
-        log_image(logger, x[0][:max_examples], title, step)
+        log_image(logger, x["img"][:max_examples], title, step)
 
 
 class CEncoderV2(nn.Module):

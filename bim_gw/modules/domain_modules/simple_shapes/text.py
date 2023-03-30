@@ -179,8 +179,8 @@ class SimpleShapesText(DomainModule):
         choices = get_choices_from_structure_category(
             self.text_composer, grammar_prediction
         )
-        cls = predictions[0].detach().cpu().numpy()
-        attributes = predictions[1].detach().cpu().numpy()
+        cls = predictions["cls"].detach().cpu().numpy()
+        attributes = predictions["attr"].detach().cpu().numpy()
         # Text
         rotation_x = attributes[:, 3] * 2 - 1
         rotation_y = attributes[:, 4] * 2 - 1
@@ -249,7 +249,7 @@ class SimpleShapesText(DomainModule):
     def log_domain_from_latent(
         self, logger, z, name, max_examples=None, step=None
     ):
-        predictions = self.attribute_domain.decode(self.classify(z[0]))
+        predictions = self.attribute_domain.decode(self.classify(z["z"]))
         self.attribute_domain.log_domain(
             logger, predictions, name, max_examples, step=step
         )
@@ -270,14 +270,14 @@ class SimpleShapesText(DomainModule):
 
     def classify(self, z):
         prediction = self.attribute_encoder(z)
-        predictions = []
+        predictions = {}
         last_dim = 0
-        for dim, act_fn in zip(
-                self.attribute_domain.domain_specs.output_dims,
-                self.attribute_domain.domain_specs.decoder_activation_fn
-        ):
+        for key in self.attribute_domain.domain_specs.latent_keys:
+            dim = self.attribute_domain.domain_specs.output_dims[key]
+            act_fn = self.attribute_domain.domain_specs.decoder_activation_fn[
+                key]
             pred = act_fn(prediction[:, last_dim:last_dim + dim])
-            predictions.append(pred)
+            predictions[key] = pred
             last_dim += dim
         return predictions
 
