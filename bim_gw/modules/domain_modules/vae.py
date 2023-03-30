@@ -4,7 +4,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.modules.domain_modules.domain_module import (
+    DomainModule,
+    DomainSpecs
+)
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
     log_if_save_last_images, log_if_save_last_tables, log_image
@@ -24,7 +27,17 @@ class VAE(DomainModule):
         n_fid_samples=1000,
     ):
         # configurations
-        super().__init__()
+        super().__init__(
+            DomainSpecs(
+                z_size=z_size,
+                output_dims={"z_img": z_size},
+                decoder_activation_fn={"z_img": None},
+                losses={"z_img": F.mse_loss},
+                input_keys=["img"],
+                latent_keys=["z_img"],
+            )
+        )
+
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
 
         self.image_size = image_size
@@ -33,21 +46,14 @@ class VAE(DomainModule):
                scheduler_step >= 0
         self.channel_num = channel_num
         self.ae_size = ae_size
-        self.z_size = z_size
         self.beta = beta
         self.vae_type = vae_type
         self.n_fid_samples = n_fid_samples
 
-        self.output_dims = {"z_img": self.z_size}
-        self.decoder_activation_fn = {"z_img": None}
-        self.losses = {
-            "z_img": F.mse_loss,
-        }
-
         # val sampling
         self.register_buffer(
             "validation_sampling_z",
-            torch.randn(n_validation_examples, self.z_size)
+            torch.randn(n_validation_examples, self.domain_specs.z_size)
         )
 
         if validation_reconstruction_images is not None:
@@ -71,11 +77,16 @@ class VAE(DomainModule):
             channel_num, image_size, ae_size=ae_size, batchnorm=True
         )
 
-        self.q_mean = nn.Linear(self.encoder.out_size, self.z_size)
-        self.q_logvar = nn.Linear(self.encoder.out_size, self.z_size)
+        self.q_mean = nn.Linear(
+            self.encoder.out_size, self.domain_specs.z_size
+        )
+        self.q_logvar = nn.Linear(
+            self.encoder.out_size, self.domain_specs.z_size
+        )
 
         self.decoder = CDecoderV2(
-            channel_num, image_size, ae_size=ae_size, z_size=self.z_size,
+            channel_num, image_size, ae_size=ae_size,
+            z_size=self.domain_specs.z_size,
             batchnorm=True
         )
 
@@ -128,7 +139,7 @@ class VAE(DomainModule):
         return kl
 
     def sample(self, size: int) -> torch.Tensor:
-        z = torch.randn(size, self.z_size).to(self.device)
+        z = torch.randn(size, self.domain_specs.z_size).to(self.device)
         return self.decoder(z)
 
     def generate(self, samples):
@@ -193,7 +204,8 @@ class VAE(DomainModule):
                 # fid, mse = compute_FID(
                 #     self.trainer.datamodule.inception_stats_path_train,
                 #     self.trainer.datamodule.val_dataloader()[0],
-                #     self, self.z_size, [self.image_size, self.image_size],
+                #     self, self.domain_specs.z_size, [self.image_size,
+                #     self.image_size],
                 #     self.device, self.n_FID_samples
                 # )
                 # self.log(f"{mode}_fid", fid)

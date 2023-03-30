@@ -16,7 +16,7 @@ class DomainItems(Collection):
     @staticmethod
     def singular(is_available=True, **sub_parts):
         return DomainItems(
-            torch.tensor(is_available).float(),
+            torch.tensor(is_available),
             **sub_parts,
         )
 

@@ -7,7 +7,8 @@ import torchmetrics
 from pytorch_lightning import LightningModule
 from torch import nn
 
-from bim_gw.modules.domain_modules import PassThroughWM
+from bim_gw.datasets.domain import DomainItems
+from bim_gw.modules.domain_modules import DomainModule, PassThroughWM
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
@@ -29,7 +30,8 @@ def split_domains_available_domains(domains):
 
 class GlobalWorkspace(LightningModule):
     def __init__(
-        self, domain_mods, z_size, hidden_size, n_layers_encoder,
+        self, domain_mods: Dict[str, DomainModule], z_size, hidden_size,
+        n_layers_encoder,
         n_layers_decoder, n_layers_decoder_head,
         n_classes=1000,
         loss_coef_demi_cycles=1., loss_coef_cycles=1.,
@@ -89,16 +91,18 @@ class GlobalWorkspace(LightningModule):
         encoders = {}
         decoders = {}
         for item, mod in domain_mods.items():
-            encoder_class = mod.workspace_encoder_cls
-            decoder_class = mod.workspace_decoder_cls
+            encoder_class = mod.domain_specs.workspace_encoder_cls
+            decoder_class = mod.domain_specs.workspace_decoder_cls
             encoders[item] = encoder_class(
-                mod.output_dims, self.hidden_size['encoder'][item],
+                mod.domain_specs.output_dims,
+                self.hidden_size['encoder'][item],
                 self.z_size, self.n_layers_encoder[item]
             )
             decoders[item] = decoder_class(
                 self.z_size, self.hidden_size['decoder'][item],
                 self.n_layers_decoder[item], self.n_layers_decoder_head[item],
-                mod.output_dims, mod.decoder_activation_fn
+                mod.domain_specs.output_dims,
+                mod.domain_specs.decoder_activation_fn
             )
         self.encoders = nn.ModuleDict(encoders)
         self.decoders = nn.ModuleDict(decoders)
@@ -106,8 +110,8 @@ class GlobalWorkspace(LightningModule):
         # Define losses
         self.loss_fn = {}
         for domain_name, domain in self.domain_mods.items():
-            for k in range(len(domain.losses)):
-                self.loss_fn[f"{domain_name}_{k}"] = domain.losses[k]
+            for k in range(len(domain.domain_specs.losses)):
+                self.loss_fn[domain_name] = domain.domain_specs.losses
 
         # Accuracies
         train_accuracy_metrics = []
@@ -115,7 +119,7 @@ class GlobalWorkspace(LightningModule):
         val_ood_accuracy_metrics = []
         self.accuracy_metrics_order = []
         for domain_name, mod in self.domain_mods.items():
-            if mod.requires_acc_computation:
+            if mod.domain_specs.requires_acc_computation:
                 for domain_name_start, mod_start in self.domain_mods.items():
                     if domain_name_start != domain_name:
                         train_accuracy_metrics.append(torchmetrics.Accuracy())
@@ -191,13 +195,18 @@ class GlobalWorkspace(LightningModule):
             for domain_name in self.domain_names
         }
 
-    def encode_uni_modal(self, domains):
+    def encode_uni_modal(self, domains: Dict[str, DomainItems]):
         """
         Encodes unimodal inputs to their unimodal latent version
         """
         out = dict()
         for domain_name, x in domains.items():
-            out[domain_name] = self.domain_mods[domain_name].encode(x)
+            out[domain_name] = DomainItems(
+                x.available_masks,
+                **self.domain_mods[domain_name].encode(
+                    x.sub_parts
+                )
+            )
         return out
 
     def decode_uni_modal(self, domains):
@@ -303,7 +312,10 @@ class GlobalWorkspace(LightningModule):
             return indiv_losses
         return {prefix: torch.tensor(0.).to(self.device)}
 
-    def step(self, latents, mode="val", prefix=""):
+    def step(
+        self, latents: Dict[str, DomainItems], mode: str = "val",
+        prefix: str = ""
+    ):
         latent_demi_cycle_predictions = {}
         latent_demi_cycle_target = {}
         latent_cycle_predictions = {}
@@ -314,20 +326,24 @@ class GlobalWorkspace(LightningModule):
         latent_translation_target_2 = {}
         states = {}
 
+        latents_sub_parts = {
+            domain_name: latent.sub_parts
+            for domain_name, latent in latents.items()
+        }
         for domain_name, latent in latents.items():
-            available_items = latent.available_masks[domain_name]
+            available_items = latent.available_masks
             if available_items.any():
                 # Demi-cycles
-                state = self.project(latents, [domain_name])
+                state = self.project(latents_sub_parts, [domain_name])
                 predictions = self.predict(state)
-                latent_demi_cycle_predictions[f"{domain_name}-u"] = [
-                    predictions[domain_name][k][available_items, :]
-                    for k in range(len(predictions[domain_name]))
-                ]
-                latent_demi_cycle_target[f"{domain_name}-u"] = [
-                    latent[k][available_items, :]
-                    for k in range(len(latent))
-                ]
+                latent_demi_cycle_predictions[f"{domain_name}-u"] = {
+                    k: predictions[domain_name][k][available_items]
+                    for k in predictions[domain_name].keys()
+                }
+                latent_demi_cycle_target[f"{domain_name}-u"] = {
+                    k: latent[k][available_items]
+                    for k in latent.keys()
+                }
                 for domain_name_target, latent_target in latents.items():
                     if domain_name_target != domain_name:
                         # Cycles
@@ -338,19 +354,19 @@ class GlobalWorkspace(LightningModule):
                             cycle_state, domain_name
                         )
                         latent_cycle_predictions[
-                            f"{domain_name}-{domain_name_target}"] = [
-                            cycle_prediction[k][available_items, :]
-                            for k in range(len(cycle_prediction))
-                        ]
+                            f"{domain_name}-{domain_name_target}"] = {
+                            k: cycle_prediction[k][available_items]
+                            for k in cycle_prediction.keys()
+                        }
                         latent_cycle_target[
-                            f"{domain_name}-{domain_name_target}"] = [
-                            latent[k][available_items, :] for k
-                            in range(len(latent))
-                        ]
+                            f"{domain_name}-{domain_name_target}"] = {
+                            k: latent[k][available_items]
+                            for k in latent.keys()
+                        }
                         # Translation
                         mask = torch.logical_and(
                             available_items,
-                            latent.available_masks[domain_name_target]
+                            latents[domain_name_target].available_masks
                         )
                         if not mask.any():
                             continue
@@ -367,18 +383,14 @@ class GlobalWorkspace(LightningModule):
                             pred = latent_translation_predictions_2
                             target = latent_translation_target_2
 
-                        pred[f"{domain_name_target}-{domain_name}"] = [
-                            predictions[domain_name_target][k][mask, :]
-                            for k in range(
-                                len(
-                                    predictions[domain_name_target]
-                                )
-                            )
-                        ]
-                        target[f"{domain_name_target}-{domain_name}"] = [
-                            latent_target[k][mask, :] for k in
-                            range(len(latent_target))
-                        ]
+                        pred[f"{domain_name_target}-{domain_name}"] = {
+                            k: predictions[domain_name_target][k][mask]
+                            for k in predictions[domain_name_target].keys()
+                        }
+                        target[f"{domain_name_target}-{domain_name}"] = {
+                            k: latent_target[k][mask]
+                            for k in latent_target.keys()
+                        }
 
         demi_cycle_losses = self.loss(
             latent_demi_cycle_predictions, latent_demi_cycle_target,

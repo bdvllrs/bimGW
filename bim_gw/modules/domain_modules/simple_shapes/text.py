@@ -6,7 +6,10 @@ import torchmetrics
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.modules.domain_modules.domain_module import (
+    DomainModule,
+    DomainSpecs
+)
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import (
@@ -65,12 +68,21 @@ class SimpleShapesText(DomainModule):
         coef_vae_loss=1
     ):
 
-        super(SimpleShapesText, self).__init__()
+        super(SimpleShapesText, self).__init__(
+            DomainSpecs(
+                z_size=z_size,
+                output_dims={"z": z_size},
+                decoder_activation_fn={"z": SymLog()},
+                losses={"z": F.mse_loss},
+                input_keys=["bert", "text", "choices"],
+                latent_keys=["z"],
+            )
+        )
+
         self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
         self.bert_size = 768
         self.hidden_size = hidden_size
-        self.z_size = z_size
         self.imsize = imsize
         self.bert_path = bert_path
         self.train_vae = train_vae
@@ -94,12 +106,12 @@ class SimpleShapesText(DomainModule):
             nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.z_size * 2),
+            nn.Linear(self.bert_size // 2, self.domain_specs.z_size * 2),
             SymLog(),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(self.z_size, self.bert_size // 2),
+            nn.Linear(self.domain_specs.z_size, self.bert_size // 2),
             nn.ReLU(),
             nn.Linear(self.bert_size // 2, self.bert_size),
             nn.ReLU(),
@@ -115,16 +127,22 @@ class SimpleShapesText(DomainModule):
             self.decoder.eval()
 
         self.attribute_encoder = nn.Sequential(
-            nn.Linear(self.z_size, self.z_size),
+            nn.Linear(self.domain_specs.z_size, self.domain_specs.z_size),
             nn.ReLU(),
-            nn.Linear(self.z_size, sum(self.attribute_domain.output_dims))
+            nn.Linear(
+                self.domain_specs.z_size, sum(
+                    self.attribute_domain.domain_specs.output_dims.values()
+                )
+            )
         )
         self.grammar_classifiers = nn.ModuleDict(
             {
                 name: nn.Sequential(
-                    nn.Linear(self.z_size, self.z_size),
+                    nn.Linear(
+                        self.domain_specs.z_size, self.domain_specs.z_size
+                    ),
                     nn.ReLU(),
-                    nn.Linear(self.z_size, n_outputs)
+                    nn.Linear(self.domain_specs.z_size, n_outputs)
                 )
                 for name, n_outputs in self.composer_inspection.items()
             }
@@ -148,17 +166,6 @@ class SimpleShapesText(DomainModule):
         )
 
         self.domain_examples = domain_examples
-
-        self.output_dims = {
-            "z": self.z_size
-        }
-        self.decoder_activation_fn = {
-            "z": SymLog(),
-        }
-
-        self.losses = {
-            "z": F.mse_loss
-        }
 
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
@@ -266,8 +273,8 @@ class SimpleShapesText(DomainModule):
         predictions = []
         last_dim = 0
         for dim, act_fn in zip(
-                self.attribute_domain.output_dims,
-                self.attribute_domain.decoder_activation_fn
+                self.attribute_domain.domain_specs.output_dims,
+                self.attribute_domain.domain_specs.decoder_activation_fn
         ):
             pred = act_fn(prediction[:, last_dim:last_dim + dim])
             predictions.append(pred)
@@ -284,7 +291,7 @@ class SimpleShapesText(DomainModule):
 
     def encode_stats(self, text_latent):
         z = self.encoder(text_latent)
-        return z[:, :self.z_size], z[:, self.z_size:]
+        return z[:, :self.domain_specs.z_size], z[:, self.domain_specs.z_size:]
 
     def reconstruction_loss(
         self, x_reconstructed: torch.Tensor, x: torch.Tensor
@@ -349,7 +356,7 @@ class SimpleShapesText(DomainModule):
         for k, (group_pred, loss, target) in enumerate(
                 zip(
                     predictions,
-                    self.attribute_domain.losses, targets
+                    self.attribute_domain.domain_specs.losses, targets
                 )
         ):
             group_loss = loss(group_pred, target)

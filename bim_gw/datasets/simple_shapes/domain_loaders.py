@@ -131,7 +131,7 @@ class AttributesLoader(DomainLoader):
 
         return DomainItems.singular(
             cls=cls,
-            attributes=torch.tensor(attributes, dtype=torch.float),
+            attr=torch.tensor(attributes, dtype=torch.float),
         )
 
 

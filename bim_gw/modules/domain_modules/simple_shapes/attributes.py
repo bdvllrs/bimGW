@@ -4,40 +4,46 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.modules.domain_modules.domain_module import (
+    DomainModule,
+    DomainSpecs
+)
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
 
 class SimpleShapesAttributes(DomainModule):
     def __init__(self, imsize):
-        super(SimpleShapesAttributes, self).__init__()
+        self.n_classes = 3
+        self.imsize = imsize
+        z_size = 8
+
+        super(SimpleShapesAttributes, self).__init__(
+            DomainSpecs(
+                z_size=z_size,
+                output_dims={
+                    "z_cls": self.n_classes, "z_attr": z_size
+                },
+                decoder_activation_fn={
+                    "z_cls": lambda x: torch.log_softmax(x, dim=1),  # shapes
+                    "z_attr": torch.tanh,  # rest
+                },
+                losses={
+                    "z_cls": lambda x, y: nll_loss(x, y),  # shapes
+                    "z_attr": F.mse_loss,  # rest
+                },
+                input_keys=["cls", "attr"],
+                latent_keys=["z_cls", "z_attr"],
+                requires_acc_computation=True
+            )
+        )
         self.save_hyperparameters()
 
-        self.n_classes = 3
-        self.z_size = 8
-        self.imsize = imsize
-
-        self.output_dims = {
-            "z_cls": self.n_classes,
-            "z_attr": self.z_size,
-        }
-        self.requires_acc_computation = True
-        self.decoder_activation_fn = {
-            "z_cls": lambda x: torch.log_softmax(x, dim=1),  # shapes
-            "z_attr": torch.tanh,  # rest
-        }
-
-        self.losses = {
-            "z_cls": lambda x, y: nll_loss(x, y),  # shapes
-            "z_attr": F.mse_loss,  # rest
-        }
-
     def encode(self, x: Dict[str, torch.Tensor]):
-        out_latents = torch.empty_like(x['attributes'])
-        out_latents[:, 0] = x['attributes'][:, 0] / self.imsize
-        out_latents[:, 1] = x['attributes'][:, 1] / self.imsize
-        out_latents[:, 2] = x['attributes'][:, 2] / self.imsize
+        out_latents = torch.empty_like(x['attr'])
+        out_latents[:, 0] = x['attr'][:, 0] / self.imsize
+        out_latents[:, 1] = x['attr'][:, 1] / self.imsize
+        out_latents[:, 2] = x['attr'][:, 2] / self.imsize
         out_latents = out_latents * 2 - 1
         return {
             "z_cls": F.one_hot(x['cls'], self.n_classes).type_as(out_latents),
@@ -51,7 +57,7 @@ class SimpleShapesAttributes(DomainModule):
         out_latents[:, 2] = (x['z_attr'][:, 2] + 1) / 2 * self.imsize
         return {
             "cls": torch.argmax(x['z_cls'], dim=-1),
-            "attributes": out_latents,
+            "attr": out_latents,
         }
 
     def adapt(self, x: Dict[str, torch.Tensor]):
