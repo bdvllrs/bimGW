@@ -70,7 +70,6 @@ class SimpleShapesText(DomainModule):
 
         super(SimpleShapesText, self).__init__(
             DomainSpecs(
-                z_size=z_size,
                 output_dims={"z": z_size},
                 decoder_activation_fn={"z": SymLog()},
                 losses={"z": F.mse_loss},
@@ -106,12 +105,12 @@ class SimpleShapesText(DomainModule):
             nn.ReLU(),
             nn.Linear(self.bert_size, self.bert_size // 2),
             nn.ReLU(),
-            nn.Linear(self.bert_size // 2, self.domain_specs.z_size * 2),
+            nn.Linear(self.bert_size // 2, self.z_size * 2),
             SymLog(),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(self.domain_specs.z_size, self.bert_size // 2),
+            nn.Linear(self.z_size, self.bert_size // 2),
             nn.ReLU(),
             nn.Linear(self.bert_size // 2, self.bert_size),
             nn.ReLU(),
@@ -127,10 +126,10 @@ class SimpleShapesText(DomainModule):
             self.decoder.eval()
 
         self.attribute_encoder = nn.Sequential(
-            nn.Linear(self.domain_specs.z_size, self.domain_specs.z_size),
+            nn.Linear(self.z_size, self.z_size),
             nn.ReLU(),
             nn.Linear(
-                self.domain_specs.z_size, sum(
+                self.z_size, sum(
                     self.attribute_domain.domain_specs.output_dims.values()
                 )
             )
@@ -139,10 +138,10 @@ class SimpleShapesText(DomainModule):
             {
                 name: nn.Sequential(
                     nn.Linear(
-                        self.domain_specs.z_size, self.domain_specs.z_size
+                        self.z_size, self.z_size
                     ),
                     nn.ReLU(),
-                    nn.Linear(self.domain_specs.z_size, n_outputs)
+                    nn.Linear(self.z_size, n_outputs)
                 )
                 for name, n_outputs in self.composer_inspection.items()
             }
@@ -291,7 +290,7 @@ class SimpleShapesText(DomainModule):
 
     def encode_stats(self, text_latent):
         z = self.encoder(text_latent)
-        return z[:, :self.domain_specs.z_size], z[:, self.domain_specs.z_size:]
+        return z[:, :self.z_size], z[:, self.z_size:]
 
     def reconstruction_loss(
         self, x_reconstructed: torch.Tensor, x: torch.Tensor

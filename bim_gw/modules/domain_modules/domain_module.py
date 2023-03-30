@@ -9,7 +9,6 @@ from bim_gw.modules.workspace_encoders import DomainDecoder, DomainEncoder
 
 @dataclasses.dataclass
 class DomainSpecs:
-    z_size: int
     output_dims: Dict[str, int]
     losses: Dict[str, Any]
     decoder_activation_fn: Dict[str, Any]

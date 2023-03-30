@@ -29,7 +29,6 @@ class VAE(DomainModule):
         # configurations
         super().__init__(
             DomainSpecs(
-                z_size=z_size,
                 output_dims={"z_img": z_size},
                 decoder_activation_fn={"z_img": None},
                 losses={"z_img": F.mse_loss},
@@ -46,6 +45,7 @@ class VAE(DomainModule):
                scheduler_step >= 0
         self.channel_num = channel_num
         self.ae_size = ae_size
+        self.z_size = z_size
         self.beta = beta
         self.vae_type = vae_type
         self.n_fid_samples = n_fid_samples
@@ -53,7 +53,7 @@ class VAE(DomainModule):
         # val sampling
         self.register_buffer(
             "validation_sampling_z",
-            torch.randn(n_validation_examples, self.domain_specs.z_size)
+            torch.randn(n_validation_examples, self.z_size)
         )
 
         if validation_reconstruction_images is not None:
@@ -78,15 +78,15 @@ class VAE(DomainModule):
         )
 
         self.q_mean = nn.Linear(
-            self.encoder.out_size, self.domain_specs.z_size
+            self.encoder.out_size, self.z_size
         )
         self.q_logvar = nn.Linear(
-            self.encoder.out_size, self.domain_specs.z_size
+            self.encoder.out_size, self.z_size
         )
 
         self.decoder = CDecoderV2(
             channel_num, image_size, ae_size=ae_size,
-            z_size=self.domain_specs.z_size,
+            z_size=self.z_size,
             batchnorm=True
         )
 
@@ -139,7 +139,7 @@ class VAE(DomainModule):
         return kl
 
     def sample(self, size: int) -> torch.Tensor:
-        z = torch.randn(size, self.domain_specs.z_size).to(self.device)
+        z = torch.randn(size, self.z_size).to(self.device)
         return self.decoder(z)
 
     def generate(self, samples):
@@ -210,7 +210,7 @@ class VAE(DomainModule):
                 # fid, mse = compute_FID(
                 #     self.trainer.datamodule.inception_stats_path_train,
                 #     self.trainer.datamodule.val_dataloader()[0],
-                #     self, self.domain_specs.z_size, [self.image_size,
+                #     self, self.z_size, [self.image_size,
                 #     self.image_size],
                 #     self.device, self.n_FID_samples
                 # )
