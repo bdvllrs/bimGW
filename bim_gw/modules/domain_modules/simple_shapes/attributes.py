@@ -40,10 +40,10 @@ class SimpleShapesAttributes(DomainModule):
         self.save_hyperparameters()
 
     def encode(self, x: Dict[str, torch.Tensor]):
-        out_latents = torch.empty_like(x['attr'])
-        out_latents[:, 0] = x['attr'][:, 0] / self.imsize
-        out_latents[:, 1] = x['attr'][:, 1] / self.imsize
-        out_latents[:, 2] = x['attr'][:, 2] / self.imsize
+        out_latents = x['attr'].clone()
+        out_latents[:, 0] = out_latents[:, 0] / self.imsize
+        out_latents[:, 1] = out_latents[:, 1] / self.imsize
+        out_latents[:, 2] = out_latents[:, 2] / self.imsize
         out_latents = out_latents * 2 - 1
         return {
             "z_cls": F.one_hot(x['cls'], self.n_classes).type_as(out_latents),
@@ -51,10 +51,11 @@ class SimpleShapesAttributes(DomainModule):
         }
 
     def decode(self, x: Dict[str, torch.Tensor]):
-        out_latents = torch.empty_like(x['z_attr'])
-        out_latents[:, 0] = (x['z_attr'][:, 0] + 1) / 2 * self.imsize
-        out_latents[:, 1] = (x['z_attr'][:, 1] + 1) / 2 * self.imsize
-        out_latents[:, 2] = (x['z_attr'][:, 2] + 1) / 2 * self.imsize
+        out_latents = x['z_attr'].clone()
+        out_latents = (out_latents + 1) / 2
+        out_latents[:, 0] = out_latents[:, 0] * self.imsize
+        out_latents[:, 1] = out_latents[:, 1] * self.imsize
+        out_latents[:, 2] = out_latents[:, 2] * self.imsize
         return {
             "cls": torch.argmax(x['z_cls'], dim=-1),
             "attr": out_latents,
@@ -99,8 +100,8 @@ class SimpleShapesAttributes(DomainModule):
         return labels
 
     def log_domain(self, logger, x, name, max_examples=None, step=None):
-        classes = x[0][:max_examples].detach().cpu().numpy()
-        latents = x[1][:max_examples].detach().cpu().numpy()
+        classes = x["cls"][:max_examples].detach().cpu().numpy()
+        latents = x["attr"][:max_examples].detach().cpu().numpy()
 
         # visualization
         log_shape_fig(

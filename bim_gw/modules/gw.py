@@ -428,7 +428,7 @@ class GlobalWorkspace(LightningModule):
             [losses[loss_name] for loss_name in loss_names], dim=0
         ).sum()
 
-        batch_size = latents[list(latents.keys())[0]][0].size(0)
+        batch_size = latents[list(latents.keys())[0]].available_masks.size(0)
         for name, loss in losses.items():
             loss_name = f"{mode}/{prefix}{name}_loss"
             if mode == "val" and self.trainer.global_step == 0:
