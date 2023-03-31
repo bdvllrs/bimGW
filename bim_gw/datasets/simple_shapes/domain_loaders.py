@@ -110,7 +110,7 @@ class AttributesLoader(DomainLoader):
 
         return DomainItems.singular(
             cls=0,
-            attributes=torch.zeros_like(item.attributes),
+            attr=torch.zeros_like(item.attr),
             is_available=False
         )
 
