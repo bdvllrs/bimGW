@@ -80,6 +80,7 @@ class SimpleShapesText(DomainModule):
         self.save_hyperparameters(ignore=["domain_examples"])
         self.n_classes = n_classes
         self.bert_size = 768
+        self.z_size = z_size
         self.hidden_size = hidden_size
         self.imsize = imsize
         self.bert_path = bert_path
