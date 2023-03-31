@@ -42,7 +42,6 @@ class GlobalWorkspace(LightningModule):
         scheduler_interval: SchedulerInterval = SchedulerInterval.epoch,
         scheduler_step=20, scheduler_gamma=0.5,
         loss_schedules=None,
-        domain_examples: Optional[dict] = None,
         monitor_grad_norms: bool = False,
         remove_sync_domains=None,
         save_only_last_images=False,
@@ -130,7 +129,7 @@ class GlobalWorkspace(LightningModule):
         )
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
-        self.domain_examples = domain_examples
+        self.domain_examples = None
 
         self.rotation_error_val = []
 
@@ -138,12 +137,6 @@ class GlobalWorkspace(LightningModule):
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
         )
         print("Global Workspace instantiated.")
-
-    def on_fit_start(self) -> None:
-        for dist_examples in self.domain_examples.values():
-            for examples in dist_examples.values():
-                for domain_examples in examples.values():
-                    domain_examples.to_device(self.device)
 
     def encode(self, x, domain_name, add_tanh=True):
         pre_act = self.encoders[domain_name](x)
@@ -582,3 +575,17 @@ class GlobalWorkspace(LightningModule):
         return self.domains[domain_end].compute_acc(
             acc_fn, prediction, targets
         )
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self.trainer.datamodule, "domain_examples"):
+            return
+        if stage in ["fit", "validate", "test"]:
+            self.domain_examples = self.trainer.datamodule.domain_examples
+
+    def on_fit_start(self) -> None:
+        if self.domains_examples is None:
+            return
+        for dist_examples in self.domain_examples.values():
+            for examples in dist_examples.values():
+                for domain_examples in examples.values():
+                    domain_examples.to_device(self.device)

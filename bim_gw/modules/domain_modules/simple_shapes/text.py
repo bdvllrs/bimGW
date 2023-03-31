@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -60,7 +60,6 @@ class SimpleShapesText(DomainModule):
         self, z_size, hidden_size, beta, n_classes, imsize, bert_path,
         optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20,
         scheduler_gamma=0.5,
-        domain_examples=None,
         train_vae=True,
         train_attr_decoders=True,
         optimize_vae_with_attr_regression=False,
@@ -164,7 +163,7 @@ class SimpleShapesText(DomainModule):
              self.composer_inspection.keys()}
         )
 
-        self.domain_examples = domain_examples
+        self.domain_examples = None
 
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
@@ -456,7 +455,15 @@ class SimpleShapesText(DomainModule):
     def test_epoch_end(self, outputs):
         self.epoch_end("test")
 
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self.trainer.datamodule, "domain_examples"):
+            return
+        if stage in ["fit", "validate", "test"]:
+            self.domain_examples = self.trainer.datamodule.domain_examples
+
     def on_fit_start(self) -> None:
+        if self.domain_examples is None:
+            return
         for dist_examples in self.domain_examples.values():
             for examples in dist_examples.values():
                 for domain_examples in examples.values():

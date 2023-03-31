@@ -4,10 +4,13 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from bim_gw.datasets.simple_shapes import SimpleShapesDataset
+from bim_gw.datasets.simple_shapes.utils import get_v_preprocess
 from bim_gw.modules.domain_modules.domain_module import (
     DomainModule,
     DomainSpecs
 )
+from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
     log_if_save_last_images, log_if_save_last_tables, log_image
@@ -23,7 +26,6 @@ class VAE(DomainModule):
         n_validation_examples: int = 32,
         optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
         scheduler_step: int = 20, scheduler_gamma: float = 0.5,
-        validation_reconstruction_images: Optional[torch.Tensor] = None,
         n_fid_samples=1000,
     ):
         # configurations
@@ -37,7 +39,7 @@ class VAE(DomainModule):
             )
         )
 
-        self.save_hyperparameters(ignore=["validation_reconstruction_images"])
+        self.save_hyperparameters()
 
         self.image_size = image_size
         assert channel_num in [1, 3]
@@ -56,17 +58,7 @@ class VAE(DomainModule):
             torch.randn(n_validation_examples, self.z_size)
         )
 
-        if validation_reconstruction_images is not None:
-            self.register_buffer(
-                "validation_reconstruction_images",
-                validation_reconstruction_images
-            )
-        else:
-            self.register_buffer(
-                "validation_reconstruction_images",
-                validation_reconstruction_images
-            )
-            self.validation_reconstruction_images = None
+        self.validation_reconstruction_images = None
 
         if self.vae_type == VAEType.sigma:
             self.log_sigma = nn.Parameter(torch.tensor(0.), requires_grad=True)
@@ -89,6 +81,10 @@ class VAE(DomainModule):
             z_size=self.z_size,
             batchnorm=True
         )
+
+        self.inception_stats_path_train = None
+        self.inception_stats_path_val = None
+        self.inception_stats_path_test = None
 
     def encode_stats(self, x: torch.Tensor):
         out = self.encoder(x)
@@ -208,7 +204,7 @@ class VAE(DomainModule):
 
                 # # FID
                 # fid, mse = compute_FID(
-                #     self.trainer.datamodule.inception_stats_path_train,
+                #     self.inception_stats_path_train,
                 #     self.trainer.datamodule.val_dataloader()[0],
                 #     self, self.z_size, [self.image_size,
                 #     self.image_size],
@@ -220,13 +216,13 @@ class VAE(DomainModule):
 
                 #
                 # stat_train = np.load(
-                # self.trainer.datamodule.inception_stats_path_train,
+                # self.inception_stats_path_train,
                 # allow_pickle=True).item()
                 # mu_dataset_train = stat_train['mu']
                 # sigma_dataset_train = stat_train['sigma']
                 #
                 # stat_test = np.load(
-                # self.trainer.datamodule.inception_stats_path_val,
+                # self.inception_stats_path_val,
                 # allow_pickle=True).item()
                 # mu_dataset_test = stat_test['mu']
                 # sigma_dataset_test = stat_test['sigma']
@@ -254,6 +250,60 @@ class VAE(DomainModule):
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
         log_image(logger, x["img"][:max_examples], title, step)
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self.trainer.datamodule, "domain_examples"):
+            return
+        if stage in ["fit", "validate", "test"]:
+            domain_examples = self.trainer.datamodule.domain_examples
+            self.validation_reconstruction_images = domain_examples[
+                "val"]["in_dist"]["v"]["img"]
+
+    def on_fit_start(self) -> None:
+        # self.compute_inception_statistics(32)
+
+        if self.validation_reconstruction_images is None:
+            return
+        self.validation_reconstruction_images.to(self.device)
+
+    def compute_inception_statistics(
+        self, batch_size: int
+    ) -> None:
+        train_ds = SimpleShapesDataset(
+            self.simple_shapes_folder, "train",
+            transform={"v": get_v_preprocess()},
+            selected_domains=["v"],
+            output_transform=lambda d: d["v"][1],
+            domain_loader_params=self.domain_loader_params
+        )
+        val_ds = SimpleShapesDataset(
+            self.simple_shapes_folder, "val",
+            transform={"v": get_v_preprocess()},
+            selected_domains=["v"],
+            output_transform=lambda d: d["v"][1],
+            domain_loader_params=self.domain_loader_params
+        )
+        test_ds = SimpleShapesDataset(
+            self.simple_shapes_folder, "test",
+            transform={"v": get_v_preprocess()},
+            selected_domains=["v"],
+            output_transform=lambda d: d["v"][1],
+            domain_loader_params=self.domain_loader_params
+        )
+        self.inception_stats_path_train = compute_dataset_statistics(
+            train_ds, self.simple_shapes_folder,
+            "shapes_train",
+            batch_size, self.device
+        )
+        self.inception_stats_path_val = compute_dataset_statistics(
+            val_ds, self.simple_shapes_folder, "shapes_val",
+            batch_size, self.device
+        )
+
+        self.inception_stats_path_test = compute_dataset_statistics(
+            test_ds, self.simple_shapes_folder, "shapes_test",
+            batch_size, self.device
+        )
 
 
 class CEncoderV2(nn.Module):

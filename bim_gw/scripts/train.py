@@ -1,4 +1,3 @@
-import torch
 from pytorch_lightning import seed_everything
 
 from bim_gw.datasets import load_dataset
@@ -13,15 +12,13 @@ def train_gw(args, mode="train"):
     seed_everything(args.seed)
 
     data = load_dataset(args, args.global_workspace)
-    data.prepare_data()
-    data.setup(stage="fit")
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
         global_workspace = GlobalWorkspace.load_from_checkpoint(
             checkpoint_path,
             domain_mods=get_domains(args, data.img_size),
-            domain_examples=data.domain_examples, )
+        )
     else:
         global_workspace = GlobalWorkspace(
             get_domains(args, data.img_size), args.global_workspace.z_size,
@@ -38,7 +35,6 @@ def train_gw(args, mode="train"):
             args.global_workspace.scheduler.interval,
             args.global_workspace.scheduler.step,
             args.global_workspace.scheduler.gamma, args.losses.schedules,
-            data.domain_examples,
             args.global_workspace.monitor_grad_norms,
             args.global_workspace.remove_sync_domains
         )
@@ -70,8 +66,6 @@ def train_lm(args):
     data = load_dataset(
         args, args.lm, add_unimodal=False, selected_domains=["attr", "t"]
     )
-    data.prepare_data()
-    data.setup(stage="fit")
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
@@ -92,7 +86,7 @@ def train_lm(args):
             len(data.classes), data.img_size, args.global_workspace.bert_path,
             args.lm.optim.lr, args.lm.optim.weight_decay,
             args.lm.scheduler.step,
-            args.lm.scheduler.gamma, data.domain_examples,
+            args.lm.scheduler.gamma,
             args.lm.train_vae, args.lm.train_attr_decoders,
             args.lm.optimize_vae_with_attr_regression, args.lm.coef_attr_loss,
             args.lm.coef_vae_loss,
@@ -113,21 +107,16 @@ def train_lm(args):
 def train_vae(args):
     seed_everything(args.seed)
 
-    data = load_dataset(args, args.vae, selected_domains=["v"])
-
-    data.prepare_data()
-    data.setup(stage="fit")
-    data.compute_inception_statistics(
-        32, torch.device("cuda" if args.accelerator == "gpu" else "cpu")
+    data = load_dataset(
+        args, args.vae,
+        selected_domains=["v"], compute_inception_statistics=True
     )
 
     if "checkpoint" in args and args.checkpoint is not None:
         checkpoint_path = get_checkpoint_path(args.checkpoint)
-        validation_images = data.domain_examples["val"]["in_dist"]["v"]["img"]
         vae = VAE.load_from_checkpoint(
             checkpoint_path, strict=False,
             n_validation_examples=args.n_validation_examples,
-            validation_reconstruction_images=validation_images,
         )
     else:
         vae = VAE(
@@ -136,7 +125,6 @@ def train_vae(args):
             args.n_validation_examples, args.vae.optim.lr,
             args.vae.optim.weight_decay, args.vae.scheduler.step,
             args.vae.scheduler.gamma,
-            data.domain_examples["val"]["in_dist"]["v"]["img"],
             args.vae.n_fid_samples
         )
 
