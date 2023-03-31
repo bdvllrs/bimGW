@@ -1,4 +1,3 @@
-import collections.abc
 from typing import Any, Dict, Iterator
 
 from torch import nn
@@ -7,7 +6,7 @@ from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules import DomainModule
 
 
-class DomainInterface(nn.Module, collections.abc.Mapping):
+class DomainInterface(nn.Module):
     def __init__(
         self, domain_mods: Dict[str, DomainModule]
     ):
