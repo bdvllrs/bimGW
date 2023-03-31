@@ -474,7 +474,11 @@ class GlobalWorkspace(LightningModule):
         for mode, domain_examples in self.domain_examples.items():
             for logger in self.loggers:
                 with self.domains.pass_through(False):
-                    if self.trainer.datamodule.ood_boundaries is not None:
+                    if (
+                            hasattr(self.trainer.datamodule, "ood_boundaries")
+                            and self.trainer.datamodule.ood_boundaries is
+                            not None
+                    ):
                         logger.log_hyperparams(
                             {
                                 "ood_boundaries":
