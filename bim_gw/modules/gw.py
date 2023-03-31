@@ -583,7 +583,7 @@ class GlobalWorkspace(LightningModule):
             self.domain_examples = self.trainer.datamodule.domain_examples
 
     def on_fit_start(self) -> None:
-        if self.domains_examples is None:
+        if self.domain_examples is None:
             return
         for dist_examples in self.domain_examples.values():
             for examples in dist_examples.values():
