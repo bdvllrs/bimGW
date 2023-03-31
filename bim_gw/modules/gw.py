@@ -133,15 +133,11 @@ class GlobalWorkspace(LightningModule):
         self.domain_examples = domain_examples
 
         self.rotation_error_val = []
-        self.collate_fn = None
 
         self.save_hyperparameters(
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
         )
         print("Global Workspace instantiated.")
-
-    def setup(self, stage=None):
-        self.collate_fn = self.trainer.datamodule.train_dataloader().collate_fn
 
     def on_fit_start(self) -> None:
         for dist_examples in self.domain_examples.values():
@@ -157,18 +153,6 @@ class GlobalWorkspace(LightningModule):
 
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
-
-    def get_null_latent(self, batch_size, domain_name):
-        items = list(
-            self.trainer.datamodule.train_set.domain_loaders[
-                domain_name].get_null_item()
-        )
-        batch = [items for k in range(batch_size)]
-        x = self.collate_fn(batch)
-        for k in range(len(x)):
-            if isinstance(x[k], torch.Tensor):
-                x[k] = x[k].to(self.device)
-        return self.domains.encode({domain_name: x})[domain_name]
 
     def project(
         self, latents: Dict[str, Dict[str, torch.Tensor]],
