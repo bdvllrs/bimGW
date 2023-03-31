@@ -70,9 +70,18 @@ class DomainInterface(nn.Module):
 
     @contextmanager
     def pass_through(self, mode: bool = True):
-        self.set_pass_through(mode)
+        old_values = []
+        for domain_mod in self._domain_modules.values():
+            if isinstance(domain_mod, PassThroughWM):
+                old_values.append(domain_mod.pass_through)
+                domain_mod.pass_through(mode)
         yield
-        self.set_pass_through(not mode)
+        for old_value, domain_mod in zip(
+                old_values,
+                self._domain_modules.values()
+        ):
+            if isinstance(domain_mod, PassThroughWM):
+                domain_mod.pass_through(old_value)
 
     def __getitem__(self, item: str) -> nn.Module:
         return self._domain_modules[item]
