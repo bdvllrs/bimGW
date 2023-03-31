@@ -135,6 +135,17 @@ class AttributesLoader(DomainLoader):
         )
 
 
+_memoize_bert_latents = {}
+
+
+def _get_bert_latent(file_path: pathlib.Path, **kwargs):
+    key = str(file_path.resolve())
+    if key in _memoize_bert_latents.keys():
+        return _memoize_bert_latents[key]
+    _memoize_bert_latents[key] = np.load(file_path, **kwargs)
+    return _memoize_bert_latents[key]
+
+
 class TextLoader(DomainLoader):
     modality = "t"
 
@@ -168,30 +179,36 @@ class TextLoader(DomainLoader):
                     and (root_path / f"{split}_reduced_{pca_dim}_"
                                      f"{bert_latents}").exists()
             ):
-                self.bert_data = np.load(
+                self.bert_data = _get_bert_latent(
                     root_path / f"{split}_reduced_{pca_dim}_{bert_latents}"
                 )[ids]
-                self.bert_mean = np.load(
+                self.bert_mean = _get_bert_latent(
                     root_path / f"mean_reduced_{pca_dim}_{bert_latents}"
                 )
-                self.bert_std = np.load(
+                self.bert_std = _get_bert_latent(
                     root_path / f"std_reduced_{pca_dim}_{bert_latents}"
                 )
             elif pca_dim == 768:
-                self.bert_data = np.load(
+                self.bert_data = _get_bert_latent(
                     root_path / f"{split}_{bert_latents}"
                 )[ids]
-                self.bert_mean = np.load(root_path / f"mean_{bert_latents}")
-                self.bert_std = np.load(root_path / f"std_{bert_latents}")
+                self.bert_mean = _get_bert_latent(
+                    root_path / f"mean_{bert_latents}"
+                )
+                self.bert_std = _get_bert_latent(
+                    root_path / f"std_{bert_latents}"
+                )
             else:
                 raise ValueError("No PCA data found")
             self.bert_data: np.ndarray = (
                     (self.bert_data - self.bert_mean) / self.bert_std
             )
 
-        self.captions = np.load(str(root_path / f"{split}_captions.npy"))
-        self.choices = np.load(
-            str(root_path / f"{split}_caption_choices.npy"), allow_pickle=True
+        self.captions = _get_bert_latent(
+            root_path / f"{split}_captions.npy"
+        )
+        self.choices = _get_bert_latent(
+            root_path / f"{split}_caption_choices.npy", allow_pickle=True
         )
         self.null_choice = None
 
