@@ -14,7 +14,9 @@ class DomainInterface(nn.Module, collections.abc.Mapping):
         super(DomainInterface, self).__init__()
 
         self._domain_modules = nn.ModuleDict(domain_mods)
-        self._domain_modules.freeze()  # insures that all modules are frozen
+        for param in self._domain_modules.parameters():
+            param.requires_grad = False
+        self._domain_modules.eval()
         self.names = list(domain_mods.keys())
 
     def get_specs(self):
