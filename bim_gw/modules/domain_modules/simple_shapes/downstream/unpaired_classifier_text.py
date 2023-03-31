@@ -56,7 +56,7 @@ class UnpairedClassifierText(LightningModule):
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
-        latents = self.global_workspace.encode_uni_modal(domains)
+        latents = self.global_workspace.domains.encode(domains)
         state = self.global_workspace.project(latents, keep_domains=['t'])
         z = self.projection(state)
         total_loss = 0

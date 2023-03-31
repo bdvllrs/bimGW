@@ -39,8 +39,8 @@ if __name__ == '__main__':
     )
     global_workspace.eval()
 
-    attr_model = global_workspace.domain_mods["attr"]
-    text_model = global_workspace.domain_mods["t"]
+    attr_model = global_workspace.domains["attr"]
+    text_model = global_workspace.domains["t"]
 
     data_loaders = [
         ("train", data.train_dataloader(shuffle=False)),
@@ -56,8 +56,8 @@ if __name__ == '__main__':
                 total=int(len(data_loader.dataset) / data_loader.batch_size)
         ):
             available_domains, domains = split_domains_available_domains(batch)
-            latents = global_workspace.encode_uni_modal(domains)
-            predictions = global_workspace.adapt(
+            latents = global_workspace.domains.encode(domains)
+            predictions = global_workspace.domains.adapt(
                 global_workspace.predict(
                     global_workspace.project(latents, ["attr"])
                 )
