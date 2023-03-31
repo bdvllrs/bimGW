@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Any, Dict, Iterator
 
 from torch import nn
@@ -66,6 +67,12 @@ class DomainInterface(nn.Module):
         for domain_mod in self._domain_modules.values():
             if isinstance(domain_mod, PassThroughWM):
                 domain_mod.pass_through(mode)
+
+    @contextmanager
+    def pass_through(self, mode: bool = True):
+        self.set_pass_through(mode)
+        yield
+        self.set_pass_through(not mode)
 
     def __getitem__(self, item: str) -> nn.Module:
         return self._domain_modules[item]

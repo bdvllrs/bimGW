@@ -473,30 +473,28 @@ class GlobalWorkspace(LightningModule):
             return
         for mode, domain_examples in self.domain_examples.items():
             for logger in self.loggers:
-                self.domains.set_pass_through(False)
-                if self.trainer.datamodule.ood_boundaries is not None:
-                    logger.log_hyperparams(
-                        {
-                            "ood_boundaries":
-                                self.trainer.datamodule.ood_boundaries
-                        }
-                    )
-                for dist, dist_examples in domain_examples.items():
-                    self.log_original_domains(
-                        logger, dist_examples,
-                        f"{mode}/{dist}"
-                    )
-                self.domains.set_pass_through(True)
+                with self.domains.pass_through(False):
+                    if self.trainer.datamodule.ood_boundaries is not None:
+                        logger.log_hyperparams(
+                            {
+                                "ood_boundaries":
+                                    self.trainer.datamodule.ood_boundaries
+                            }
+                        )
+                    for dist, dist_examples in domain_examples.items():
+                        self.log_original_domains(
+                            logger, dist_examples,
+                            f"{mode}/{dist}"
+                        )
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
         for logger in self.loggers:
-            self.domains.set_pass_through(False)
-            for dist, dist_examples in domain_examples.items():
-                self.log_domains(
-                    logger, dist_examples, f"{mode}/{dist}"
-                )
-            self.domains.set_pass_through(True)
+            with self.domains.pass_through(False):
+                for dist, dist_examples in domain_examples.items():
+                    self.log_domains(
+                        logger, dist_examples, f"{mode}/{dist}"
+                    )
 
             if log_train:
                 self.epoch_end("train", log_train=False)
