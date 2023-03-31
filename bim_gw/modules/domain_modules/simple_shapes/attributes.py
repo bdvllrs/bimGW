@@ -20,7 +20,6 @@ class SimpleShapesAttributes(DomainModule):
 
         super(SimpleShapesAttributes, self).__init__(
             DomainSpecs(
-                z_size=z_size,
                 output_dims={
                     "z_cls": self.n_classes, "z_attr": z_size
                 },
