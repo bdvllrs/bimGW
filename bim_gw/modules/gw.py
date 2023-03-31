@@ -9,7 +9,7 @@ from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_interface import DomainInterface
-from bim_gw.modules.domain_modules import DomainModule, PassThroughWM
+from bim_gw.modules.domain_modules import DomainModule
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
@@ -473,7 +473,7 @@ class GlobalWorkspace(LightningModule):
             return
         for mode, domain_examples in self.domain_examples.items():
             for logger in self.loggers:
-                self.set_unimodal_pass_through(False)
+                self.domains.set_pass_through(False)
                 if self.trainer.datamodule.ood_boundaries is not None:
                     logger.log_hyperparams(
                         {
@@ -486,17 +486,17 @@ class GlobalWorkspace(LightningModule):
                         logger, dist_examples,
                         f"{mode}/{dist}"
                     )
-                self.set_unimodal_pass_through(True)
+                self.domains.set_pass_through(True)
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
         for logger in self.loggers:
-            self.set_unimodal_pass_through(False)
+            self.domains.set_pass_through(False)
             for dist, dist_examples in domain_examples.items():
                 self.log_domains(
                     logger, dist_examples, f"{mode}/{dist}"
                 )
-            self.set_unimodal_pass_through(True)
+            self.domains.set_pass_through(True)
 
             if log_train:
                 self.epoch_end("train", log_train=False)
@@ -506,11 +506,6 @@ class GlobalWorkspace(LightningModule):
 
     def test_epoch_end(self, outputs):
         self.epoch_end("test", log_train=False)
-
-    def set_unimodal_pass_through(self, mode=True):
-        for domain_mod in self.domains.values():
-            if isinstance(domain_mod, PassThroughWM):
-                domain_mod.pass_through(mode)
 
     def on_train_epoch_start(self):
         self.domains.eval()

@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterator
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
-from bim_gw.modules.domain_modules import DomainModule
+from bim_gw.modules.domain_modules import DomainModule, PassThroughWM
 
 
 class DomainInterface(nn.Module):
@@ -61,6 +61,11 @@ class DomainInterface(nn.Module):
             domain: self._domain_modules[domain].adapt(latent)
             for domain, latent in latents.items()
         }
+
+    def set_pass_through(self, mode: bool = True):
+        for domain_mod in self._domain_modules.values():
+            if isinstance(domain_mod, PassThroughWM):
+                domain_mod.pass_through(mode)
 
     def __getitem__(self, item: str) -> nn.Module:
         return self._domain_modules[item]
