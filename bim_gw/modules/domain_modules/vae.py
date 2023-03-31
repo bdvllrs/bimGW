@@ -4,13 +4,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.datasets.simple_shapes import SimpleShapesDataset
-from bim_gw.datasets.simple_shapes.utils import get_v_preprocess
 from bim_gw.modules.domain_modules.domain_module import (
     DomainModule,
     DomainSpecs
 )
-from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
     log_if_save_last_images, log_if_save_last_tables, log_image
@@ -202,35 +199,6 @@ class VAE(DomainModule):
                 sampled_images = self.decoder(self.validation_sampling_z)
                 log_image(logger, sampled_images, f"{mode}_sampling")
 
-                # # FID
-                # fid, mse = compute_FID(
-                #     self.inception_stats_path_train,
-                #     self.trainer.datamodule.val_dataloader()[0],
-                #     self, self.z_size, [self.image_size,
-                #     self.image_size],
-                #     self.device, self.n_FID_samples
-                # )
-                # self.log(f"{mode}_fid", fid)
-                # # self.print("FID: ", fid)
-                # self.log(f"{mode}_mse", mse)
-
-                #
-                # stat_train = np.load(
-                # self.inception_stats_path_train,
-                # allow_pickle=True).item()
-                # mu_dataset_train = stat_train['mu']
-                # sigma_dataset_train = stat_train['sigma']
-                #
-                # stat_test = np.load(
-                # self.inception_stats_path_val,
-                # allow_pickle=True).item()
-                # mu_dataset_test = stat_test['mu']
-                # sigma_dataset_test = stat_test['sigma']
-                #
-                # fid_value = calculate_frechet_distance(mu_dataset_train,
-                # sigma_dataset_train, mu_dataset_test, sigma_dataset_test)
-                # self.print("FID test: ", fid_value)
-
     def validation_epoch_end(self, outputs):
         self.epoch_end(outputs, mode="val")
 
@@ -260,50 +228,9 @@ class VAE(DomainModule):
                 "val"]["in_dist"]["v"]["img"]
 
     def on_fit_start(self) -> None:
-        # self.compute_inception_statistics(32)
-
         if self.validation_reconstruction_images is None:
             return
         self.validation_reconstruction_images.to(self.device)
-
-    def compute_inception_statistics(
-        self, batch_size: int
-    ) -> None:
-        train_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "train",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        val_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "val",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        test_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "test",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        self.inception_stats_path_train = compute_dataset_statistics(
-            train_ds, self.simple_shapes_folder,
-            "shapes_train",
-            batch_size, self.device
-        )
-        self.inception_stats_path_val = compute_dataset_statistics(
-            val_ds, self.simple_shapes_folder, "shapes_val",
-            batch_size, self.device
-        )
-
-        self.inception_stats_path_test = compute_dataset_statistics(
-            test_ds, self.simple_shapes_folder, "shapes_test",
-            batch_size, self.device
-        )
 
 
 class CEncoderV2(nn.Module):
