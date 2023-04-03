@@ -120,6 +120,7 @@ class DataSelectorAxesConfig:
 
 @dataclass
 class AxesGWResultConfig:
+    title: str = MISSING
     selected_curves: List[str] = MISSING
     selected_losses: List[str] = MISSING
 
@@ -140,7 +141,9 @@ class VisualizationConfig:
     loss_definitions: Dict[str, List[str]] = field(
         default_factory=dict
     )
-    axes: AxesGWResultConfig = field(default_factory=AxesGWResultConfig)
+    figures: List[AxesGWResultConfig] = field(
+        default_factory=list
+    )
     mix_loss_coefficients: Dict[str, float] = field(
         default_factory=dict
     )
