@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
@@ -37,6 +38,19 @@ slug_to_label = {
     "cont": "contrastive",
     "tr+cont+dcy+cy": "all sup. + all cycles",
 }
+
+
+def _get_ax(
+    axes: np.ndarray, row: int, col: int, num_rows: int, num_cols: int
+) -> np.ndarray:
+    if num_cols == 1 and num_rows == 1:
+        return axes
+    if num_cols == 1:
+        return axes[row]
+    if num_rows == 1:
+        return axes[col]
+    return axes[row, col]
+
 
 if __name__ == '__main__':
     args: BIMConfig = get_args(debug=int(os.getenv("DEBUG", 0)))
@@ -126,7 +140,7 @@ if __name__ == '__main__':
             for n, row in enumerate(dataframes):
                 df = row['data']
                 k = m * n_rows + n
-                ax = axes[m, n] if n_cols > 1 else axes
+                ax = _get_ax(axes, m, n, n_rows, n_cols)
                 selected_curves = figure.selected_curves
                 for curve_name in selected_curves:
                     grp = df[df['slug'] == curve_name]
