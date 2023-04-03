@@ -1,6 +1,7 @@
 import math
 import re
 from itertools import permutations
+from typing import Any, Dict, Optional
 
 from attributes_to_language.composer import Composer
 
@@ -34,7 +35,10 @@ def inspect_all_choices(composer: Composer):
     return choices
 
 
-def get_categories(composer, choices):
+def get_categories(
+    composer: Composer,
+    choices: Optional[Dict[str, Any]]
+) -> Dict[str, int]:
     categories = dict()
     if choices is None:
         categories['structure'] = 0

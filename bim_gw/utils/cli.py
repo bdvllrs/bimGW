@@ -123,7 +123,7 @@ def _get_dict_type(type_):
     return Any
 
 
-def _split_argv(argv):
+def _split_argv(argv: List[str]) -> List[str]:
     new_argv = []
     for arg in argv:
         if "=" in arg:
@@ -174,11 +174,9 @@ def parse_argv_from_dataclass(
     if not _is_dataclass(structure):
         raise TypeError("Structure must be a dataclass")
 
-    if argv is None:
-        argv = sys.argv[1:]
     dotlist = []
     # remove all = and split keys and values
-    argv = _split_argv(argv)
+    argv = _split_argv(argv or sys.argv[1:])
 
     last_key = None
     last_field = None

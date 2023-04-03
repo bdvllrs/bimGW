@@ -1,9 +1,8 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from numpy.typing import ArrayLike
 from PIL import Image
 
 from bim_gw.datasets.domain import DomainItems
@@ -14,6 +13,7 @@ from bim_gw.utils.types import SplitLiteral
 VisualDataType = Tuple[torch.FloatTensor, Image.Image]
 AttributesDataType = Tuple[torch.FloatTensor, int, torch.FloatTensor]
 TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
+TransformType = Callable[[DomainItems], DomainItems]
 
 
 def transform(
@@ -26,7 +26,7 @@ def transform(
 
 
 class DomainLoader:
-    modality: str = None
+    modality: str
 
     def __init__(
         self,
@@ -34,29 +34,29 @@ class DomainLoader:
         split: SplitLiteral,
         ids: List[int],
         labels,
-        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        transforms: Optional[Dict[str, TransformType]] = None,
         **kwargs
     ):
         self.root_path = root_path
         self.split = split
         self.ids = ids
         self.labels = labels
-        self.transforms = transforms[self.modality]
+        self.transforms: Optional[TransformType] = None
+        if transforms is not None:
+            self.transforms = transforms[self.modality]
         self.domain_loader_args = kwargs
 
-    def get_null_item(self):
+    def get_null_item(self) -> DomainItems:
         raise NotImplementedError
 
-    def get_item(self, item: int):
+    def get_item(self, item: int) -> DomainItems:
         raise NotImplementedError
 
-    def get_items(
-        self, item: int
-    ) -> Union[VisualDataType, AttributesDataType, TextDataType]:
-        item = self.get_item(
+    def get_items(self, item: int) -> DomainItems:
+        selected_item = self.get_item(
             item
         ) if item is not None else self.get_null_item()
-        return transform(item, self.transforms)
+        return transform(selected_item, self.transforms)
 
 
 class VisionLoader(DomainLoader):
@@ -68,7 +68,7 @@ class VisionLoader(DomainLoader):
         split: SplitLiteral,
         ids: List[int],
         labels,
-        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        transforms: Optional[Dict[str, TransformType]] = None,
         **kwargs
     ):
         super(VisionLoader, self).__init__(
@@ -135,10 +135,10 @@ class AttributesLoader(DomainLoader):
         )
 
 
-_memoize_bert_latents = {}
+_memoize_bert_latents: Dict[str, np.ndarray] = {}
 
 
-def _get_bert_latent(file_path: pathlib.Path, **kwargs):
+def _get_bert_latent(file_path: pathlib.Path, **kwargs) -> np.ndarray:
     key = str(file_path.resolve())
     if key in _memoize_bert_latents.keys():
         return _memoize_bert_latents[key]
@@ -155,7 +155,7 @@ class TextLoader(DomainLoader):
         split: SplitLiteral,
         ids: List[int],
         labels,
-        transforms: Optional[Dict[str, Callable[[Any], Any]]] = None,
+        transforms: Optional[Dict[str, TransformType]] = None,
         **kwargs
     ):
         super(TextLoader, self).__init__(
@@ -167,42 +167,13 @@ class TextLoader(DomainLoader):
         if 'pca_dim' not in self.domain_loader_args:
             raise ValueError('pca_dim must be specified for text loader')
 
-        bert_latents = self.domain_loader_args['bert_latents']
-        pca_dim = self.domain_loader_args['pca_dim']
+        bert_data, bert_mean, bert_std = self._get_bert_data(
+            ids, root_path, split
+        )
 
-        self.bert_data: Optional[ArrayLike] = None
-        self.bert_mean = None
-        self.bert_std = None
-        if bert_latents is not None:
-            if (
-                    pca_dim < 768
-                    and (root_path / f"{split}_reduced_{pca_dim}_"
-                                     f"{bert_latents}").exists()
-            ):
-                self.bert_data = _get_bert_latent(
-                    root_path / f"{split}_reduced_{pca_dim}_{bert_latents}"
-                )[ids]
-                self.bert_mean = _get_bert_latent(
-                    root_path / f"mean_reduced_{pca_dim}_{bert_latents}"
-                )
-                self.bert_std = _get_bert_latent(
-                    root_path / f"std_reduced_{pca_dim}_{bert_latents}"
-                )
-            elif pca_dim == 768:
-                self.bert_data = _get_bert_latent(
-                    root_path / f"{split}_{bert_latents}"
-                )[ids]
-                self.bert_mean = _get_bert_latent(
-                    root_path / f"mean_{bert_latents}"
-                )
-                self.bert_std = _get_bert_latent(
-                    root_path / f"std_{bert_latents}"
-                )
-            else:
-                raise ValueError("No PCA data found")
-            self.bert_data: np.ndarray = (
-                    (self.bert_data - self.bert_mean) / self.bert_std
-            )
+        self.bert_data = bert_data
+        self.bert_mean = bert_mean
+        self.bert_std = bert_std
 
         self.captions = _get_bert_latent(
             root_path / f"{split}_captions.npy"
@@ -210,7 +181,43 @@ class TextLoader(DomainLoader):
         self.choices = _get_bert_latent(
             root_path / f"{split}_caption_choices.npy", allow_pickle=True
         )
-        self.null_choice = None
+        self.null_choice: Optional[Dict[str, int]] = None
+
+    def _get_bert_data(
+        self, ids: List[int], root_path: pathlib.Path, split: SplitLiteral
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        bert_latents = self.domain_loader_args['bert_latents']
+        pca_dim = self.domain_loader_args['pca_dim']
+
+        if bert_latents is None:
+            raise ValueError('bert_latents must be specified for text loader')
+        if (
+                pca_dim < 768
+                and (root_path / f"{split}_reduced_{pca_dim}_"
+                                 f"{bert_latents}").exists()
+        ):
+            bert_data = _get_bert_latent(
+                root_path / f"{split}_reduced_{pca_dim}_{bert_latents}"
+            )[ids]
+            bert_mean = _get_bert_latent(
+                root_path / f"mean_reduced_{pca_dim}_{bert_latents}"
+            )
+            bert_std = _get_bert_latent(
+                root_path / f"std_reduced_{pca_dim}_{bert_latents}"
+            )
+        elif pca_dim == 768:
+            bert_data = _get_bert_latent(
+                root_path / f"{split}_{bert_latents}"
+            )[ids]
+            bert_mean = _get_bert_latent(
+                root_path / f"mean_{bert_latents}"
+            )
+            bert_std = _get_bert_latent(
+                root_path / f"std_{bert_latents}"
+            )
+        else:
+            raise ValueError("No PCA data found")
+        return (bert_data - bert_mean) / bert_std, bert_mean, bert_std
 
     def get_item(self, item: int) -> DomainItems:
         sentence = self.captions[item]
@@ -230,8 +237,9 @@ class TextLoader(DomainLoader):
 
     def get_null_item(self) -> DomainItems:
         if self.null_choice is None:
-            self.null_choice = get_categories(composer, self.choices[0])
-            self.null_choice = {key: 0 for key in self.null_choice}
+            self.null_choice = {
+                key: 0 for key in get_categories(composer, self.choices[0])
+            }
 
         return DomainItems.singular(
             bert=torch.zeros(768).float(),
