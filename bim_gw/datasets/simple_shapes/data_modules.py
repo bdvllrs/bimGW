@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -22,7 +22,6 @@ from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesText
 )
 from bim_gw.utils import registries
-from bim_gw.utils.losses.compute_fid import compute_dataset_statistics
 from bim_gw.utils.utils import get_checkpoint_path
 
 
@@ -81,6 +80,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_channels: int = 3
         self.len_train_dataset: int = len_train_dataset
         self.n_domain_examples = batch_size
+
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
         self.domain_examples = None
@@ -110,10 +110,12 @@ class SimpleShapesDataModule(LightningDataModule):
         self.train_set = None
         self.val_set = None
         self.test_set = None
-        self.is_setup = False
+        self.inception_stats_path_train = None
+        self.inception_stats_path_val = None
+        self.inception_stats_path_test = None
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if not self.is_setup:
+        if stage in ["fit", "validate", "test"]:
             val_transforms: Dict[
                 AvailableDomainsType, Callable[[Any], Any]] = {
                 "v": get_v_preprocess()
@@ -204,47 +206,6 @@ class SimpleShapesDataModule(LightningDataModule):
                         dataset.use_pre_saved_latents(
                             self.pre_saved_latent_paths
                         )
-
-        self.is_setup = True
-
-    def compute_inception_statistics(
-        self, batch_size: int, device: Union[torch.device, str]
-    ) -> None:
-        train_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "train",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        val_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "val",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        test_ds = SimpleShapesDataset(
-            self.simple_shapes_folder, "test",
-            transform={"v": get_v_preprocess()},
-            selected_domains=["v"],
-            output_transform=lambda d: d["v"][1],
-            domain_loader_params=self.domain_loader_params
-        )
-        self.inception_stats_path_train = compute_dataset_statistics(
-            train_ds, self.simple_shapes_folder,
-            "shapes_train",
-            batch_size, device
-        )
-        self.inception_stats_path_val = compute_dataset_statistics(
-            val_ds, self.simple_shapes_folder, "shapes_val",
-            batch_size, device
-        )
-
-        self.inception_stats_path_test = compute_dataset_statistics(
-            test_ds, self.simple_shapes_folder, "shapes_test",
-            batch_size, device
-        )
 
     def train_dataloader(
         self, shuffle: bool = True

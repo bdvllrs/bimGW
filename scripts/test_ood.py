@@ -93,12 +93,12 @@ def test_ood(args):
 
     print("Look at global workspace")
 
-    latent_t = global_workspace.domain_mods["t"].encode(
+    latent_t = global_workspace.domains["t"].encode(
         data.validation_domain_examples["t"]
     )
     z_t = global_workspace.encoders["t"](latent_t)
 
-    latent_v = global_workspace.domain_mods["v"].encode(
+    latent_v = global_workspace.domains["v"].encode(
         data.validation_domain_examples["v"]
     )
     z_v = global_workspace.encoders["v"](latent_v)

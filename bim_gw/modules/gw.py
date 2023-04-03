@@ -8,7 +8,8 @@ from pytorch_lightning import LightningModule
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
-from bim_gw.modules.domain_modules import DomainModule, PassThroughWM
+from bim_gw.modules.domain_interface import DomainInterface
+from bim_gw.modules.domain_modules import DomainModule
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
@@ -41,7 +42,6 @@ class GlobalWorkspace(LightningModule):
         scheduler_interval: SchedulerInterval = SchedulerInterval.epoch,
         scheduler_step=20, scheduler_gamma=0.5,
         loss_schedules=None,
-        domain_examples: Optional[dict] = None,
         monitor_grad_norms: bool = False,
         remove_sync_domains=None,
         save_only_last_images=False,
@@ -74,32 +74,28 @@ class GlobalWorkspace(LightningModule):
         self.monitor_grad_norms = monitor_grad_norms
         self.save_only_last_images = save_only_last_images
 
-        for mod in domain_mods.values():
-            mod.freeze()  # insures that all modules are frozen
-
-        self.domain_mods = nn.ModuleDict(domain_mods)
-        self.domain_names = list(domain_mods.keys())
+        self.domains = DomainInterface(domain_mods)
 
         self.hparams["contrastive_logit_scale"] = {
             f"{n1}-{n2}": torch.ones([]) * np.log(1 / 0.07)
-            for i, n1 in enumerate(self.domain_names)
-            for j, n2 in enumerate(self.domain_names)
+            for i, n1 in enumerate(self.domains.names)
+            for j, n2 in enumerate(self.domains.names)
             if i < j
         }
 
         # Define encoders for translation
         encoders = {}
         decoders = {}
-        for item, mod in domain_mods.items():
-            encoder_class = mod.domain_specs.workspace_encoder_cls
-            decoder_class = mod.domain_specs.workspace_decoder_cls
+        for item, domain_specs in self.domains.get_specs():
+            encoder_class = domain_specs.workspace_encoder_cls
+            decoder_class = domain_specs.workspace_decoder_cls
             encoders[item] = encoder_class(
-                mod.domain_specs,
+                domain_specs,
                 self.hidden_size['encoder'][item],
                 self.z_size, self.n_layers_encoder[item]
             )
             decoders[item] = decoder_class(
-                mod.domain_specs,
+                domain_specs,
                 self.z_size, self.hidden_size['decoder'][item],
                 self.n_layers_decoder[item],
                 self.n_layers_decoder_head[item],
@@ -107,20 +103,14 @@ class GlobalWorkspace(LightningModule):
         self.encoders = nn.ModuleDict(encoders)
         self.decoders = nn.ModuleDict(decoders)
 
-        # Define losses
-        self.loss_fn = {}
-        for domain_name, domain in self.domain_mods.items():
-            for k in range(len(domain.domain_specs.losses)):
-                self.loss_fn[domain_name] = domain.domain_specs.losses
-
         # Accuracies
         train_accuracy_metrics = []
         val_in_dist_accuracy_metrics = []
         val_ood_accuracy_metrics = []
         self.accuracy_metrics_order = []
-        for domain_name, mod in self.domain_mods.items():
-            if mod.domain_specs.requires_acc_computation:
-                for domain_name_start, mod_start in self.domain_mods.items():
+        for domain_name, domain_specs in self.domains.get_specs():
+            if domain_specs.requires_acc_computation:
+                for domain_name_start in self.domains.names:
                     if domain_name_start != domain_name:
                         train_accuracy_metrics.append(torchmetrics.Accuracy())
                         val_in_dist_accuracy_metrics.append(
@@ -139,24 +129,14 @@ class GlobalWorkspace(LightningModule):
         )
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
-        self.domain_examples = domain_examples
+        self.domain_examples = None
 
         self.rotation_error_val = []
-        self.collate_fn = None
 
         self.save_hyperparameters(
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
         )
         print("Global Workspace instantiated.")
-
-    def setup(self, stage=None):
-        self.collate_fn = self.trainer.datamodule.train_dataloader().collate_fn
-
-    def on_fit_start(self) -> None:
-        for dist_examples in self.domain_examples.values():
-            for examples in dist_examples.values():
-                for domain_examples in examples.values():
-                    domain_examples.to_device(self.device)
 
     def encode(self, x, domain_name, add_tanh=True):
         pre_act = self.encoders[domain_name](x)
@@ -166,18 +146,6 @@ class GlobalWorkspace(LightningModule):
 
     def decode(self, z, domain_name):
         return self.decoders[domain_name](z)
-
-    def get_null_latent(self, batch_size, domain_name):
-        items = list(
-            self.trainer.datamodule.train_set.domain_loaders[
-                domain_name].get_null_item()
-        )
-        batch = [items for k in range(batch_size)]
-        x = self.collate_fn(batch)
-        for k in range(len(x)):
-            if isinstance(x[k], torch.Tensor):
-                x[k] = x[k].to(self.device)
-        return self.encode_uni_modal({domain_name: x})[domain_name]
 
     def project(
         self, latents: Dict[str, Dict[str, torch.Tensor]],
@@ -192,39 +160,11 @@ class GlobalWorkspace(LightningModule):
     def predict(self, state):
         return {
             domain_name: self.decode(state, domain_name)
-            for domain_name in self.domain_names
+            for domain_name in self.domains.names
         }
 
-    def encode_uni_modal(self, domains: Dict[str, DomainItems]):
-        """
-        Encodes unimodal inputs to their unimodal latent version
-        """
-        out = dict()
-        for domain_name, x in domains.items():
-            out[domain_name] = DomainItems(
-                x.available_masks,
-                **self.domain_mods[domain_name].encode(
-                    x.sub_parts
-                )
-            )
-        return out
-
-    def decode_uni_modal(self, domains):
-        """
-        Encodes unimodal inputs to their unimodal latent version
-        """
-        out = dict()
-        for domain_name, x in domains.items():
-            z = self.domain_mods[domain_name].decode(x)
-            out[domain_name] = z
-        return out
-
-    def adapt(self, latents):
-        return {domain: self.domain_mods[domain].adapt(latent) for
-                domain, latent in latents.items()}
-
     def forward(self, domains):
-        latents = self.encode_uni_modal(domains)
+        latents = self.domains.encode(domains)
         return self.project(latents, list(latents.keys()))
 
     def translate(self, x, domain_name_start, domain_name_target):
@@ -300,7 +240,7 @@ class GlobalWorkspace(LightningModule):
                 loss_domain = domain_name.split("-")[0]
             prediction, target = predictions[domain_name], targets[domain_name]
             (domain_total,
-             domain_indiv_losses) = self.domain_mods[loss_domain].loss(
+             domain_indiv_losses) = self.domains[loss_domain].loss(
                 prediction, target
             )
             indiv_losses.update(
@@ -350,7 +290,8 @@ class GlobalWorkspace(LightningModule):
                     if domain_name_target != domain_name:
                         # Cycles
                         cycle_state = self.project(
-                            self.adapt(predictions), [domain_name_target]
+                            self.domains.adapt(predictions),
+                            [domain_name_target]
                         )
                         cycle_prediction = self.decode(
                             cycle_state, domain_name
@@ -453,7 +394,7 @@ class GlobalWorkspace(LightningModule):
 
     def training_step(self, domains, batch_idx):
         total_loss, _ = self.step(
-            self.encode_uni_modal(domains),
+            self.domains.encode(domains),
             mode="train"
         )
         return total_loss
@@ -461,7 +402,7 @@ class GlobalWorkspace(LightningModule):
     def validation_step(self, domains, batch_idx, dataset_idx=0):
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
         total_loss, _ = self.step(
-            self.encode_uni_modal(domains),
+            self.domains.encode(domains),
             mode="val",
             prefix=prefix
         )
@@ -470,7 +411,7 @@ class GlobalWorkspace(LightningModule):
     def test_step(self, domains, batch_idx, dataset_idx=0):
         prefix = "in_dist/" if dataset_idx == 0 else "ood/"
         total_loss, _ = self.step(
-            self.encode_uni_modal(domains),
+            self.domains.encode(domains),
             mode="test", prefix=prefix
         )
         return total_loss
@@ -479,7 +420,7 @@ class GlobalWorkspace(LightningModule):
         self, logger, examples: DomainItems, slug="val",
         max_examples=None
     ):
-        latents = self.encode_uni_modal(examples)
+        latents = self.domains.encode(examples)
         latents_sub_parts = {
             key: latent.sub_parts for key, latent in
             latents.items()
@@ -487,10 +428,10 @@ class GlobalWorkspace(LightningModule):
 
         for domain_name, latent in latents.items():
             # Demi cycles
-            predictions = self.adapt(
+            predictions = self.domains.adapt(
                 self.predict(self.project(latents_sub_parts, [domain_name]))
             )
-            self.domain_mods[domain_name].log_domain_from_latent(
+            self.domains[domain_name].log_domain_from_latent(
                 logger, predictions[domain_name],
                 f"{slug}/demi_cycles/{domain_name}", max_examples
             )
@@ -501,14 +442,14 @@ class GlobalWorkspace(LightningModule):
                     cycle_predictions = self.predict(
                         self.project(predictions, [domain_name_2])
                     )
-                    self.domain_mods[domain_name].log_domain_from_latent(
+                    self.domains[domain_name].log_domain_from_latent(
                         logger, cycle_predictions[domain_name],
                         f"{slug}/cycles/{domain_name}_through_{domain_name_2}",
                         max_examples
                     )
 
                     # Translations
-                    self.domain_mods[domain_name_2].log_domain_from_latent(
+                    self.domains[domain_name_2].log_domain_from_latent(
                         logger, predictions[domain_name_2],
                         f"{slug}/translation/{domain_name}_to_{domain_name_2}",
                         max_examples,
@@ -521,7 +462,7 @@ class GlobalWorkspace(LightningModule):
             with log_if_save_last_images(logger):
                 with log_if_save_last_tables(logger):
                     for domain_name, domain_example in examples.items():
-                        self.domain_mods[domain_name].log_domain(
+                        self.domains[domain_name].log_domain(
                             logger, domain_example.sub_parts,
                             f"{slug}/original/domain_{domain_name}",
                             max_examples
@@ -532,30 +473,32 @@ class GlobalWorkspace(LightningModule):
             return
         for mode, domain_examples in self.domain_examples.items():
             for logger in self.loggers:
-                self.set_unimodal_pass_through(False)
-                if self.trainer.datamodule.ood_boundaries is not None:
-                    logger.log_hyperparams(
-                        {
-                            "ood_boundaries":
-                                self.trainer.datamodule.ood_boundaries
-                        }
-                    )
-                for dist, dist_examples in domain_examples.items():
-                    self.log_original_domains(
-                        logger, dist_examples,
-                        f"{mode}/{dist}"
-                    )
-                self.set_unimodal_pass_through(True)
+                with self.domains.pass_through(False):
+                    if (
+                            hasattr(self.trainer.datamodule, "ood_boundaries")
+                            and self.trainer.datamodule.ood_boundaries is
+                            not None
+                    ):
+                        logger.log_hyperparams(
+                            {
+                                "ood_boundaries":
+                                    self.trainer.datamodule.ood_boundaries
+                            }
+                        )
+                    for dist, dist_examples in domain_examples.items():
+                        self.log_original_domains(
+                            logger, dist_examples,
+                            f"{mode}/{dist}"
+                        )
 
     def epoch_end(self, mode="val", log_train=True):
         domain_examples = self.domain_examples[mode]
         for logger in self.loggers:
-            self.set_unimodal_pass_through(False)
-            for dist, dist_examples in domain_examples.items():
-                self.log_domains(
-                    logger, dist_examples, f"{mode}/{dist}"
-                )
-            self.set_unimodal_pass_through(True)
+            with self.domains.pass_through(False):
+                for dist, dist_examples in domain_examples.items():
+                    self.log_domains(
+                        logger, dist_examples, f"{mode}/{dist}"
+                    )
 
             if log_train:
                 self.epoch_end("train", log_train=False)
@@ -566,13 +509,8 @@ class GlobalWorkspace(LightningModule):
     def test_epoch_end(self, outputs):
         self.epoch_end("test", log_train=False)
 
-    def set_unimodal_pass_through(self, mode=True):
-        for domain_mod in self.domain_mods.values():
-            if isinstance(domain_mod, PassThroughWM):
-                domain_mod.pass_through(mode)
-
     def on_train_epoch_start(self):
-        self.domain_mods.eval()
+        self.domains.eval()
         self.schedule_loss_coef_step()
 
     def configure_optimizers(self):
@@ -630,7 +568,21 @@ class GlobalWorkspace(LightningModule):
         predicted_t = self.translate(
             domain_start_data, domain_start, domain_end
         )
-        prediction = self.domain_mods[domain_end].decode(predicted_t)
-        return self.domain_mods[domain_end].compute_acc(
+        prediction = self.domains[domain_end].decode(predicted_t)
+        return self.domains[domain_end].compute_acc(
             acc_fn, prediction, targets
         )
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self.trainer.datamodule, "domain_examples"):
+            return
+        if stage in ["fit", "validate", "test"]:
+            self.domain_examples = self.trainer.datamodule.domain_examples
+
+    def on_fit_start(self) -> None:
+        if self.domain_examples is None:
+            return
+        for dist_examples in self.domain_examples.values():
+            for examples in dist_examples.values():
+                for domain_examples in examples.values():
+                    domain_examples.to_device(self.device)

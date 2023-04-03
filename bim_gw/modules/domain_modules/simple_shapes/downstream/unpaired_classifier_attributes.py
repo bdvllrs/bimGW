@@ -35,7 +35,7 @@ class UnpairedClassifierAttributes(LightningModule):
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
-        latents = self.global_workspace.encode_uni_modal(domains)
+        latents = self.global_workspace.domains.encode(domains)
         state = self.global_workspace.project(latents, keep_domains=['attr'])
         prediction = self.regressor(state)
         loss = F.mse_loss(prediction, latents['attr'][1][:, -1].unsqueeze(-1))
