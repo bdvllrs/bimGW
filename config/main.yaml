@@ -110,8 +110,8 @@ visualization:
   font_size_title: 14
   line_width: 2  # curve line width
 
-  bottom_adjust: 0.9
-  top_adjust: 0.2
+  bottom_adjust: 0.2
+  top_adjust: 0.9
   hspace_adjust: 0.3
 
   mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
