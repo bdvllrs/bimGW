@@ -6,6 +6,7 @@ import torch
 from numpy.typing import ArrayLike
 from PIL import Image
 
+from bim_gw.datasets.domain import DomainItems
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
 from bim_gw.utils.types import SplitLiteral
@@ -16,7 +17,8 @@ TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
 
 
 def transform(
-    data: Any, transformation: Optional[Callable[[Any], Any]]
+    data: DomainItems,
+    transformation: Optional[Callable[[DomainItems], DomainItems]]
 ) -> Any:
     if transformation is not None:
         data = transformation(data)
@@ -74,17 +76,21 @@ class VisionLoader(DomainLoader):
         )
         self.null_image = None
 
-    def get_null_item(self) -> VisualDataType:
+    def get_null_item(self) -> DomainItems:
         if self.null_image is None:
-            _, x = self.get_item(0)
-            shape = list(x.size) + [3]
+            item = self.get_item(0)
+            shape = list(item.img.size) + [3]
             img = np.zeros(shape, np.uint8)
             self.null_image = Image.fromarray(img)
-        return torch.tensor(0.).float(), self.null_image
+
+        return DomainItems.singular(
+            img=self.null_image,
+            is_available=False
+        )
 
     def get_item(
         self, item: int, path: Optional[pathlib.Path] = None
-    ) -> VisualDataType:
+    ) -> DomainItems:
         if path is None:
             path = self.root_path
 
@@ -92,20 +98,23 @@ class VisionLoader(DomainLoader):
         with open(path / self.split / f"{image_id}.png", 'rb') as f:
             img = Image.open(f)
             img = img.convert('RGB')
-        return torch.tensor(1.).float(), img
+
+        return DomainItems.singular(img=img)
 
 
 class AttributesLoader(DomainLoader):
     modality = "attr"
 
-    def get_null_item(self) -> AttributesDataType:
-        # _, cls, attr, _ = self.get_item(0)
-        _, cls, attr = self.get_item(0)
-        attr[:] = 0.
-        # return torch.tensor(0.).float(), 0, attr, torch.tensor(0.).float()
-        return torch.tensor(0.).float(), 0, attr
+    def get_null_item(self) -> DomainItems:
+        item = self.get_item(0)
 
-    def get_item(self, item: int) -> AttributesDataType:
+        return DomainItems.singular(
+            cls=0,
+            attr=torch.zeros_like(item.attr),
+            is_available=False
+        )
+
+    def get_item(self, item: int) -> DomainItems:
         label = self.labels[item]
         cls = int(label[0])
         x, y = label[1], label[2]
@@ -120,10 +129,9 @@ class AttributesLoader(DomainLoader):
         if self.domain_loader_args['use_unpaired']:
             attributes.append(unpaired)
 
-        return (
-            torch.tensor(1.).float(),
-            cls,
-            torch.tensor(attributes, dtype=torch.float),
+        return DomainItems.singular(
+            cls=cls,
+            attr=torch.tensor(attributes, dtype=torch.float),
         )
 
 
@@ -187,7 +195,7 @@ class TextLoader(DomainLoader):
         )
         self.null_choice = None
 
-    def get_item(self, item: int) -> TextDataType:
+    def get_item(self, item: int) -> DomainItems:
         sentence = self.captions[item]
         choice = get_categories(composer, self.choices[item])
 
@@ -196,30 +204,50 @@ class TextLoader(DomainLoader):
         bert = torch.zeros(768).float()
         if self.bert_data is not None:
             bert = torch.from_numpy(self.bert_data[item]).float()
-        return torch.tensor(1.).float(), bert, str(sentence), choice
 
-    def get_null_item(self) -> TextDataType:
-        x = torch.zeros(768).float()
+        return DomainItems.singular(
+            bert=bert,
+            text=sentence,
+            choices=choice
+        )
+
+    def get_null_item(self) -> DomainItems:
         if self.null_choice is None:
             self.null_choice = get_categories(composer, self.choices[0])
             self.null_choice = {key: 0 for key in self.null_choice}
-        return torch.tensor(0.).float(), x, "", self.null_choice
+
+        return DomainItems.singular(
+            bert=torch.zeros(768).float(),
+            text="",
+            choices=self.null_choice,
+            is_available=False
+        )
 
 
 class PreSavedLatentLoader:
-    def __init__(self, data):
+    def __init__(self, data, domain_item_mapping):
         self.data = data
+        self.domain_item_mapping = domain_item_mapping
 
     def __len__(self) -> int:
         return self.data[0].shape[0]
 
+    def _get_items(self, item):
+        return {
+            self.domain_item_mapping[k]: np.zeros_like(self.data[k][item][0])
+            for k in range(len(self.data))
+        }
+
     def get_null_item(self):
-        return [torch.tensor(0.).float()] + [np.zeros_like(self.data[k][0][0])
-                                             for k in range(len(self.data))]
+        return DomainItems.singular(
+            **self._get_items(0),
+            is_available=False,
+        )
 
     def get_item(self, item: int):
-        return [torch.tensor(1.).float()] + [self.data[k][item][0] for k in
-                                             range(len(self.data))]
+        return DomainItems.singular(
+            **self._get_items(item),
+        )
 
     def get_items(self, item: int):
         return self.get_item(

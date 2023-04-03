@@ -9,21 +9,20 @@ from torchvision import transforms
 
 class ComposeWithExtraParameters:
     """
-    DataFetchers return [active_items, modality] we apply the transform only
+    DomainLoaders return DomainItems we apply the transform only
     on the modality
     """
 
-    def __init__(self, transform, index=0):
-        self.transform = transform
-        self.index = index
+    def __init__(self, transform):
+        self.transforms = transform
 
     def __call__(self, x):
-        x = list(x)
-        x[self.index] = self.transform(x[self.index])
-        return tuple(x)
+        for key, transform in self.transforms.items():
+            x[key] = transform(x[key])
+        return x
 
 
-def get_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
+def get_v_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
     transformations = []
     if augmentation:
         transformations.append(transforms.RandomHorizontalFlip())
@@ -35,7 +34,11 @@ def get_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
         ]
     )
 
-    return ComposeWithExtraParameters(transforms.Compose(transformations), 1)
+    return ComposeWithExtraParameters(
+        {
+            "img": transforms.Compose(transformations)
+        }
+    )
 
 
 def in_interval(

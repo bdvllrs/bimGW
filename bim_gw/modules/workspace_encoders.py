@@ -16,8 +16,9 @@ def get_n_layers(n_layers, hidden_size):
 
 class DomainDecoder(torch.nn.Module):
     def __init__(
-        self, in_dim, hidden_size, n_layers, n_layers_head, out_dims=0,
-        activation_fn=None
+        self,
+        domain_specs,
+        in_dim, hidden_size, n_layers, n_layers_head,
     ):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
@@ -25,15 +26,21 @@ class DomainDecoder(torch.nn.Module):
         self.n_layers = n_layers
         self.n_layers_head = n_layers_head
 
-        if isinstance(out_dims, int):
-            out_dims = [out_dims]
-        if not isinstance(activation_fn, (list, tuple)):
-            activation_fn = [activation_fn]
+        self.item_keys_order = domain_specs.latent_keys
+        out_dims = domain_specs.output_dims
+        activation_fn = domain_specs.decoder_activation_fn
 
-        assert len(out_dims) == len(
-            activation_fn
-        ), "The model is missing some loss_functions or output_dimensions " \
-           "for the outputs."
+        if activation_fn is None:
+            activation_fn = {
+                key: activation_fn
+                for key in self.item_keys_order
+            }
+
+        if len(out_dims) != len(activation_fn):
+            raise ValueError(
+                "The model is missing some loss_functions or "
+                "output_dimensions for the outputs."
+            )
 
         self.out_dims = out_dims
         self.activation_fn = activation_fn
@@ -44,47 +51,52 @@ class DomainDecoder(torch.nn.Module):
             *get_n_layers(n_layers, self.hidden_size)
         )
 
-        self.encoder_head = nn.ModuleList(
-            [
-                nn.Sequential(
+        self.encoder_head = nn.ModuleDict(
+            {
+                key: nn.Sequential(
                     *get_n_layers(n_layers_head, self.hidden_size),
-                    nn.Linear(self.hidden_size, pose_dim),
+                    nn.Linear(self.hidden_size, self.out_dims[key]),
                 )
-                for pose_dim in self.out_dims
-            ]
+                for key in self.item_keys_order
+            }
         )
 
     def forward(self, x):
         out = self.encoder(x)
-        outputs = []
-        for block, activation_fn in zip(self.encoder_head, self.activation_fn):
+        outputs = {}
+        for key in self.item_keys_order:
+            block = self.encoder_head[key]
+            activation_fn = self.activation_fn[key]
             z = block(out)
             if activation_fn is not None:
                 z = activation_fn(z)
-            outputs.append(z)
+            outputs[key] = z
         return outputs
 
 
 class DomainEncoder(nn.Module):
-    def __init__(self, in_dims, hidden_size, out_dim, n_layers):
+    def __init__(
+        self, domain_specs,
+        hidden_size, out_dim, n_layers
+    ):
         super(DomainEncoder, self).__init__()
-        if isinstance(in_dims, int):
-            in_dims = [in_dims]
-        self.in_dims = in_dims
+        self.in_dims = domain_specs.output_dims
         self.out_dim = out_dim
         self.hidden_size = hidden_size
         self.n_layers = n_layers
 
+        self.item_keys_order = domain_specs.latent_keys
+
         self.encoder = nn.Sequential(
-            nn.Linear(sum(self.in_dims), self.hidden_size),
+            nn.Linear(sum(self.in_dims.values()), self.hidden_size),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_size),
             nn.Linear(self.hidden_size, self.out_dim)
         )
 
     def forward(self, x):
-        if len(self.in_dims) > 1:
-            assert len(x) == len(self.in_dims), "Not enough values as input."
-        x = torch.cat(x, dim=-1)
+        assert len(x) == len(self.in_dims), "Not enough values as input."
+
+        x = torch.cat([x[key] for key in self.item_keys_order], dim=-1)
         out = self.encoder(x)
         return out

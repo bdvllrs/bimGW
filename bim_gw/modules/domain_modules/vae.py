@@ -1,10 +1,13 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from bim_gw.modules.domain_modules.domain_module import DomainModule
+from bim_gw.modules.domain_modules.domain_module import (
+    DomainModule,
+    DomainSpecs
+)
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
     log_if_save_last_images, log_if_save_last_tables, log_image
@@ -24,7 +27,16 @@ class VAE(DomainModule):
         n_fid_samples=1000,
     ):
         # configurations
-        super().__init__()
+        super().__init__(
+            DomainSpecs(
+                output_dims={"z_img": z_size},
+                decoder_activation_fn={"z_img": None},
+                losses={"z_img": F.mse_loss},
+                input_keys=["img"],
+                latent_keys=["z_img"],
+            )
+        )
+
         self.save_hyperparameters(ignore=["validation_reconstruction_images"])
 
         self.image_size = image_size
@@ -37,20 +49,6 @@ class VAE(DomainModule):
         self.beta = beta
         self.vae_type = vae_type
         self.n_fid_samples = n_fid_samples
-
-        self.output_dims = [self.z_size]
-        self.decoder_activation_fn = [
-            None
-        ]
-        self.losses = [
-            F.mse_loss
-            # lambda x, y: (
-            #     F.mse_loss(x, y)
-            #     + mmd_loss_coef * mmd_loss(x, y)
-            #     + kl_loss_coef * self.kl_divergence_loss(x.mean(0),
-            #     x.var(0).log())
-            # )
-        ]
 
         # val sampling
         self.register_buffer(
@@ -75,24 +73,20 @@ class VAE(DomainModule):
         else:
             self.register_buffer("log_sigma", torch.tensor(0.))
 
-        # self.encoder = torchvision.models.resnet18(False)
-        # self.encoder.fc = nn.Identity()
-        #
-        # # q
-        # self.q_mean = nn.Linear(512, self.z_size)
-        # self.q_logvar = nn.Linear(512, self.z_size)
-        #
-        # # decoder
-        # self.decoder = ResNetDecoder(z_size)
         self.encoder = CEncoderV2(
             channel_num, image_size, ae_size=ae_size, batchnorm=True
         )
 
-        self.q_mean = nn.Linear(self.encoder.out_size, self.z_size)
-        self.q_logvar = nn.Linear(self.encoder.out_size, self.z_size)
+        self.q_mean = nn.Linear(
+            self.encoder.out_size, self.z_size
+        )
+        self.q_logvar = nn.Linear(
+            self.encoder.out_size, self.z_size
+        )
 
         self.decoder = CDecoderV2(
-            channel_num, image_size, ae_size=ae_size, z_size=self.z_size,
+            channel_num, image_size, ae_size=ae_size,
+            z_size=self.z_size,
             batchnorm=True
         )
 
@@ -104,16 +98,14 @@ class VAE(DomainModule):
         var_z = self.q_logvar(out)
         return mean_z, var_z
 
-    def encode(self, x: torch.Tensor):
-        x = x[0]
-        mean_z, _ = self.encode_stats(x)
+    def encode(self, visual_domain: Dict[str, torch.Tensor]):
+        mean_z, _ = self.encode_stats(visual_domain['img'])
+        return {"z_img": mean_z}
 
-        # z = reparameterize(mean_z, var_z)
-        return [mean_z]
-
-    def decode(self, z: torch.Tensor):
-        z = z[0]
-        return [self.decoder(z)]
+    def decode(self, visual_latents: Dict[str, torch.Tensor]):
+        return {
+            "img": self.decoder(visual_latents["z_img"])
+        }
 
     def forward(
         self,
@@ -154,27 +146,33 @@ class VAE(DomainModule):
         return self.decode(samples)
 
     def step(self, batch, mode="train"):
-        x = batch["v"][1]
-        # x[:, 0][x[:, 0] != 0] = 1
-        # x[:, 1][x[:, 1] != 0] = 0
-        # x[:, 2][x[:, 2] != 0] = 0
-
+        x = batch["v"]["img"]
         (mean, logvar), x_reconstructed = self(x)
         reconstruction_loss = self.reconstruction_loss(x_reconstructed, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
         total_loss = reconstruction_loss + self.beta * kl_divergence_loss
 
+        batch_size = x.size(0)
+
         self.log(
             f"{mode}_reconstruction_loss", reconstruction_loss, logger=True,
-            on_epoch=(mode != "train")
+            on_epoch=(mode != "train"),
+            batch_size=batch_size
         )
         self.log(
             f"{mode}_kl_divergence_loss", kl_divergence_loss, logger=True,
-            on_epoch=(mode != "train")
+            on_epoch=(mode != "train"),
+            batch_size=batch_size
         )
-        self.log(f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"))
+        self.log(
+            f"{mode}_total_loss", total_loss, on_epoch=(mode != "train"),
+            batch_size=batch_size
+        )
         if mode == "train":
-            self.log("log_sigma", self.log_sigma, logger=True)
+            self.log(
+                "log_sigma", self.log_sigma,
+                logger=True, batch_size=batch_size
+            )
         return total_loss
 
     def training_step(self, batch, batch_idx):
@@ -212,7 +210,8 @@ class VAE(DomainModule):
                 # fid, mse = compute_FID(
                 #     self.trainer.datamodule.inception_stats_path_train,
                 #     self.trainer.datamodule.val_dataloader()[0],
-                #     self, self.z_size, [self.image_size, self.image_size],
+                #     self, self.z_size, [self.image_size,
+                #     self.image_size],
                 #     self.device, self.n_FID_samples
                 # )
                 # self.log(f"{mode}_fid", fid)
@@ -254,7 +253,7 @@ class VAE(DomainModule):
         return [optimizer], [scheduler]
 
     def log_domain(self, logger, x, title, max_examples=None, step=None):
-        log_image(logger, x[0][:max_examples], title, step)
+        log_image(logger, x["img"][:max_examples], title, step)
 
 
 class CEncoderV2(nn.Module):

@@ -23,6 +23,12 @@ AVAILABLE_DOMAINS = {
     "t": TextLoader,
 }
 
+domain_item_name_mapping = {
+    "v": {0: "z_img"},
+    "attr": {0: "z_cls", 1: "z_attr"},
+    "t": {0: "z"}
+}
+
 
 class SimpleShapesDataset:
 
@@ -50,9 +56,9 @@ class SimpleShapesDataset:
             selected_indices:
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains = [domain for domain in
-                                 AVAILABLE_DOMAINS.keys()] if \
-            selected_domains is None else selected_domains
+        self.selected_domains = selected_domains
+        if selected_domains is None:
+            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
         self.root_path = Path(path)
         self.transforms = {domain: (transform[domain] if (
                 transform is not None and domain in transform) else None)
@@ -106,7 +112,8 @@ class SimpleShapesDataset:
                         domain_key, self.ids
                     )
                     self.domain_loaders[domain_key] = PreSavedLatentLoader(
-                        self.pre_saved_data[domain_key]
+                        self.pre_saved_data[domain_key],
+                        domain_item_name_mapping[domain_key]
                     )
 
     def __len__(self) -> int:
@@ -124,7 +131,7 @@ class SimpleShapesDataset:
                 domain_items = domain_loader.get_items(idx)
             else:
                 domain_items = domain_loader.get_items(None)
-            n_domains += domain_items[0].item()
+            n_domains += domain_items.available_masks.item()
             selected_domains[domain_key] = domain_items
         assert n_domains == len(mapping)
         if self.output_transform is not None:

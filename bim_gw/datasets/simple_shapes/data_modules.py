@@ -6,15 +6,16 @@ import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Subset
 
+from bim_gw.datasets.domain import collate_fn
 from bim_gw.datasets.simple_shapes.datasets import (
     AVAILABLE_DOMAINS, AvailableDomainsType,
     SimpleShapesDataset
 )
 from bim_gw.datasets.simple_shapes.utils import (
     create_ood_split,
-    get_preprocess, split_ood_sets
+    get_v_preprocess, split_ood_sets
 )
-from bim_gw.datasets.utils import filter_sync_domains, set_validation_examples
+from bim_gw.datasets.utils import filter_sync_domains, get_validation_examples
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
@@ -115,11 +116,11 @@ class SimpleShapesDataModule(LightningDataModule):
         if not self.is_setup:
             val_transforms: Dict[
                 AvailableDomainsType, Callable[[Any], Any]] = {
-                "v": get_preprocess()
+                "v": get_v_preprocess()
             }
             train_transforms: Dict[
                 AvailableDomainsType, Callable[[Any], Any]] = {
-                "v": get_preprocess()
+                "v": get_v_preprocess()
             }
             if self.sync_uses_whole_dataset:
                 sync_indices = np.arange(self.len_train_dataset)
@@ -186,13 +187,11 @@ class SimpleShapesDataModule(LightningDataModule):
                 else:
                     self.train_set = train_set
 
-            set_validation_examples(
+            self.domain_examples = get_validation_examples(
                 self.train_set,
                 self.val_set,
                 self.test_set,
-                self.selected_domains,
                 self.n_domain_examples,
-                self.split_ood,
             )
 
             # Use pre saved latents if provided.
@@ -213,21 +212,21 @@ class SimpleShapesDataModule(LightningDataModule):
     ) -> None:
         train_ds = SimpleShapesDataset(
             self.simple_shapes_folder, "train",
-            transform={"v": get_preprocess()},
+            transform={"v": get_v_preprocess()},
             selected_domains=["v"],
             output_transform=lambda d: d["v"][1],
             domain_loader_params=self.domain_loader_params
         )
         val_ds = SimpleShapesDataset(
             self.simple_shapes_folder, "val",
-            transform={"v": get_preprocess()},
+            transform={"v": get_v_preprocess()},
             selected_domains=["v"],
             output_transform=lambda d: d["v"][1],
             domain_loader_params=self.domain_loader_params
         )
         test_ds = SimpleShapesDataset(
             self.simple_shapes_folder, "test",
-            transform={"v": get_preprocess()},
+            transform={"v": get_v_preprocess()},
             selected_domains=["v"],
             output_transform=lambda d: d["v"][1],
             domain_loader_params=self.domain_loader_params
@@ -255,7 +254,8 @@ class SimpleShapesDataModule(LightningDataModule):
             shuffle=shuffle,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=collate_fn
         )
 
     def get_val_test_dataloader(
@@ -264,14 +264,16 @@ class SimpleShapesDataModule(LightningDataModule):
         dataloaders = [
             torch.utils.data.DataLoader(
                 dataset["in_dist"], self.batch_size,
-                num_workers=self.num_workers, pin_memory=True
+                num_workers=self.num_workers, pin_memory=True,
+                collate_fn=collate_fn,
             ),
         ]
         if dataset["ood"] is not None:
             dataloaders.append(
                 torch.utils.data.DataLoader(
                     dataset["ood"], self.batch_size,
-                    num_workers=self.num_workers, pin_memory=True
+                    num_workers=self.num_workers, pin_memory=True,
+                    collate_fn=collate_fn,
                 )
             )
         return dataloaders
@@ -281,3 +283,8 @@ class SimpleShapesDataModule(LightningDataModule):
 
     def test_dataloader(self) -> List[torch.utils.data.DataLoader]:
         return self.get_val_test_dataloader(self.test_set)
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx=None):
+        for domain_items in batch.values():
+            domain_items.to_device(device)
+        return batch
