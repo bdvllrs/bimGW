@@ -113,7 +113,7 @@ def replace_legacy_selected_domains(x):
     return selected_domains
 
 
-def update_df_for_legacy_code(df):
+def update_df_for_legacy_code(df: pd.DataFrame) -> pd.DataFrame:
     if 'parameters/losses/coefs/translation' not in df.columns:
         df['parameters/losses/coefs/translation'] = df.apply(
             replace_legacy_supervision_to_translation, axis=1
@@ -128,7 +128,7 @@ def update_df_for_legacy_code(df):
     return df
 
 
-def get_runs_dataframe(args):
+def get_runs_dataframe(args) -> pd.DataFrame:
     if args.load_from == LoadFromData.csv:
         return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
     elif args.load_from == LoadFromData.wandb:
@@ -141,7 +141,7 @@ def get_runs_dataframe(args):
         )
         columns = {}
         for run in runs:
-            vals = run.summary._json_dict
+            vals = run.summary._json_dict  # noqa
             vals.update(
                 {k: v for k, v in run.config.items()
                  if not k.startswith('_')}

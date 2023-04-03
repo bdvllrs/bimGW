@@ -110,19 +110,27 @@ visualization:
   font_size_title: 14
   line_width: 2  # curve line width
 
-  gw_results:
-    saved_figure_path: "../../data/plots"  # where to save figures
-    mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
-      translation: 1.
-      contrastive: 0.1
-    total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
-    legend:
-      num_columns: 2
-    axes:
-      # should be *in this order* separated by a "+": tr, cont, dcy, then cy. To not include one loss component, just remove it from the list.
-      # For example: "tr+cont" is valid, "cont+tr" is not.
-      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
-      attributes:
+  mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
+    translation: 1.
+    contrastive: 0.1
+
+  loss_definitions:
+    translation: [ "val/in_dist/translation_loss.min" ]  # list of the logged losses to average for translation
+    contrastive: [ "val/in_dist/contrastive_loss.min" ]  # similar for contrastive
+    cycles: [ "val/in_dist/cycles_loss.min" ]
+    demi_cycles: [ "val/in_dist/demi_cycles_loss.min" ]
+
+  saved_figure_path: "../../data/plots"  # where to save figures
+  total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
+  legend:
+    num_columns: 2
+  axes:
+    # should be *in this order* separated by a "+": tr, cont, dcy, then cy. To not include one loss component, just remove it from the list.
+    # For example: "tr+cont" is valid, "cont+tr" is not.
+    selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+    selected_losses: [ "translation", "contrastive" ]
+    cols:
+      - legend: "Proto-language -- Vision"
         load_from: wandb  # among wandb or csv
         wandb_entity_project: null  # If load_from is wandb, entity/project-name
         wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
@@ -134,15 +142,11 @@ visualization:
         #   ]
         # }
         csv_path: null  # If load_from is csv, path to csv file containing the run to display
-      text:
+      - legend: "Text -- Vision"
         load_from: wandb  # similar to attributes
         wandb_entity_project: null
         wandb_filter: null
         csv_path: null
-
-    loss_definitions:
-      translation: [ "val/in_dist/translation_loss.min" ]  # list of the logged losses to average for translation
-      contrastive: [ "val/in_dist/contrastive_loss.min" ]  # similar for contrastive
 
 
 # =====

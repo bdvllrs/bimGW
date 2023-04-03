@@ -105,24 +105,13 @@ class LoggerConfig:
 
 
 @dataclass
-class MixLossCoefficientsGWResultConfig:
-    translation: float = MISSING
-    contrastive: float = MISSING
-
-
-@dataclass
-class LossDefinitionsGWResultsConfig:
-    translation: List[str] = MISSING
-    contrastive: List[str] = MISSING
-
-
-@dataclass
 class LegendGWResultConfig:
     num_columns: int = MISSING
 
 
 @dataclass
 class DataSelectorAxesConfig:
+    label: str = MISSING
     load_from: LoadFromData = MISSING
     wandb_entity_project: Optional[str] = MISSING
     wandb_filter: Optional[WandbFilterT] = MISSING
@@ -132,28 +121,9 @@ class DataSelectorAxesConfig:
 @dataclass
 class AxesGWResultConfig:
     selected_curves: List[str] = MISSING
+    selected_losses: List[str] = MISSING
 
-    attributes: DataSelectorAxesConfig = field(
-        default_factory=DataSelectorAxesConfig
-    )
-    text: DataSelectorAxesConfig = field(
-        default_factory=DataSelectorAxesConfig
-    )
-
-
-@dataclass
-class GWResultVisualizationConfig:
-    saved_figure_path: str = MISSING
-    total_num_examples: int = MISSING
-
-    loss_definitions: LossDefinitionsGWResultsConfig = field(
-        default_factory=LossDefinitionsGWResultsConfig
-    )
-    axes: AxesGWResultConfig = field(default_factory=AxesGWResultConfig)
-    mix_loss_coefficients: MixLossCoefficientsGWResultConfig = field(
-        default_factory=MixLossCoefficientsGWResultConfig
-    )
-    legend: LegendGWResultConfig = field(default_factory=LegendGWResultConfig)
+    cols: List[DataSelectorAxesConfig] = field(default_factory=list)
 
 
 @dataclass
@@ -164,9 +134,17 @@ class VisualizationConfig:
     font_size_title: int = MISSING
     line_width: int = MISSING
 
-    gw_results: GWResultVisualizationConfig = field(
-        default_factory=GWResultVisualizationConfig
+    saved_figure_path: str = MISSING
+    total_num_examples: int = MISSING
+
+    loss_definitions: Dict[str, List[str]] = field(
+        default_factory=dict
     )
+    axes: AxesGWResultConfig = field(default_factory=AxesGWResultConfig)
+    mix_loss_coefficients: Dict[str, float] = field(
+        default_factory=dict
+    )
+    legend: LegendGWResultConfig = field(default_factory=LegendGWResultConfig)
 
 
 @dataclass

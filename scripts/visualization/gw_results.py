@@ -6,6 +6,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from bim_gw.utils import get_args
+from bim_gw.utils.types import BIMConfig
 from bim_gw.utils.utils import (
     get_job_slug_from_coefficients,
     get_runs_dataframe
@@ -19,12 +20,9 @@ from bim_gw.utils.visualization import (
 y_axis_labels = {
     "translation": "Translation losses",
     "contrastive": "Contrastive losses",
+    "cycles": "Cycle losses",
+    "demi_cycles": "Demi-cycle losses",
     "mix_loss": "Averaged losses",
-}
-
-title_labels = {
-    "attributes": "Vision-Attributes",
-    "text": "Vision-Text",
 }
 
 slug_to_label = {
@@ -41,30 +39,27 @@ slug_to_label = {
 }
 
 if __name__ == '__main__':
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args: BIMConfig = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    gw_results_args = args.visualization.gw_results
+    vis_args = args.visualization
 
-    language_domains = ["attributes", "text"]
-    loss_evaluations = ["translation", "contrastive"]
-    dataframes = {}
-    for language_domain in language_domains:
-        df = get_runs_dataframe(
-            gw_results_args.axes[language_domain]
-        )
+    dataframes = []
+    for row in vis_args.axes.cols:
+        row_label = row.label
+        df = get_runs_dataframe(row)
         df['slug'] = df.apply(get_job_slug_from_coefficients, axis=1)
 
-        tr_coef = gw_results_args.mix_loss_coefficients.translation
-        cont_coef = gw_results_args.mix_loss_coefficients.contrastive
+        tr_coef = vis_args.mix_loss_coefficients['translation']
+        cont_coef = vis_args.mix_loss_coefficients['contrastive']
 
-        loss_def_translation = gw_results_args.loss_definitions.contrastive
-        loss_def_contrastive = gw_results_args.loss_definitions.contrastive
+        loss_def_translation = vis_args.loss_definitions['contrastive']
+        loss_def_contrastive = vis_args.loss_definitions['contrastive']
         df['mix_loss'] = (
                 tr_coef * df[loss_def_translation[0]]
                 + cont_coef * df[loss_def_contrastive[0]]
         )
 
-        df = set_new_cols(df, gw_results_args.loss_definitions)
+        df = set_new_cols(df, vis_args.loss_definitions)
 
         df = df.groupby(
             [
@@ -98,19 +93,26 @@ if __name__ == '__main__':
                 aggfunc='first'
             ),
             **get_agg_args_from_dict(
-                gw_results_args.loss_definitions
+                vis_args.loss_definitions
             ),
         )
         df['num_examples'] = (
-                df['prop_label'] * gw_results_args.total_num_examples
+                df['prop_label'] * vis_args.total_num_examples
         )
         df.fillna(0., inplace=True)
         min_idx_translation = df.groupby(["prop_label", "slug"])
         min_idx_translation = min_idx_translation['mix_loss_mean'].idxmin()
         df = df.loc[min_idx_translation]
-        dataframes[language_domain] = df
+        dataframes.append(
+            {
+                "row": row,
+                "data": df,
+            }
+        )
 
-    n_cols = len(language_domains)
+    loss_evaluations = vis_args.axes.selected_losses
+
+    n_cols = len(vis_args.axes.cols)
     n_rows = len(loss_evaluations)
     now = datetime.now().strftime("%d-%m-%YT%H_%M_%S")
 
@@ -118,10 +120,11 @@ if __name__ == '__main__':
         n_rows, n_cols, figsize=(3.7 * n_cols, 4 * n_rows)
     )
     for m, evaluated_loss in enumerate(loss_evaluations):
-        for n, (df_name, df) in enumerate(dataframes.items()):
+        for n, row in enumerate(dataframes):
+            df = row['data']
             k = m * n_rows + n
             ax = axes[m, n] if n_cols > 1 else axes
-            selected_curves = gw_results_args.axes.selected_curves
+            selected_curves = vis_args.axes.selected_curves
             for curve_name in selected_curves:
                 grp = df[df['slug'] == curve_name]
                 slug_label = curve_name
@@ -155,7 +158,7 @@ if __name__ == '__main__':
                 ax.set_xscale('log')
                 if m == 0:
                     ax.set_title(
-                        title_labels[df_name],
+                        row['row'].label,
                         fontsize=args.visualization.font_size_title,
                         color=args.visualization.fg_color
                     )
@@ -174,7 +177,7 @@ if __name__ == '__main__':
     fig.legend(
         loc='lower center', bbox_to_anchor=(0.5, 0),
         bbox_transform=fig.transFigure,
-        ncol=gw_results_args.legend.num_columns,
+        ncol=vis_args.legend.num_columns,
         fontsize=args.visualization.font_size
     )
     # fig.tight_layout()
@@ -182,72 +185,73 @@ if __name__ == '__main__':
     fig.patch.set_facecolor(args.visualization.bg_color)
     plt.savefig(
         Path(
-            gw_results_args.saved_figure_path
+            vis_args.saved_figure_path
         ) / f"{now}_results.pdf", bbox_inches="tight"
     )
     plt.show()
 
     # PLOT COEFFICIENTS
-    coefs = ["cycles", "demi_cycles", "contrastive"]
-    fig, axes = plt.subplots(
-        len(coefs), n_cols, figsize=(3.7 * n_cols, 4 * len(coefs))
-    )
-    for m, coef in enumerate(coefs):
-        for n, (df_name, df) in enumerate(dataframes.items()):
-            k = m * len(coefs) + n
-            ax = axes[m, n] if n_cols > 1 else axes
-            selected_curves = gw_results_args.axes.selected_curves
-            for slug in selected_curves:
-                grp = df[df['slug'] == slug]
-                slug_label = slug
-                if slug in slug_to_label:
-                    slug_label = slug_to_label[slug]
-                if len(grp) > 1:
-                    ax = grp.plot(
-                        'num_examples', coef + '_coef', ax=ax,
-                        label=(slug_label if k == 0 else '_nolegend_'),
-                        legend=False, **get_fmt(slug),
-                        linewidth=args.visualization.line_width
-                    )
-
-                ax.set_xlabel(
-                    "Number of bimodal examples ($N$)",
-                    fontsize=args.visualization.font_size
-                )
-                if n == 0:
-                    ax.set_ylabel(coef, fontsize=args.visualization.font_size)
-                ax.set_xscale('log')
-                if m == 0:
-                    ax.set_title(
-                        title_labels[df_name],
-                        fontsize=args.visualization.font_size_title,
-                        color=args.visualization.fg_color
-                    )
-
-            ax.tick_params(
-                which='both', labelsize=args.visualization.font_size,
-                color=args.visualization.fg_color,
-                labelcolor=args.visualization.fg_color
-            )
-            ax.xaxis.label.set_color(args.visualization.fg_color)
-            ax.yaxis.label.set_color(args.visualization.fg_color)
-            for spine in ax.spines.values():
-                spine.set_edgecolor(args.visualization.fg_color)
-            ax.set_facecolor(args.visualization.bg_color)
-
-    fig.legend(
-        loc='lower center', bbox_to_anchor=(0.5, 0),
-        bbox_transform=fig.transFigure,
-        ncol=gw_results_args.legend.num_columns,
-        fontsize=args.visualization.font_size
-    )
-    # fig.tight_layout()
-    plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
-    fig.patch.set_facecolor(args.visualization.bg_color)
-    plt.savefig(
-        Path(
-            gw_results_args.saved_figure_path
-        ) / f"{now}_selected_coefficients.pdf",
-        bbox_inches="tight"
-    )
-    plt.show()
+    # coefs = ["cycles", "demi_cycles", "contrastive"]
+    # fig, axes = plt.subplots(
+    #     len(coefs), n_cols, figsize=(3.7 * n_cols, 4 * len(coefs))
+    # )
+    # for m, coef in enumerate(coefs):
+    #     for n, (df_name, df) in enumerate(dataframes.items()):
+    #         k = m * len(coefs) + n
+    #         ax = axes[m, n] if n_cols > 1 else axes
+    #         selected_curves = vis_args.axes.selected_curves
+    #         for slug in selected_curves:
+    #             grp = df[df['slug'] == slug]
+    #             slug_label = slug
+    #             if slug in slug_to_label:
+    #                 slug_label = slug_to_label[slug]
+    #             if len(grp) > 1:
+    #                 ax = grp.plot(
+    #                     'num_examples', coef + '_coef', ax=ax,
+    #                     label=(slug_label if k == 0 else '_nolegend_'),
+    #                     legend=False, **get_fmt(slug),
+    #                     linewidth=args.visualization.line_width
+    #                 )
+    #
+    #             ax.set_xlabel(
+    #                 "Number of bimodal examples ($N$)",
+    #                 fontsize=args.visualization.font_size
+    #             )
+    #             if n == 0:
+    #                 ax.set_ylabel(coef,
+    #                 fontsize=args.visualization.font_size)
+    #             ax.set_xscale('log')
+    #             if m == 0:
+    #                 ax.set_title(
+    #                     title_labels[df_name],
+    #                     fontsize=args.visualization.font_size_title,
+    #                     color=args.visualization.fg_color
+    #                 )
+    #
+    #         ax.tick_params(
+    #             which='both', labelsize=args.visualization.font_size,
+    #             color=args.visualization.fg_color,
+    #             labelcolor=args.visualization.fg_color
+    #         )
+    #         ax.xaxis.label.set_color(args.visualization.fg_color)
+    #         ax.yaxis.label.set_color(args.visualization.fg_color)
+    #         for spine in ax.spines.values():
+    #             spine.set_edgecolor(args.visualization.fg_color)
+    #         ax.set_facecolor(args.visualization.bg_color)
+    #
+    # fig.legend(
+    #     loc='lower center', bbox_to_anchor=(0.5, 0),
+    #     bbox_transform=fig.transFigure,
+    #     ncol=vis_args.legend.num_columns,
+    #     fontsize=args.visualization.font_size
+    # )
+    # # fig.tight_layout()
+    # plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
+    # fig.patch.set_facecolor(args.visualization.bg_color)
+    # plt.savefig(
+    #     Path(
+    #         vis_args.saved_figure_path
+    #     ) / f"{now}_selected_coefficients.pdf",
+    #     bbox_inches="tight"
+    # )
+    # plt.show()
