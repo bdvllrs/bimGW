@@ -199,7 +199,11 @@ if __name__ == '__main__':
         )
         # fig.suptitle(figure.title)
         # fig.tight_layout()
-        plt.subplots_adjust(bottom=0.16, hspace=0.3, top=0.97)
+        plt.subplots_adjust(
+            bottom=args.visualization.bottom_adjust,
+            hspace=args.visualization.hspace_adjust,
+            top=args.visualization.top_adjust
+        )
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(
             Path(

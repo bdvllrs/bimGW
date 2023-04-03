@@ -135,6 +135,10 @@ class VisualizationConfig:
     font_size_title: int = MISSING
     line_width: int = MISSING
 
+    top_adjust: float = MISSING
+    bottom_adjust: float = MISSING
+    hspace_adjust: float = MISSING
+
     saved_figure_path: str = MISSING
     total_num_examples: int = MISSING
 
