@@ -79,7 +79,7 @@ class VisionLoader(DomainLoader):
     def get_null_item(self) -> DomainItems:
         if self.null_image is None:
             item = self.get_item(0)
-            shape = list(item.img.size) + [3]
+            shape = list(item['img'].size) + [3]
             img = np.zeros(shape, np.uint8)
             self.null_image = Image.fromarray(img)
 
@@ -110,7 +110,7 @@ class AttributesLoader(DomainLoader):
 
         return DomainItems.singular(
             cls=0,
-            attr=torch.zeros_like(item.attr),
+            attr=torch.zeros_like(item['attr']),
             is_available=False
         )
 

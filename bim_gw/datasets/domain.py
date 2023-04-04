@@ -1,4 +1,3 @@
-import copy
 from collections.abc import Collection
 
 import torch
@@ -11,7 +10,7 @@ from torch.utils.data.dataloader import default_collate
 class DomainItems(Collection):
     def __init__(self, available_masks, **sub_parts):
         self.available_masks = available_masks
-        self._sub_parts = sub_parts
+        self.sub_parts = sub_parts
 
     @staticmethod
     def singular(is_available=True, **sub_parts):
@@ -23,33 +22,20 @@ class DomainItems(Collection):
     def is_batch(self):
         return len(self) > 1
 
-    def _get_attr(self, key):
-        return self._sub_parts[key]
-
-    def __getattr__(self, key):
-        try:
-            return self._get_attr(key)
-        except KeyError:
-            raise AttributeError(f"DomainItems has no attribute {key}.")
-
     def __getitem__(self, item):
-        return self._get_attr(item)
+        return self.sub_parts[item]
 
     def __setitem__(self, key, value):
-        self._sub_parts[key] = value
+        self.sub_parts[key] = value
 
     def __delitem__(self, key):
-        del self._sub_parts[key]
+        del self.sub_parts[key]
 
     def __len__(self):
         return self.available_masks.shape[0]
 
     def __iter__(self):
-        return iter(self._sub_parts)
-
-    @property
-    def sub_parts(self):
-        return self._sub_parts
+        return iter(self.sub_parts)
 
     @staticmethod
     def get_collate_fn():
@@ -57,58 +43,46 @@ class DomainItems(Collection):
 
     def to_device(self, device):
         self.available_masks = self.available_masks.to(device)
-        self._sub_parts = _to_device(self.sub_parts, device)
+        self.sub_parts = _to_device(self.sub_parts, device)
         return self
 
     def pin_memory(self):
         self.available_masks = self.available_masks.pin_memory()
-        self._sub_parts = _pin_memory(self.sub_parts)
+        self.sub_parts = _pin_memory(self.sub_parts)
         return self
 
     # Reimplementation of the MutableMapping interface
     def __contains__(self, key):
-        return key in self._sub_parts
+        return key in self.sub_parts
 
     def values(self):
-        yield from self._sub_parts.values()
+        yield from self.sub_parts.values()
 
     def keys(self):
-        yield from self._sub_parts.keys()
+        yield from self.sub_parts.keys()
 
     def items(self):
-        yield from self._sub_parts.items()
+        yield from self.sub_parts.items()
 
 
 def _to_device(value, device):
     if isinstance(value, torch.Tensor):
         return value.to(device)
     if isinstance(value, dict):
-        new_dict = {}
-        for key, item in value.items():
-            new_dict[key] = _to_device(item, device)
-        return new_dict
+        return {k: _to_device(v, device) for k, v in value.items()}
     if isinstance(value, list):
-        new_list = []
-        for item in value:
-            new_list.append(_to_device(item, device))
-        return new_list
-    return copy.copy(value)
+        return [_to_device(v, device) for v in value]
+    return value
 
 
 def _pin_memory(value):
-    if isinstance(value, torch.Tensor):
+    if hasattr(value, "pin_memory"):
         return value.pin_memory()
     if isinstance(value, dict):
-        new_dict = {}
-        for key, item in value.items():
-            new_dict[key] = _pin_memory(item)
-        return new_dict
+        return {k: _pin_memory(v) for k, v in value.items()}
     if isinstance(value, list):
-        new_list = []
-        for item in value:
-            new_list.append(_pin_memory(item))
-        return new_list
-    return copy.copy(value)
+        return [_pin_memory(v) for v in value]
+    return value
 
 
 def domain_collate_fn(batch):
