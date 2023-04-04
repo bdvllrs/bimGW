@@ -99,6 +99,7 @@ def get_trainer(
         "max_epochs": args.max_epochs,
         "max_steps": args.max_steps,
         "multiple_trainloader_mode": "min_size",
+        "enable_progress_bar": args.progress_bar,
     }
     if trainer_args is not None:
         _trainer_args.update(trainer_args)

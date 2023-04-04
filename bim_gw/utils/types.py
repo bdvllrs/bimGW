@@ -319,6 +319,8 @@ class BIMConfig:
     resume_from_checkpoint: Any = MISSING
     logger_resume_id: Optional[str] = MISSING
 
+    progress_bar: bool = MISSING
+
     checkpoint: Any = MISSING
 
     slurm_id: Optional[str] = MISSING

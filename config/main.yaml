@@ -18,6 +18,7 @@ n_validation_examples: 32  # number of validation examples for the images logged
 checkpoints_dir: "../checkpoints"  # path to save checkpoints artifacts
 resume_from_checkpoint: null  # path to a checkpoint to continue training. For train_lm path to the LM, for train_vae path to the VAE...
 logger_resume_id: null  # if not null, will resume the logged run (such as wandb run) with this id.
+progress_bar: true  # whether to show the progress bar
 
 checkpoint: null  # path to the GW model for evaluation or path to folder containing the model. If folder, the best model will be loaded
 # When loading checkpoints (checkpoint, or resume_from_checkpoint), you can load a model from
