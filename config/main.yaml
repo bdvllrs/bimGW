@@ -136,7 +136,7 @@ visualization:
       selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       selected_losses: [ "translation", "contrastive" ]
       cols:
-        - legend: "Proto-language -- Vision"
+        - label: "Proto-language -- Vision"
           load_from: wandb  # among wandb or csv
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
@@ -148,7 +148,7 @@ visualization:
           #   ]
           # }
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
-        - legend: "Text -- Vision"
+        - label: "Text -- Vision"
           load_from: wandb  # similar to attributes
           wandb_entity_project: null
           wandb_filter: null
@@ -160,7 +160,7 @@ visualization:
       selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       selected_losses: [ "cycles" ]
       cols:
-        - legend: "Proto-language -- Vision"
+        - label: "Proto-language -- Vision"
           load_from: wandb  # among wandb or csv
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
@@ -172,7 +172,7 @@ visualization:
           #   ]
           # }
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
-        - legend: "Text -- Vision"
+        - label: "Text -- Vision"
           load_from: wandb  # similar to attributes
           wandb_entity_project: null
           wandb_filter: null
