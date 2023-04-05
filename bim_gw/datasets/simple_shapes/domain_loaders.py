@@ -167,13 +167,17 @@ class TextLoader(DomainLoader):
         if 'pca_dim' not in self.domain_loader_args:
             raise ValueError('pca_dim must be specified for text loader')
 
-        bert_data, bert_mean, bert_std = self._get_bert_data(
-            ids, root_path, split
-        )
-
-        self.bert_data = bert_data
-        self.bert_mean = bert_mean
-        self.bert_std = bert_std
+        if self.domain_loader_args['bert_latents'] is not None:
+            bert_data, bert_mean, bert_std = self._get_bert_data(
+                ids, root_path, split
+            )
+            self.bert_data = bert_data
+            self.bert_mean = bert_mean
+            self.bert_std = bert_std
+        else:
+            self.bert_data = None
+            self.bert_mean = None
+            self.bert_std = None
 
         self.captions = _get_bert_latent(
             root_path / f"{split}_captions.npy"

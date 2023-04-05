@@ -1,4 +1,5 @@
 from pathlib import Path
+from shutil import rmtree
 
 import numpy as np
 
@@ -14,7 +15,7 @@ def main():
     test_config_dir = tests_dir / "configs"
 
     if dataset_dir.is_dir():
-        dataset_dir.rmdir()
+        rmtree(dataset_dir)
 
     args = get_args(
         cli=False,
