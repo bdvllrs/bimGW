@@ -227,10 +227,16 @@ class VAE(DomainModule):
             self.validation_reconstruction_images = domain_examples[
                 "val"]["in_dist"]["v"]["img"]
 
-    def on_fit_start(self) -> None:
+    def _put_domain_examples_to_device(self) -> None:
         if self.validation_reconstruction_images is None:
             return
         self.validation_reconstruction_images.to(self.device)
+
+    def on_fit_start(self) -> None:
+        self._put_domain_examples_to_device()
+
+    def on_validation_start(self) -> None:
+        self._put_domain_examples_to_device()
 
 
 class CEncoderV2(nn.Module):

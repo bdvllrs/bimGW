@@ -579,10 +579,16 @@ class GlobalWorkspace(LightningModule):
         if stage in ["fit", "validate", "test"]:
             self.domain_examples = self.trainer.datamodule.domain_examples
 
-    def on_fit_start(self) -> None:
+    def _put_domain_examples_to_device(self) -> None:
         if self.domain_examples is None:
             return
         for dist_examples in self.domain_examples.values():
             for examples in dist_examples.values():
                 for domain_examples in examples.values():
                     domain_examples.to_device(self.device)
+
+    def on_fit_start(self) -> None:
+        self._put_domain_examples_to_device()
+
+    def on_validation_start(self) -> None:
+        self._put_domain_examples_to_device()
