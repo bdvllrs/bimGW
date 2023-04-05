@@ -175,8 +175,8 @@ class LMConfig:
     train_vae: bool = MISSING
     train_attr_decoders: bool = MISSING
     optimize_vae_with_attr_regression: bool = MISSING
-    coef_attr_loss: int = MISSING
-    coef_vae_loss: int = MISSING
+    coef_attr_loss: float = MISSING
+    coef_vae_loss: float = MISSING
     batch_size: int = MISSING
     n_validation_examples: int = MISSING
     early_stopping_patience: Optional[int] = MISSING
