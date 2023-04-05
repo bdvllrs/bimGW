@@ -277,7 +277,7 @@ class GlobalWorkspace(LightningModule):
             if available_items.any():
                 # Demi-cycles
                 state = self.project(latents_sub_parts, [domain_name])
-                predictions = self.predict(state)
+                predictions = self.domains.adapt(self.predict(state))
                 latent_demi_cycle_predictions[f"{domain_name}-u"] = {
                     k: predictions[domain_name][k][available_items]
                     for k in predictions[domain_name].keys()
@@ -290,12 +290,11 @@ class GlobalWorkspace(LightningModule):
                     if domain_name_target != domain_name:
                         # Cycles
                         cycle_state = self.project(
-                            self.domains.adapt(predictions),
-                            [domain_name_target]
+                            predictions, [domain_name_target]
                         )
-                        cycle_prediction = self.decode(
+                        cycle_prediction = self.domains.adapt(self.decode(
                             cycle_state, domain_name
-                        )
+                        ))
                         latent_cycle_predictions[
                             f"{domain_name}-{domain_name_target}"] = {
                             k: cycle_prediction[k][available_items]
