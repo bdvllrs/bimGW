@@ -66,7 +66,7 @@ if __name__ == '__main__':
             tr_coef = vis_args.mix_loss_coefficients['translation']
             cont_coef = vis_args.mix_loss_coefficients['contrastive']
 
-            loss_def_translation = vis_args.loss_definitions['contrastive']
+            loss_def_translation = vis_args.loss_definitions['translation']
             loss_def_contrastive = vis_args.loss_definitions['contrastive']
             df['mix_loss'] = (
                     tr_coef * df[loss_def_translation[0]]

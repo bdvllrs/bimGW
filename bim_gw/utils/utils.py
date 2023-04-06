@@ -2,7 +2,6 @@ import logging
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import cast, Dict, List
 
 import pandas as pd
 import torch
@@ -11,10 +10,7 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from bim_gw.utils.errors import ConfigError
-from bim_gw.utils.types import (
-    DataSelectorAxesConfig, LoadFromData,
-    WandbFilterT
-)
+from bim_gw.utils.types import LoadFromData
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
@@ -132,26 +128,18 @@ def update_df_for_legacy_code(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
+def get_runs_dataframe(args) -> pd.DataFrame:
     if args.load_from == LoadFromData.csv:
-        if args.csv_path is None:
-            raise ValueError("csv_path must be set when load_from is csv")
         return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
     elif args.load_from == LoadFromData.wandb:
         import wandb
 
-        assert args.wandb_entity_project is not None
-        assert args.wandb_filter is not None
-
         api = wandb.Api()
         runs = api.runs(
             args.wandb_entity_project,
-            cast(
-                WandbFilterT,
-                OmegaConf.to_container(args.wandb_filter, resolve=True)
-            )
+            OmegaConf.to_container(args.wandb_filter, resolve=True)
         )
-        columns: Dict[str, List[float]] = {}
+        columns = {}
         for run in runs:
             vals = run.summary._json_dict  # noqa
             vals.update(
