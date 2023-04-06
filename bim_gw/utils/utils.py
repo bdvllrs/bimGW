@@ -1,7 +1,9 @@
 import logging
 import os
+from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, cast, Dict, List
 
 import pandas as pd
 import torch
@@ -10,7 +12,10 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from bim_gw.utils.errors import ConfigError
-from bim_gw.utils.types import LoadFromData
+from bim_gw.utils.types import (
+    DataSelectorAxesConfig, LoadFromData,
+    WandbFilterT
+)
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
@@ -128,18 +133,26 @@ def update_df_for_legacy_code(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_runs_dataframe(args) -> pd.DataFrame:
+def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
     if args.load_from == LoadFromData.csv:
+        if args.csv_path is None:
+            raise ValueError("csv_path must be set when load_from is csv")
         return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
     elif args.load_from == LoadFromData.wandb:
         import wandb
 
+        assert args.wandb_entity_project is not None
+        assert args.wandb_filter is not None
+
         api = wandb.Api()
         runs = api.runs(
             args.wandb_entity_project,
-            OmegaConf.to_container(args.wandb_filter, resolve=True)
+            cast(
+                WandbFilterT,
+                OmegaConf.to_container(args.wandb_filter, resolve=True)
+            )
         )
-        columns = {}
+        columns: Dict[str, List[Any]] = defaultdict(list)
         for run in runs:
             vals = run.summary._json_dict  # noqa
             vals.update(
@@ -152,10 +165,15 @@ def get_runs_dataframe(args) -> pd.DataFrame:
                 if isinstance(v, dict) and "min" in v:
                     k += "." + "min"
                     v = v['min']
-                if k not in columns:
-                    columns[k] = []
                 columns[k].append(v)
-
+        for k in list(columns.keys()):
+            if len(columns[k]) != len(columns['Name']):
+                logging.info(
+                    f"Deleted key '{k}' because it has a different "
+                    f"length {len(columns[k])} than the number of runs"
+                    f" {len(columns['Name'])}"
+                )
+                del columns[k]
         return update_df_for_legacy_code(pd.DataFrame(columns))
     raise ValueError(f"Unknown load_from: {args.load_from}")
 

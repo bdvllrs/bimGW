@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -69,8 +70,7 @@ if __name__ == '__main__':
             loss_def_translation = vis_args.loss_definitions['translation']
             loss_def_contrastive = vis_args.loss_definitions['contrastive']
             df['mix_loss'] = (
-                    tr_coef * df[loss_def_translation[0]]
-                    + cont_coef * df[loss_def_contrastive[0]]
+                df[loss_def_translation[0]]
             )
 
             df = set_new_cols(df, vis_args.loss_definitions)
@@ -155,12 +155,14 @@ if __name__ == '__main__':
                             legend=False, **get_fmt(curve_name),
                             linewidth=args.visualization.line_width
                         )
-                    else:
+                    elif len(grp) == 1:
                         ax.axhline(
                             y=grp[evaluated_loss + "_mean"].iloc[0],
                             label=(slug_label if k == 0 else '_nolegend_'),
                             **get_fmt(curve_name)
                         )
+                    else:
+                        logging.warning(f"No data for {curve_name}")
 
                     ax.set_xlabel(
                         "Number of bimodal examples ($N$)",
