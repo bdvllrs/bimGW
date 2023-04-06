@@ -8,9 +8,9 @@ from torch.utils.data import Subset
 
 from bim_gw.datasets.domain import collate_fn
 from bim_gw.datasets.simple_shapes.datasets import (
-    AVAILABLE_DOMAINS, AvailableDomainsType,
-    SimpleShapesDataset
+    AVAILABLE_DOMAINS, SimpleShapesDataset
 )
+from bim_gw.datasets.simple_shapes.domain_loaders import AvailableDomainsType
 from bim_gw.datasets.simple_shapes.utils import (
     create_ood_split,
     get_v_preprocess, split_ood_sets

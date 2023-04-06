@@ -1,5 +1,5 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -14,6 +14,7 @@ VisualDataType = Tuple[torch.FloatTensor, Image.Image]
 AttributesDataType = Tuple[torch.FloatTensor, int, torch.FloatTensor]
 TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
 TransformType = Callable[[DomainItems], DomainItems]
+AvailableDomainsType = Literal["v", "attr", "t"]
 
 
 def transform(
@@ -26,15 +27,16 @@ def transform(
 
 
 class DomainLoader:
-    modality: str
+    modality: AvailableDomainsType
 
     def __init__(
         self,
         root_path: pathlib.Path,
         split: SplitLiteral,
-        ids: List[int],
+        ids: np.ndarray,
         labels,
-        transforms: Optional[Dict[str, TransformType]] = None,
+        transforms: Optional[Dict[AvailableDomainsType, Optional[
+            TransformType]]] = None,
         **kwargs
     ):
         self.root_path = root_path
@@ -60,15 +62,17 @@ class DomainLoader:
 
 
 class VisionLoader(DomainLoader):
-    modality = "v"
+    modality: AvailableDomainsType = "v"
 
     def __init__(
         self,
         root_path: pathlib.Path,
         split: SplitLiteral,
-        ids: List[int],
+        ids: np.ndarray,
         labels,
-        transforms: Optional[Dict[str, TransformType]] = None,
+        transforms: Optional[
+            Dict[AvailableDomainsType, Optional[TransformType]]] =
+        None,
         **kwargs
     ):
         super(VisionLoader, self).__init__(
@@ -103,7 +107,7 @@ class VisionLoader(DomainLoader):
 
 
 class AttributesLoader(DomainLoader):
-    modality = "attr"
+    modality: AvailableDomainsType = "attr"
 
     def get_null_item(self) -> DomainItems:
         item = self.get_item(0)
@@ -147,15 +151,16 @@ def _get_bert_latent(file_path: pathlib.Path, **kwargs) -> np.ndarray:
 
 
 class TextLoader(DomainLoader):
-    modality = "t"
+    modality: AvailableDomainsType = "t"
 
     def __init__(
         self,
         root_path: pathlib.Path,
         split: SplitLiteral,
-        ids: List[int],
+        ids: np.ndarray,
         labels,
-        transforms: Optional[Dict[str, TransformType]] = None,
+        transforms: Optional[
+            Dict[AvailableDomainsType, Optional[TransformType]]] = None,
         **kwargs
     ):
         super(TextLoader, self).__init__(
@@ -167,6 +172,10 @@ class TextLoader(DomainLoader):
         if 'pca_dim' not in self.domain_loader_args:
             raise ValueError('pca_dim must be specified for text loader')
 
+        self.bert_data: Optional[np.ndarray] = None
+        self.bert_mean: Optional[np.ndarray] = None
+        self.bert_std: Optional[np.ndarray] = None
+
         if self.domain_loader_args['bert_latents'] is not None:
             bert_data, bert_mean, bert_std = self._get_bert_data(
                 ids, root_path, split
@@ -174,10 +183,6 @@ class TextLoader(DomainLoader):
             self.bert_data = bert_data
             self.bert_mean = bert_mean
             self.bert_std = bert_std
-        else:
-            self.bert_data = None
-            self.bert_mean = None
-            self.bert_std = None
 
         self.captions = _get_bert_latent(
             root_path / f"{split}_captions.npy"
@@ -188,7 +193,7 @@ class TextLoader(DomainLoader):
         self.null_choice: Optional[Dict[str, int]] = None
 
     def _get_bert_data(
-        self, ids: List[int], root_path: pathlib.Path, split: SplitLiteral
+        self, ids: np.ndarray, root_path: pathlib.Path, split: SplitLiteral
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         bert_latents = self.domain_loader_args['bert_latents']
         pca_dim = self.domain_loader_args['pca_dim']
