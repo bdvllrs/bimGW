@@ -56,7 +56,7 @@ def get_args(
     additional_config_files=None,
     use_local=True,
     cli=True,
-    verbose=True,
+    verbose=False,
     use_schema=True,
     schema_config=None
 ):
@@ -114,9 +114,9 @@ def get_args(
     args = OmegaConf.merge(args, cli_args)
 
     if verbose:
-        print(OmegaConf.to_yaml(cli_args))
-        print("Complete args")
-        print(OmegaConf.to_yaml(args))
+        logging.info(OmegaConf.to_yaml(cli_args))
+        logging.info("Complete args")
+        logging.info(OmegaConf.to_yaml(args))
 
     args.debug = args.debug or debug
 
