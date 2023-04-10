@@ -110,12 +110,22 @@ class LegendGWResultConfig:
 
 
 @dataclass
+class AnnotationColFigureConfig:
+    y: float = MISSING
+    text_yshift: float = 0.
+    loss: str = MISSING
+    curve_start: str = MISSING
+    curve_end: str = MISSING
+
+
+@dataclass
 class DataSelectorAxesConfig:
     label: str = MISSING
     load_from: LoadFromData = MISSING
     wandb_entity_project: Optional[str] = MISSING
     wandb_filter: Optional[WandbFilterT] = MISSING
     csv_path: Optional[str] = MISSING
+    annotations: List[AnnotationColFigureConfig] = field(default_factory=list)
 
 
 @dataclass

@@ -2,10 +2,12 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from numpy import log
 
 from bim_gw.utils import get_args
 from bim_gw.utils.types import BIMConfig
@@ -51,6 +53,59 @@ def _get_ax(
     if num_rows == 1:
         return axes[col]
     return axes[row, col]
+
+
+def get_x_range_at(
+    data_start: pd.DataFrame, data_end: pd.DataFrame, y_val: float,
+    diff_col: str
+) -> Tuple[float, float]:
+    order_start = data_start['num_examples'].sort_values().index
+    order_end = data_end['num_examples'].sort_values().index
+    x_axis_start = data_start['num_examples'].loc[order_start]
+    x_axis_end = data_end['num_examples'].loc[order_end]
+    data_start = data_start[diff_col].loc[order_start]
+    data_end = data_end[diff_col].loc[order_end]
+    data_start_log_diff = log(data_start).diff()
+    data_end_log_diff = log(data_end).diff()
+
+    # Find the two closest points to y_val
+    start_close_index = data_start.iloc[
+        (data_start - y_val).abs().argsort()[:1]
+    ].index.item()
+    end_close_index = data_end.iloc[
+        (data_end - y_val).abs().argsort()[:1]
+    ].index.item()
+    start_next_index = data_start.index.tolist().index(start_close_index)
+
+    if start_next_index < len(data_start) - 1:
+        start_next_index = data_start.index[start_next_index + 1]
+    end_next_index = data_end.index.tolist().index(end_close_index)
+    if end_next_index < len(data_end) - 1:
+        end_next_index = data_end.index[end_next_index + 1]
+    # if start_next_index > 1:
+    #     start_next_index = data_start.index[start_next_index - 1]
+    # end_next_index = data_end.index.tolist().index(end_close_index)
+    # if end_next_index > 1:
+    #     end_next_index = data_end.index[end_next_index - 1]
+
+    if (data_start[start_close_index] <= y_val <= data_start[start_next_index]
+            or data_start[start_next_index] <= y_val <= data_start[
+                start_close_index]):
+        start_close_index = start_next_index
+    if (data_end[end_close_index] <= y_val <= data_end[end_next_index]
+            or data_end[end_next_index] <= y_val <= data_end[end_close_index]):
+        end_close_index = end_next_index
+    # x = x_r + (y - y_r) * (x_r+1 - x_r) / (y_r+1 - y_r)
+    ref_start = (log(x_axis_start[start_close_index])
+                 + (log(y_val) - log(data_start[start_close_index]))
+                 * log(x_axis_start).diff()[start_close_index]
+                 / data_start_log_diff[start_close_index])
+    ref_end = (log(x_axis_end[end_close_index])
+               + (np.log(y_val) - log(data_end[end_close_index]))
+               * log(x_axis_end).diff()[end_close_index]
+               / data_end_log_diff[end_close_index])
+
+    return np.exp(ref_start), np.exp(ref_end)
 
 
 if __name__ == '__main__':
@@ -173,7 +228,101 @@ if __name__ == '__main__':
                             y_axis_labels[evaluated_loss],
                             fontsize=args.visualization.font_size
                         )
-                    ax.set_yscale('log')
+                    if m == 0:
+                        ax.set_title(
+                            row['row'].label,
+                            fontsize=args.visualization.font_size_title,
+                            color=args.visualization.fg_color
+                        )
+
+                ax.tick_params(
+                    which='both', labelsize=args.visualization.font_size,
+                    color=args.visualization.fg_color,
+                    labelcolor=args.visualization.fg_color
+                )
+                ax.xaxis.label.set_color(args.visualization.fg_color)
+                ax.yaxis.label.set_color(args.visualization.fg_color)
+                for spine in ax.spines.values():
+                    spine.set_edgecolor(args.visualization.fg_color)
+                ax.set_facecolor(args.visualization.bg_color)
+
+                for annotation in row['row'].annotations:
+                    if evaluated_loss == annotation.loss:
+                        x_start, x_end = get_x_range_at(
+                            df[df['slug'] == annotation.curve_start],
+                            df[df['slug'] == annotation.curve_end],
+                            annotation.y,
+                            f"{evaluated_loss}_mean"
+                        )
+
+                        ratio = max(x_end / x_start, x_start / x_end)
+                        ax.text(
+                            x_start,
+                            annotation.y + annotation.text_yshift,
+                            f"x{ratio:.1f}",
+                        )
+                        ax.annotate(
+                            "",
+                            xy=(x_start, annotation.y),
+                            xytext=(x_end, annotation.y),
+                            arrowprops=dict(arrowstyle="<->")
+                        )
+                ax.set_yscale('log')
+                ax.set_xscale('log')
+        fig.legend(
+            loc='lower center', bbox_to_anchor=(0.5, 0),
+            bbox_transform=fig.transFigure,
+            ncol=vis_args.legend.num_columns,
+            fontsize=args.visualization.font_size
+        )
+        # fig.suptitle(figure.title)
+        # fig.tight_layout()
+        plt.subplots_adjust(
+            bottom=args.visualization.bottom_adjust,
+            hspace=args.visualization.hspace_adjust,
+            top=args.visualization.top_adjust
+        )
+        fig.patch.set_facecolor(args.visualization.bg_color)
+        plt.savefig(
+            Path(
+                vis_args.saved_figure_path
+            ) / f"{now}_results.pdf", bbox_inches="tight"
+        )
+        plt.show()
+
+        # PLOT COEFFICIENTS
+        coefs = ["cycles", "demi_cycles", "contrastive"]
+        fig, axes = plt.subplots(
+            len(coefs), n_cols, figsize=(3.7 * n_cols, 4 * len(coefs))
+        )
+        for m, coef in enumerate(coefs):
+            for n, row in enumerate(dataframes):
+                df = row['data']
+                k = m * len(coefs) + n
+                ax = _get_ax(axes, m, n, n_rows, n_cols)
+                selected_curves = figure.selected_curves
+                for slug in selected_curves:
+                    grp = df[df['slug'] == slug]
+                    slug_label = slug
+                    if slug in slug_to_label:
+                        slug_label = slug_to_label[slug]
+                    if len(grp) > 1:
+                        ax = grp.plot(
+                            'num_examples', coef + '_coef', ax=ax,
+                            label=(slug_label if k == 0 else '_nolegend_'),
+                            legend=False, **get_fmt(slug),
+                            linewidth=args.visualization.line_width
+                        )
+
+                    ax.set_xlabel(
+                        "Number of bimodal examples ($N$)",
+                        fontsize=args.visualization.font_size
+                    )
+                    if n == 0:
+                        ax.set_ylabel(
+                            coef,
+                            fontsize=args.visualization.font_size
+                        )
                     ax.set_xscale('log')
                     if m == 0:
                         ax.set_title(
@@ -199,83 +348,13 @@ if __name__ == '__main__':
             ncol=vis_args.legend.num_columns,
             fontsize=args.visualization.font_size
         )
-        # fig.suptitle(figure.title)
         # fig.tight_layout()
-        plt.subplots_adjust(
-            bottom=args.visualization.bottom_adjust,
-            hspace=args.visualization.hspace_adjust,
-            top=args.visualization.top_adjust
-        )
+        plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(
             Path(
                 vis_args.saved_figure_path
-            ) / f"{now}_results.pdf", bbox_inches="tight"
+            ) / f"{now}_selected_coefficients.pdf",
+            bbox_inches="tight"
         )
         plt.show()
-
-        # PLOT COEFFICIENTS
-        # coefs = ["cycles", "demi_cycles", "contrastive"]
-        # fig, axes = plt.subplots(
-        #     len(coefs), n_cols, figsize=(3.7 * n_cols, 4 * len(coefs))
-        # )
-        # for m, coef in enumerate(coefs):
-        #     for n, (df_name, df) in enumerate(dataframes.items()):
-        #         k = m * len(coefs) + n
-        #         ax = axes[m, n] if n_cols > 1 else axes
-        #         selected_curves = figure.selected_curves
-        #         for slug in selected_curves:
-        #             grp = df[df['slug'] == slug]
-        #             slug_label = slug
-        #             if slug in slug_to_label:
-        #                 slug_label = slug_to_label[slug]
-        #             if len(grp) > 1:
-        #                 ax = grp.plot(
-        #                     'num_examples', coef + '_coef', ax=ax,
-        #                     label=(slug_label if k == 0 else '_nolegend_'),
-        #                     legend=False, **get_fmt(slug),
-        #                     linewidth=args.visualization.line_width
-        #                 )
-        #
-        #             ax.set_xlabel(
-        #                 "Number of bimodal examples ($N$)",
-        #                 fontsize=args.visualization.font_size
-        #             )
-        #             if n == 0:
-        #                 ax.set_ylabel(coef,
-        #                 fontsize=args.visualization.font_size)
-        #             ax.set_xscale('log')
-        #             if m == 0:
-        #                 ax.set_title(
-        #                     title_labels[df_name],
-        #                     fontsize=args.visualization.font_size_title,
-        #                     color=args.visualization.fg_color
-        #                 )
-        #
-        #         ax.tick_params(
-        #             which='both', labelsize=args.visualization.font_size,
-        #             color=args.visualization.fg_color,
-        #             labelcolor=args.visualization.fg_color
-        #         )
-        #         ax.xaxis.label.set_color(args.visualization.fg_color)
-        #         ax.yaxis.label.set_color(args.visualization.fg_color)
-        #         for spine in ax.spines.values():
-        #             spine.set_edgecolor(args.visualization.fg_color)
-        #         ax.set_facecolor(args.visualization.bg_color)
-        #
-        # fig.legend(
-        #     loc='lower center', bbox_to_anchor=(0.5, 0),
-        #     bbox_transform=fig.transFigure,
-        #     ncol=vis_args.legend.num_columns,
-        #     fontsize=args.visualization.font_size
-        # )
-        # # fig.tight_layout()
-        # plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
-        # fig.patch.set_facecolor(args.visualization.bg_color)
-        # plt.savefig(
-        #     Path(
-        #         vis_args.saved_figure_path
-        #     ) / f"{now}_selected_coefficients.pdf",
-        #     bbox_inches="tight"
-        # )
-        # plt.show()

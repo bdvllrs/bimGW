@@ -154,6 +154,12 @@ visualization:
           wandb_entity_project: null
           wandb_filter: null
           csv_path: null
+          annotations:
+            - y: 0.6
+              text_yshift: 0.03  # shifts the text vertically
+              loss: translation
+              curve_start: "tr+cont+dcy+cy"
+              curve_end: "tr"
     - title: "P1"
       # should be *in this order* separated by a "+": tr, cont, dcy, then cy.
       # To not include one loss component, just remove it from the list.
