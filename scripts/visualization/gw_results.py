@@ -278,9 +278,9 @@ if __name__ == '__main__':
         # fig.suptitle(figure.title)
         # fig.tight_layout()
         plt.subplots_adjust(
-            bottom=args.visualization.bottom_adjust,
-            hspace=args.visualization.hspace_adjust,
-            top=args.visualization.top_adjust
+            bottom=figure.bottom_adjust,
+            hspace=figure.hspace_adjust,
+            top=figure.top_adjust
         )
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(

@@ -134,6 +134,10 @@ class AxesGWResultConfig:
     selected_curves: List[str] = MISSING
     selected_losses: List[str] = MISSING
 
+    top_adjust: float = MISSING
+    bottom_adjust: float = MISSING
+    hspace_adjust: float = MISSING
+
     cols: List[DataSelectorAxesConfig] = field(default_factory=list)
 
 
@@ -144,10 +148,6 @@ class VisualizationConfig:
     font_size: int = MISSING
     font_size_title: int = MISSING
     line_width: int = MISSING
-
-    top_adjust: float = MISSING
-    bottom_adjust: float = MISSING
-    hspace_adjust: float = MISSING
 
     saved_figure_path: str = MISSING
     total_num_examples: int = MISSING

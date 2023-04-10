@@ -111,10 +111,6 @@ visualization:
   font_size_title: 14
   line_width: 2  # curve line width
 
-  bottom_adjust: 0.2
-  top_adjust: 0.9
-  hspace_adjust: 0.3
-
   mix_loss_coefficients: # mix_loss is the weighted average of translation and contrastive
     translation: 1.
     contrastive: 0.1
@@ -136,6 +132,11 @@ visualization:
       # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       selected_losses: [ "translation", "contrastive" ]
+
+      bottom_adjust: 0.2
+      top_adjust: 0.9
+      hspace_adjust: 0.3
+
       cols:
         - label: "Proto-language -- Vision"
           load_from: wandb  # among wandb or csv
@@ -166,6 +167,11 @@ visualization:
       # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       selected_losses: [ "cycles" ]
+
+      bottom_adjust: 0.2
+      top_adjust: 0.9
+      hspace_adjust: 0.3
+
       cols:
         - label: "Proto-language -- Vision"
           load_from: wandb  # among wandb or csv
