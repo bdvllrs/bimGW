@@ -1,31 +1,29 @@
 import pathlib
 from pathlib import Path
-from typing import (
-    Any, Callable, Dict, List, Optional, SupportsIndex,
-    Type, Union
-)
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.domain_loaders import (
-    AttributesDataType, AttributesLoader, AvailableDomainsType, DomainLoader,
-    PreSavedLatentLoader,
-    TextDataType,
-    TextLoader, TransformType, VisionLoader, VisualDataType
+    AttributesDataType, AttributesLoader, PreSavedLatentLoader, TextDataType,
+    TextLoader, VisionLoader, VisualDataType
 )
 from bim_gw.utils.types import SplitLiteral
+
+AvailableDomainsType = Literal["v", "attr", "t"]
 
 SelectedDomainType = Dict[
     str, Union[VisualDataType, AttributesDataType, TextDataType]]
 
-AVAILABLE_DOMAINS: Dict[AvailableDomainsType, Type[DomainLoader]] = {
+AVAILABLE_DOMAINS = {
     "v": VisionLoader,
     "attr": AttributesLoader,
     "t": TextLoader,
 }
 
-domain_item_name_mapping: Dict[AvailableDomainsType, Dict[int, str]] = {
+domain_item_name_mapping = {
     "v": {0: "z_img"},
     "attr": {0: "z_cls", 1: "z_attr"},
     "t": {0: "z"}
@@ -38,13 +36,13 @@ class SimpleShapesDataset:
         self,
         path: Union[str, pathlib.Path],
         split: SplitLiteral = "train",
-        mapping: Optional[List[int]] = None,
-        domain_mapping: Optional[List[List[AvailableDomainsType]]] = None,
-        selected_indices: Optional[SupportsIndex] = None,
-        selected_domains: Optional[List[AvailableDomainsType]] = None,
+        mapping: List[int] = None,
+        domain_mapping: List[List[str]] = None,
+        selected_indices: Optional[ArrayLike] = None,
+        selected_domains: List[AvailableDomainsType] = None,
         pre_saved_latent_path: Optional[Dict[str, str]] = None,
         transform: Optional[
-            Dict[AvailableDomainsType, TransformType]] = None,
+            Dict[AvailableDomainsType, Callable[[Any], Any]]] = None,
         output_transform: Optional[
             Callable[[SelectedDomainType], SelectedDomainType]] = None,
         domain_loader_params: Optional[Dict[str, Any]] = None
@@ -58,35 +56,32 @@ class SimpleShapesDataset:
             selected_indices:
         """
         assert split in ["train", "val", "test"]
-        self.selected_domains: List[AvailableDomainsType] = (
-                selected_domains or list(AVAILABLE_DOMAINS.keys())
-        )
+        self.selected_domains = selected_domains
+        if selected_domains is None:
+            self.selected_domains = list(AVAILABLE_DOMAINS.keys())
         self.root_path = Path(path)
-        self.transforms = {
-            domain: (transform[domain] if (
-                    transform is not None and domain in transform) else None)
-            for domain in AVAILABLE_DOMAINS.keys()
-        }
+        self.transforms = {domain: (transform[domain] if (
+                transform is not None and domain in transform) else None)
+                           for domain in AVAILABLE_DOMAINS.keys()}
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
 
-        self.classes: np.ndarray = np.array(["square", "circle", "triangle"])
-        self.labels: np.ndarray = np.load(
-            str(self.root_path / f"{split}_labels.npy")
-        )
-        self.ids: np.ndarray = np.arange(len(self.labels))
+        self.classes = np.array(["square", "circle", "triangle"])
+        self.labels = np.load(str(self.root_path / f"{split}_labels.npy"))
+        self.ids = np.arange(len(self.labels))
         if selected_indices is not None:
             self.labels = self.labels[selected_indices]
             self.ids = self.ids[selected_indices]
 
         self.selected_indices = selected_indices
 
-        self.mapping: np.ndarray = np.array(mapping) or self.ids
+        self.mapping = mapping if mapping is not None else self.ids
+        self.mapping = np.array(self.mapping)
         self.available_domains_mapping = domain_mapping
         if self.available_domains_mapping is None:
-            self.available_domains_mapping = ([self.selected_domains] *
-                                              self.mapping.shape[0])
+            domains = list(self.selected_domains)
+            self.available_domains_mapping = [domains] * self.mapping.shape[0]
 
         if domain_loader_params is None:
             domain_loader_params = dict()

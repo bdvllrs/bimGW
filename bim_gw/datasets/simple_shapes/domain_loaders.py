@@ -109,33 +109,55 @@ class VisionLoader(DomainLoader):
 class AttributesLoader(DomainLoader):
     modality: AvailableDomainsType = "attr"
 
-    def get_null_item(self) -> DomainItems:
-        item = self.get_item(0)
+    def __init__(
+        self,
+        root_path: pathlib.Path,
+        split: SplitLiteral,
+        ids: np.ndarray,
+        labels,
+        transforms: Optional[
+            Dict[AvailableDomainsType, Optional[TransformType]]] =
+        None,
+        **kwargs
+    ):
+        super(AttributesLoader, self).__init__(
+            root_path, split, ids, labels, transforms, **kwargs
+        )
 
+        self.attributes, self.cls = self.get_attributes()
+        self.zero_cls = torch.tensor(0, dtype=torch.long)
+        self.zero_attr = torch.zeros_like(self.attributes[0])
+
+    def get_attributes(self):
+        x, y = self.labels[:, 1], self.labels[:, 2]
+        size = self.labels[:, 3]
+        rotation = self.labels[:, 4]
+        r = self.labels[:, 5] / 255
+        g = self.labels[:, 6] / 255
+        b = self.labels[:, 7] / 255
+        rotation_x = (np.cos(rotation) + 1) / 2
+        rotation_y = (np.sin(rotation) + 1) / 2
+        unpaired = self.labels[:, 11]
+        attributes = [x, y, size, rotation_x, rotation_y, r, g, b]
+        if self.domain_loader_args['use_unpaired']:
+            attributes.append(unpaired)
+        return torch.from_numpy(
+            np.stack(
+                attributes, axis=1
+            )
+        ).to(torch.float), torch.from_numpy(self.labels[:, 0]).to(torch.long)
+
+    def get_null_item(self) -> DomainItems:
         return DomainItems.singular(
-            cls=0,
-            attr=torch.zeros_like(item['attr']),
+            cls=self.zero_cls,
+            attr=self.zero_attr,
             is_available=False
         )
 
     def get_item(self, item: int) -> DomainItems:
-        label = self.labels[item]
-        cls = int(label[0])
-        x, y = label[1], label[2]
-        size = label[3]
-        rotation = label[4]
-        r, g, b = label[5] / 255, label[6] / 255, label[7] / 255
-        rotation_x = (np.cos(rotation) + 1) / 2
-        rotation_y = (np.sin(rotation) + 1) / 2
-        unpaired = label[11]
-
-        attributes = [x, y, size, rotation_x, rotation_y, r, g, b]
-        if self.domain_loader_args['use_unpaired']:
-            attributes.append(unpaired)
-
         return DomainItems.singular(
-            cls=cls,
-            attr=torch.tensor(attributes, dtype=torch.float),
+            cls=self.cls[item],
+            attr=self.attributes[item],
         )
 
 
