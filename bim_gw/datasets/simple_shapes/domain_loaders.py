@@ -194,17 +194,17 @@ class TextLoader(DomainLoader):
         if 'pca_dim' not in self.domain_loader_args:
             raise ValueError('pca_dim must be specified for text loader')
 
-        self.bert_data: Optional[np.ndarray] = None
-        self.bert_mean: Optional[np.ndarray] = None
-        self.bert_std: Optional[np.ndarray] = None
+        self.bert_data: Optional[torch.Tensor] = None
+        self.bert_mean: Optional[torch.Tensor] = None
+        self.bert_std: Optional[torch.Tensor] = None
 
         if self.domain_loader_args['bert_latents'] is not None:
             bert_data, bert_mean, bert_std = self._get_bert_data(
                 ids, root_path, split
             )
-            self.bert_data = bert_data
-            self.bert_mean = bert_mean
-            self.bert_std = bert_std
+            self.bert_data = torch.from_numpy(bert_data).float()
+            self.bert_mean = torch.from_numpy(bert_mean).float()
+            self.bert_std = torch.from_numpy(bert_std).float()
 
         self.captions = _get_bert_latent(
             root_path / f"{split}_captions.npy"
@@ -212,7 +212,17 @@ class TextLoader(DomainLoader):
         self.choices = _get_bert_latent(
             root_path / f"{split}_caption_choices.npy", allow_pickle=True
         )
-        self.null_choice: Optional[Dict[str, int]] = None
+
+        # Load first for self.null_choice, the next ones are lazy-loaded
+        self.categories = {
+            0: get_categories(composer, self.choices[0])
+        }
+
+        self.null_bert = torch.zeros(768).float()
+        self.null_choice = {
+            key: 0
+            for key in self.categories[0].keys()
+        }
 
     def _get_bert_data(
         self, ids: np.ndarray, root_path: pathlib.Path, split: SplitLiteral
@@ -252,28 +262,29 @@ class TextLoader(DomainLoader):
 
     def get_item(self, item: int) -> DomainItems:
         sentence = self.captions[item]
-        choice = get_categories(composer, self.choices[item])
 
         if self.transforms is not None:
             sentence = self.transforms(sentence)
-        bert = torch.zeros(768).float()
+
+        bert = self.null_bert
         if self.bert_data is not None:
-            bert = torch.from_numpy(self.bert_data[item]).float()
+            bert = self.bert_data[item]
+
+        if item not in self.categories.keys():
+            # Lazy-load the categories
+            self.categories[item] = get_categories(
+                composer, self.choices[item]
+            )
 
         return DomainItems.singular(
             bert=bert,
             text=sentence,
-            choices=choice
+            choices=self.categories[item]
         )
 
     def get_null_item(self) -> DomainItems:
-        if self.null_choice is None:
-            self.null_choice = {
-                key: 0 for key in get_categories(composer, self.choices[0])
-            }
-
         return DomainItems.singular(
-            bert=torch.zeros(768).float(),
+            bert=self.null_bert,
             text="",
             choices=self.null_choice,
             is_available=False

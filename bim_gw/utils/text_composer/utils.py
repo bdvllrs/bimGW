@@ -1,7 +1,7 @@
 import math
 import re
 from itertools import permutations
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from attributes_to_language.composer import Composer
 
@@ -37,25 +37,21 @@ def inspect_all_choices(composer: Composer):
 
 def get_categories(
     composer: Composer,
-    choices: Optional[Dict[str, Any]]
+    choices: Dict[str, Any]
 ) -> Dict[str, int]:
     categories = dict()
-    if choices is None:
-        categories['structure'] = 0
-        choices = dict(variants=dict(), writers=dict())
-    else:
-        # structure
-        class_val = 0
-        for k, structure in enumerate(composer.script_structures):
-            groups = re.findall(r"<[^>]+>", structure)
-            if choices['structure'] != k:
-                class_val += math.factorial(len(groups))
-            else:
-                for permutation in permutations(range(len(groups))):
-                    if choices['groups'] == list(permutation):
-                        categories['structure'] = class_val
-                        break
-                    class_val += 1
+    # structure
+    class_val = 0
+    for k, structure in enumerate(composer.script_structures):
+        groups = re.findall(r"<[^>]+>", structure)
+        if choices['structure'] != k:
+            class_val += math.factorial(len(groups))
+        else:
+            for permutation in permutations(range(len(groups))):
+                if choices['groups'] == list(permutation):
+                    categories['structure'] = class_val
+                    break
+                class_val += 1
     # variants
     for name in composer.variants.keys():
         if name in choices['variants']:

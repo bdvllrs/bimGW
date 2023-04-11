@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -115,6 +116,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.inception_stats_path_test = None
 
     def setup(self, stage: Optional[str] = None) -> None:
+        logging.info("Setting up data module...")
         if stage in ["fit", "validate", "test"]:
             val_transforms: Dict[
                 AvailableDomainsType, Callable[[Any], Any]] = {
@@ -158,10 +160,20 @@ class SimpleShapesDataModule(LightningDataModule):
 
                     target_indices = np.unique(id_ood_splits[0][0])
 
-                    print("Val set in dist size", len(id_ood_splits[1][0]))
-                    print("Val set OOD size", len(id_ood_splits[1][1]))
-                    print("Test set in dist size", len(id_ood_splits[2][0]))
-                    print("Test set OOD size", len(id_ood_splits[2][1]))
+                    logging.info(
+                        "Val set in dist size", len(
+                            id_ood_splits[1][
+                                0]
+                        )
+                    )
+                    logging.info("Val set OOD size", len(id_ood_splits[1][1]))
+                    logging.info(
+                        "Test set in dist size", len(
+                            id_ood_splits[2][
+                                0]
+                        )
+                    )
+                    logging.info("Test set OOD size", len(id_ood_splits[2][1]))
                 else:
                     id_ood_splits = None
                     target_indices = train_set.ids
@@ -206,6 +218,7 @@ class SimpleShapesDataModule(LightningDataModule):
                         dataset.use_pre_saved_latents(
                             self.pre_saved_latent_paths
                         )
+        logging.info("Done.")
 
     def train_dataloader(
         self, shuffle: bool = True
