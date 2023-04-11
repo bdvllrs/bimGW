@@ -1,20 +1,18 @@
 import pathlib
-from typing import Any, Callable, Dict, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 from PIL import Image
 
 from bim_gw.datasets.domain import DomainItems
+from bim_gw.datasets.simple_shapes.types import (
+    AvailableDomainsType,
+    TransformType
+)
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
 from bim_gw.utils.types import SplitLiteral
-
-VisualDataType = Tuple[torch.FloatTensor, Image.Image]
-AttributesDataType = Tuple[torch.FloatTensor, int, torch.FloatTensor]
-TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
-TransformType = Callable[[DomainItems], DomainItems]
-AvailableDomainsType = Literal["v", "attr", "t"]
 
 
 def transform(
@@ -292,7 +290,9 @@ class TextLoader(DomainLoader):
 
 
 class PreSavedLatentLoader:
-    def __init__(self, data, domain_item_mapping):
+    def __init__(
+        self, data: List[np.ndarray], domain_item_mapping
+    ):
         self.data = data
         self.domain_item_mapping = domain_item_mapping
 
