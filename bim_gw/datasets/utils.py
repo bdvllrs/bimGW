@@ -1,10 +1,10 @@
 import logging
-from typing import List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import torch
 
-from bim_gw.datasets.domain import collate_fn
+from bim_gw.datasets.domain import collate_fn, DomainItems
 from bim_gw.utils import registries
 
 
@@ -117,45 +117,24 @@ def filter_sync_domains(
 
 
 def get_validation_examples(
-    train_set, val_set, test_set,
-    n_domain_examples,
-):
+    datasets: Dict[str, Dict[str, Sequence]],
+    n_domain_examples: int,
+) -> Dict[str, Dict[str, DomainItems]]:
     reconstruction_indices = {
-        "train": {
-            "in_dist": torch.randint(
-                len(train_set), size=(n_domain_examples,)
-            ),
-        },
-        "val": {
-            "in_dist": torch.randint(
-                len(val_set["in_dist"]), size=(n_domain_examples,)
-            ),
-
-        },
-        "test": {
-            "in_dist": torch.randint(
-                len(test_set["in_dist"]), size=(n_domain_examples,)
+        split: {
+            dist: torch.randint(
+                len(dataset[dist]), size=(n_domain_examples,)
             ),
         }
+        for split, dataset in datasets.items()
+        for dist in dataset.keys()
+        if dataset[dist] is not None
     }
-
-    if val_set["ood"] is not None:
-        reconstruction_indices["val"]["ood"] = torch.randint(
-            len(val_set["ood"]),
-            size=(n_domain_examples,)
-        )
-    if test_set["ood"] is not None:
-        reconstruction_indices["test"]["ood"] = torch.randint(
-            len(test_set["ood"]),
-            size=(n_domain_examples,)
-        )
 
     domain_examples = {}
 
     all_sets = [
-        ("train", {"in_dist": train_set}),
-        ("val", val_set),
-        ("test", test_set)
+        (split, dataset) for split, dataset in datasets.items()
     ]
 
     for set_name, used_set in all_sets:

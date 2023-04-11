@@ -130,20 +130,23 @@ class SimpleShapesDataModule(LightningDataModule):
                 sync_indices = np.arange(self.len_train_dataset)
             else:
                 sync_indices = np.arange(self.len_train_dataset // 2)
-            if stage == "fit" or stage is None:
-                self.val_set = SimpleShapesDataset(
-                    self.simple_shapes_folder, "val",
-                    transform=val_transforms,
-                    selected_domains=self.selected_domains,
-                    domain_loader_params=self.domain_loader_params
-                )
-                self.test_set = SimpleShapesDataset(
-                    self.simple_shapes_folder, "test",
-                    transform=val_transforms,
-                    selected_domains=self.selected_domains,
-                    domain_loader_params=self.domain_loader_params
-                )
 
+            self.val_set = SimpleShapesDataset(
+                self.simple_shapes_folder, "val",
+                transform=val_transforms,
+                selected_domains=self.selected_domains,
+                domain_loader_params=self.domain_loader_params
+            )
+            self.test_set = SimpleShapesDataset(
+                self.simple_shapes_folder, "test",
+                transform=val_transforms,
+                selected_domains=self.selected_domains,
+                domain_loader_params=self.domain_loader_params
+            )
+
+            ood_split_datasets = [self.val_set, self.test_set]
+
+            if stage == "fit":
                 train_set = SimpleShapesDataset(
                     self.simple_shapes_folder, "train",
                     selected_indices=sync_indices,
@@ -151,35 +154,33 @@ class SimpleShapesDataModule(LightningDataModule):
                     selected_domains=self.selected_domains,
                     domain_loader_params=self.domain_loader_params
                 )
+                ood_split_datasets.append(train_set)
 
-                if self.split_ood:
-                    id_ood_splits, ood_boundaries = create_ood_split(
-                        [train_set, self.val_set, self.test_set]
-                    )
-                    self.ood_boundaries = ood_boundaries
+            id_ood_splits = None
+            if self.split_ood:
+                id_ood_splits, ood_boundaries = create_ood_split(
+                    ood_split_datasets
+                )
+                self.ood_boundaries = ood_boundaries
 
-                    target_indices = np.unique(id_ood_splits[0][0])
+                logging.info(
+                    "Val set in dist size", len(
+                        id_ood_splits[0][0]
+                    )
+                )
+                logging.info("Val set OOD size", len(id_ood_splits[0][1]))
+                logging.info(
+                    "Test set in dist size", len(
+                        id_ood_splits[1][0]
+                    )
+                )
+                logging.info("Test set OOD size", len(id_ood_splits[1][1]))
 
-                    logging.info(
-                        "Val set in dist size", len(
-                            id_ood_splits[1][
-                                0]
-                        )
-                    )
-                    logging.info("Val set OOD size", len(id_ood_splits[1][1]))
-                    logging.info(
-                        "Test set in dist size", len(
-                            id_ood_splits[2][
-                                0]
-                        )
-                    )
-                    logging.info("Test set OOD size", len(id_ood_splits[2][1]))
+            if stage == "fit":
+                if id_ood_splits is not None:
+                    target_indices = np.unique(id_ood_splits[2][0])
                 else:
-                    id_ood_splits = None
                     target_indices = train_set.ids
-
-                self.val_set = split_ood_sets(self.val_set, id_ood_splits)
-                self.test_set = split_ood_sets(self.test_set, id_ood_splits)
 
                 if self.add_unimodal:
                     mapping, domain_mapping = filter_sync_domains(
@@ -201,10 +202,15 @@ class SimpleShapesDataModule(LightningDataModule):
                 else:
                     self.train_set = train_set
 
+            self.val_set = split_ood_sets(self.val_set, id_ood_splits)
+            self.test_set = split_ood_sets(self.test_set, id_ood_splits)
+
             self.domain_examples = get_validation_examples(
-                self.train_set,
-                self.val_set,
-                self.test_set,
+                {
+                    "train": {"in_dist": self.train_set},
+                    "val": self.val_set,
+                    "test": self.test_set,
+                },
                 self.n_domain_examples,
             )
 

@@ -1,4 +1,5 @@
 import pathlib
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
@@ -30,7 +31,7 @@ domain_item_name_mapping = {
 }
 
 
-class SimpleShapesDataset:
+class SimpleShapesDataset(Sequence):
 
     def __init__(
         self,
