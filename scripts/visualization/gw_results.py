@@ -191,6 +191,7 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(
             n_rows, n_cols, figsize=(3.7 * n_cols, 4 * n_rows)
         )
+        labeled_curves = []
         for m, (evaluated_loss, loss_args) in enumerate(
                 loss_evaluations.items()
         ):
@@ -208,18 +209,23 @@ if __name__ == '__main__':
                         ax = grp.plot(
                             'num_examples', evaluated_loss + '_mean', ax=ax,
                             yerr=evaluated_loss + "_std",
-                            label=(slug_label if k == 0 else '_nolegend_'),
+                            label=(slug_label
+                                   if slug_label not in labeled_curves
+                                   else '_nolegend_'),
                             legend=False, **get_fmt(curve_name),
                             linewidth=args.visualization.line_width
                         )
                     elif len(grp) == 1:
                         ax.axhline(
                             y=grp[evaluated_loss + "_mean"].iloc[0],
-                            label=(slug_label if k == 0 else '_nolegend_'),
+                            label=(slug_label
+                                   if slug_label not in labeled_curves
+                                   else '_nolegend_'),
                             **get_fmt(curve_name)
                         )
                     else:
                         logging.warning(f"No data for {curve_name}")
+                    labeled_curves.append(slug_label)
 
                     ax.set_xlabel(
                         "Number of bimodal examples ($N$)",
