@@ -74,8 +74,11 @@ visualization:
     num_columns: 2
   figures:
     - title: "Global results"
-      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
-      selected_losses: [ "translation", "contrastive" ]
+      selected_losses:
+        translation:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+        contrastive:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
 
       bottom_adjust: 0.2
       top_adjust: 0.9

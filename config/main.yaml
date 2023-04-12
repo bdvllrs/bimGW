@@ -130,8 +130,11 @@ visualization:
       # should be *in this order* separated by a "+": tr, cont, dcy, then cy.
       # To not include one loss component, just remove it from the list.
       # For example: "tr+cont" is valid, "cont+tr" is not.
-      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
-      selected_losses: [ "translation", "contrastive" ]
+      selected_losses:
+        translation:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+        contrastive:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
 
       bottom_adjust: 0.2
       top_adjust: 0.9
@@ -165,8 +168,11 @@ visualization:
       # should be *in this order* separated by a "+": tr, cont, dcy, then cy.
       # To not include one loss component, just remove it from the list.
       # For example: "tr+cont" is valid, "cont+tr" is not.
-      selected_curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
-      selected_losses: [ "cycles" ]
+      selected_losses:
+        cycles:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+        demi_cycles:
+          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
 
       bottom_adjust: 0.2
       top_adjust: 0.9

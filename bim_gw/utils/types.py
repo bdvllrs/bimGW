@@ -129,15 +129,19 @@ class DataSelectorAxesConfig:
 
 
 @dataclass
+class FigureLossConfig:
+    curves: List[str] = MISSING
+
+
+@dataclass
 class AxesGWResultConfig:
     title: str = MISSING
-    selected_curves: List[str] = MISSING
-    selected_losses: List[str] = MISSING
 
     top_adjust: float = MISSING
     bottom_adjust: float = MISSING
     hspace_adjust: float = MISSING
 
+    selected_losses: Dict[str, FigureLossConfig] = field(default_factory=dict)
     cols: List[DataSelectorAxesConfig] = field(default_factory=list)
 
 

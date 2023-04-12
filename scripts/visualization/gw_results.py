@@ -191,12 +191,14 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(
             n_rows, n_cols, figsize=(3.7 * n_cols, 4 * n_rows)
         )
-        for m, evaluated_loss in enumerate(loss_evaluations):
+        for m, (evaluated_loss, loss_args) in enumerate(
+                loss_evaluations.items()
+        ):
             for n, row in enumerate(dataframes):
                 df = row['data']
                 k = m * n_rows + n
                 ax = _get_ax(axes, m, n, n_rows, n_cols)
-                selected_curves = figure.selected_curves
+                selected_curves = loss_args.curves
                 for curve_name in selected_curves:
                     grp = df[df['slug'] == curve_name]
                     slug_label = curve_name
@@ -295,12 +297,16 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(
             len(coefs), n_cols, figsize=(3.7 * n_cols, 4 * len(coefs))
         )
+        selected_curves = []
+        for selected_loss, loss_args in figure.selected_losses.items():
+            for curve in loss_args.curves:
+                if curve not in selected_curves:
+                    selected_curves.append(curve)
         for m, coef in enumerate(coefs):
             for n, row in enumerate(dataframes):
                 df = row['data']
                 k = m * len(coefs) + n
                 ax = _get_ax(axes, m, n, n_rows, n_cols)
-                selected_curves = figure.selected_curves
                 for slug in selected_curves:
                     grp = df[df['slug'] == slug]
                     slug_label = slug
