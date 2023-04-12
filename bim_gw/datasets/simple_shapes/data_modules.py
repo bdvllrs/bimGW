@@ -223,9 +223,10 @@ class SimpleShapesDataModule(LightningDataModule):
                     if dataset is not None:
                         if isinstance(dataset, Subset):
                             dataset = dataset.dataset
-                        dataset.use_pre_saved_latents(
-                            self.pre_saved_latent_paths
-                        )
+                        if self.pre_saved_latent_paths is not None:
+                            dataset.use_pre_saved_latents(
+                                self.pre_saved_latent_paths
+                            )
         logging.info("Done.")
 
     def train_dataloader(
