@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 import torchmetrics
 from pytorch_lightning import LightningModule
+from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
@@ -491,7 +492,7 @@ class GlobalWorkspace(LightningModule):
                             f"{mode}/{dist}"
                         )
 
-    def epoch_end(self, mode="val", log_train=True):
+    def epoch_end(self, mode="val"):
         domain_examples = self.domain_examples[mode]
         for logger in self.loggers:
             with self.domains.pass_through(False):
@@ -500,14 +501,14 @@ class GlobalWorkspace(LightningModule):
                         logger, dist_examples, f"{mode}/{dist}"
                     )
 
-            if log_train:
-                self.epoch_end("train", log_train=False)
+    def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        self.epoch_end("train")
 
-    def validation_epoch_end(self, outputs):
-        self.epoch_end("val", log_train=True)
+    def validation_epoch_end(self, outputs) -> None:
+        self.epoch_end("val")
 
-    def test_epoch_end(self, outputs):
-        self.epoch_end("test", log_train=False)
+    def test_epoch_end(self, outputs) -> None:
+        self.epoch_end("test")
 
     def on_train_epoch_start(self):
         self.domains.eval()
@@ -591,4 +592,7 @@ class GlobalWorkspace(LightningModule):
         self._put_domain_examples_to_device()
 
     def on_validation_start(self) -> None:
+        self._put_domain_examples_to_device()
+
+    def on_test_start(self) -> None:
         self._put_domain_examples_to_device()

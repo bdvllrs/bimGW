@@ -205,18 +205,20 @@ class SimpleShapesDataModule(LightningDataModule):
             self.val_set = split_ood_sets(self.val_set, id_ood_splits)
             self.test_set = split_ood_sets(self.test_set, id_ood_splits)
 
+            available_sets = {
+                "val": self.val_set,
+                "test": self.test_set,
+            }
+            if stage == "fit":
+                available_sets["train"] = {"in_dist": self.train_set}
+
             self.domain_examples = get_validation_examples(
-                {
-                    "train": {"in_dist": self.train_set},
-                    "val": self.val_set,
-                    "test": self.test_set,
-                },
+                available_sets,
                 self.n_domain_examples,
             )
 
             # Use pre saved latents if provided.
-            for shapes_set in [{"train": self.train_set}, self.val_set,
-                               self.test_set]:
+            for shapes_set in available_sets.values():
                 for dataset in shapes_set.values():
                     if dataset is not None:
                         if isinstance(dataset, Subset):
