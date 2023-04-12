@@ -13,5 +13,8 @@ __all__ = [
     'DomainLoader',
     'PreSavedLatentLoader',
     'TextLoader',
-    'VisionLoader'
+    'VisionLoader',
+    'AttributesDataType',
+    'TextDataType',
+    'VisualDataType',
 ]
