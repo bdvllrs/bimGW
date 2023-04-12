@@ -131,6 +131,7 @@ class GlobalWorkspace(LightningModule):
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
         self.domain_examples = None
+        self.are_examples_on_device = False
 
         self.rotation_error_val = []
 
@@ -581,12 +582,13 @@ class GlobalWorkspace(LightningModule):
             self.domain_examples = self.trainer.datamodule.domain_examples
 
     def _put_domain_examples_to_device(self) -> None:
-        if self.domain_examples is None:
+        if self.domain_examples is None or self.are_examples_on_device:
             return
         for dist_examples in self.domain_examples.values():
             for examples in dist_examples.values():
                 for domain_examples in examples.values():
                     domain_examples.to_device(self.device)
+        self.are_examples_on_device = True
 
     def on_fit_start(self) -> None:
         self._put_domain_examples_to_device()
