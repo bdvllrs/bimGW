@@ -12,7 +12,7 @@ def load_pre_saved_latent(
     domain_key: AvailableDomainsType,
     ids: Optional[SupportsIndex] = None
 ) -> List[np.ndarray]:
-    kept_idx = ids or slice(None)
+    kept_idx = ids if ids is None else slice(None)
     latent_dir = root_path / "saved_latents" / split
     path = latent_dir / pre_saved_latent_path[domain_key]
     data = np.load(str(path))
