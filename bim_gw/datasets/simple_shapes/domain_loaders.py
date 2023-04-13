@@ -295,19 +295,28 @@ class PreSavedLatentLoader:
     ):
         self.data = data
         self.domain_item_mapping = domain_item_mapping
+        self._null_item = self._get_null_item()
 
     def __len__(self) -> int:
         return self.data[0].shape[0]
 
     def _get_items(self, item):
         return {
-            self.domain_item_mapping[k]: np.zeros_like(self.data[k][item][0])
+            self.domain_item_mapping[k]: torch.from_numpy(
+                self.data[k][item][0]
+            )
             for k in range(len(self.data))
+        }
+
+    def _get_null_item(self):
+        return {
+            k: torch.zeros_like(v)
+            for k, v in self._get_items(0).items()
         }
 
     def get_null_item(self):
         return DomainItems.singular(
-            **self._get_items(0),
+            **self._null_item,
             is_available=False,
         )
 
