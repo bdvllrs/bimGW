@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, TypeVar, Union
+from typing import Any, Dict, Iterator, TypeVar
 
 import torch
 from torch import nn
@@ -16,53 +16,30 @@ class DomainBuffer(nn.Module):
     ):
         super().__init__()
 
-        self.sub_parts_keys = []
-
         self.register_buffer(
             f"available_masks",
             domain_examples.available_masks,
             persistent
         )
-        for key, value in domain_examples.sub_parts.items():
-            self.sub_parts_keys.append(key)
-            if isinstance(value, torch.Tensor):
-                self.register_buffer(
-                    f"sub_parts_{key}",
-                    value,
-                    persistent
-                )
-            else:
-                setattr(self, f"sub_parts_{key}", value)
+        self.sub_parts = DictBuffer(domain_examples.sub_parts, persistent)
 
-    @property
-    def sub_parts(self) -> Dict[str, torch.Tensor]:
-        return {
-            key: getattr(self, f"sub_parts_{key}")
-            for key in self.sub_parts_keys
-        }
-
-    def __getitem__(self, item: str) -> torch.Tensor:
-        try:
-            return getattr(self, f"sub_parts_{item}")
-        except AttributeError:
-            raise KeyError(f"Key {item} not found in DomainBuffer")
+    def __getitem__(self, item: str) -> Any:
+        return self.sub_parts[item]
 
     def __len__(self) -> int:
-        return len(self.sub_parts_keys)
+        return len(self.sub_parts)
 
-    def __iter__(self) -> Iterator[torch.Tensor]:
+    def __iter__(self) -> Iterator[Any]:
         return self.items()
 
     def items(self):
-        for key in self.sub_parts_keys:
-            yield key, getattr(self, f"sub_parts_{key}")
+        yield from self.sub_parts.items()
 
     def keys(self):
-        yield from iter(self.sub_parts_keys)
+        yield from self.sub_parts.keys()
 
     def values(self):
-        for key in self.sub_parts_keys:
-            yield getattr(self, f"sub_parts_{key}")
+        yield from self.sub_parts.values()
 
 
 T = TypeVar("T")
@@ -71,38 +48,56 @@ T = TypeVar("T")
 class DictBuffer(nn.Module):
     def __init__(
         self,
-        domain_examples: Dict[str, T],
+        buffer_dict: Dict[str, T],
         persistent: bool = True
     ):
         super().__init__()
 
-        examples: Dict[str, Union[DictBuffer, DomainBuffer]] = {}
-        self.buffer_keys = []
-        for key, value in domain_examples.items():
+        buffers: Dict[str, T] = {}
+        self._buffer_keys = set()
+        self._item_keys = set()
+        for key, value in buffer_dict.items():
             if isinstance(value, dict):
-                examples[f"buffer_{key}"] = DictBuffer(value, persistent)
-                self.buffer_keys.append(key)
+                buffers[f"buffer_{key}"] = DictBuffer(value, persistent)
+                self._item_keys.add(key)
             elif isinstance(value, DomainItems):
-                examples[f"buffer_{key}"] = DomainBuffer(value, persistent)
-                self.buffer_keys.append(key)
-        self.domain_examples = nn.ModuleDict(examples)
+                buffers[f"buffer_{key}"] = DomainBuffer(value, persistent)
+                self._item_keys.add(key)
+            elif isinstance(value, torch.Tensor):
+                self._buffer_keys.add(key)
+                self.register_buffer(
+                    f"buffer_{key}",
+                    value,
+                    persistent
+                )
+            else:
+                self._item_keys.add(key)
+                setattr(self, f"buffer_{key}", value)
+        self._buffer_dict = nn.ModuleDict(buffers)
 
     def __getitem__(self, item):
-        return self.domain_examples[f"buffer_{item}"]
+        if item in self._buffer_keys:
+            return getattr(self, f"buffer_{item}")
+        return self._buffer_dict[f"buffer_{item}"]
 
     def __len__(self) -> int:
-        return len(self.domain_examples)
+        return len(self._buffer_keys) + len(self._item_keys)
 
     def __iter__(self) -> Iterator[T]:
         return self.items()
 
     def items(self):
-        for key in self.buffer_keys:
-            yield key, self.domain_examples[f"buffer_{key}"]
+        for key in self._buffer_keys:
+            yield key, getattr(self, f"buffer_{key}")
+        for key in self._item_keys:
+            yield key, self._buffer_dict[f"buffer_{key}"]
 
     def keys(self):
-        yield from iter(self.buffer_keys)
+        yield from iter(self._buffer_keys)
+        yield from iter(self._item_keys)
 
     def values(self):
-        for key in self.buffer_keys:
-            yield self.domain_examples[f"buffer_{key}"]
+        for key in self._buffer_keys:
+            yield getattr(self, f"buffer_{key}")
+        for key in self._item_keys:
+            yield self._buffer_dict[f"buffer_{key}"]
