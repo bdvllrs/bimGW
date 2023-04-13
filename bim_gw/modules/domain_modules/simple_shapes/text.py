@@ -18,6 +18,7 @@ from bim_gw.utils.text_composer.utils import (
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 from bim_gw.utils.vae import reparameterize
 from .attributes import SimpleShapesAttributes
+from ...domain_buffer import DictBuffer
 
 
 def make_causal_mask_prog(input_dec, encod_out):
@@ -164,7 +165,7 @@ class SimpleShapesText(DomainModule):
              self.composer_inspection.keys()}
         )
 
-        self.domain_examples = None
+        self.domain_examples: Optional[DictBuffer] = None
 
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
@@ -459,22 +460,13 @@ class SimpleShapesText(DomainModule):
     def setup(self, stage: Optional[str] = None) -> None:
         if not hasattr(self.trainer.datamodule, "domain_examples"):
             return
-        if stage in ["fit", "validate", "test"]:
-            self.domain_examples = self.trainer.datamodule.domain_examples
-
-    def _put_domain_examples_to_device(self) -> None:
-        if self.domain_examples is None:
+        if self.domain_examples is not None:
             return
-        for dist_examples in self.domain_examples.values():
-            for examples in dist_examples.values():
-                for domain_examples in examples.values():
-                    domain_examples.to_device(self.device)
-
-    def on_fit_start(self) -> None:
-        self._put_domain_examples_to_device()
-
-    def on_validation_start(self) -> None:
-        self._put_domain_examples_to_device()
+        if stage in ["fit", "validate", "test"]:
+            self.domain_examples = DictBuffer(
+                self.trainer.datamodule.domain_examples,
+                persistent=False
+            )
 
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]

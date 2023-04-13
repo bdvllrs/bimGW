@@ -224,19 +224,11 @@ class VAE(DomainModule):
             return
         if stage in ["fit", "validate", "test"]:
             domain_examples = self.trainer.datamodule.domain_examples
-            self.validation_reconstruction_images = domain_examples[
-                "val"]["in_dist"]["v"]["img"]
-
-    def _put_domain_examples_to_device(self) -> None:
-        if self.validation_reconstruction_images is None:
-            return
-        self.validation_reconstruction_images.to(self.device)
-
-    def on_fit_start(self) -> None:
-        self._put_domain_examples_to_device()
-
-    def on_validation_start(self) -> None:
-        self._put_domain_examples_to_device()
+            self.register_buffer(
+                "validation_reconstruction_images",
+                domain_examples["val"]["in_dist"]["v"]["img"],
+                persistent=False
+            )
 
 
 class CEncoderV2(nn.Module):

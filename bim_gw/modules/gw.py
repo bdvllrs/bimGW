@@ -9,6 +9,7 @@ from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
+from bim_gw.modules.domain_buffer import DictBuffer
 from bim_gw.modules.domain_interface import DomainInterface
 from bim_gw.modules.domain_modules import DomainModule
 from bim_gw.utils.types import SchedulerInterval, SchedulerMode
@@ -130,8 +131,7 @@ class GlobalWorkspace(LightningModule):
         )
         self.val_ood_accuracy_metrics = nn.ModuleList(val_ood_accuracy_metrics)
 
-        self.domain_examples = None
-        self.are_examples_on_device = False
+        self.domain_examples: Optional[DictBuffer] = None
 
         self.rotation_error_val = []
 
@@ -578,23 +578,10 @@ class GlobalWorkspace(LightningModule):
     def setup(self, stage: Optional[str] = None) -> None:
         if not hasattr(self.trainer.datamodule, "domain_examples"):
             return
-        if stage in ["fit", "validate", "test"]:
-            self.domain_examples = self.trainer.datamodule.domain_examples
-
-    def _put_domain_examples_to_device(self) -> None:
-        if self.domain_examples is None or self.are_examples_on_device:
+        if self.domain_examples is not None:
             return
-        for dist_examples in self.domain_examples.values():
-            for examples in dist_examples.values():
-                for domain_examples in examples.values():
-                    domain_examples.to_device(self.device)
-        self.are_examples_on_device = True
-
-    def on_fit_start(self) -> None:
-        self._put_domain_examples_to_device()
-
-    def on_validation_start(self) -> None:
-        self._put_domain_examples_to_device()
-
-    def on_test_start(self) -> None:
-        self._put_domain_examples_to_device()
+        if stage in ["fit", "validate", "test"]:
+            self.domain_examples = DictBuffer(
+                self.trainer.datamodule.domain_examples,
+                persistent=False
+            )
