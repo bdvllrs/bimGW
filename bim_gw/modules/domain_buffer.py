@@ -17,7 +17,7 @@ class DomainBuffer(nn.Module):
         super().__init__()
 
         self.register_buffer(
-            f"available_masks",
+            "available_masks",
             domain_examples.available_masks,
             persistent
         )
