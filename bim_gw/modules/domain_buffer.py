@@ -25,11 +25,14 @@ class DomainBuffer(nn.Module):
         )
         for key, value in domain_examples.sub_parts.items():
             self.sub_parts_keys.append(key)
-            self.register_buffer(
-                f"sub_parts_{key}",
-                value,
-                persistent
-            )
+            if isinstance(value, torch.Tensor):
+                self.register_buffer(
+                    f"sub_parts_{key}",
+                    value,
+                    persistent
+                )
+            else:
+                setattr(self, f"sub_parts_{key}", value)
 
     @property
     def sub_parts(self) -> Dict[str, torch.Tensor]:
@@ -39,7 +42,10 @@ class DomainBuffer(nn.Module):
         }
 
     def __getitem__(self, item: str) -> torch.Tensor:
-        return getattr(self, f"sub_parts_{item}")
+        try:
+            return getattr(self, f"sub_parts_{item}")
+        except AttributeError:
+            raise KeyError(f"Key {item} not found in DomainBuffer")
 
     def __len__(self) -> int:
         return len(self.sub_parts_keys)
