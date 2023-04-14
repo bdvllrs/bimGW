@@ -135,13 +135,13 @@ class SimpleShapesDataModule(LightningDataModule):
                 self.simple_shapes_folder, "val",
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
-                domain_loader_params=self.domain_loader_params
+                domain_loader_params=self.domain_loader_params,
             )
             self.test_set = SimpleShapesDataset(
                 self.simple_shapes_folder, "test",
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
-                domain_loader_params=self.domain_loader_params
+                domain_loader_params=self.domain_loader_params,
             )
 
             ood_split_datasets = [self.val_set, self.test_set]
@@ -152,7 +152,7 @@ class SimpleShapesDataModule(LightningDataModule):
                     selected_indices=sync_indices,
                     transform=train_transforms,
                     selected_domains=self.selected_domains,
-                    domain_loader_params=self.domain_loader_params
+                    domain_loader_params=self.domain_loader_params,
                 )
                 ood_split_datasets.append(train_set)
 
@@ -192,12 +192,13 @@ class SimpleShapesDataModule(LightningDataModule):
 
                     self.train_set = SimpleShapesDataset(
                         self.simple_shapes_folder, "train",
+                        selected_indices=sync_indices,
                         mapping=mapping,
                         domain_mapping=domain_mapping,
                         selected_domains=self.selected_domains,
                         transform=train_set.transforms,
                         output_transform=train_set.output_transform,
-                        domain_loader_params=self.domain_loader_params
+                        domain_loader_params=self.domain_loader_params,
                     )
                 else:
                     self.train_set = train_set

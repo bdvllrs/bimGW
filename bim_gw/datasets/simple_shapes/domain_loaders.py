@@ -293,7 +293,7 @@ class PreSavedLatentLoader:
     def __init__(
         self, data: List[np.ndarray], domain_item_mapping
     ):
-        self.data = data
+        self.data = [torch.from_numpy(data[k]) for k in range(len(data))]
         self.domain_item_mapping = domain_item_mapping
         self._null_item = self._get_null_item()
 
@@ -302,9 +302,7 @@ class PreSavedLatentLoader:
 
     def _get_items(self, item):
         return {
-            self.domain_item_mapping[k]: torch.from_numpy(
-                self.data[k][item][0]
-            )
+            self.domain_item_mapping[k]: self.data[k][item][0]
             for k in range(len(self.data))
         }
 

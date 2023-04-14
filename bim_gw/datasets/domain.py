@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Collection
 
 import torch
@@ -92,7 +93,7 @@ def domain_collate_fn(batch):
 
 
 def collate_fn(batch):
-    items = {domain_name: [] for domain_name in batch[0].keys()}
+    items = defaultdict(list)
     for item in batch:
         for domain_name, domain_item in item.items():
             items[domain_name].append(domain_item)
