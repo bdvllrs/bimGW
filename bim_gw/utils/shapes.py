@@ -124,7 +124,8 @@ def get_fig_from_specs(
     cls, locations, radii, rotations, colors, imsize=32, ncols=8
 ):
     dpi = 100.
-    nrows = len(cls) // ncols
+    reminder = 1 if len(cls) % ncols else 0
+    nrows = len(cls) // ncols + reminder
 
     width = ncols * (imsize + 1) + 1
     height = nrows * (imsize + 1) + 1
@@ -143,6 +144,8 @@ def get_fig_from_specs(
     for i in range(nrows):
         for j in range(ncols):
             k = i * ncols + j
+            if k >= len(cls):
+                break
             ax = plt.subplot(gs[i, j])
             generate_image(
                 ax, cls[k], locations[k], radii[k],
