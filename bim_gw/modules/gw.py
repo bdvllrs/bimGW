@@ -526,7 +526,7 @@ class GlobalWorkspace(LightningModule):
                         "weight_decay": self.hparams.optim_weight_decay
                     }
                 )
-        optimizer = torch.optim.Adam(params)
+        optimizer = torch.optim.AdamW(params)
 
         scheduler_interval = self.hparams.scheduler_interval
         scheduler_step = self.hparams.scheduler_step
