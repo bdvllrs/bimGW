@@ -14,7 +14,7 @@ def get_fmt(name):
     if name == "tr+dcy+cy":
         return {"linestyle": "-", "color": "#d124ff"}
     if name == "tr+dcy":
-        return {"linestyle": "-", "color": "#043505"}
+        return {"linestyle": "-", "color": "#e1a4e6"}
     if name == "cont":
         return {"linestyle": "--", "color": "#043505"}
 

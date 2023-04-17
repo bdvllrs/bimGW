@@ -142,6 +142,7 @@ class AxesGWResultConfig:
     bottom_adjust: float = MISSING
     hspace_adjust: float = MISSING
 
+    legend_order: List[str] = field(default_factory=list)
     selected_losses: Dict[str, FigureLossConfig] = field(default_factory=dict)
     cols: List[DataSelectorAxesConfig] = field(default_factory=list)
 

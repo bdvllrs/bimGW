@@ -192,6 +192,8 @@ if __name__ == '__main__':
             n_rows, n_cols, figsize=(3.7 * n_cols, 4 * n_rows)
         )
         labeled_curves = []
+        handles = []
+        labels = []
         for m, (evaluated_loss, loss_args) in enumerate(
                 loss_evaluations.items()
         ):
@@ -277,7 +279,14 @@ if __name__ == '__main__':
                         )
                 ax.set_yscale('log')
                 ax.set_xscale('log')
+                ax_handles, ax_labels = ax.get_legend_handles_labels()
+                handles.extend(ax_handles)
+                labels.extend(ax_labels)
+        order = [labels.index(slug_to_label.get(x, x))
+                 for x in figure.legend_order]
         fig.legend(
+            [handles[idx] for idx in order],
+            [labels[idx] for idx in order],
             loc='lower center', bbox_to_anchor=(0.5, 0),
             bbox_transform=fig.transFigure,
             ncol=vis_args.legend.num_columns,
