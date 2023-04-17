@@ -79,6 +79,7 @@ visualization:
           curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
         contrastive:
           curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+      legend_order: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
 
       bottom_adjust: 0.2
       top_adjust: 0.9
