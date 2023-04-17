@@ -132,8 +132,10 @@ visualization:
       # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_losses:
         translation:
+          coef_curve: "tr+cy"
           curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
         contrastive:
+          coef_curve: "tr+cy"
           curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
 
       bottom_adjust: 0.2

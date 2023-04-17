@@ -191,6 +191,19 @@ def get_job_slug_from_coefficients(x):
     return name[1:]
 
 
+def get_job_detailed_slug_from_coefficients(x):
+    name = ""
+    if x['parameters/losses/coefs/translation'] > 0:
+        name += f"+tr_{x['parameters/losses/coefs/translation']:.2f}"
+    if x['parameters/losses/coefs/contrastive'] > 0:
+        name += f"+cont_{x['parameters/losses/coefs/contrastive']:.2f}"
+    if x['parameters/losses/coefs/demi_cycles'] > 0:
+        name += f"+dcy_{x['parameters/losses/coefs/demi_cycles']:.2f}"
+    if x['parameters/losses/coefs/cycles'] > 0:
+        name += f"+cy_{x['parameters/losses/coefs/cycles']:.2f}"
+    return name[1:]
+
+
 def find_best_epoch(ckpt_folder):
     ckpt_folder = Path(ckpt_folder)
     if not ckpt_folder.exists():

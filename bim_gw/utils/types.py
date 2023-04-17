@@ -130,6 +130,7 @@ class DataSelectorAxesConfig:
 
 @dataclass
 class FigureLossConfig:
+    coef_curve: str = MISSING
     curves: List[str] = MISSING
 
 
