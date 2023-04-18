@@ -36,9 +36,8 @@ class GlobalWorkspace(LightningModule):
         self, domain_mods: Dict[str, DomainModule], z_size, hidden_size,
         n_layers_encoder,
         n_layers_decoder, n_layers_decoder_head,
-        n_classes=1000,
-        loss_coef_demi_cycles=1., loss_coef_cycles=1.,
-        loss_coef_translation=1., loss_coef_cosine=0.,
+        loss_coef_demi_cycles: bool = True, loss_coef_cycles: bool = True,
+        loss_coef_translation: bool = True,
         loss_coef_contrastive=0., optim_lr=3e-4, optim_weight_decay=1e-5,
         scheduler_mode: SchedulerMode = SchedulerMode.fixed,
         scheduler_interval: SchedulerInterval = SchedulerInterval.epoch,
@@ -50,11 +49,19 @@ class GlobalWorkspace(LightningModule):
     ):
         super(GlobalWorkspace, self).__init__()
 
-        self.loss_coef_demi_cycles = loss_coef_demi_cycles
-        self.loss_coef_cycles = loss_coef_cycles
-        self.loss_coef_translation = loss_coef_translation
+        self._translation_coef = loss_coef_translation
+        self._cycles_coef = loss_coef_cycles
+        self._demi_cycles_coef = loss_coef_demi_cycles
+
+        self.loss_coef_translation = 0.
+        self.loss_coef_cycles = 0.
+        self.loss_coef_demi_cycles = 0.
         self.loss_coef_contrastive = loss_coef_contrastive
-        self.loss_coef_cosine = loss_coef_cosine
+
+        self.define_loss_coefs(
+            loss_coef_translation, loss_coef_cycles, loss_coef_demi_cycles
+        )
+
         self.loss_schedules = {}
         if loss_schedules is not None:
             self.loss_schedules = loss_schedules
@@ -139,6 +146,59 @@ class GlobalWorkspace(LightningModule):
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
         )
         print("Global Workspace instantiated.")
+
+    def define_loss_coefs(
+        self, translation_coef: bool, cycle_coef: bool,
+        demi_cycle_coef: bool
+    ):
+        init_value = 1 / (
+                float(translation_coef)
+                + float(cycle_coef)
+                + float(demi_cycle_coef)
+        )
+        if translation_coef:
+            self.loss_coef_translation = nn.Parameter(init_value)
+        if cycle_coef:
+            self.loss_coef_cycles = nn.Parameter(init_value)
+        if demi_cycle_coef:
+            self.loss_coef_demi_cycles = nn.Parameter(init_value)
+
+    @property
+    def translation_coef(self):
+        if self._translation_coef and (
+                self._cycles_coef or self._demi_cycles_coef
+        ):
+            return 1. - self.cycles_coef - self.demi_cycles_coef
+        return F.sigmoid(self.loss_coef_translation)
+
+    @property
+    def cycles_coef(self):
+        if not self._translation_coef and not self._demi_cycles_coef:
+            return 1.
+        if not self._translation_coef:
+            return 1. - self.demi_cycles_coef
+        return F.sigmoid(self.loss_coef_cycles)
+
+    @property
+    def demi_cycles_coef(self):
+        if not self._translation_coef and not self._cycles_coef:
+            return 1.
+        return F.sigmoid(self.loss_coef_demi_cycles)
+
+    @property
+    def contrastive_coef(self):
+        return self.loss_coef_contrastive
+
+    def get_coef(self, coef_name):
+        if coef_name == "translation":
+            return self.translation_coef
+        if coef_name == "cycles":
+            return self.cycles_coef
+        if coef_name == "demi_cycles":
+            return self.demi_cycles_coef
+        if coef_name == "contrastive":
+            return self.contrastive_coef
+        raise ValueError(f"Unknown coef name {coef_name}")
 
     def encode(self, x, domain_name, add_tanh=True):
         pre_act = self.encoders[domain_name](x)
@@ -364,7 +424,7 @@ class GlobalWorkspace(LightningModule):
         }
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
         losses["total"] = torch.stack(
-            [self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
+            [self.get_coef(loss_name) * losses[loss_name]
              for loss_name in loss_names], dim=0
         ).sum()
         losses["total_no_coefs"] = torch.stack(
@@ -383,11 +443,11 @@ class GlobalWorkspace(LightningModule):
             )
 
         if mode == "train":
-            for coef_name in ["demi_cycles", "cycles", "translation",
-                              "cosine"]:
+            for coef_name in ["demi_cycles", "cycles",
+                              "translation", "contrastive"]:
                 self.log(
                     f"loss_coef/{coef_name}",
-                    getattr(self, f"loss_coef_{coef_name}"),
+                    self.get_coef(coef_name),
                     add_dataloader_idx=False,
                     batch_size=batch_size
                 )
@@ -526,6 +586,17 @@ class GlobalWorkspace(LightningModule):
                         "weight_decay": self.hparams.optim_weight_decay
                     }
                 )
+        coefs_params = []
+        for name, param in self.parameters():
+            if name.startswith("loss_coef"):
+                coefs_params.append(param)
+        params.append(
+            {
+                "params": coefs_params,
+                "lr": self.hparams.optim_lr["coefs"],
+                "weight_decay": self.hparams.optim_weight_decay
+            }
+        )
         optimizer = torch.optim.AdamW(params)
 
         scheduler_interval = self.hparams.scheduler_interval

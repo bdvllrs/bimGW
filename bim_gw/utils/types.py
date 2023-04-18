@@ -51,6 +51,7 @@ class OptimConfig:
 class LRGWOptimConfig:
     encoders: float = MISSING
     decoders: float = MISSING
+    coefs: float = MISSING
     supervised_multiplier: float = MISSING
     unsupervised_multiplier: float = MISSING
 
@@ -243,9 +244,9 @@ class GlobalWorkspaceConfig:
 
 @dataclass
 class CoefsLossesConfig:
-    demi_cycles: float = MISSING
-    cycles: float = MISSING
-    translation: float = MISSING
+    demi_cycles: bool = MISSING
+    cycles: bool = MISSING
+    translation: bool = MISSING
     contrastive: float = MISSING
 
     # Deprecated

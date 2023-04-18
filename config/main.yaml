@@ -283,6 +283,7 @@ global_workspace:
     lr:
       encoders: 1e-4
       decoders: 3e-4
+      coefs: 3e-4
       supervised_multiplier: 1.
       unsupervised_multiplier: 1.
     weight_decay: 5e-5
@@ -300,11 +301,9 @@ global_workspace:
 losses:
   schedules: null
   coefs:
-    demi_cycles: 1.
-    cycles: 1.
-    supervision: null  # Deprecated. Here for backward compatibility, use translation instead. If not null, will override the value in translation.
-    translation: 1.
-    cosine: 0.
+    demi_cycles: true
+    cycles: true
+    translation: true
     contrastive: 1.
 
 # =====
