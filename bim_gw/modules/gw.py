@@ -53,14 +53,8 @@ class GlobalWorkspace(LightningModule):
         self._cycles_coef = loss_coef_cycles
         self._demi_cycles_coef = loss_coef_demi_cycles
 
-        self.loss_coef_translation = 0.
-        self.loss_coef_cycles = 0.
-        self.loss_coef_demi_cycles = 0.
+        self.loss_coefs = nn.Parameter(torch.zeros(3))
         self.loss_coef_contrastive = loss_coef_contrastive
-
-        self.define_loss_coefs(
-            loss_coef_translation, loss_coef_cycles, loss_coef_demi_cycles
-        )
 
         self.loss_schedules = {}
         if loss_schedules is not None:
@@ -147,58 +141,36 @@ class GlobalWorkspace(LightningModule):
         )
         print("Global Workspace instantiated.")
 
-    def define_loss_coefs(
-        self, translation_coef: bool, cycle_coef: bool,
-        demi_cycle_coef: bool
-    ):
-        init_value = 1 / (
-                float(translation_coef)
-                + float(cycle_coef)
-                + float(demi_cycle_coef)
-        )
-        if translation_coef:
-            self.loss_coef_translation = nn.Parameter(torch.tensor(init_value))
-        if cycle_coef:
-            self.loss_coef_cycles = nn.Parameter(torch.tensor(init_value))
-        if demi_cycle_coef:
-            self.loss_coef_demi_cycles = nn.Parameter(torch.tensor(init_value))
-
     @property
     def translation_coef(self):
-        if self._translation_coef and (
-                self._cycles_coef or self._demi_cycles_coef
-        ):
-            return 1. - self.cycles_coef - self.demi_cycles_coef
-        return F.sigmoid(self.loss_coef_translation)
+        if self._translation_coef:
+            return self.get_coefs()["translation"]
+        return 0.
 
     @property
     def cycles_coef(self):
-        if not self._translation_coef and not self._demi_cycles_coef:
-            return 1.
-        if not self._translation_coef:
-            return 1. - self.demi_cycles_coef
-        return F.sigmoid(self.loss_coef_cycles)
+        if self._cycles_coef:
+            return self.get_coefs()["cycles"]
+        return 0.
 
     @property
     def demi_cycles_coef(self):
-        if not self._translation_coef and not self._cycles_coef:
-            return 1.
-        return F.sigmoid(self.loss_coef_demi_cycles)
+        if self._demi_cycles_coef:
+            return self.get_coefs()["demi_cycles"]
+        return 0.
 
     @property
     def contrastive_coef(self):
         return self.loss_coef_contrastive
 
-    def get_coef(self, coef_name):
-        if coef_name == "translation":
-            return self.translation_coef
-        if coef_name == "cycles":
-            return self.cycles_coef
-        if coef_name == "demi_cycles":
-            return self.demi_cycles_coef
-        if coef_name == "contrastive":
-            return self.contrastive_coef
-        raise ValueError(f"Unknown coef name {coef_name}")
+    def get_coefs(self):
+        coefs = F.softmax(self.loss_coefs, dim=0)
+        return {
+            "translation": coefs[0],
+            "cycles": coefs[1],
+            "demi_cycles": coefs[2],
+            "contrastive": self.contrastive_coef,
+        }
 
     def encode(self, x, domain_name, add_tanh=True):
         pre_act = self.encoders[domain_name](x)
@@ -423,8 +395,9 @@ class GlobalWorkspace(LightningModule):
             **translation_losses_2
         }
         loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
+        loss_coefs = self.get_coefs()
         losses["total"] = torch.stack(
-            [self.get_coef(loss_name) * losses[loss_name]
+            [loss_coefs[loss_name] * losses[loss_name]
              for loss_name in loss_names], dim=0
         ).sum()
         losses["total_no_coefs"] = torch.stack(
@@ -447,7 +420,7 @@ class GlobalWorkspace(LightningModule):
                               "translation", "contrastive"]:
                 self.log(
                     f"loss_coef/{coef_name}",
-                    self.get_coef(coef_name),
+                    loss_coefs[coef_name],
                     add_dataloader_idx=False,
                     batch_size=batch_size
                 )
