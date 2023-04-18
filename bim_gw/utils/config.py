@@ -133,7 +133,8 @@ def get_args(
             [values for values in
              args.global_workspace.selected_domains.values()]
         )
-    if args.losses.coefs.supervision is not None:
+    if ('supervision' in args.losses.coefs
+            and args.losses.coefs.supervision is not None):
         logging.warning(
             "Using deprecated value `losses.coefs.supervision`. In the "
             "future, use `losses.coefs.translation` instead."
