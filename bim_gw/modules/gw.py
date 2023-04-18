@@ -587,7 +587,7 @@ class GlobalWorkspace(LightningModule):
                     }
                 )
         coefs_params = []
-        for name, param in self.parameters():
+        for name, param in self.named_parameters():
             if name.startswith("loss_coef"):
                 coefs_params.append(param)
         params.append(
