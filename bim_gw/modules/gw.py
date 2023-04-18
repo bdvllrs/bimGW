@@ -157,11 +157,11 @@ class GlobalWorkspace(LightningModule):
                 + float(demi_cycle_coef)
         )
         if translation_coef:
-            self.loss_coef_translation = nn.Parameter(init_value)
+            self.loss_coef_translation = nn.Parameter(torch.tensor(init_value))
         if cycle_coef:
-            self.loss_coef_cycles = nn.Parameter(init_value)
+            self.loss_coef_cycles = nn.Parameter(torch.tensor(init_value))
         if demi_cycle_coef:
-            self.loss_coef_demi_cycles = nn.Parameter(init_value)
+            self.loss_coef_demi_cycles = nn.Parameter(torch.tensor(init_value))
 
     @property
     def translation_coef(self):
