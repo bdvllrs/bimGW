@@ -41,6 +41,9 @@ class DomainBuffer(nn.Module):
     def values(self):
         yield from self.sub_parts.values()
 
+    def __contains__(self, item):
+        return item in self.sub_parts
+
 
 T = TypeVar("T")
 
@@ -76,9 +79,9 @@ class DictBuffer(nn.Module):
         self._buffer_dict = nn.ModuleDict(buffers)
 
     def __getitem__(self, item):
-        if item in self._buffer_keys:
-            return getattr(self, f"buffer_{item}")
-        return self._buffer_dict[f"buffer_{item}"]
+        if f"buffer_{item}" in self._buffer_dict:
+            return self._buffer_dict[f"buffer_{item}"]
+        return getattr(self, f"buffer_{item}")
 
     def __len__(self) -> int:
         return len(self._buffer_keys) + len(self._item_keys)
@@ -88,9 +91,9 @@ class DictBuffer(nn.Module):
 
     def items(self):
         for key in self._buffer_keys:
-            yield key, getattr(self, f"buffer_{key}")
+            yield key, self[f"buffer_{key}"]
         for key in self._item_keys:
-            yield key, self._buffer_dict[f"buffer_{key}"]
+            yield key, self[f"buffer_{key}"]
 
     def keys(self):
         yield from iter(self._buffer_keys)
@@ -98,6 +101,9 @@ class DictBuffer(nn.Module):
 
     def values(self):
         for key in self._buffer_keys:
-            yield getattr(self, f"buffer_{key}")
+            yield self[f"buffer_{key}"]
         for key in self._item_keys:
-            yield self._buffer_dict[f"buffer_{key}"]
+            yield self[f"buffer_{key}"]
+
+    def __contains__(self, item):
+        return item in self._buffer_keys or item in self._item_keys
