@@ -208,8 +208,8 @@ def find_best_epoch(ckpt_folder):
     ckpt_folder = Path(ckpt_folder)
     if not ckpt_folder.exists():
         return None
-    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:])) for p in
-             ckpt_folder.iterdir()]
+    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:]))
+             for p in ckpt_folder.iterdir()]
     if not len(files):
         return None
 

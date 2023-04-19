@@ -80,8 +80,8 @@ if __name__ == "__main__":
 
     load_domains = []
 
-    if args.odd_image.encoder.path is None or args.odd_image.encoder.path == \
-            "random":
+    if (args.odd_image.encoder.path is None
+            or args.odd_image.encoder.path == "random"):
         encoder = nn.Sequential(
             DomainEncoder(
                 args.vae.z_size, args.global_workspace.hidden_size,

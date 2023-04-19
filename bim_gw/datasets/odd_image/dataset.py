@@ -66,7 +66,8 @@ class OddImageDataset:
                 )[1:],
                 self.domain_loaders[name].get_item(
                     label[2] + self.shift_ref_item
-                )[1:])
+                )[1:]
+            )
             for name in self.domain_loaders.keys()
         }
         data["label"] = torch.tensor(label[3], dtype=torch.long)
