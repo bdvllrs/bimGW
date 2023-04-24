@@ -91,9 +91,9 @@ class DictBuffer(nn.Module):
 
     def items(self):
         for key in self._buffer_keys:
-            yield key, self[f"buffer_{key}"]
+            yield key, self[key]
         for key in self._item_keys:
-            yield key, self[f"buffer_{key}"]
+            yield key, self[key]
 
     def keys(self):
         yield from iter(self._buffer_keys)
@@ -101,9 +101,9 @@ class DictBuffer(nn.Module):
 
     def values(self):
         for key in self._buffer_keys:
-            yield self[f"buffer_{key}"]
+            yield self[key]
         for key in self._item_keys:
-            yield self[f"buffer_{key}"]
+            yield self[key]
 
     def __contains__(self, item):
         return item in self._buffer_keys or item in self._item_keys
