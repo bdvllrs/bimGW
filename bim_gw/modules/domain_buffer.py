@@ -56,7 +56,7 @@ class DictBuffer(nn.Module):
     ):
         super().__init__()
 
-        buffers: Dict[str, T] = {}
+        buffers: Dict[str, nn.Module] = {}
         self._buffer_keys = set()
         self._item_keys = set()
         for key, value in buffer_dict.items():
