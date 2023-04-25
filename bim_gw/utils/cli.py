@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from omegaconf import OmegaConf
+from ruamel.yaml import YAML
+
+yaml = YAML(typ='safe')
 
 
 def _get_real_field(fields, name):
@@ -65,7 +68,7 @@ def _is_valid_field_from_type(field_type, loaded_value):
 
 
 def _is_valid_field(field, value):
-    loaded_value = yaml.load(value, Loader=yaml.SafeLoader)
+    loaded_value = yaml.load(value)
     return _is_valid_field_from_type(field.type, loaded_value)
 
 
