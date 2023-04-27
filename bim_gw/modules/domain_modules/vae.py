@@ -220,13 +220,18 @@ class VAE(DomainModule):
         log_image(logger, x["img"][:max_examples], title, step)
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if not hasattr(self.trainer.datamodule, "domain_examples"):
+        if (not hasattr(self.trainer, "datamodule")
+                or self.domain_examples is not None
+                or self.trainer.datamodule is None  # type: ignore
+                or not hasattr(
+                    self.trainer.datamodule, "domain_examples"  # type: ignore
+                )):
             return
         if stage in ["fit", "validate", "test"]:
-            domain_examples = self.trainer.datamodule.domain_examples
+            examples = self.trainer.datamodule.domain_examples  # type: ignore
             self.register_buffer(
                 "validation_reconstruction_images",
-                domain_examples["val"]["in_dist"]["v"]["img"],
+                examples["val"]["in_dist"]["v"]["img"],
                 persistent=False
             )
 

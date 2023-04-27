@@ -3,6 +3,8 @@ import numpy as np
 from matplotlib import gridspec, patches as patches, pyplot as plt
 from tqdm import tqdm
 
+import bim_gw.datasets.utils
+
 
 def get_transformed_coordinates(coordinates, origin, scale, rotation):
     center = np.array([[0.5, 0.5]])
@@ -10,7 +12,7 @@ def get_transformed_coordinates(coordinates, origin, scale, rotation):
         [[np.cos(rotation), -np.sin(rotation)],
          [np.sin(rotation), np.cos(rotation)]]
     )
-    rotated_coordinates = (coordinates - center) @ rotation_m.T
+    rotated_coordinates = (coordinates - center) @ bim_gw.datasets.utils.T_co
     return origin + scale * rotated_coordinates
 
 

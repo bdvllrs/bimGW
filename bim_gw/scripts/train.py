@@ -25,10 +25,9 @@ def train_gw(args, mode="train"):
             args.global_workspace.hidden_size,
             args.global_workspace.n_layers.encoder,
             args.global_workspace.n_layers.decoder,
-            args.global_workspace.n_layers.decoder_head, len(data.classes),
+            args.global_workspace.n_layers.decoder_head,
             args.losses.coefs.demi_cycles, args.losses.coefs.cycles,
-            args.losses.coefs.translation,
-            args.losses.coefs.cosine, args.losses.coefs.contrastive,
+            args.losses.coefs.translation, args.losses.coefs.contrastive,
             args.global_workspace.optim.lr,
             args.global_workspace.optim.weight_decay,
             args.global_workspace.scheduler.mode,
@@ -71,7 +70,6 @@ def train_lm(args):
         checkpoint_path = get_checkpoint_path(args.checkpoint)
         lm = SimpleShapesText.load_from_checkpoint(
             checkpoint_path, strict=False,
-            bert_path=args.global_workspace.bert_path,
             domain_examples=data.domain_examples,
             train_vae=args.lm.train_vae,
             train_attr_decoders=args.lm.train_attr_decoders,
@@ -83,13 +81,12 @@ def train_lm(args):
     else:
         lm = SimpleShapesText(
             args.lm.z_size, args.lm.hidden_size, args.lm.beta,
-            len(data.classes), data.img_size, args.global_workspace.bert_path,
-            args.lm.optim.lr, args.lm.optim.weight_decay,
-            args.lm.scheduler.step,
-            args.lm.scheduler.gamma,
-            args.lm.train_vae, args.lm.train_attr_decoders,
+            len(data.classes), data.img_size, args.lm.optim.lr,
+            args.lm.optim.weight_decay, args.lm.scheduler.step,
+            args.lm.scheduler.gamma, args.lm.train_vae,
+            args.lm.train_attr_decoders,
             args.lm.optimize_vae_with_attr_regression, args.lm.coef_attr_loss,
-            args.lm.coef_vae_loss,
+            args.lm.coef_vae_loss
         )
 
     trainer = get_trainer(

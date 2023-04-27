@@ -1,4 +1,5 @@
-from typing import Dict, Optional
+from argparse import Namespace
+from typing import cast, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -12,7 +13,10 @@ from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_buffer import DictBuffer
 from bim_gw.modules.domain_interface import DomainInterface
 from bim_gw.modules.domain_modules import DomainModule
-from bim_gw.utils.types import SchedulerInterval, SchedulerMode
+from bim_gw.utils.types import (
+    SchedulerConfig, SchedulerInterval,
+    SchedulerMode
+)
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
 
@@ -33,20 +37,22 @@ def split_domains_available_domains(domains):
 
 class GlobalWorkspace(LightningModule):
     def __init__(
-        self, domain_mods: Dict[str, DomainModule], z_size, hidden_size,
-        n_layers_encoder,
-        n_layers_decoder, n_layers_decoder_head,
-        n_classes=1000,
-        loss_coef_demi_cycles=1., loss_coef_cycles=1.,
-        loss_coef_translation=1., loss_coef_cosine=0.,
-        loss_coef_contrastive=0., optim_lr=3e-4, optim_weight_decay=1e-5,
+        self, domain_mods: Dict[str, DomainModule],
+        z_size: int, hidden_size: Dict[str, Dict[str, int]],
+        n_layers_encoder: Dict[str, Dict[str, int]],
+        n_layers_decoder: Dict[str, Dict[str, int]],
+        n_layers_decoder_head: Dict[str, Dict[str, int]],
+        loss_coef_demi_cycles: float = 1., loss_coef_cycles: float = 1.,
+        loss_coef_translation: float = 1.,
+        loss_coef_contrastive: float = 0., optim_lr: float = 3e-4,
+        optim_weight_decay: float = 1e-5,
         scheduler_mode: SchedulerMode = SchedulerMode.fixed,
         scheduler_interval: SchedulerInterval = SchedulerInterval.epoch,
         scheduler_step=20, scheduler_gamma=0.5,
-        loss_schedules=None,
+        loss_schedules: Optional[Dict[str, SchedulerConfig]] = None,
         monitor_grad_norms: bool = False,
-        remove_sync_domains=None,
-        save_only_last_images=False,
+        remove_sync_domains: Optional[List[Sequence[str]]] = None,
+        save_only_last_images: bool = False,
     ):
         super(GlobalWorkspace, self).__init__()
 
@@ -54,13 +60,8 @@ class GlobalWorkspace(LightningModule):
         self.loss_coef_cycles = loss_coef_cycles
         self.loss_coef_translation = loss_coef_translation
         self.loss_coef_contrastive = loss_coef_contrastive
-        self.loss_coef_cosine = loss_coef_cosine
-        self.loss_schedules = {}
-        if loss_schedules is not None:
-            self.loss_schedules = loss_schedules
-        self.remove_sync_domains = []
-        if remove_sync_domains is not None:
-            self.remove_sync_domains = remove_sync_domains
+        self.loss_schedules = loss_schedules or {}
+        self.remove_sync_domains = remove_sync_domains or []
         self.remove_sync_domains_names = [
             f"{n1}-{n2}" for n1, n2 in self.remove_sync_domains
         ]
@@ -133,33 +134,42 @@ class GlobalWorkspace(LightningModule):
 
         self.domain_examples: Optional[DictBuffer] = None
 
-        self.rotation_error_val = []
-
         self.save_hyperparameters(
             ignore=["domain_mods", "domain_examples", "loss_schedules"]
         )
         print("Global Workspace instantiated.")
 
-    def encode(self, x, domain_name, add_tanh=True):
+    def encode(
+        self, x: Dict[str, torch.Tensor], domain_name: str,
+        add_tanh: bool = True
+    ) -> torch.Tensor:
         pre_act = self.encoders[domain_name](x)
         if add_tanh:
             return torch.tanh(pre_act)
         return pre_act
 
-    def decode(self, z, domain_name):
+    def decode(
+        self, z: torch.Tensor,
+        domain_name: str
+    ) -> Dict[str, torch.Tensor]:
         return self.decoders[domain_name](z)
 
     def project(
         self, latents: Dict[str, Dict[str, torch.Tensor]],
-        keep_domains
-    ):
-        pre_act = 0
+        keep_domains: Sequence[str]
+    ) -> torch.Tensor:
         assert len(keep_domains), "Must project at least one domain"
-        for domain in keep_domains:
-            pre_act += self.encode(latents[domain], domain, add_tanh=False)
+        pre_act = cast(
+            torch.Tensor, sum(
+                self.encode(latents[domain], domain, add_tanh=False)
+                for domain in keep_domains
+            )
+        )
         return torch.tanh(pre_act)
 
-    def predict(self, state):
+    def predict(
+        self, state: torch.Tensor
+    ) -> Dict[str, Dict[str, torch.Tensor]]:
         return {
             domain_name: self.decode(state, domain_name)
             for domain_name in self.domains.names
@@ -264,10 +274,11 @@ class GlobalWorkspace(LightningModule):
         latent_demi_cycle_target = {}
         latent_cycle_predictions = {}
         latent_cycle_target = {}
-        latent_translation_predictions = {}
-        latent_translation_target = {}
-        latent_translation_predictions_2 = {}
-        latent_translation_target_2 = {}
+        latent_translation_predictions: Dict[str, Dict[str, torch.Tensor]] = {}
+        latent_translation_target: Dict[str, Dict[str, torch.Tensor]] = {}
+        latent_translation_predictions_2: Dict[
+            str, Dict[str, torch.Tensor]] = {}
+        latent_translation_target_2: Dict[str, Dict[str, torch.Tensor]] = {}
         states = {}
 
         latents_sub_parts = {
@@ -374,9 +385,11 @@ class GlobalWorkspace(LightningModule):
         batch_size = latents[list(latents.keys())[0]].available_masks.size(0)
         for name, loss in losses.items():
             loss_name = f"{mode}/{prefix}{name}_loss"
-            if mode == "val" and self.trainer.global_step == 0:
+            if (mode == "val" and hasattr(self.trainer, "global_step")
+                    and self.trainer.global_step == 0):  # type: ignore
                 for logger in self.loggers:
-                    logger.set_summary(loss_name, "min")
+                    if hasattr(logger, "set_summary"):
+                        logger.set_summary(loss_name, "min")
             self.log(
                 loss_name, loss, logger=True,
                 add_dataloader_idx=False, batch_size=batch_size
@@ -419,7 +432,7 @@ class GlobalWorkspace(LightningModule):
         return total_loss
 
     def log_domains(
-        self, logger, examples: DomainItems, slug="val",
+        self, logger, examples: Dict[str, DomainItems], slug="val",
         max_examples=None
     ):
         latents = self.domains.encode(examples)
@@ -470,22 +483,28 @@ class GlobalWorkspace(LightningModule):
                             max_examples
                         )
 
+    def _has_odd_boundaries(self):
+        return (
+                hasattr(
+                    self.trainer.datamodule, "ood_boundaries"  # type: ignore
+                )
+                and self.trainer.datamodule.ood_boundaries  # type: ignore
+                is not None
+        )
+
     def on_train_start(self) -> None:
-        if self.domain_examples is None:
+        if (not hasattr(self.trainer, "datamodule")
+                or self.domain_examples is None
+                or self.trainer.datamodule is None):  # type: ignore
             return
+        datamodule = self.trainer.datamodule  # type: ignore
         for mode, domain_examples in self.domain_examples.items():
             for logger in self.loggers:
                 with self.domains.pass_through(False):
-                    if (
-                            hasattr(self.trainer.datamodule, "ood_boundaries")
-                            and self.trainer.datamodule.ood_boundaries is
-                            not None
-                    ):
+                    if self._has_odd_boundaries():
+                        boundary = datamodule.ood_boundaries
                         logger.log_hyperparams(
-                            {
-                                "ood_boundaries":
-                                    self.trainer.datamodule.ood_boundaries
-                            }
+                            Namespace(ood_boundaries=boundary)
                         )
                     for dist, dist_examples in domain_examples.items():
                         self.log_original_domains(
@@ -576,12 +595,15 @@ class GlobalWorkspace(LightningModule):
         )
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if not hasattr(self.trainer.datamodule, "domain_examples"):
-            return
-        if self.domain_examples is not None:
+        if (not hasattr(self.trainer, "datamodule")
+                or self.domain_examples is not None
+                or self.trainer.datamodule is None  # type: ignore
+                or not hasattr(
+                    self.trainer.datamodule, "domain_examples"  # type: ignore
+                )):
             return
         if stage in ["fit", "validate", "test"]:
             self.domain_examples = DictBuffer(
-                self.trainer.datamodule.domain_examples,
+                self.trainer.datamodule.domain_examples,  # type: ignore
                 persistent=False
             )

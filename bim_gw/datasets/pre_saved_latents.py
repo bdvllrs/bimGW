@@ -3,11 +3,13 @@ from typing import Dict, List, Optional, SupportsIndex
 
 import numpy as np
 
+from bim_gw.utils.types import AvailableDomains
+
 
 def load_pre_saved_latent(
     root_path: pathlib.Path, split: str,
-    pre_saved_latent_path: Dict[str, str],
-    domain_key: str,
+    pre_saved_latent_path: Dict[AvailableDomains, str],
+    domain_key: AvailableDomains,
     ids: Optional[SupportsIndex] = None
 ) -> List[np.ndarray]:
     kept_idx = ids if ids is None else slice(None)

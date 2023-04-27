@@ -1,14 +1,15 @@
-from typing import Callable, Dict, Literal, Tuple, Union
-
-import torch
-from PIL import Image
+from enum import auto
+from typing import Callable, Dict
 
 from bim_gw.datasets.domain import DomainItems
+from bim_gw.utils.types import AvailableDomains
 
-AvailableDomainsType = Literal["v", "attr", "t"]
-VisualDataType = Tuple[torch.FloatTensor, Image.Image]
-AttributesDataType = Tuple[torch.FloatTensor, int, torch.FloatTensor]
-TextDataType = Tuple[torch.FloatTensor, torch.LongTensor, str, Dict[str, int]]
-SelectedDomainType = Dict[
-    str, Union[VisualDataType, AttributesDataType, TextDataType]]
+
+class ShapesAvailableDomains(AvailableDomains):
+    v = auto()
+    t = auto()
+    attr = auto()
+
+
+SelectedDomainType = Dict[ShapesAvailableDomains, DomainItems]
 TransformType = Callable[[DomainItems], DomainItems]

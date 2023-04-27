@@ -3,7 +3,6 @@ import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-import yaml
 from omegaconf import OmegaConf
 from ruamel.yaml import YAML
 

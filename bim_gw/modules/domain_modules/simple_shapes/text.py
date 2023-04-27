@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -58,14 +58,16 @@ class SymLog(nn.Module):
 
 class SimpleShapesText(DomainModule):
     def __init__(
-        self, z_size, hidden_size, beta, n_classes, imsize, bert_path,
-        optim_lr=3e-4, optim_weight_decay=1e-5, scheduler_step=20,
-        scheduler_gamma=0.5,
-        train_vae=True,
-        train_attr_decoders=True,
-        optimize_vae_with_attr_regression=False,
-        coef_attr_loss=1,
-        coef_vae_loss=1
+        self,
+        z_size: int, hidden_size: int, beta: float, n_classes: int,
+        imsize: int, optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
+        scheduler_step: int = 20,
+        scheduler_gamma: float = 0.5,
+        train_vae: bool = True,
+        train_attr_decoders: bool = True,
+        optimize_vae_with_attr_regression: bool = False,
+        coef_attr_loss: float = 1,
+        coef_vae_loss: float = 1
     ):
 
         super(SimpleShapesText, self).__init__(
@@ -84,7 +86,6 @@ class SimpleShapesText(DomainModule):
         self.z_size = z_size
         self.hidden_size = hidden_size
         self.imsize = imsize
-        self.bert_path = bert_path
         self.train_vae = train_vae
         self.train_attr_decoders = train_attr_decoders
         self.optimize_vae_with_attr_regression = \
@@ -170,11 +171,14 @@ class SimpleShapesText(DomainModule):
         self.register_buffer("log_sigma", torch.tensor(0.))
         self.register_buffer("beta", torch.tensor(beta))
 
-    def encode(self, text_item: Dict[str, Any]):
+    def encode(self, text_item: Dict[str, Any]) -> Dict[str, Any]:
         z, _ = self.encode_stats(text_item['bert'])
         return {"z": z}
 
-    def get_sentence_predictions(self, z, predictions):
+    def get_sentence_predictions(
+        self, z: torch.Tensor,
+        predictions: Dict[str, Any]
+    ) -> Tuple[List[str], List[Dict[str, Any]]]:
         grammar_prediction = self.get_grammar_prediction(z)
         choices = get_choices_from_structure_category(
             self.text_composer, grammar_prediction
@@ -202,7 +206,7 @@ class SimpleShapesText(DomainModule):
             final_choices.append(choice)
         return sentence_predictions, final_choices
 
-    def decode(self, domain_item: Dict[str, torch.Tensor]):
+    def decode(self, domain_item: Dict[str, torch.Tensor]) -> Dict[str, Any]:
         z_mean = domain_item['z']
         text_latent = self.decoder(z_mean)
         predictions = self.classify(z_mean)
@@ -458,13 +462,16 @@ class SimpleShapesText(DomainModule):
         self.epoch_end("test")
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if not hasattr(self.trainer.datamodule, "domain_examples"):
-            return
-        if self.domain_examples is not None:
+        if (not hasattr(self.trainer, "datamodule")
+                or self.domain_examples is not None
+                or self.trainer.datamodule is None  # type: ignore
+                or not hasattr(
+                    self.trainer.datamodule, "domain_examples"  # type: ignore
+                )):
             return
         if stage in ["fit", "validate", "test"]:
             self.domain_examples = DictBuffer(
-                self.trainer.datamodule.domain_examples,
+                self.trainer.datamodule.domain_examples,  # type: ignore
                 persistent=False
             )
 

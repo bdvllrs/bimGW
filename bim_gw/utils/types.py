@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Sequence, Union
 
+import numpy as np
 from numpy.typing import ArrayLike
 from omegaconf import ListConfig, MISSING
 
@@ -9,6 +10,16 @@ WandbFilterT = Dict[str, Any]
 
 SplitLiteral = Literal["train", "val", "test"]
 ListType = Union[List, ListConfig, ArrayLike]
+
+SequenceLike = Union[np.ndarray, Sequence]
+
+
+class AvailableDomains(str, Enum):
+    @staticmethod
+    def _generate_next_value_(
+        name, start: int, count: int, last_values: List[Any]
+    ) -> str:
+        return str(name).lower()
 
 
 class VAEType(Enum):
@@ -255,7 +266,7 @@ class CoefsLossesConfig:
 
 @dataclass
 class LossesConfig:
-    schedules: Any = MISSING
+    schedules: Optional[Dict[str, SchedulerConfig]] = MISSING
     coefs: CoefsLossesConfig = field(default_factory=CoefsLossesConfig)
 
 

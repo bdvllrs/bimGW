@@ -1,10 +1,11 @@
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Tuple
 
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_modules import DomainModule, PassThroughWM
+from bim_gw.modules.domain_modules.domain_module import DomainSpecs
 
 
 class DomainInterface(nn.Module):
@@ -19,7 +20,7 @@ class DomainInterface(nn.Module):
         self._domain_modules.eval()
         self.names = list(domain_mods.keys())
 
-    def get_specs(self):
+    def get_specs(self) -> Iterator[Tuple[str, DomainSpecs]]:
         for key, mod in self._domain_modules.items():
             yield key, mod.domain_specs
 
@@ -74,11 +75,11 @@ class DomainInterface(nn.Module):
         yield
         self.set_pass_through(not mode)
 
-    def __getitem__(self, item: str) -> nn.Module:
+    def __getitem__(self, item: str) -> DomainModule:
         return self._domain_modules[item]
 
     def __len__(self) -> int:
         return len(self._domain_modules)
 
-    def __iter__(self) -> Iterator[nn.Module]:
+    def __iter__(self) -> Iterator[DomainModule]:
         return iter(self._domain_modules)

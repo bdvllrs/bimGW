@@ -1,11 +1,21 @@
 import logging
-from typing import Dict, List, Sequence, Tuple
+from typing import (
+    Any, Dict, List, Literal, Mapping, Optional, Protocol, Sequence, Sized,
+    Tuple,
+    TypeVar
+)
 
 import numpy as np
 import torch
+from torch.utils.data import Dataset
 
 from bim_gw.datasets.domain import collate_fn, DomainItems
 from bim_gw.utils import registries
+from bim_gw.utils.types import AvailableDomains, SplitLiteral
+
+T_co = TypeVar('T_co', covariant=True)
+
+DistLiteral = Literal["in_dist", "ood"]
 
 
 @registries.register_dataset("shapes")
@@ -67,11 +77,12 @@ def get_lm(args, data, **kwargs):
 
 
 def filter_sync_domains(
-    domains: List[str],
+    domains: Sequence[AvailableDomains],
     allowed_indices: List[int],
     prop_labelled_images: float,
     prop_available_images: float,
-) -> Tuple[List[int], List[List[str]]]:
+) -> Tuple[
+    Optional[List[int]], Optional[Sequence[Sequence[AvailableDomains]]]]:
     # permute for number of couples of domains
     permuted_indices = np.random.permutation(allowed_indices)
     logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
@@ -88,7 +99,7 @@ def filter_sync_domains(
     sync_items = permuted_indices[:sync_split]
     rest = permuted_indices[sync_split:]
 
-    mapping = []
+    mapping: List[int] = []
     domain_mapping = []
     if prop_2_domains < 1:
         labelled_size = int(original_size * prop_2_domains)
@@ -117,9 +128,10 @@ def filter_sync_domains(
 
 
 def get_validation_examples(
-    datasets: Dict[str, Dict[str, Sequence]],
+    datasets: Mapping[SplitLiteral, Mapping[DistLiteral, Dataset]],
     n_domain_examples: int,
-) -> Dict[str, Dict[str, DomainItems]]:
+) -> Mapping[SplitLiteral, Mapping[DistLiteral, Mapping[
+    AvailableDomains, DomainItems]]]:
     reconstruction_indices = {
         split: {
             dist: torch.randint(
@@ -131,7 +143,8 @@ def get_validation_examples(
         if dataset[dist] is not None
     }
 
-    domain_examples = {}
+    domain_examples: Dict[SplitLiteral, Dict[DistLiteral, Dict[
+        AvailableDomains, DomainItems]]] = {}
 
     all_sets = [
         (split, dataset) for split, dataset in datasets.items()
@@ -147,3 +160,13 @@ def get_validation_examples(
             domain_examples[set_name][used_dist] = examples
 
     return domain_examples
+
+
+class DatasetProtocol(Protocol, Sized):
+    def __getitem__(self, item: int) -> Any:
+        ...
+
+
+class SubsetableDataset(Protocol[T_co], DatasetProtocol):
+    def subset(self, indices: Sequence[int]) -> T_co:
+        ...

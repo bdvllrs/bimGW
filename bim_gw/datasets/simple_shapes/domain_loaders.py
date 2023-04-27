@@ -1,13 +1,14 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
 from PIL import Image
 
 from bim_gw.datasets.domain import DomainItems
+from bim_gw.datasets.domain_loaders import DomainLoader
 from bim_gw.datasets.simple_shapes.types import (
-    AvailableDomainsType,
+    ShapesAvailableDomains,
     TransformType
 )
 from bim_gw.utils.text_composer.composer import composer
@@ -15,52 +16,8 @@ from bim_gw.utils.text_composer.utils import get_categories
 from bim_gw.utils.types import SplitLiteral
 
 
-def transform(
-    data: DomainItems,
-    transformation: Optional[Callable[[DomainItems], DomainItems]]
-) -> Any:
-    if transformation is not None:
-        data = transformation(data)
-    return data
-
-
-class DomainLoader:
-    modality: AvailableDomainsType
-
-    def __init__(
-        self,
-        root_path: pathlib.Path,
-        split: SplitLiteral,
-        ids: np.ndarray,
-        labels,
-        transforms: Optional[Dict[AvailableDomainsType, Optional[
-            TransformType]]] = None,
-        **kwargs
-    ):
-        self.root_path = root_path
-        self.split = split
-        self.ids = ids
-        self.labels = labels
-        self.transforms: Optional[TransformType] = None
-        if transforms is not None:
-            self.transforms = transforms[self.modality]
-        self.domain_loader_args = kwargs
-
-    def get_null_item(self) -> DomainItems:
-        raise NotImplementedError
-
-    def get_item(self, item: int) -> DomainItems:
-        raise NotImplementedError
-
-    def get_items(self, item: int) -> DomainItems:
-        selected_item = self.get_item(
-            item
-        ) if item is not None else self.get_null_item()
-        return transform(selected_item, self.transforms)
-
-
 class VisionLoader(DomainLoader):
-    modality: AvailableDomainsType = "v"
+    modality = ShapesAvailableDomains.v
 
     def __init__(
         self,
@@ -69,7 +26,7 @@ class VisionLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[AvailableDomainsType, Optional[TransformType]]] =
+            Dict[ShapesAvailableDomains, Optional[TransformType]]] =
         None,
         **kwargs
     ):
@@ -105,7 +62,7 @@ class VisionLoader(DomainLoader):
 
 
 class AttributesLoader(DomainLoader):
-    modality: AvailableDomainsType = "attr"
+    modality = ShapesAvailableDomains.attr
 
     def __init__(
         self,
@@ -114,7 +71,7 @@ class AttributesLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[AvailableDomainsType, Optional[TransformType]]] =
+            Dict[ShapesAvailableDomains, Optional[TransformType]]] =
         None,
         **kwargs
     ):
@@ -171,7 +128,7 @@ def _get_bert_latent(file_path: pathlib.Path, **kwargs) -> np.ndarray:
 
 
 class TextLoader(DomainLoader):
-    modality: AvailableDomainsType = "t"
+    modality = ShapesAvailableDomains.t
 
     def __init__(
         self,
@@ -180,7 +137,7 @@ class TextLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[AvailableDomainsType, Optional[TransformType]]] = None,
+            Dict[ShapesAvailableDomains, Optional[TransformType]]] = None,
         **kwargs
     ):
         super(TextLoader, self).__init__(
@@ -287,43 +244,3 @@ class TextLoader(DomainLoader):
             choices=self.null_choice,
             is_available=False
         )
-
-
-class PreSavedLatentLoader:
-    def __init__(
-        self, data: List[np.ndarray], domain_item_mapping
-    ):
-        self.data = [torch.from_numpy(data[k]) for k in range(len(data))]
-        self.domain_item_mapping = domain_item_mapping
-        self._null_item = self._get_null_item()
-
-    def __len__(self) -> int:
-        return self.data[0].shape[0]
-
-    def _get_items(self, item):
-        return {
-            self.domain_item_mapping[k]: self.data[k][item][0]
-            for k in range(len(self.data))
-        }
-
-    def _get_null_item(self):
-        return {
-            k: torch.zeros_like(v)
-            for k, v in self._get_items(0).items()
-        }
-
-    def get_null_item(self):
-        return DomainItems.singular(
-            **self._null_item,
-            is_available=False,
-        )
-
-    def get_item(self, item: int):
-        return DomainItems.singular(
-            **self._get_items(item),
-        )
-
-    def get_items(self, item: int):
-        return self.get_item(
-            item
-        ) if item is not None else self.get_null_item()

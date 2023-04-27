@@ -3,10 +3,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from bim_gw.datasets.domain_loaders import PreSavedLatentLoader
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.domain_loaders import (
     AttributesLoader,
-    PreSavedLatentLoader, TextLoader
+    TextLoader
 )
 
 

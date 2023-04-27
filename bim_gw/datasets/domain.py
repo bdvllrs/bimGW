@@ -1,8 +1,11 @@
 from collections import defaultdict
 from collections.abc import Collection
+from typing import Dict, Iterable
 
 import torch
 from torch.utils.data.dataloader import default_collate
+
+from bim_gw.utils.types import AvailableDomains
 
 
 # Can't use the collections.abc.MutableMapping interface because torch's
@@ -86,13 +89,15 @@ def _pin_memory(value):
     return value
 
 
-def domain_collate_fn(batch):
+def domain_collate_fn(batch: Iterable[DomainItems]) -> DomainItems:
     items = [(item.available_masks, item.sub_parts) for item in batch]
     batched_items = default_collate(items)
     return DomainItems(batched_items[0], **batched_items[1])
 
 
-def collate_fn(batch):
+def collate_fn(
+    batch: Iterable[Dict[AvailableDomains, DomainItems]]
+) -> Dict[AvailableDomains, DomainItems]:
     items = defaultdict(list)
     for item in batch:
         for domain_name, domain_item in item.items():

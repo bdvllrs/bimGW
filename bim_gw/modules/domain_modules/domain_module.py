@@ -22,7 +22,7 @@ class DomainSpecs:
 
 
 class DomainModule(LightningModule):
-    def __init__(self, domain_specs, *args, **kwargs):
+    def __init__(self, domain_specs: DomainSpecs, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.domain_specs = domain_specs
