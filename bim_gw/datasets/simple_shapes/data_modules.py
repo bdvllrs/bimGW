@@ -20,7 +20,7 @@ from bim_gw.datasets.simple_shapes.utils import (
     get_v_preprocess
 )
 from bim_gw.datasets.utils import (
-    DistLiteral, filter_sync_domains,
+    filter_sync_domains,
     get_validation_examples
 )
 from bim_gw.modules.domain_modules import VAE
@@ -29,7 +29,7 @@ from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesText
 )
 from bim_gw.utils import registries
-from bim_gw.utils.types import SplitLiteral
+from bim_gw.utils.types import DistLiteral, SplitLiteral
 from bim_gw.utils.utils import get_checkpoint_path
 
 

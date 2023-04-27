@@ -86,7 +86,9 @@ class SimpleShapesDataset(Dataset):
             self.labels = self.labels[selected_indices]
             self.ids = self.ids[selected_indices]
 
-        self.selected_indices = selected_indices or np.arange(len(self.labels))
+        self.selected_indices = (selected_indices
+                                 if selected_indices is not None
+                                 else np.arange(len(self.labels)))
 
         self.mapping: np.ndarray = np.array(mapping or self.ids)
         self.available_domains_mapping = domain_mapping or (

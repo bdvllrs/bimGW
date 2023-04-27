@@ -3,7 +3,7 @@ from typing import Mapping, TypeVar
 
 import numpy as np
 
-from bim_gw.datasets.utils import DistLiteral, SubsetableDataset
+from bim_gw.utils.types import DistLiteral, SubsetableDataset
 
 
 def in_interval(

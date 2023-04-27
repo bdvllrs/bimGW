@@ -1,8 +1,6 @@
 import logging
 from typing import (
-    Any, Dict, List, Literal, Mapping, Optional, Protocol, Sequence, Sized,
-    Tuple,
-    TypeVar
+    Dict, List, Mapping, Optional, Sequence, Tuple
 )
 
 import numpy as np
@@ -11,11 +9,7 @@ from torch.utils.data import Dataset
 
 from bim_gw.datasets.domain import collate_fn, DomainItems
 from bim_gw.utils import registries
-from bim_gw.utils.types import AvailableDomains, SplitLiteral
-
-T_co = TypeVar('T_co', covariant=True)
-
-DistLiteral = Literal["in_dist", "ood"]
+from bim_gw.utils.types import AvailableDomains, DistLiteral, SplitLiteral
 
 
 @registries.register_dataset("shapes")
@@ -160,13 +154,3 @@ def get_validation_examples(
             domain_examples[set_name][used_dist] = examples
 
     return domain_examples
-
-
-class DatasetProtocol(Protocol, Sized):
-    def __getitem__(self, item: int) -> Any:
-        ...
-
-
-class SubsetableDataset(Protocol[T_co], DatasetProtocol):
-    def subset(self, indices: Sequence[int]) -> T_co:
-        ...

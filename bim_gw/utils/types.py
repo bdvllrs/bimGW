@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Sequence, Union
+from typing import (
+    Any, Dict, List, Literal, Optional, Protocol, Sequence,
+    TypeVar, Union
+)
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -12,6 +15,14 @@ SplitLiteral = Literal["train", "val", "test"]
 ListType = Union[List, ListConfig, ArrayLike]
 
 SequenceLike = Union[np.ndarray, Sequence]
+
+T_co = TypeVar('T_co', covariant=True)
+DistLiteral = Literal["in_dist", "ood"]
+
+
+class SubsetableDataset(Protocol[T_co]):
+    def subset(self, indices: Sequence[int]) -> T_co:
+        ...
 
 
 class AvailableDomains(str, Enum):
