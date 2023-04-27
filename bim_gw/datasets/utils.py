@@ -70,13 +70,15 @@ def get_lm(args, data, **kwargs):
     raise NotImplementedError("Use get_domains instead.")
 
 
+DomainMappingType = Sequence[Sequence[AvailableDomains]]
+
+
 def filter_sync_domains(
     domains: Sequence[AvailableDomains],
     allowed_indices: List[int],
     prop_labelled_images: float,
     prop_available_images: float,
-) -> Tuple[
-    Optional[List[int]], Optional[Sequence[Sequence[AvailableDomains]]]]:
+) -> Tuple[Optional[List[int]], Optional[DomainMappingType]]:
     # permute for number of couples of domains
     permuted_indices = np.random.permutation(allowed_indices)
     logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
@@ -121,11 +123,14 @@ def filter_sync_domains(
     return mapping, domain_mapping
 
 
+DomainExamplesType = Mapping[
+    SplitLiteral, Mapping[DistLiteral, Mapping[AvailableDomains, DomainItems]]]
+
+
 def get_validation_examples(
     datasets: Mapping[SplitLiteral, Mapping[DistLiteral, Dataset]],
     n_domain_examples: int,
-) -> Mapping[SplitLiteral, Mapping[DistLiteral, Mapping[
-    AvailableDomains, DomainItems]]]:
+) -> DomainExamplesType:
     reconstruction_indices = {
         split: {
             dist: torch.randint(

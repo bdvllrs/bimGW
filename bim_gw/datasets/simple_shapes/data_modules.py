@@ -5,7 +5,6 @@ from typing import Any, Callable, cast, Dict, List, Mapping, Optional, Sequence
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import Subset
 
 from bim_gw.datasets.distribution_splits import (
     create_ood_split,
