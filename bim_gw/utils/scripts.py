@@ -45,7 +45,7 @@ def get_trainer(
     version = args.run_name
     if slurm_job_id is not None:
         tags = ["slurm"]
-    source_files = ['../**/*.py', '../readme.md',
+    source_files = ['../**/*.py', '../README.md',
                     '../requirements.txt', '../**/*.yaml']
 
     if args.logger_resume_id is not None:

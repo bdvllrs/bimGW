@@ -50,7 +50,7 @@ if __name__ == "__main__":
     version = args.run_name
     if slurm_job_id is not None:
         tags = ["slurm"]
-    source_files = ['../**/*.py', '../readme.md',
+    source_files = ['../**/*.py', '../README.md',
                     '../requirements.txt', '../**/*.yaml']
     loggers = get_loggers(
         "train_odd_image", version, args.loggers, global_workspace, args, tags,
