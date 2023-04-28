@@ -396,8 +396,7 @@ class GlobalWorkspace(LightningModule):
             )
 
         if mode == "train":
-            for coef_name in ["demi_cycles", "cycles", "translation",
-                              "cosine"]:
+            for coef_name in ["demi_cycles", "cycles", "translation"]:
                 self.log(
                     f"loss_coef/{coef_name}",
                     getattr(self, f"loss_coef_{coef_name}"),
