@@ -1,5 +1,5 @@
 from enum import auto
-from typing import Callable, Dict
+from typing import Dict
 
 from bim_gw.datasets.domain import DomainItems
 from bim_gw.utils.types import AvailableDomains
@@ -12,4 +12,3 @@ class ShapesAvailableDomains(AvailableDomains):
 
 
 SelectedDomainType = Dict[ShapesAvailableDomains, DomainItems]
-TransformType = Callable[[DomainItems], DomainItems]

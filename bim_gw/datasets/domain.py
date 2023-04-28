@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Collection
-from typing import Dict, Iterable
+from typing import Callable, Dict, Iterable
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -106,3 +106,6 @@ def collate_fn(
         domain_name: domain_collate_fn(items[domain_name])
         for domain_name in items.keys()
     }
+
+
+TransformType = Callable[[DomainItems], DomainItems]

@@ -70,9 +70,12 @@ class SimpleShapesDataset(Dataset):
             AVAILABLE_DOMAINS.keys()
         )
         self.root_path = Path(path)
-        self.transforms = {domain: (transform[domain] if (
-                transform is not None and domain in transform) else None)
-                           for domain in AVAILABLE_DOMAINS.keys()}
+        self.transforms: Optional[Mapping[
+            ShapesAvailableDomains, Optional[Callable[[Any], Any]]]] = {
+            domain: (transform[domain] if (
+                    transform is not None and domain in transform) else None)
+            for domain in AVAILABLE_DOMAINS.keys()
+        }
         self.output_transform = output_transform
         self.split = split
         self.img_size = 32
@@ -105,7 +108,8 @@ class SimpleShapesDataset(Dataset):
         self.domain_loaders: Dict[ShapesAvailableDomains, DomainLoaderType] = {
             domain: AVAILABLE_DOMAINS[domain](
                 self.root_path, self.split, self.ids, self.labels,
-                self.transforms, **self._domain_loader_params[domain]
+                self.transforms,  # type: ignore
+                **self._domain_loader_params[domain]
             )
             for domain in self.selected_domains
         }

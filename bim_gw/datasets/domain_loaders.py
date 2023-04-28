@@ -1,15 +1,11 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 import numpy as np
 import torch
 
-from bim_gw.datasets.domain import DomainItems
-from bim_gw.datasets.simple_shapes.types import (
-    ShapesAvailableDomains,
-    TransformType
-)
-from bim_gw.utils.types import SplitLiteral
+from bim_gw.datasets.domain import DomainItems, TransformType
+from bim_gw.utils.types import AvailableDomains, SplitLiteral
 
 
 def transform(
@@ -22,7 +18,7 @@ def transform(
 
 
 class DomainLoader:
-    modality: ShapesAvailableDomains
+    modality: AvailableDomains
 
     def __init__(
         self,
@@ -30,7 +26,7 @@ class DomainLoader:
         split: SplitLiteral,
         ids: np.ndarray,
         labels,
-        transforms: Optional[Dict[ShapesAvailableDomains, Optional[
+        transforms: Optional[Mapping[AvailableDomains, Optional[
             TransformType]]] = None,
         **kwargs
     ):

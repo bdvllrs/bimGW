@@ -1,15 +1,14 @@
 import pathlib
-from typing import Dict, Optional, Tuple
+from typing import Dict, Mapping, Optional, Tuple
 
 import numpy as np
 import torch
 from PIL import Image
 
-from bim_gw.datasets.domain import DomainItems
+from bim_gw.datasets.domain import DomainItems, TransformType
 from bim_gw.datasets.domain_loaders import DomainLoader
 from bim_gw.datasets.simple_shapes.types import (
-    ShapesAvailableDomains,
-    TransformType
+    ShapesAvailableDomains
 )
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
@@ -26,12 +25,12 @@ class VisionLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[ShapesAvailableDomains, Optional[TransformType]]] =
+            Mapping[ShapesAvailableDomains, Optional[TransformType]]] =
         None,
         **kwargs
     ):
         super(VisionLoader, self).__init__(
-            root_path, split, ids, labels, transforms, **kwargs
+            root_path, split, ids, labels, transforms, **kwargs  # type: ignore
         )
         self.null_image = None
 
@@ -71,12 +70,12 @@ class AttributesLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[ShapesAvailableDomains, Optional[TransformType]]] =
+            Mapping[ShapesAvailableDomains, Optional[TransformType]]] =
         None,
         **kwargs
     ):
         super(AttributesLoader, self).__init__(
-            root_path, split, ids, labels, transforms, **kwargs
+            root_path, split, ids, labels, transforms, **kwargs  # type: ignore
         )
 
         self.attributes, self.cls = self.get_attributes()
@@ -137,11 +136,11 @@ class TextLoader(DomainLoader):
         ids: np.ndarray,
         labels,
         transforms: Optional[
-            Dict[ShapesAvailableDomains, Optional[TransformType]]] = None,
+            Mapping[ShapesAvailableDomains, Optional[TransformType]]] = None,
         **kwargs
     ):
         super(TextLoader, self).__init__(
-            root_path, split, ids, labels, transforms, **kwargs
+            root_path, split, ids, labels, transforms, **kwargs  # type: ignore
         )
 
         if 'bert_latents' not in self.domain_loader_args:
