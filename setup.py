@@ -1,3 +1,7 @@
+import codecs
+import re
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
 
@@ -8,9 +12,17 @@ def get_requirements():
 
 
 def get_version():
-    with open("version.txt", "r") as f:
-        version = f.read().lstrip("\n")
-    return version
+    root = Path(__file__).parent.absolute()
+    with codecs.open(root / "bim_gw/version.py", "r") as fp:
+        version_file = fp.read()
+    version_match = re.search(
+        r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M
+    )
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError(
+        "Unable to find version string."
+    )
 
 
 extras_require = {

@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from omegaconf import OmegaConf
 
+from bim_gw import __version__
 from bim_gw.utils.cli import parse_argv_from_dataclass
 from bim_gw.utils.constants import PROJECT_DIR
 from bim_gw.utils.types import BIMConfig
@@ -153,5 +154,7 @@ def get_args(
     if use_schema:
         OmegaConf.set_struct(schema, False)
         args = OmegaConf.merge(schema, args)
+
+    args._code_version = __version__
 
     return args
