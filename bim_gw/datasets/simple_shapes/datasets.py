@@ -95,9 +95,6 @@ class SimpleShapesDataset(Dataset):
                 [list(self.selected_domains)] * self.mapping.shape[0]
         )
 
-        assert len(self.labels) == len(self.mapping)
-        assert len(self.labels) == len(self.available_domains_mapping)
-
         if domain_loader_params is None:
             domain_loader_params = dict()
         for domain in AVAILABLE_DOMAINS.keys():
