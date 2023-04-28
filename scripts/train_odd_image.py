@@ -16,6 +16,23 @@ from bim_gw.utils.utils import (
     get_runs_dataframe
 )
 
+coef_param = 'parameters/losses/coefs'
+coef_const = f"{coef_param}/contrastive"
+coef_demi_cycles = f"{coef_param}/demi_cycles"
+coef_cycles = f"{coef_param}/cycles"
+coef_translation = f"{coef_param}/translation"
+prop_labelled = 'parameters/global_workspace/prop_labelled_images'
+
+
+def filter_coefs(df, args):
+    df = df.loc[df[coef_const] == args.losses.coefs.contrastive]
+    df = df.loc[df[coef_demi_cycles] == args.losses.coefs.demi_cycles]
+    df = df.loc[df[coef_cycles] == args.losses.coefs.cycles]
+    df = df.loc[df[coef_translation] == args.losses.coefs.translation]
+    df = df.loc[
+        df[prop_labelled] == args.global_workspace.prop_labelled_images]
+    return df
+
 
 def update_args_from_selected_run(
     df, args, select_row_from_index=None,
@@ -24,21 +41,7 @@ def update_args_from_selected_run(
     if select_row_from_index is not None:
         item = df.iloc[select_row_from_index].to_dict()
     elif select_row_from_current_coefficients:
-        df = df.loc[df[
-                        'parameters/losses/coefs/contrastive'] ==
-                    args.losses.coefs.contrastive]
-        df = df.loc[
-            df['parameters/losses/coefs/cycles'] == args.losses.coefs.cycles]
-        df = df.loc[df[
-                        'parameters/losses/coefs/demi_cycles'] ==
-                    args.losses.coefs.demi_cycles]
-        df = df.loc[df[
-                        'parameters/losses/coefs/translation'] ==
-                    args.losses.coefs.translation]
-        df = df.loc[
-            df[
-                'parameters/global_workspace/prop_labelled_images'] ==
-            args.global_workspace.prop_labelled_images]
+        df = filter_coefs(df, args)
         item = df.iloc[0].to_dict()
     else:
         raise ValueError(
@@ -46,18 +49,19 @@ def update_args_from_selected_run(
             'must be set.'
         )
 
-    args.losses.coefs.demi_cycles = item['parameters/losses/coefs/demi_cycles']
-    args.losses.coefs.cycles = item['parameters/losses/coefs/cycles']
-    args.losses.coefs.contrastive = item['parameters/losses/coefs/contrastive']
-    args.losses.coefs.translation = item['parameters/losses/coefs/translation']
-    args.global_workspace.prop_labelled_images = item[
-        'parameters/global_workspace/prop_labelled_images']
+    args.losses.coefs.demi_cycles = item[coef_demi_cycles]
+    args.losses.coefs.cycles = item[coef_cycles]
+    args.losses.coefs.contrastive = item[coef_const]
+    args.losses.coefs.translation = item[coef_translation]
+    args.global_workspace.prop_labelled_images = item[prop_labelled]
     args.global_workspace.selected_domains = item[
         'parameters/global_workspace/selected_domains']
     if 'parameters/seed' in item:
         args.seed = item['parameters/seed']
-    assert args.odd_image.encoder.selected_id_key in item, "selected_id_key " \
-                                                           "not in item."
+
+    if args.odd_image.encoder.selected_id_key not in item:
+        raise ValueError("selected_id_key not in item.")
+
     item['selected_id_key'] = item[args.odd_image.encoder.selected_id_key]
     return item
 
