@@ -12,6 +12,11 @@ def get_requirements():
 
 
 def get_version():
+    """
+    Inspired from https://github.com/omry/omegaconf/blob
+    /63c36b507f216f48e23ddb3c5251698cc2f51358/build_helpers/build_helpers.py
+    #L164
+    """
     root = Path(__file__).parent.absolute()
     with codecs.open(root / "bim_gw/version.py", "r") as fp:
         version_file = fp.read()
