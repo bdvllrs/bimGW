@@ -1,19 +1,19 @@
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, Tuple
+from typing import Any, Dict, Iterable, Mapping
 
 import torch
 import torch.utils.data
 from pytorch_lightning import LightningDataModule
 from torch.utils.data.dataloader import default_collate
 
-from bim_gw.datasets.domain import domain_collate_fn, DomainItems
+from bim_gw.datasets.domain import domain_collate_fn
 from bim_gw.datasets.odd_image.dataset import OddImageDataset
 
 
 def collate_fn(
-    batch: Iterable[Mapping[str, Tuple[DomainItems]]]
+    batch: Iterable[Mapping[str, Any]]
 ) -> Dict[str, Any]:
-    items = dict()
+    items: Dict[str, Any] = dict()
     for item in batch:
         for domain_name, domain_item in item.items():
             if isinstance(domain_item, tuple):
@@ -27,16 +27,16 @@ def collate_fn(
                 if domain_name not in items:
                     items[domain_name] = []
                 items[domain_name].append(domain_item)
-    batch = {}
+    out_batch: Dict[str, Any] = {}
     for domain_name in items.keys():
         if isinstance(items[domain_name], tuple):
-            batch[domain_name] = tuple(
+            out_batch[domain_name] = tuple(
                 [domain_collate_fn(items[domain_name][k])
                  for k in range(len(items[domain_name]))]
             )
         else:
-            batch[domain_name] = default_collate(items[domain_name])
-    return batch
+            out_batch[domain_name] = default_collate(items[domain_name])
+    return out_batch
 
 
 class OddImageDataModule(LightningDataModule):
