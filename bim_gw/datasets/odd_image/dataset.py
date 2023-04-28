@@ -3,7 +3,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from bim_gw.datasets.domain_loaders import PreSavedLatentLoader
+from bim_gw.datasets.domain_loaders import (
+    PreSavedLatentLoader
+)
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.domain_loaders import (
     AttributesLoader,
@@ -30,8 +32,9 @@ class OddImageDataset:
 
         ids = np.arange(1_000_000)
         labels = np.load(str(self.root_path / "train_labels.npy"))
+
         domain_loaders = {
-            "v": PreSavedLatentLoader(
+            "v": lambda: PreSavedLatentLoader(
                 # split always train, we used the end 500_000 as val/test
                 # for this dataset.
                 # We only used the 500 000 first examples for training the
@@ -42,15 +45,18 @@ class OddImageDataset:
                 ),
                 {0: "z_img"}
             ),
-            "attr": AttributesLoader(
-                self.root_path, "train", ids, labels, {"attr": None}
+            "attr": lambda: AttributesLoader(
+                self.root_path, "train", ids, labels, None,
+                use_unpaired=False
             ),
-            "t": TextLoader(
-                self.root_path, "train", ids, labels, {"t": None}, bert_latent
+            "t": lambda: TextLoader(
+                self.root_path, "train", ids, labels, None,
+                bert_latents=bert_latent,
+                pca_dim=768
             ),
         }
-        self.domain_loaders = {name: domain_loaders[name] for name in
-                               selected_domains}
+        self.domain_loaders = {name: domain_loaders[name]()
+                               for name in selected_domains}
 
     def __len__(self):
         return self.labels.shape[0]
@@ -61,13 +67,13 @@ class OddImageDataset:
             name: (
                 self.domain_loaders[name].get_item(
                     label[0] + self.shift_ref_item
-                )[1:],
+                ),
                 self.domain_loaders[name].get_item(
                     label[1] + self.shift_ref_item
-                )[1:],
+                ),
                 self.domain_loaders[name].get_item(
                     label[2] + self.shift_ref_item
-                )[1:]
+                )
             )
             for name in self.domain_loaders.keys()
         }

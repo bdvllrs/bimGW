@@ -1,3 +1,4 @@
+import torch.nn.functional
 import torch.optim
 import torchmetrics
 from pytorch_lightning import LightningModule
@@ -38,13 +39,13 @@ class OddClassifier(LightningModule):
             name: torch.cat(
                 [
                     self.encoders[name](
-                        self.unimodal_encoders[name](batch[name][0])
+                        self.unimodal_encoders[name](batch[name][0].sub_parts)
                     ),
                     self.encoders[name](
-                        self.unimodal_encoders[name](batch[name][1])
+                        self.unimodal_encoders[name](batch[name][1].sub_parts)
                     ),
                     self.encoders[name](
-                        self.unimodal_encoders[name](batch[name][2])
+                        self.unimodal_encoders[name](batch[name][2].sub_parts)
                     ),
                 ], dim=1
             )

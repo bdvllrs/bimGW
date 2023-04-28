@@ -1,9 +1,42 @@
 from pathlib import Path
+from typing import Any, Dict, Iterable, Mapping, Tuple
 
 import torch
+import torch.utils.data
 from pytorch_lightning import LightningDataModule
+from torch.utils.data.dataloader import default_collate
 
+from bim_gw.datasets.domain import domain_collate_fn, DomainItems
 from bim_gw.datasets.odd_image.dataset import OddImageDataset
+
+
+def collate_fn(
+    batch: Iterable[Mapping[str, Tuple[DomainItems]]]
+) -> Dict[str, Any]:
+    items = dict()
+    for item in batch:
+        for domain_name, domain_item in item.items():
+            if isinstance(domain_item, tuple):
+                if domain_name not in items:
+                    items[domain_name] = tuple(
+                        [] for _ in range(len(domain_item))
+                    )
+                for k in range(len(domain_item)):
+                    items[domain_name][k].append(domain_item[k])
+            else:
+                if domain_name not in items:
+                    items[domain_name] = []
+                items[domain_name].append(domain_item)
+    batch = {}
+    for domain_name in items.keys():
+        if isinstance(items[domain_name], tuple):
+            batch[domain_name] = tuple(
+                [domain_collate_fn(items[domain_name][k])
+                 for k in range(len(items[domain_name]))]
+            )
+        else:
+            batch[domain_name] = default_collate(items[domain_name])
+    return batch
 
 
 class OddImageDataModule(LightningDataModule):
@@ -22,6 +55,9 @@ class OddImageDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.classes = [0, 1, 2]
         self.img_size = 32
+        self.train_set = None
+        self.val_set = None
+        self.test_set = None
 
     def setup(self, stage=None):
         self.train_set = OddImageDataset(
@@ -46,7 +82,8 @@ class OddImageDataModule(LightningDataModule):
             shuffle=True,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=collate_fn
         )
 
     def val_dataloader(self):
@@ -54,7 +91,8 @@ class OddImageDataModule(LightningDataModule):
             self.val_set,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=collate_fn
         )
 
     def test_dataloader(self):
@@ -62,5 +100,15 @@ class OddImageDataModule(LightningDataModule):
             self.test_set,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=collate_fn
         )
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx=None):
+        for domain_key, domain_items in batch.items():
+            if isinstance(domain_items, torch.Tensor):
+                batch[domain_key] = domain_items.to(device)
+            else:
+                for domain_item in domain_items:
+                    domain_item.to_device(device)
+        return batch

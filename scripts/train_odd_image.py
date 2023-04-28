@@ -112,7 +112,7 @@ if __name__ == "__main__":
             domain_mods=get_domains(args, args.img_size),
             strict=False
         )
-        load_domains = global_workspace.domain_names
+        load_domains = global_workspace.domains.names
         global_workspace.freeze()
         global_workspace.eval()
         encoders = {

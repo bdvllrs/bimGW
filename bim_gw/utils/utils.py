@@ -160,6 +160,7 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
                  if not k.startswith('_')}
             )
             vals["Name"] = run.name
+            vals["ID"] = run.id
 
             for k, v in vals.items():
                 if isinstance(v, dict) and "min" in v:
