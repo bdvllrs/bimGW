@@ -62,7 +62,7 @@ def update_args_from_selected_run(
     if args.odd_image.encoder.selected_id_key not in item:
         raise ValueError("selected_id_key not in item.")
 
-    item['selected_id_key'] = item[args.odd_image.encoder.selected_id_key]
+    item['selected_id'] = item[args.odd_image.encoder.selected_id_key]
     return item
 
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             df, args, args.odd_image.select_row_from_index,
             args.odd_image.select_row_from_current_coefficients
         )
-        args.odd_image.encoder.selected_id = item['selected_id_key']
+        args.odd_image.encoder.selected_id = item['selected_id']
 
     load_domains = []
 
