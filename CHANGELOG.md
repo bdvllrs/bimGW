@@ -6,6 +6,8 @@
 * Remove logging of removed cosine_coef.
 * Update out-of-distribution training to work with the DomainItems
   inputs.
+* Fix issues when loading pretrained global workspace from csv in
+  out-of-distribution script.
 
 # 0.1.0
 
