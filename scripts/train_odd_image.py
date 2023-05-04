@@ -2,6 +2,7 @@ import os
 
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
+from ruamel.yaml import YAML
 from torch import nn
 
 from bim_gw.datasets.odd_image.data_module import OddImageDataModule
@@ -15,6 +16,8 @@ from bim_gw.utils.utils import (
     find_best_epoch, get_checkpoint_path,
     get_runs_dataframe
 )
+
+yaml = YAML(typ='safe')
 
 coef_param = 'parameters/losses/coefs'
 coef_const = f"{coef_param}/contrastive"
@@ -32,6 +35,13 @@ def filter_coefs(df, args):
     df = df.loc[
         df[prop_labelled] == args.global_workspace.prop_labelled_images]
     return df
+
+
+def get_selected_domains(item):
+    assert 'parameters/global_workspace/selected_domains' in item
+    if isinstance(item['parameters/global_workspace/selected_domains'], str):
+        return yaml.load(item['parameters/global_workspace/selected_domains'])
+    return item['parameters/global_workspace/selected_domains']
 
 
 def update_args_from_selected_run(
@@ -54,8 +64,7 @@ def update_args_from_selected_run(
     args.losses.coefs.contrastive = item[coef_const]
     args.losses.coefs.translation = item[coef_translation]
     args.global_workspace.prop_labelled_images = item[prop_labelled]
-    args.global_workspace.selected_domains = item[
-        'parameters/global_workspace/selected_domains']
+    args.global_workspace.selected_domains = get_selected_domains(item)
     if 'parameters/seed' in item:
         args.seed = item['parameters/seed']
 
