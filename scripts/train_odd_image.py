@@ -1,7 +1,6 @@
 import os
 
 from omegaconf import OmegaConf
-from pytorch_lightning import Trainer
 from ruamel.yaml import YAML
 from torch import nn
 
@@ -10,8 +9,7 @@ from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.odd_classifier import OddClassifier
 from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils import get_args
-from bim_gw.utils.loggers import get_loggers
-from bim_gw.utils.scripts import get_domains
+from bim_gw.utils.scripts import get_domains, get_trainer
 from bim_gw.utils.utils import (
     find_best_epoch, get_checkpoint_path,
     get_runs_dataframe
@@ -161,26 +159,10 @@ if __name__ == "__main__":
         model.unimodal_encoders['attr'].output_dims = [len(data.classes),
                                                        data.img_size]
 
-    slurm_job_id = os.getenv("SLURM_JOBID", None)
-
-    tags = None
-    version = args.run_name
-    if slurm_job_id is not None:
-        tags = ["slurm"]
-    source_files = ['../**/*.py', '../README.md',
-                    '../requirements.txt', '../**/*.yaml']
-    loggers = get_loggers(
-        "train_odd_image", version, args.loggers, model, args, tags,
-        source_files
-    )
-
-    trainer = Trainer(
-        default_root_dir=args.checkpoints_dir,
-        accelerator=args.accelerator,
-        devices=args.devices,
-        strategy=(args.distributed_backend if args.devices > 1 else None),
-        max_epochs=args.max_epochs,
-        logger=loggers,
+    trainer = get_trainer(
+        "train_odd_image", args, model,
+        monitor_loss="val_loss",
+        early_stopping_patience=args.global_workspace.early_stopping_patience,
     )
 
     trainer.fit(model, data)
