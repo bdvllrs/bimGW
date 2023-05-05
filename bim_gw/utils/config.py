@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Mapping, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 
 import numpy as np
 from omegaconf import DictConfig, ListConfig, OmegaConf
@@ -10,8 +10,6 @@ from bim_gw import __version__
 from bim_gw.utils.cli import parse_argv_from_dataclass
 from bim_gw.utils.constants import PROJECT_DIR
 from bim_gw.utils.types import BIMConfig
-
-T = TypeVar("T")
 
 
 def split_resolver(key, value, item=None):
@@ -62,11 +60,13 @@ def get_args(
     cli: bool = True,
     verbose: bool = False,
     use_schema: bool = True,
-    schema_config: Optional[Type[T]] = None
+    schema_config: Any = None
 ) -> Union[DictConfig, ListConfig]:
     load_resolvers_if_needed()
 
-    schema = OmegaConf.structured(schema_config or BIMConfig)
+    schema = OmegaConf.structured(
+        schema_config if schema_config is not None else BIMConfig
+    )
     # Configurations
     default_args = OmegaConf.create(
         {

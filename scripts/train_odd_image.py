@@ -80,7 +80,7 @@ class ExtractFirstItemModule(nn.Module):
 
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(os.getenv("DEBUG", False)))
 
     if args.odd_image.encoder.load_from is not None:
         df = get_runs_dataframe(args.odd_image.encoder)
