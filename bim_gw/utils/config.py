@@ -64,9 +64,8 @@ def get_args(
 ) -> Union[DictConfig, ListConfig]:
     load_resolvers_if_needed()
 
-    schema = OmegaConf.structured(
-        schema_config if schema_config is not None else BIMConfig
-    )
+    schema_class = schema_config or BIMConfig
+    schema = OmegaConf.structured(schema_class)
     # Configurations
     default_args = OmegaConf.create(
         {
@@ -88,7 +87,7 @@ def get_args(
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
-            parse_argv_from_dataclass(schema_config)
+            parse_argv_from_dataclass(schema_class)
         )
     elif cli:
         cli_args = OmegaConf.from_cli()
