@@ -1,14 +1,17 @@
 import logging
 import os
 from pathlib import Path
+from typing import Mapping, Optional, Sequence, Type, TypeVar, Union
 
 import numpy as np
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from bim_gw import __version__
 from bim_gw.utils.cli import parse_argv_from_dataclass
 from bim_gw.utils.constants import PROJECT_DIR
 from bim_gw.utils.types import BIMConfig
+
+T = TypeVar("T")
 
 
 def split_resolver(key, value, item=None):
@@ -53,20 +56,17 @@ def load_resolvers_if_needed():
 
 def get_args(
     *,
-    debug=False,
-    additional_config_files=None,
-    use_local=True,
-    cli=True,
-    verbose=False,
-    use_schema=True,
-    schema_config=None
-):
+    debug: bool = False,
+    additional_config_files: Optional[Sequence[Path]] = None,
+    use_local: bool = True,
+    cli: bool = True,
+    verbose: bool = False,
+    use_schema: bool = True,
+    schema_config: Optional[Type[T]] = None
+) -> Union[DictConfig, ListConfig]:
     load_resolvers_if_needed()
 
-    if schema_config is None:
-        schema_config = BIMConfig
-
-    schema = OmegaConf.structured(schema_config)
+    schema = OmegaConf.structured(schema_config or BIMConfig)
     # Configurations
     default_args = OmegaConf.create(
         {
@@ -79,12 +79,12 @@ def get_args(
         config_path_env
     )
     main_args = OmegaConf.load(str((config_path / "main.yaml").resolve()))
+
+    debug_args: Union[Mapping, DictConfig, ListConfig] = {}
     if debug and (config_path / "debug.yaml").exists():
         debug_args = OmegaConf.load(
             str((config_path / "debug.yaml").resolve())
         )
-    else:
-        debug_args = {}
 
     if cli and use_schema:
         cli_args = OmegaConf.from_dotlist(
@@ -94,12 +94,12 @@ def get_args(
         cli_args = OmegaConf.from_cli()
     else:
         cli_args = OmegaConf.create()
+
+    local_args: Union[Mapping, DictConfig, ListConfig] = {}
     if use_local and (config_path / "local.yaml").exists():
         local_args = OmegaConf.load(
             str((config_path / "local.yaml").resolve())
         )
-    else:
-        local_args = {}
 
     args = OmegaConf.merge(default_args, main_args, local_args, debug_args)
 

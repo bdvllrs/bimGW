@@ -8,6 +8,7 @@
   inputs.
 * Fix issues when loading pretrained global workspace from csv in
   out-of-distribution script.
+* Add type annotations to `get_args`.
 
 # 0.1.0
 
