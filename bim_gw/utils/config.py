@@ -131,8 +131,7 @@ def get_args(
             "the config file in future runs."
         )
         args.global_workspace.selected_domains = OmegaConf.create(
-            [values for values in
-             args.global_workspace.selected_domains.values()]
+            list(args.global_workspace.selected_domains.values())
         )
     if args.losses.coefs.supervision is not None:
         logging.warning(
