@@ -32,6 +32,7 @@ def filter_coefs(df, args):
     df = df.loc[df[coef_translation] == args.losses.coefs.translation]
     df = df.loc[
         df[prop_labelled] == args.global_workspace.prop_labelled_images]
+    df = df.loc[df["parameters/seed"] == args.seed]
     return df
 
 

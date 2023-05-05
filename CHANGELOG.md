@@ -9,6 +9,9 @@
 * Fix issues when loading pretrained global workspace from csv in
   out-of-distribution script.
 * Add type annotations to `get_args`.
+* Fix: use seed information when filtering the correct pretrained global
+  workspace in the odd-out-out experiment when
+  using `select_row_from_current_coefficients`.
 
 # 0.1.0
 
