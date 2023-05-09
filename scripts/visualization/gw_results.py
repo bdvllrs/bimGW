@@ -17,7 +17,6 @@ from bim_gw.utils.utils import (
 )
 from bim_gw.utils.visualization import (
     get_agg_args_from_dict, get_fmt,
-    sem_fn,
     set_new_cols
 )
 
@@ -27,6 +26,9 @@ y_axis_labels = {
     "cycles": "Cycle losses",
     "demi_cycles": "Demi-cycle losses",
     "mix_loss": "Averaged losses",
+    "ooo_acc_v": "Visual Accuracy",
+    "ooo_acc_t": "Language Accuracy",
+    "ooo_acc_attr": "Proto-language Accuracy",
 }
 
 slug_to_label = {
@@ -122,11 +124,11 @@ if __name__ == '__main__':
             tr_coef = vis_args.mix_loss_coefficients['translation']
             cont_coef = vis_args.mix_loss_coefficients['contrastive']
 
-            loss_def_translation = vis_args.loss_definitions['translation']
-            loss_def_contrastive = vis_args.loss_definitions['contrastive']
-            df['mix_loss'] = (
-                df[loss_def_translation[0]]
-            )
+            # loss_def_translation = vis_args.loss_definitions['translation']
+            # loss_def_contrastive = vis_args.loss_definitions['contrastive']
+            # df['mix_loss'] = (
+            #     df[loss_def_translation[0]]
+            # )
 
             df = set_new_cols(df, vis_args.loss_definitions)
 
@@ -141,8 +143,6 @@ if __name__ == '__main__':
             )
 
             df = df.agg(
-                mix_loss_mean=pd.NamedAgg(column='mix_loss', aggfunc="mean"),
-                mix_loss_std=pd.NamedAgg(column='mix_loss', aggfunc=sem_fn),
                 translation_coef=pd.NamedAgg(
                     column='parameters/losses/coefs/translation',
                     aggfunc='first'
@@ -173,7 +173,8 @@ if __name__ == '__main__':
             )
             df.fillna(0., inplace=True)
             min_idx_translation = df.groupby(["prop_label", "slug"])
-            min_idx_translation = min_idx_translation['mix_loss_mean'].idxmin()
+            min_idx_translation = min_idx_translation[
+                vis_args.argmin_over].idxmin()
             df = df.loc[min_idx_translation]
             dataframes.append(
                 {
@@ -189,7 +190,7 @@ if __name__ == '__main__':
         now = datetime.now().strftime("%d-%m-%YT%H_%M_%S")
 
         fig, axes = plt.subplots(
-            n_rows, n_cols, figsize=(3.7 * n_cols, 4 * n_rows)
+            n_rows, n_cols, figsize=(4.5 * n_cols, 4 * n_rows)
         )
         labeled_curves = []
         handles = []
@@ -297,7 +298,9 @@ if __name__ == '__main__':
         plt.subplots_adjust(
             bottom=figure.bottom_adjust,
             hspace=figure.hspace_adjust,
-            top=figure.top_adjust
+            top=figure.top_adjust,
+            left=figure.left_adjust,
+            right=figure.right_adjust,
         )
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(

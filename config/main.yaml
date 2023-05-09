@@ -115,11 +115,7 @@ visualization:
     translation: 1.
     contrastive: 0.1
 
-  loss_definitions:
-    translation: [ "val/in_dist/translation_loss.min" ]  # list of the logged losses to average for translation
-    contrastive: [ "val/in_dist/contrastive_loss.min" ]  # similar for contrastive
-    cycles: [ "val/in_dist/cycles_loss.min" ]
-    demi_cycles: [ "val/in_dist/demi_cycles_loss.min" ]
+  loss_definitions: { }
 
   saved_figure_path: "../../data/plots"  # where to save figures
   total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples

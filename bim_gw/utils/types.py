@@ -162,6 +162,8 @@ class AxesGWResultConfig:
 
     top_adjust: float = MISSING
     bottom_adjust: float = MISSING
+    left_adjust: float = MISSING
+    right_adjust: float = MISSING
     hspace_adjust: float = MISSING
 
     legend_order: List[str] = field(default_factory=list)
@@ -179,6 +181,8 @@ class VisualizationConfig:
 
     saved_figure_path: str = MISSING
     total_num_examples: int = MISSING
+
+    argmin_over: str = MISSING
 
     loss_definitions: Dict[str, List[str]] = field(
         default_factory=dict
