@@ -75,9 +75,13 @@ def update_args_from_selected_run(
     return item
 
 
-class ExtractFirstItemModule(nn.Module):
+class ExtractKeyInForward(nn.Module):
+    def __init__(self, key):
+        super().__init__()
+        self.key = key
+
     def forward(self, x):
-        return x[0]
+        return x[self.key]
 
 
 if __name__ == "__main__":
@@ -116,7 +120,7 @@ if __name__ == "__main__":
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
     elif args.odd_image.encoder.path == "identity":
-        encoder = ExtractFirstItemModule()
+        encoder = ExtractKeyInForward("z_img")
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
     else:
