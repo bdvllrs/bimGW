@@ -5,6 +5,7 @@ from ruamel.yaml import YAML
 from torch import nn
 
 from bim_gw.datasets.odd_image.data_module import OddImageDataModule
+from bim_gw.modules.domain_modules.domain_module import DomainSpecs
 from bim_gw.modules.gw import GlobalWorkspace
 from bim_gw.modules.odd_classifier import OddClassifier
 from bim_gw.modules.workspace_encoders import DomainEncoder
@@ -96,9 +97,16 @@ if __name__ == "__main__":
             or args.odd_image.encoder.path == "random"):
         encoder = nn.Sequential(
             DomainEncoder(
-                args.vae.z_size, args.global_workspace.hidden_size,
+                DomainSpecs(
+                    output_dims={"z_img": args.vae.z_size},
+                    input_keys=["img"],
+                    latent_keys=["z_img"],
+                    decoder_activation_fn={},
+                    losses={},
+                ),
+                args.global_workspace.hidden_size.encoder.v,
                 args.global_workspace.z_size,
-                args.global_workspace.n_layers.encoder
+                args.global_workspace.n_layers.encoder.v
             ), nn.Tanh()
         )
         if args.odd_image.encoder.path == "random":
