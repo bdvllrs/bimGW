@@ -1,0 +1,11 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Train file",
+            "program": "${workspaceFolder}/scripts/train.py"
+        }
+    ]
+}
