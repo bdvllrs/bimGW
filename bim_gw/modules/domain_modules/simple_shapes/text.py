@@ -10,6 +10,7 @@ from bim_gw.modules.domain_modules.domain_module import (
     DomainModule,
     DomainSpecs
 )
+from bim_gw.utils.losses.info_nce import InfoNCE
 from bim_gw.utils.shapes import generate_dataset
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import (
@@ -67,14 +68,15 @@ class SimpleShapesText(DomainModule):
         train_attr_decoders: bool = True,
         optimize_vae_with_attr_regression: bool = False,
         coef_attr_loss: float = 1,
-        coef_vae_loss: float = 1
+        coef_vae_loss: float = 1,
+        info_nce_temp: float = 0.1
     ):
 
         super(SimpleShapesText, self).__init__(
             DomainSpecs(
                 output_dims={"z": z_size},
                 decoder_activation_fn={"z": SymLog()},
-                losses={"z": F.mse_loss},
+                losses={"z": InfoNCE(info_nce_temp)},
                 input_keys=["bert", "text", "choices"],
                 latent_keys=["z"],
             )

@@ -8,6 +8,7 @@ from bim_gw.modules.domain_modules.domain_module import (
     DomainModule,
     DomainSpecs
 )
+from bim_gw.utils.losses.info_nce import InfoNCE
 from bim_gw.utils.types import VAEType
 from bim_gw.utils.utils import (
     log_if_save_last_images, log_if_save_last_tables, log_image
@@ -24,13 +25,14 @@ class VAE(DomainModule):
         optim_lr: float = 3e-4, optim_weight_decay: float = 1e-5,
         scheduler_step: int = 20, scheduler_gamma: float = 0.5,
         n_fid_samples=1000,
+        info_nce_temp=0.1,
     ):
         # configurations
         super().__init__(
             DomainSpecs(
                 output_dims={"z_img": z_size},
                 decoder_activation_fn={"z_img": None},
-                losses={"z_img": F.mse_loss},
+                losses={"z_img": InfoNCE(info_nce_temp)},
                 input_keys=["img"],
                 latent_keys=["z_img"],
             )

@@ -8,14 +8,16 @@ from bim_gw.modules.domain_modules.domain_module import (
     DomainModule,
     DomainSpecs
 )
+from bim_gw.utils.losses.info_nce import InfoNCE
 from bim_gw.utils.losses.losses import nll_loss
 from bim_gw.utils.shapes import generate_dataset, log_shape_fig
 
 
 class SimpleShapesAttributes(DomainModule):
-    def __init__(self, imsize):
+    def __init__(self, imsize, info_nce_temp=0.1):
         self.n_classes = 3
         self.imsize = imsize
+        self.info_nce_temp = info_nce_temp
         z_size = 8
 
         super(SimpleShapesAttributes, self).__init__(
@@ -29,14 +31,14 @@ class SimpleShapesAttributes(DomainModule):
                 },
                 losses={
                     "z_cls": lambda x, y: nll_loss(x, y),  # shapes
-                    "z_attr": F.mse_loss,  # rest
+                    "z_attr": InfoNCE(self.info_nce_temp),  # rest
                 },
                 input_keys=["cls", "attr"],
                 latent_keys=["z_cls", "z_attr"],
                 requires_acc_computation=True
             )
         )
-        self.save_hyperparameters("imsize")
+        self.save_hyperparameters("imsize", "info_nce_temp")
 
     def encode(self, x: Dict[str, torch.Tensor]):
         out_latents = x['attr'].clone()
