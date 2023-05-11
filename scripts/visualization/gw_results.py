@@ -67,11 +67,14 @@ def get_x_range_at(
     y_val: float,
     diff_col: str,
 ) -> Tuple[float, float]:
-    order_start = data_start["num_examples"].sort_values().index    order_end = data_end["num_examples"].sort_values().index
-    x_axis_start = data_start["num_examples"].loc[order_start]
-    x_axis_end = data_end["num_examples"].loc[order_end]
-    data_start = data_start[diff_col].loc[order_start]
-    data_end = data_end[diff_col].loc[order_end]
+    order_start = (
+        data_start["num_examples"].sort_values().index  # type: ignore
+    )
+    order_end = data_end["num_examples"].sort_values().index  # type: ignore
+    x_axis_start = data_start["num_examples"].loc[order_start]  # type: ignore
+    x_axis_end = data_end["num_examples"].loc[order_end]  # type: ignore
+    data_start = data_start[diff_col].loc[order_start]  # type: ignore
+    data_end = data_end[diff_col].loc[order_end]  # type: ignore
     data_start_log_diff = log(data_start).diff()
     data_end_log_diff = log(data_end).diff()
 
