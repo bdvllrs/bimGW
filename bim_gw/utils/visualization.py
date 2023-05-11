@@ -1,8 +1,9 @@
+from typing import Any, Mapping
 import numpy as np
 import pandas as pd
 
 
-def get_fmt(name):
+def get_fmt(name: str) -> Mapping[str, Any]:
     if name == "tr":
         return {"linestyle": "-", "color": "#17b3f2"}
     if name == "tr+cy":
@@ -17,9 +18,10 @@ def get_fmt(name):
         return {"linestyle": "-", "color": "#e1a4e6"}
     if name == "cont":
         return {"linestyle": "--", "color": "#043505"}
+    return {"linestyle": "-"}
 
 
-def get_fmt_all(name):
+def get_fmt_all(name: str) -> Mapping[str, Any]:
     if name == "tr":
         return {"linestyle": "-", "color": "#17b3f2"}
     if name == "tr+dcy":

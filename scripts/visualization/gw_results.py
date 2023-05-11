@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -10,14 +10,14 @@ from matplotlib import pyplot as plt
 from numpy import log
 
 from bim_gw.utils import get_args
-from bim_gw.utils.types import BIMConfig
 from bim_gw.utils.utils import (
     get_job_slug_from_coefficients,
-    get_runs_dataframe
+    get_runs_dataframe,
 )
 from bim_gw.utils.visualization import (
-    get_agg_args_from_dict, get_fmt,
-    set_new_cols
+    get_agg_args_from_dict,
+    get_fmt,
+    set_new_cols,
 )
 
 y_axis_labels = {
@@ -46,25 +46,30 @@ slug_to_label = {
 
 
 def _get_ax(
-    axes: np.ndarray, row: int, col: int, num_rows: int, num_cols: int
-) -> np.ndarray:
+    axes: np.ndarray,
+    row: int,
+    col: int,
+    num_rows: int,
+    num_cols: int,
+) -> plt.Axes:
     if num_cols == 1 and num_rows == 1:
-        return axes
+        return cast(plt.Axes, axes)
     if num_cols == 1:
-        return axes[row]
+        return cast(plt.Axes, axes[row])
     if num_rows == 1:
-        return axes[col]
-    return axes[row, col]
+        return cast(plt.Axes, axes[col])
+    return cast(plt.Axes, axes[row, col])
 
 
 def get_x_range_at(
-    data_start: pd.DataFrame, data_end: pd.DataFrame, y_val: float,
-    diff_col: str
+    data_start: pd.DataFrame,
+    data_end: pd.DataFrame,
+    y_val: float,
+    diff_col: str,
 ) -> Tuple[float, float]:
-    order_start = data_start['num_examples'].sort_values().index
-    order_end = data_end['num_examples'].sort_values().index
-    x_axis_start = data_start['num_examples'].loc[order_start]
-    x_axis_end = data_end['num_examples'].loc[order_end]
+    order_start = data_start["num_examples"].sort_values().index    order_end = data_end["num_examples"].sort_values().index
+    x_axis_start = data_start["num_examples"].loc[order_start]
+    x_axis_end = data_end["num_examples"].loc[order_end]
     data_start = data_start[diff_col].loc[order_start]
     data_end = data_end[diff_col].loc[order_end]
     data_start_log_diff = log(data_start).diff()
@@ -90,28 +95,84 @@ def get_x_range_at(
     # if end_next_index > 1:
     #     end_next_index = data_end.index[end_next_index - 1]
 
-    if (data_start[start_close_index] <= y_val <= data_start[start_next_index]
-            or data_start[start_next_index] <= y_val <= data_start[
-                start_close_index]):
+    if (
+        data_start[start_close_index] <= y_val <= data_start[start_next_index]
+        or data_start[start_next_index]
+        <= y_val
+        <= data_start[start_close_index]
+    ):
         start_close_index = start_next_index
-    if (data_end[end_close_index] <= y_val <= data_end[end_next_index]
-            or data_end[end_next_index] <= y_val <= data_end[end_close_index]):
+    if (
+        data_end[end_close_index] <= y_val <= data_end[end_next_index]
+        or data_end[end_next_index] <= y_val <= data_end[end_close_index]
+    ):
         end_close_index = end_next_index
     # x = x_r + (y - y_r) * (x_r+1 - x_r) / (y_r+1 - y_r)
-    ref_start = (log(x_axis_start[start_close_index])
-                 + (log(y_val) - log(data_start[start_close_index]))
-                 * log(x_axis_start).diff()[start_close_index]
-                 / data_start_log_diff[start_close_index])
-    ref_end = (log(x_axis_end[end_close_index])
-               + (np.log(y_val) - log(data_end[end_close_index]))
-               * log(x_axis_end).diff()[end_close_index]
-               / data_end_log_diff[end_close_index])
+    ref_start = (
+        log(x_axis_start[start_close_index])
+        + (log(y_val) - log(data_start[start_close_index]))
+        * log(x_axis_start).diff()[start_close_index]
+        / data_start_log_diff[start_close_index]
+    )
+    ref_end = (
+        log(x_axis_end[end_close_index])
+        + (np.log(y_val) - log(data_end[end_close_index]))
+        * log(x_axis_end).diff()[end_close_index]
+        / data_end_log_diff[end_close_index]
+    )
 
     return np.exp(ref_start), np.exp(ref_end)
 
 
-if __name__ == '__main__':
-    args: BIMConfig = get_args(debug=int(os.getenv("DEBUG", 0)))
+def prepare_df(df, vis_args):
+    # df['mix_loss'] = (
+    #     df[loss_def_translation[0]]
+    # )
+
+    df = set_new_cols(df, vis_args.loss_definitions)
+
+    df = df.groupby(
+        [
+            "parameters/global_workspace/prop_labelled_images",
+            "parameters/losses/coefs/contrastive",
+            "parameters/losses/coefs/cycles",
+            "parameters/losses/coefs/demi_cycles",
+            "parameters/losses/coefs/translation",
+        ],
+        as_index=False,
+    )
+
+    df = df.agg(
+        translation_coef=pd.NamedAgg(
+            column="parameters/losses/coefs/translation", aggfunc="first"
+        ),
+        cycles_coef=pd.NamedAgg(
+            column="parameters/losses/coefs/cycles", aggfunc="first"
+        ),
+        demi_cycles_coef=pd.NamedAgg(
+            column="parameters/losses/coefs/demi_cycles", aggfunc="first"
+        ),
+        contrastive_coef=pd.NamedAgg(
+            column="parameters/losses/coefs/contrastive", aggfunc="first"
+        ),
+        slug=pd.NamedAgg(column="slug", aggfunc="first"),
+        Name=pd.NamedAgg(column="Name", aggfunc="first"),
+        prop_label=pd.NamedAgg(
+            column="parameters/global_workspace/prop_labelled_images",
+            aggfunc="first",
+        ),
+        **get_agg_args_from_dict(vis_args.loss_definitions),
+    )
+    df["num_examples"] = df["prop_label"] * vis_args.total_num_examples
+    df.fillna(0.0, inplace=True)
+    min_idx_translation = df.groupby(["prop_label", "slug"])
+    min_idx_translation = min_idx_translation[vis_args.argmin_over].idxmin()
+    df = df.loc[min_idx_translation]
+    return df
+
+
+if __name__ == "__main__":
+    args = get_args(debug=bool(os.getenv("DEBUG", 0)))
 
     vis_args = args.visualization
     for figure in vis_args.figures:
@@ -119,63 +180,16 @@ if __name__ == '__main__':
         for row in figure.cols:
             row_label = row.label
             df = get_runs_dataframe(row)
-            df['slug'] = df.apply(get_job_slug_from_coefficients, axis=1)
+            df["slug"] = df.apply(get_job_slug_from_coefficients, axis=1)
 
-            tr_coef = vis_args.mix_loss_coefficients['translation']
-            cont_coef = vis_args.mix_loss_coefficients['contrastive']
+            tr_coef = vis_args.mix_loss_coefficients["translation"]
+            cont_coef = vis_args.mix_loss_coefficients["contrastive"]
 
             # loss_def_translation = vis_args.loss_definitions['translation']
             # loss_def_contrastive = vis_args.loss_definitions['contrastive']
-            # df['mix_loss'] = (
-            #     df[loss_def_translation[0]]
-            # )
 
-            df = set_new_cols(df, vis_args.loss_definitions)
+            df = prepare_df(df, vis_args)
 
-            df = df.groupby(
-                [
-                    "parameters/global_workspace/prop_labelled_images",
-                    "parameters/losses/coefs/contrastive",
-                    "parameters/losses/coefs/cycles",
-                    "parameters/losses/coefs/demi_cycles",
-                    "parameters/losses/coefs/translation",
-                ], as_index=False
-            )
-
-            df = df.agg(
-                translation_coef=pd.NamedAgg(
-                    column='parameters/losses/coefs/translation',
-                    aggfunc='first'
-                ),
-                cycles_coef=pd.NamedAgg(
-                    column='parameters/losses/coefs/cycles', aggfunc='first'
-                ),
-                demi_cycles_coef=pd.NamedAgg(
-                    column='parameters/losses/coefs/demi_cycles',
-                    aggfunc='first'
-                ),
-                contrastive_coef=pd.NamedAgg(
-                    column='parameters/losses/coefs/contrastive',
-                    aggfunc='first'
-                ),
-                slug=pd.NamedAgg(column='slug', aggfunc='first'),
-                Name=pd.NamedAgg(column='Name', aggfunc='first'),
-                prop_label=pd.NamedAgg(
-                    column='parameters/global_workspace/prop_labelled_images',
-                    aggfunc='first'
-                ),
-                **get_agg_args_from_dict(
-                    vis_args.loss_definitions
-                ),
-            )
-            df['num_examples'] = (
-                    df['prop_label'] * vis_args.total_num_examples
-            )
-            df.fillna(0., inplace=True)
-            min_idx_translation = df.groupby(["prop_label", "slug"])
-            min_idx_translation = min_idx_translation[
-                vis_args.argmin_over].idxmin()
-            df = df.loc[min_idx_translation]
             dataframes.append(
                 {
                     "row": row,
@@ -196,35 +210,42 @@ if __name__ == '__main__':
         handles = []
         labels = []
         for m, (evaluated_loss, loss_args) in enumerate(
-                loss_evaluations.items()
+            loss_evaluations.items()
         ):
             for n, row in enumerate(dataframes):
-                df = row['data']
+                df = row["data"]
                 k = m * n_rows + n
                 ax = _get_ax(axes, m, n, n_rows, n_cols)
                 selected_curves = loss_args.curves
                 for curve_name in selected_curves:
-                    grp = df[df['slug'] == curve_name]
+                    grp = df[df["slug"] == curve_name]
                     slug_label = curve_name
                     if curve_name in slug_to_label:
                         slug_label = slug_to_label[curve_name]
                     if len(grp) > 1:
                         ax = grp.plot(
-                            'num_examples', evaluated_loss + '_mean', ax=ax,
+                            "num_examples",
+                            evaluated_loss + "_mean",
+                            ax=ax,
                             yerr=evaluated_loss + "_std",
-                            label=(slug_label
-                                   if slug_label not in labeled_curves
-                                   else '_nolegend_'),
-                            legend=False, **get_fmt(curve_name),
-                            linewidth=args.visualization.line_width
+                            label=(
+                                slug_label
+                                if slug_label not in labeled_curves
+                                else "_nolegend_"
+                            ),
+                            legend=False,
+                            **get_fmt(curve_name),
+                            linewidth=args.visualization.line_width,
                         )
                     elif len(grp) == 1:
                         ax.axhline(
                             y=grp[evaluated_loss + "_mean"].iloc[0],
-                            label=(slug_label
-                                   if slug_label not in labeled_curves
-                                   else '_nolegend_'),
-                            **get_fmt(curve_name)
+                            label=(
+                                slug_label
+                                if slug_label not in labeled_curves
+                                else "_nolegend_"
+                            ),
+                            **get_fmt(curve_name),
                         )
                     else:
                         logging.warning(f"No data for {curve_name}")
@@ -232,24 +253,25 @@ if __name__ == '__main__':
 
                     ax.set_xlabel(
                         "Number of bimodal examples ($N$)",
-                        fontsize=args.visualization.font_size
+                        fontsize=args.visualization.font_size,
                     )
                     if n == 0:
                         ax.set_ylabel(
                             y_axis_labels[evaluated_loss],
-                            fontsize=args.visualization.font_size
+                            fontsize=args.visualization.font_size,
                         )
                     if m == 0:
                         ax.set_title(
-                            row['row'].label,
+                            row["row"].label,
                             fontsize=args.visualization.font_size_title,
-                            color=args.visualization.fg_color
+                            color=args.visualization.fg_color,
                         )
 
                 ax.tick_params(
-                    which='both', labelsize=args.visualization.font_size,
+                    which="both",
+                    labelsize=args.visualization.font_size,
                     color=args.visualization.fg_color,
-                    labelcolor=args.visualization.fg_color
+                    labelcolor=args.visualization.fg_color,
                 )
                 ax.xaxis.label.set_color(args.visualization.fg_color)
                 ax.yaxis.label.set_color(args.visualization.fg_color)
@@ -257,13 +279,13 @@ if __name__ == '__main__':
                     spine.set_edgecolor(args.visualization.fg_color)
                 ax.set_facecolor(args.visualization.bg_color)
 
-                for annotation in row['row'].annotations:
+                for annotation in row["row"].annotations:
                     if evaluated_loss == annotation.loss:
                         x_start, x_end = get_x_range_at(
-                            df[df['slug'] == annotation.curve_start],
-                            df[df['slug'] == annotation.curve_end],
+                            df[df["slug"] == annotation.curve_start],
+                            df[df["slug"] == annotation.curve_end],
                             annotation.y,
-                            f"{evaluated_loss}_mean"
+                            f"{evaluated_loss}_mean",
                         )
 
                         ratio = max(x_end / x_start, x_start / x_end)
@@ -276,22 +298,24 @@ if __name__ == '__main__':
                             "",
                             xy=(x_start, annotation.y),
                             xytext=(x_end, annotation.y),
-                            arrowprops=dict(arrowstyle="<->")
+                            arrowprops=dict(arrowstyle="<->"),
                         )
-                ax.set_yscale('log')
-                ax.set_xscale('log')
+                ax.set_yscale("log")
+                ax.set_xscale("log")
                 ax_handles, ax_labels = ax.get_legend_handles_labels()
                 handles.extend(ax_handles)
                 labels.extend(ax_labels)
-        order = [labels.index(slug_to_label.get(x, x))
-                 for x in figure.legend_order]
+        order = [
+            labels.index(slug_to_label.get(x, x)) for x in figure.legend_order
+        ]
         fig.legend(
             [handles[idx] for idx in order],
             [labels[idx] for idx in order],
-            loc='lower center', bbox_to_anchor=(0.5, 0),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0),
             bbox_transform=fig.transFigure,
             ncol=vis_args.legend.num_columns,
-            fontsize=args.visualization.font_size
+            fontsize=args.visualization.font_size,
         )
         # fig.suptitle(figure.title)
         # fig.tight_layout()
@@ -304,9 +328,8 @@ if __name__ == '__main__':
         )
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(
-            Path(
-                vis_args.saved_figure_path
-            ) / f"{now}_results.pdf", bbox_inches="tight"
+            Path(vis_args.saved_figure_path) / f"{now}_results.pdf",
+            bbox_inches="tight",
         )
         plt.show()
 
@@ -322,43 +345,46 @@ if __name__ == '__main__':
                     selected_curves.append(curve)
         for m, coef in enumerate(coefs):
             for n, row in enumerate(dataframes):
-                df = row['data']
+                df = row["data"]
                 k = m * len(coefs) + n
                 ax = _get_ax(axes, m, n, n_rows, n_cols)
                 for slug in selected_curves:
-                    grp = df[df['slug'] == slug]
+                    grp = df[df["slug"] == slug]
                     slug_label = slug
                     if slug in slug_to_label:
                         slug_label = slug_to_label[slug]
                     if len(grp) > 1:
                         ax = grp.plot(
-                            'num_examples', coef + '_coef', ax=ax,
-                            label=(slug_label if k == 0 else '_nolegend_'),
-                            legend=False, **get_fmt(slug),
-                            linewidth=args.visualization.line_width
+                            "num_examples",
+                            coef + "_coef",
+                            ax=ax,
+                            label=(slug_label if k == 0 else "_nolegend_"),
+                            legend=False,
+                            **get_fmt(slug),
+                            linewidth=args.visualization.line_width,
                         )
 
                     ax.set_xlabel(
                         "Number of bimodal examples ($N$)",
-                        fontsize=args.visualization.font_size
+                        fontsize=args.visualization.font_size,
                     )
                     if n == 0:
                         ax.set_ylabel(
-                            coef,
-                            fontsize=args.visualization.font_size
+                            coef, fontsize=args.visualization.font_size
                         )
-                    ax.set_xscale('log')
+                    ax.set_xscale("log")
                     if m == 0:
                         ax.set_title(
-                            row['row'].label,
+                            row["row"].label,
                             fontsize=args.visualization.font_size_title,
-                            color=args.visualization.fg_color
+                            color=args.visualization.fg_color,
                         )
 
                 ax.tick_params(
-                    which='both', labelsize=args.visualization.font_size,
+                    which="both",
+                    labelsize=args.visualization.font_size,
                     color=args.visualization.fg_color,
-                    labelcolor=args.visualization.fg_color
+                    labelcolor=args.visualization.fg_color,
                 )
                 ax.xaxis.label.set_color(args.visualization.fg_color)
                 ax.yaxis.label.set_color(args.visualization.fg_color)
@@ -367,18 +393,18 @@ if __name__ == '__main__':
                 ax.set_facecolor(args.visualization.bg_color)
 
         fig.legend(
-            loc='lower center', bbox_to_anchor=(0.5, 0),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0),
             bbox_transform=fig.transFigure,
             ncol=vis_args.legend.num_columns,
-            fontsize=args.visualization.font_size
+            fontsize=args.visualization.font_size,
         )
         # fig.tight_layout()
         plt.subplots_adjust(bottom=0.11, hspace=0.3, top=0.97)
         fig.patch.set_facecolor(args.visualization.bg_color)
         plt.savefig(
-            Path(
-                vis_args.saved_figure_path
-            ) / f"{now}_selected_coefficients.pdf",
-            bbox_inches="tight"
+            Path(vis_args.saved_figure_path)
+            / f"{now}_selected_coefficients.pdf",
+            bbox_inches="tight",
         )
         plt.show()
