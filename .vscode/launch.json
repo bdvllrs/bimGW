@@ -4,8 +4,20 @@
         {
             "type": "python",
             "request": "launch",
-            "name": "Train file",
+            "name": "Train GW",
             "program": "${workspaceFolder}/scripts/train.py"
+        },
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Visualize Main Results",
+            "program": "${workspaceFolder}/scripts/visualization/gw_results.py"
+        },
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Visualize Downstream OOO",
+            "program": "${workspaceFolder}/scripts/visualization/downstream_ooo.py"
         }
     ]
 }
