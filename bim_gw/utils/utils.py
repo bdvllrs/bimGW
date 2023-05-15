@@ -223,16 +223,17 @@ def get_job_detailed_slug_from_coefficients(x):
 
 
 def update_checkpoint_for_compat(ckpt_path: Union[str, Path]) -> Path:
-    checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
-    checkpoint["state_dict"] = {
-        k.replace("domain_mods", "domains._domain_modules")
-        .replace("v.encoder_head.0", "v.encoder_head.z_img")
-        .replace("t.encoder_head.0", "t.encoder_head.z"): v
-        for k, v in checkpoint["state_dict"].items()
-    }
     new_path = Path(ckpt_path)
     new_path = new_path.parent / (new_path.stem + "_new" + new_path.suffix)
-    torch.save(checkpoint, new_path)
+    if not new_path.exists():
+        checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
+        checkpoint["state_dict"] = {
+            k.replace("domain_mods", "domains._domain_modules")
+            .replace("v.encoder_head.0", "v.encoder_head.z_img")
+            .replace("t.encoder_head.0", "t.encoder_head.z"): v
+            for k, v in checkpoint["state_dict"].items()
+        }
+        torch.save(checkpoint, new_path)
     return new_path
 
 
