@@ -113,6 +113,11 @@ if __name__ == "__main__":
                 args.global_workspace.n_layers.encoder.v
             ), nn.Tanh()
         )
+        if args.odd_image.encoder.path == "random":
+            encoder.eval()
+            for p in encoder.parameters():
+                p.requires_grad_(False)
+
         load_domains = ["v"]
         encoders = {name: encoder for name in load_domains}
     elif args.odd_image.encoder.path == "identity":
@@ -156,11 +161,6 @@ if __name__ == "__main__":
             get_domains(args, 32), encoders, args.global_workspace.z_size,
             args.odd_image.optimizer.lr, args.odd_image.optimizer.weight_decay
         )
-
-    if args.odd_image.encoder.path == "random":
-        model.eval()
-        for p in model.parameters():
-            p.requires_grad_(False)
 
     data = OddImageDataModule(
         args.simple_shapes_path, args.global_workspace.load_pre_saved_latents,
