@@ -10,6 +10,12 @@
         {
             "type": "python",
             "request": "launch",
+            "name": "Train Odd One Out Task",
+            "program": "${workspaceFolder}/scripts/train_odd_image.py"
+        },
+        {
+            "type": "python",
+            "request": "launch",
             "name": "Visualize Main Results",
             "program": "${workspaceFolder}/scripts/visualization/gw_results.py"
         },
@@ -18,6 +24,6 @@
             "request": "launch",
             "name": "Visualize Downstream OOO",
             "program": "${workspaceFolder}/scripts/visualization/downstream_ooo.py"
-        }
+        }    
     ]
 }

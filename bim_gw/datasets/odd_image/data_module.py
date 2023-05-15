@@ -8,6 +8,11 @@ from torch.utils.data.dataloader import default_collate
 
 from bim_gw.datasets.domain import domain_collate_fn
 from bim_gw.datasets.odd_image.dataset import OddImageDataset
+from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
+from bim_gw.modules.domain_modules.simple_shapes.text import SimpleShapesText
+from bim_gw.modules.domain_modules.vae import VAE
+from bim_gw.utils import registries
+from bim_gw.utils.utils import get_checkpoint_path
 
 
 def collate_fn(
@@ -37,6 +42,30 @@ def collate_fn(
         else:
             out_batch[domain_name] = default_collate(items[domain_name])
     return out_batch
+
+
+@registries.register_domain("v")
+def load_v_domain(args, im_size=None):
+    return VAE.load_from_checkpoint(
+        get_checkpoint_path(args.global_workspace.vae_checkpoint),
+        strict=False
+    )
+
+
+@registries.register_domain("attr")
+def load_attr_domain(args, img_size):
+    return SimpleShapesAttributes(img_size)
+
+
+@registries.register_domain("t")
+def load_t_domain(args, img_size=None):
+    return SimpleShapesText.load_from_checkpoint(
+        get_checkpoint_path(args.global_workspace.lm_checkpoint),
+        bert_path=args.global_workspace.bert_path,
+        z_size=args.lm.z_size,
+        hidden_size=args.lm.hidden_size,
+        beta=args.lm.beta,
+    )
 
 
 class OddImageDataModule(LightningDataModule):
