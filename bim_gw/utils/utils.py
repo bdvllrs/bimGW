@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
 
 import pandas as pd
 import torch
@@ -220,6 +220,20 @@ def get_job_detailed_slug_from_coefficients(x):
     if x["parameters/losses/coefs/cycles"] > 0:
         name += f"+cy_{x['parameters/losses/coefs/cycles']:.2f}"
     return name[1:]
+
+
+def update_checkpoint_for_compat(ckpt_path: Union[str, Path]) -> Path:
+    checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
+    checkpoint["state_dict"] = {
+        k.replace("domain_mods", "domains._domain_modules")
+        .replace("v.encoder_head.0", "v.encoder_head.z_img")
+        .replace("t.encoder_head.0", "t.encoder_head.z"): v
+        for k, v in checkpoint["state_dict"].items()
+    }
+    new_path = Path(ckpt_path)
+    new_path = new_path.parent / (new_path.stem + "_new" + new_path.suffix)
+    torch.save(checkpoint, new_path)
+    return new_path
 
 
 def find_best_epoch(ckpt_folder):
