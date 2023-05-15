@@ -116,6 +116,38 @@ visualization:
     contrastive: 0.1
 
   loss_definitions: { }
+  # Example loss definitions
+  # loss_definitions:
+  #   translation:  # name of the loss
+  #     # list of keys to average over
+  #     - "val/in_dist/translation_loss.min"
+  #   contrastive: 
+  #     - "val/in_dist/contrastive_loss.min"
+  #   cycles: 
+  #     - "val/in_dist/cycles_loss.min"
+  #   demi_cycles: 
+  #     - "val/in_dist/demi_cycles_loss.min"
+  #   mix_loss:
+  #     - "val/in_dist/translation_loss.min"
+
+  argmin_over: "mix_loss"  # which loss definition to use for parameter selection
+
+  # By default, slug is computed by looking at the loss coefficients.
+  # If a coefficient is > 0, then "+loss_name" is added to slug.
+  # For example, the slug for translation > 0 and demi-cycles > 0 is "tr+dcy"
+  # You can add values to slug according to some conditions
+  additional_slug_conds: []
+  # Example of additional slug conditions
+  # Here, we will have "+baseline" added at the end of the slug
+  # if "parameters/some_params" == "42", and "+random" if it equals "0"
+  # additional_slug_conds:
+  #   - slug_value: "+baseline"  # what to add to the slug (at the end)
+  #     key: "parameters/some_params"
+  #     eq: "42"
+  #   - slug_value: "+random"  # what to add to the slug (at the end)
+  #     key: "parameters/some_params"
+  #     eq: "0"
+  
 
   saved_figure_path: "../../data/plots"  # where to save figures
   total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples

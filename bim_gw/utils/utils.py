@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, cast, Dict, List
+from typing import Any, Callable, Dict, List, Mapping, Optional, cast
 
 import pandas as pd
 import torch
@@ -13,8 +13,9 @@ from omegaconf import OmegaConf
 
 from bim_gw.utils.errors import ConfigError
 from bim_gw.utils.types import (
-    DataSelectorAxesConfig, LoadFromData,
-    WandbFilterT
+    DataSelectorAxesConfig,
+    LoadFromData,
+    WandbFilterT,
 )
 
 
@@ -25,7 +26,7 @@ def log_image(logger, sample_imgs, name, step=None, **kwargs):
     if logger is not None and hasattr(logger, "log_image"):
         logger.log_image(name, img_grid, step=step)
     else:
-        img_grid = torchvision.transforms.ToPILImage(mode='RGB')(
+        img_grid = torchvision.transforms.ToPILImage(mode="RGB")(
             img_grid.cpu()
         )
         plt.imshow(img_grid)
@@ -102,9 +103,9 @@ def val_or_default(d, key, default=None):
 
 
 def replace_legacy_supervision_to_translation(x):
-    if x['parameters/losses/coefs/supervision'] is not None:
-        return x['parameters/losses/coefs/supervision']
-    return x['parameters/losses/coefs/translation']
+    if x["parameters/losses/coefs/supervision"] is not None:
+        return x["parameters/losses/coefs/supervision"]
+    return x["parameters/losses/coefs/translation"]
 
 
 def replace_legacy_selected_domains(x):
@@ -119,14 +120,14 @@ def replace_legacy_selected_domains(x):
 
 
 def update_df_for_legacy_code(df: pd.DataFrame) -> pd.DataFrame:
-    if 'parameters/losses/coefs/translation' not in df.columns:
-        df['parameters/losses/coefs/translation'] = df.apply(
+    if "parameters/losses/coefs/translation" not in df.columns:
+        df["parameters/losses/coefs/translation"] = df.apply(
             replace_legacy_supervision_to_translation, axis=1
         )
 
     for column in df.columns:
         if "parameters/global_workspace/selected_domains" in column:
-            df['parameters/global_workspace/selected_domains'] = df.apply(
+            df["parameters/global_workspace/selected_domains"] = df.apply(
                 replace_legacy_selected_domains, axis=1
             )
             break
@@ -149,15 +150,14 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
             args.wandb_entity_project,
             cast(
                 WandbFilterT,
-                OmegaConf.to_container(args.wandb_filter, resolve=True)
-            )
+                OmegaConf.to_container(args.wandb_filter, resolve=True),
+            ),
         )
         columns: Dict[str, List[Any]] = defaultdict(list)
         for run in runs:
             vals = run.summary._json_dict  # noqa
             vals.update(
-                {k: v for k, v in run.config.items()
-                 if not k.startswith('_')}
+                {k: v for k, v in run.config.items() if not k.startswith("_")}
             )
             vals["Name"] = run.name
             vals["ID"] = run.id
@@ -165,10 +165,10 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
             for k, v in vals.items():
                 if isinstance(v, dict) and "min" in v:
                     k += "." + "min"
-                    v = v['min']
+                    v = v["min"]
                 columns[k].append(v)
         for k in list(columns.keys()):
-            if len(columns[k]) != len(columns['Name']):
+            if len(columns[k]) != len(columns["Name"]):
                 logging.info(
                     f"Deleted key '{k}' because it has a different "
                     f"length {len(columns[k])} than the number of runs"
@@ -179,28 +179,45 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
     raise ValueError(f"Unknown load_from: {args.load_from}")
 
 
-def get_job_slug_from_coefficients(x):
+def get_additional_slug(
+    x: pd.DataFrame,
+    additional_conds: Mapping[str, Callable[[pd.DataFrame], bool]],
+) -> str:
     name = ""
-    if x['parameters/losses/coefs/translation'] > 0:
+    for val, cond in additional_conds.items():
+        if cond(x):
+            name += val
+    return name
+
+
+def get_job_slug_from_coefficients(
+    x: pd.Series,
+    additional_slug: Optional[Callable[[pd.Series], str]] = None,
+) -> str:
+    name = ""
+    if x["parameters/losses/coefs/translation"] > 0:  # type: ignore
         name += "+tr"
-    if x['parameters/losses/coefs/contrastive'] > 0:
+    if x["parameters/losses/coefs/contrastive"] > 0:  # type: ignore
         name += "+cont"
-    if x['parameters/losses/coefs/demi_cycles'] > 0:
+    if x["parameters/losses/coefs/demi_cycles"] > 0:  # type: ignore
         name += "+dcy"
-    if x['parameters/losses/coefs/cycles'] > 0:
+    if x["parameters/losses/coefs/cycles"] > 0:  # type: ignore
         name += "+cy"
+    if additional_slug is not None:
+        r = additional_slug(x)
+        name += r
     return name[1:]
 
 
 def get_job_detailed_slug_from_coefficients(x):
     name = ""
-    if x['parameters/losses/coefs/translation'] > 0:
+    if x["parameters/losses/coefs/translation"] > 0:
         name += f"+tr_{x['parameters/losses/coefs/translation']:.2f}"
-    if x['parameters/losses/coefs/contrastive'] > 0:
+    if x["parameters/losses/coefs/contrastive"] > 0:
         name += f"+cont_{x['parameters/losses/coefs/contrastive']:.2f}"
-    if x['parameters/losses/coefs/demi_cycles'] > 0:
+    if x["parameters/losses/coefs/demi_cycles"] > 0:
         name += f"+dcy_{x['parameters/losses/coefs/demi_cycles']:.2f}"
-    if x['parameters/losses/coefs/cycles'] > 0:
+    if x["parameters/losses/coefs/cycles"] > 0:
         name += f"+cy_{x['parameters/losses/coefs/cycles']:.2f}"
     return name[1:]
 
@@ -209,35 +226,38 @@ def find_best_epoch(ckpt_folder):
     ckpt_folder = Path(ckpt_folder)
     if not ckpt_folder.exists():
         return None
-    files = [(str(p), int(str(p).split('/')[-1].split('-')[0][6:]))
-             for p in ckpt_folder.iterdir()]
+    files = [
+        (str(p), int(str(p).split("/")[-1].split("-")[0][6:]))
+        for p in ckpt_folder.iterdir()
+    ]
     if not len(files):
         return None
 
     last = sorted(files, key=lambda x: x[0], reverse=True)[0][0]
-    loaded_path = torch.load(last, map_location=torch.device('cpu'))
-    for callback_name, callback in loaded_path['callbacks'].items():
+    loaded_path = torch.load(last, map_location=torch.device("cpu"))
+    for callback_name, callback in loaded_path["callbacks"].items():
         if (
-                'ModelCheckpoint' in callback_name
-                and 'best_model_path' in callback
-                and os.path.isfile(callback['best_model_path'])
+            "ModelCheckpoint" in callback_name
+            and "best_model_path" in callback
+            and os.path.isfile(callback["best_model_path"])
         ):
-            return callback['best_model_path']
+            return callback["best_model_path"]
     return last
 
 
 def find_remote_last_epoch(remote_path, ssh):
-    stdin, stdout, stderr = ssh.exec_command(f'ls -al {remote_path}')
+    stdin, stdout, stderr = ssh.exec_command(f"ls -al {remote_path}")
     files = list(
         map(
             lambda x: x.split(" ")[-1],
-            stdout.read().decode("utf-8").split("\n")[3:-1]
+            stdout.read().decode("utf-8").split("\n")[3:-1],
         )
     )
     files = list(map(lambda x: (x, x.split("-")[0][6:]), files))
     if len(files):
-        return remote_path / \
-            sorted(files, key=lambda x: x[0], reverse=True)[0][0]
+        return (
+            remote_path / sorted(files, key=lambda x: x[0], reverse=True)[0][0]
+        )
     return remote_path
 
 
@@ -248,36 +268,35 @@ def get_checkpoint_path(path):
     elif path is not None and type(path) is str:
         return path
 
-    elif path is not None and 'load_from' in path and path.load_from == \
-            "local":
-        if 'local_path' not in path:
+    elif (
+        path is not None and "load_from" in path and path.load_from == "local"
+    ):
+        if "local_path" not in path:
             raise ConfigError(
-                'local_path',
-                'Missing local_path in value when using load_from=\'local\''
+                "local_path",
+                "Missing local_path in value when using load_from='local'",
             )
         return get_checkpoint_path(path.local_path)
 
     elif (
-            path is not None and 'load_from' in path
-            and path.load_from == "remote"
+        path is not None and "load_from" in path and path.load_from == "remote"
     ):
-
-        if 'local_path' not in path:
+        if "local_path" not in path:
             raise ConfigError(
-                'local_path',
-                'Missing local_path in value when using load_from=\'remote\''
+                "local_path",
+                "Missing local_path in value when using load_from='remote'",
             )
-        if 'remote_server' not in path:
+        if "remote_server" not in path:
             raise ConfigError(
-                'remote_server',
-                'Missing remote_server in value when using '
-                'load_from=\'remote\''
+                "remote_server",
+                "Missing remote_server in value when using "
+                "load_from='remote'",
             )
-        if 'remote_checkpoint_path' not in path:
+        if "remote_checkpoint_path" not in path:
             raise ConfigError(
-                'remote_checkpoint_path',
-                'Missing remote_checkpoint_path in value when using '
-                'load_from=\'remote\''
+                "remote_checkpoint_path",
+                "Missing remote_checkpoint_path in value when using "
+                "load_from='remote'",
             )
 
         logging.info(
@@ -296,15 +315,16 @@ def get_checkpoint_path(path):
         from paramiko import SSHClient
         from scp import SCPClient
 
-        remote_user = path.remote_user if 'remote_user' in path else None
+        remote_user = path.remote_user if "remote_user" in path else None
         remote_password = None
-        if 'remote_password' in path:
+        if "remote_password" in path:
             remote_password = path.remote_password
         with SSHClient() as ssh:
             ssh.load_system_host_keys()
             ssh.connect(
-                path.remote_server, username=remote_user,
-                password=remote_password
+                path.remote_server,
+                username=remote_user,
+                password=remote_password,
             )
             with SCPClient(ssh.get_transport()) as scp:
                 last_epoch = find_remote_last_epoch(
@@ -316,8 +336,9 @@ def get_checkpoint_path(path):
     return path
 
 
-def has_internet_connection(host='https://google.com'):
+def has_internet_connection(host="https://google.com"):
     import urllib.request
+
     try:
         urllib.request.urlopen(host)  # Python 3.x
         return True

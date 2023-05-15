@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, cast
+from typing import Callable, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from numpy import log
 
 from bim_gw.utils import get_args
 from bim_gw.utils.utils import (
+    get_additional_slug,
     get_job_slug_from_coefficients,
     get_runs_dataframe,
 )
@@ -42,6 +43,9 @@ slug_to_label = {
     "tr+cont": "trans. + cont.",
     "cont": "contrastive",
     "tr+cont+dcy+cy": "all sup. + all cycles",
+    "baseline:identity": "Baseline: no encoder",
+    "baseline:none": "Baseline",
+    "baseline:random": "Random performance",
 }
 
 
@@ -134,14 +138,17 @@ def prepare_df(df, vis_args):
 
     df = set_new_cols(df, vis_args.loss_definitions)
 
+    group_by_params = [
+        "parameters/global_workspace/prop_labelled_images",
+        "parameters/losses/coefs/contrastive",
+        "parameters/losses/coefs/cycles",
+        "parameters/losses/coefs/demi_cycles",
+        "parameters/losses/coefs/translation",
+        "additional_slug"
+    ]
+
     df = df.groupby(
-        [
-            "parameters/global_workspace/prop_labelled_images",
-            "parameters/losses/coefs/contrastive",
-            "parameters/losses/coefs/cycles",
-            "parameters/losses/coefs/demi_cycles",
-            "parameters/losses/coefs/translation",
-        ],
+        group_by_params,
         as_index=False,
     )
 
@@ -174,6 +181,47 @@ def prepare_df(df, vis_args):
     return df
 
 
+def plot_ax(args, loss, ax, curve_name, grp, labeled_curves, slug_label):
+    if len(grp) > 1:
+        ax = grp.plot(
+            "num_examples",
+            loss + "_mean",
+            ax=ax,
+            yerr=loss + "_std",
+            label=(
+                slug_label
+                if slug_label not in labeled_curves
+                else "_nolegend_"
+            ),
+            legend=False,
+            **get_fmt(curve_name),
+            linewidth=args.visualization.line_width,
+        )
+    elif len(grp) == 1:
+        ax.axhline(
+            y=grp[loss + "_mean"].iloc[0],
+            label=(
+                slug_label
+                if slug_label not in labeled_curves
+                else "_nolegend_"
+            ),
+            **get_fmt(curve_name),
+            linewidth=args.visualization.line_width,
+        )
+    else:
+        logging.warning(f"No data for {curve_name}")
+    return ax
+
+
+def get_additional_slug_cond(
+    key: str, target: str
+) -> Callable[[pd.Series], bool]:
+    def fn(x: pd.Series) -> bool:
+        return x[key] == target
+
+    return fn
+
+
 if __name__ == "__main__":
     args = get_args(debug=bool(os.getenv("DEBUG", 0)))
 
@@ -183,13 +231,25 @@ if __name__ == "__main__":
         for row in figure.cols:
             row_label = row.label
             df = get_runs_dataframe(row)
-            df["slug"] = df.apply(get_job_slug_from_coefficients, axis=1)
+            df["additional_slug"] = df.apply(
+                get_additional_slug,
+                axis=1,
+                additional_conds={
+                    slug_cond.slug_value: get_additional_slug_cond(
+                        slug_cond.key, slug_cond.eq
+                    )
+                    for slug_cond in vis_args.additional_slug_conds
+                },
+            )
 
-            tr_coef = vis_args.mix_loss_coefficients["translation"]
-            cont_coef = vis_args.mix_loss_coefficients["contrastive"]
+            def additional_slug(x):
+                return x["additional_slug"]
 
-            # loss_def_translation = vis_args.loss_definitions['translation']
-            # loss_def_contrastive = vis_args.loss_definitions['contrastive']
+            df["slug"] = df.apply(
+                get_job_slug_from_coefficients,
+                axis=1,
+                additional_slug=additional_slug
+            )
 
             df = prepare_df(df, vis_args)
 
@@ -225,33 +285,17 @@ if __name__ == "__main__":
                     slug_label = curve_name
                     if curve_name in slug_to_label:
                         slug_label = slug_to_label[curve_name]
-                    if len(grp) > 1:
-                        ax = grp.plot(
-                            "num_examples",
-                            evaluated_loss + "_mean",
-                            ax=ax,
-                            yerr=evaluated_loss + "_std",
-                            label=(
-                                slug_label
-                                if slug_label not in labeled_curves
-                                else "_nolegend_"
-                            ),
-                            legend=False,
-                            **get_fmt(curve_name),
-                            linewidth=args.visualization.line_width,
-                        )
-                    elif len(grp) == 1:
-                        ax.axhline(
-                            y=grp[evaluated_loss + "_mean"].iloc[0],
-                            label=(
-                                slug_label
-                                if slug_label not in labeled_curves
-                                else "_nolegend_"
-                            ),
-                            **get_fmt(curve_name),
-                        )
-                    else:
-                        logging.warning(f"No data for {curve_name}")
+
+                    ax = plot_ax(
+                        args,
+                        evaluated_loss,
+                        ax,
+                        curve_name,
+                        grp,
+                        labeled_curves,
+                        slug_label,
+                    )
+
                     labeled_curves.append(slug_label)
 
                     ax.set_xlabel(
@@ -303,8 +347,9 @@ if __name__ == "__main__":
                             xytext=(x_end, annotation.y),
                             arrowprops=dict(arrowstyle="<->"),
                         )
-                ax.set_yscale("log")
+                # ax.set_yscale("log")
                 ax.set_xscale("log")
+                # ax.ticklabel_format(useOffset=False, style='plain')
                 ax_handles, ax_labels = ax.get_legend_handles_labels()
                 handles.extend(ax_handles)
                 labels.extend(ax_labels)

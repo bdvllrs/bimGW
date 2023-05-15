@@ -1,13 +1,20 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    Any, Dict, List, Literal, Optional, Protocol, Sequence,
-    TypeVar, Union
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    Sequence,
+    TypeVar,
+    Union,
 )
 
 import numpy as np
 from numpy.typing import ArrayLike
-from omegaconf import ListConfig, MISSING
+from omegaconf import MISSING, ListConfig
 
 WandbFilterT = Dict[str, Any]
 
@@ -16,7 +23,7 @@ ListType = Union[List, ListConfig, ArrayLike]
 
 SequenceLike = Union[np.ndarray, Sequence]
 
-T_co = TypeVar('T_co', covariant=True)
+T_co = TypeVar("T_co", covariant=True)
 DistLiteral = Literal["in_dist", "ood"]
 
 
@@ -134,7 +141,7 @@ class LegendGWResultConfig:
 @dataclass
 class AnnotationColFigureConfig:
     y: float = MISSING
-    text_yshift: float = 0.
+    text_yshift: float = 0.0
     loss: str = MISSING
     curve_start: str = MISSING
     curve_end: str = MISSING
@@ -172,6 +179,13 @@ class AxesGWResultConfig:
 
 
 @dataclass
+class AdditionalSlugCond:
+    slug_value: str = MISSING
+    key: str = MISSING
+    eq: Any = MISSING
+
+
+@dataclass
 class VisualizationConfig:
     fg_color: str = MISSING
     bg_color: str = MISSING
@@ -184,15 +198,13 @@ class VisualizationConfig:
 
     argmin_over: str = MISSING
 
-    loss_definitions: Dict[str, List[str]] = field(
-        default_factory=dict
-    )
-    figures: List[AxesGWResultConfig] = field(
+    additional_slug_conds: List[AdditionalSlugCond] = field(
         default_factory=list
     )
-    mix_loss_coefficients: Dict[str, float] = field(
-        default_factory=dict
-    )
+
+    loss_definitions: Dict[str, List[str]] = field(default_factory=dict)
+    figures: List[AxesGWResultConfig] = field(default_factory=list)
+    mix_loss_coefficients: Dict[str, float] = field(default_factory=dict)
     legend: LegendGWResultConfig = field(default_factory=LegendGWResultConfig)
 
 
@@ -275,7 +287,7 @@ class CoefsLossesConfig:
     contrastive: float = MISSING
 
     # Deprecated
-    cosine: float = 0.
+    cosine: float = 0.0
     supervision: Optional[float] = None
 
 
