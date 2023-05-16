@@ -71,14 +71,12 @@ def get_x_range_at(
     y_val: float,
     diff_col: str,
 ) -> Tuple[float, float]:
-    order_start = (
-        data_start["num_examples"].sort_values().index  # type: ignore
-    )
-    order_end = data_end["num_examples"].sort_values().index  # type: ignore
-    x_axis_start = data_start["num_examples"].loc[order_start]  # type: ignore
-    x_axis_end = data_end["num_examples"].loc[order_end]  # type: ignore
-    data_start = data_start[diff_col].loc[order_start]  # type: ignore
-    data_end = data_end[diff_col].loc[order_end]  # type: ignore
+    order_start = data_start["num_examples"].sort_values().index  # type:ignore
+    order_end = data_end["num_examples"].sort_values().index  # type:ignore
+    x_axis_start = data_start["num_examples"].loc[order_start]  # type:ignore
+    x_axis_end = data_end["num_examples"].loc[order_end]  # type:ignore
+    data_start = data_start[diff_col].loc[order_start]  # type:ignore
+    data_end = data_end[diff_col].loc[order_end]  # type:ignore
     data_start_log_diff = log(data_start).diff()
     data_end_log_diff = log(data_end).diff()
 
@@ -144,7 +142,7 @@ def prepare_df(df, vis_args):
         "parameters/losses/coefs/cycles",
         "parameters/losses/coefs/demi_cycles",
         "parameters/losses/coefs/translation",
-        "additional_slug"
+        "additional_slug",
     ]
 
     df = df.groupby(
@@ -248,7 +246,7 @@ if __name__ == "__main__":
             df["slug"] = df.apply(
                 get_job_slug_from_coefficients,
                 axis=1,
-                additional_slug=additional_slug
+                additional_slug=additional_slug,
             )
 
             df = prepare_df(df, vis_args)

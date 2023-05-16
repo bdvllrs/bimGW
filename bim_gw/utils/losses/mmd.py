@@ -19,7 +19,7 @@ def mmd_loss(x, target, bandwidth=None, squared_mmd=False):
     s = torch.cat((s1, s2), 0)
     S = s @ s.t()
 
-    loss = torch.tensor(0.).to(x.device)
+    loss = torch.tensor(0.0).to(x.device)
 
     S = S.to(x.device)
 

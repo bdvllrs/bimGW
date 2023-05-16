@@ -53,7 +53,7 @@ class DomainModule(LightningModule):
         pass
 
     def loss(self, predictions, targets):
-        loss = 0.
+        loss = 0.0
         losses = dict()
         for k, key in enumerate(self.domain_specs.latent_keys):
             loss_fn = self.domain_specs.losses[key]
@@ -65,7 +65,6 @@ class DomainModule(LightningModule):
 
 
 class PassThroughWM(DomainModule):
-
     def __init__(self, workspace_module):
         super(PassThroughWM, self).__init__(
             domain_specs=workspace_module.domain_specs

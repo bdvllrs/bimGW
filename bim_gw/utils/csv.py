@@ -26,8 +26,9 @@ class CSVLog:
             for k, row in enumerate(reader):
                 if k == 0:
                     self.index_to_keys = row
-                    self.keys_to_index = {name: i for i, name in
-                                          enumerate(row)}
+                    self.keys_to_index = {
+                        name: i for i, name in enumerate(row)
+                    }
                 else:
                     row = self._get_dict_row(row)
                     row = {key: _set_float(val) for key, val in row.items()}

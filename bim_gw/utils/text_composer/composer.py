@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from bim_gw.utils import get_args
 from bim_gw.utils.text_composer.utils import inspect_all_choices
+
 # from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 
@@ -14,7 +15,7 @@ from bim_gw.utils.text_composer.writers import writers
 def a_has_n(sentence):
     def aux(attributes):
         vowels = ["a", "e", "i", "o", "u"]
-        if attributes[attributes['_next']][0] in vowels:
+        if attributes[attributes["_next"]][0] in vowels:
             return sentence.format(**{"n?": "n"})
         return sentence.format(**{"n?": ""})
 
@@ -29,8 +30,16 @@ script_structures = [
 
 # Elements in the list of each variant is randomly chosen.
 variants = {
-    "start": ["", "It is", "A kind of", "This is", "There is",
-              "The image is", "The image represents", "The image contains"],
+    "start": [
+        "",
+        "It is",
+        "A kind of",
+        "This is",
+        "There is",
+        "The image is",
+        "The image represents",
+        "The image contains",
+    ],
     "link": [". It is ", ", and is ", " ", ", it's ", ". It's "],
 }
 
@@ -59,10 +68,16 @@ script_structures = [
     "link} <{rotation}>.",
 ]
 
-start_variant = ["A", "It is a", "This is a", "There is a",
-                 "The image is a", "The image represents a",
-                 "The image contains a"]
-start_variant = [a_has_n(x + "{n?}") for x in start_variant] + ['A kind of']
+start_variant = [
+    "A",
+    "It is a",
+    "This is a",
+    "There is a",
+    "The image is a",
+    "The image represents a",
+    "The image contains a",
+]
+start_variant = [a_has_n(x + "{n?}") for x in start_variant] + ["A kind of"]
 
 # Elements in the list of each variant is randomly chosen.
 variants = {
@@ -72,20 +87,39 @@ variants = {
     "colored?": ["", " colored"],
     "colorBefore": ["{color}", "{color} colored"],
     "colorAfter": ["{color}", "{color} color"],
-    "colorBoth": ["{color}", "in {color}", "{color} colored",
-                  "in {color} color"],
+    "colorBoth": [
+        "{color}",
+        "in {color}",
+        "{color} colored",
+        "in {color} color",
+    ],
     ",?": [", ", " "],
-    "link": [". It is", ", it is", "{,?}and is", "{,?}and it is", ",", ],
-    "link2": [". It looks like", ", it looks like", "{,?}and looks like",
-              "{,?}and it looks like"],
-    "link3": [". It is", ", it is", "{,?}and is", "{,?}and it is", ",",
-              " and"],
+    "link": [
+        ". It is",
+        ", it is",
+        "{,?}and is",
+        "{,?}and it is",
+        ",",
+    ],
+    "link2": [
+        ". It looks like",
+        ", it looks like",
+        "{,?}and looks like",
+        "{,?}and it looks like",
+    ],
+    "link3": [
+        ". It is",
+        ", it is",
+        "{,?}and is",
+        "{,?}and it is",
+        ",",
+        " and",
+    ],
 }
 
 composer = Composer(script_structures, writers, variants, modifiers)
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     args = get_args(debug=bool(os.getenv("DEBUG", False)))
     all_choices = inspect_all_choices(composer)
     dataset_location = Path(args.simple_shapes_path)
@@ -100,7 +134,7 @@ if __name__ == '__main__':
                     "rotation": labels[k][4],
                     "color": (labels[k][5], labels[k][6], labels[k][7]),
                     "size": labels[k][3],
-                    "location": (labels[k][1], labels[k][2])
+                    "location": (labels[k][1], labels[k][2]),
                 }
             )
             captions.append(caption)

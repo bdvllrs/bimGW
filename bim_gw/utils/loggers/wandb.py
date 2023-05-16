@@ -11,8 +11,13 @@ from bim_gw.utils.loggers.utils import ImageType
 
 class WandbLogger(WandbLoggerBase):
     def __init__(
-        self, *params, save_images=True, save_last_images=True,
-        save_last_tables=True, save_tables=True, **kwargs
+        self,
+        *params,
+        save_images=True,
+        save_last_images=True,
+        save_last_tables=True,
+        save_tables=True,
+        **kwargs
     ):
         super().__init__(*params, **kwargs)
 
@@ -65,8 +70,11 @@ class WandbLogger(WandbLoggerBase):
 
     @rank_zero_only
     def log_table(
-        self, log_name: str, columns: List[str], data: List[List[str]],
-        step: Optional[int] = None
+        self,
+        log_name: str,
+        columns: List[str],
+        data: List[List[str]],
+        step: Optional[int] = None,
     ):
         if self.do_save_tables:
             super(WandbLogger, self).log_table(
@@ -79,8 +87,9 @@ def get_wandb_logger(name, version, log_args, model, conf, tags, source_files):
         save_images=log_args.save_images,
         save_last_images=log_args.save_last_images,
         save_last_tables=log_args.save_last_tables,
-        save_tables=log_args.save_tables if "save_tables" in log_args else
-        True,
+        save_tables=log_args.save_tables
+        if "save_tables" in log_args
+        else True,
         tags=tags,
         **OmegaConf.to_container(log_args.args, resolve=True)
     )

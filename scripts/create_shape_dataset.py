@@ -9,8 +9,12 @@ from tqdm import tqdm
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import (
-    generate_dataset, generate_transformations, generate_unpaired_attr,
-    load_labels, save_dataset, save_labels
+    generate_dataset,
+    generate_transformations,
+    generate_unpaired_attr,
+    load_labels,
+    save_dataset,
+    save_labels,
 )
 from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
@@ -38,41 +42,61 @@ def main(args):
     np.random.seed(seed)
 
     train_labels = generate_dataset(
-        size_train_set, min_scale, max_scale, min_lightness, max_lightness,
-        image_size
+        size_train_set,
+        min_scale,
+        max_scale,
+        min_lightness,
+        max_lightness,
+        image_size,
     )
     train_transfo_labels, train_transfo = generate_transformations(
         train_labels,
         generate_dataset(
-            size_train_set, min_scale,
+            size_train_set,
+            min_scale,
             max_scale,
-            min_lightness, max_lightness,
-            image_size
-        )
+            min_lightness,
+            max_lightness,
+            image_size,
+        ),
     )
     val_labels = generate_dataset(
-        size_val_set, min_scale, max_scale, min_lightness, max_lightness,
-        image_size
+        size_val_set,
+        min_scale,
+        max_scale,
+        min_lightness,
+        max_lightness,
+        image_size,
     )
     val_transfo_labels, val_transfo = generate_transformations(
         val_labels,
         generate_dataset(
-            size_val_set, min_scale, max_scale,
+            size_val_set,
+            min_scale,
+            max_scale,
             min_lightness,
-            max_lightness, image_size
-        )
+            max_lightness,
+            image_size,
+        ),
     )
     test_labels = generate_dataset(
-        size_test_set, min_scale, max_scale, min_lightness, max_lightness,
-        image_size
+        size_test_set,
+        min_scale,
+        max_scale,
+        min_lightness,
+        max_lightness,
+        image_size,
     )
     test_transfo_labels, test_transfo = generate_transformations(
         test_labels,
         generate_dataset(
-            size_test_set, min_scale, max_scale,
+            size_test_set,
+            min_scale,
+            max_scale,
             min_lightness,
-            max_lightness, image_size
-        )
+            max_lightness,
+            image_size,
+        ),
     )
 
     print("Save labels...")
@@ -90,24 +114,27 @@ def main(args):
     save_dataset(dataset_location / "train", train_labels, image_size)
     (dataset_location / "transformed" / "train").mkdir(exist_ok=True)
     save_dataset(
-        dataset_location / "transformed" / "train", train_transfo_labels,
-        image_size
+        dataset_location / "transformed" / "train",
+        train_transfo_labels,
+        image_size,
     )
     print("Saving validation set...")
     (dataset_location / "val").mkdir(exist_ok=True)
     save_dataset(dataset_location / "val", val_labels, image_size)
     (dataset_location / "transformed" / "val").mkdir(exist_ok=True)
     save_dataset(
-        dataset_location / "transformed" / "val", val_transfo_labels,
-        image_size
+        dataset_location / "transformed" / "val",
+        val_transfo_labels,
+        image_size,
     )
     print("Saving test set...")
     (dataset_location / "test").mkdir(exist_ok=True)
     save_dataset(dataset_location / "test", test_labels, image_size)
     (dataset_location / "transformed" / "test").mkdir(exist_ok=True)
     save_dataset(
-        dataset_location / "transformed" / "test", test_transfo_labels,
-        image_size
+        dataset_location / "transformed" / "test",
+        test_transfo_labels,
+        image_size,
     )
 
     print("Saving captions...")
@@ -123,7 +150,7 @@ def main(args):
                     "rotation": labels[k][4],
                     "color": (labels[k][5], labels[k][6], labels[k][7]),
                     "size": labels[k][3],
-                    "location": (labels[k][1], labels[k][2])
+                    "location": (labels[k][1], labels[k][2]),
                 }
             )
             captions.append(caption)
@@ -137,7 +164,7 @@ def main(args):
     bert_latents = args.domain_loader.t.bert_latents
     args.domain_loader.t.bert_latents = None
     args.global_workspace.use_pre_saved = False
-    args.global_workspace.prop_labelled_images = 1.
+    args.global_workspace.prop_labelled_images = 1.0
     args.global_workspace.split_ood = False
     args.global_workspace.sync_uses_whole_dataset = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -146,11 +173,14 @@ def main(args):
     data.prepare_data()
     data.setup(stage="fit")
     save_bert_latents(
-        data, args.global_workspace.bert_path, bert_latents,
-        args.simple_shapes_path, device
+        data,
+        args.global_workspace.bert_path,
+        bert_latents,
+        args.simple_shapes_path,
+        device,
     )
 
-    print('done!')
+    print("done!")
 
 
 def other():
@@ -164,14 +194,14 @@ def other():
         dataset, dataset_transfo = load_labels(
             dataset_location / (path_name + ".npy")
         )
-        dataset['unpaired'] = generate_unpaired_attr(
-            dataset['classes'].shape[0]
+        dataset["unpaired"] = generate_unpaired_attr(
+            dataset["classes"].shape[0]
         )
-        dataset_transfo['unpaired'] = np.zeros_like(dataset['unpaired'])
+        dataset_transfo["unpaired"] = np.zeros_like(dataset["unpaired"])
         save_labels(
             dataset_location / f"{path_name}_2.npy", dataset, dataset_transfo
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(get_args(debug=int(os.getenv("DEBUG", 0))))

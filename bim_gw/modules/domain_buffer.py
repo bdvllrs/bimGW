@@ -9,17 +9,11 @@ _DomainExamplesType = Dict[str, Dict[str, Dict[str, DomainItems]]]
 
 
 class DomainBuffer(nn.Module):
-    def __init__(
-        self,
-        domain_examples: DomainItems,
-        persistent: bool = True
-    ):
+    def __init__(self, domain_examples: DomainItems, persistent: bool = True):
         super().__init__()
 
         self.register_buffer(
-            "available_masks",
-            domain_examples.available_masks,
-            persistent
+            "available_masks", domain_examples.available_masks, persistent
         )
         self.sub_parts = DictBuffer(domain_examples.sub_parts, persistent)
 
@@ -49,11 +43,7 @@ T = TypeVar("T")
 
 
 class DictBuffer(nn.Module):
-    def __init__(
-        self,
-        buffer_dict: Dict[str, T],
-        persistent: bool = True
-    ):
+    def __init__(self, buffer_dict: Dict[str, T], persistent: bool = True):
         super().__init__()
 
         buffers: Dict[str, nn.Module] = {}
@@ -68,11 +58,7 @@ class DictBuffer(nn.Module):
                 self._item_keys.add(key)
             elif isinstance(value, torch.Tensor):
                 self._buffer_keys.add(key)
-                self.register_buffer(
-                    f"buffer_{key}",
-                    value,
-                    persistent
-                )
+                self.register_buffer(f"buffer_{key}", value, persistent)
             else:
                 self._item_keys.add(key)
                 setattr(self, f"buffer_{key}", value)

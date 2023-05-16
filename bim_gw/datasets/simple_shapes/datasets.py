@@ -1,8 +1,16 @@
 import pathlib
 from pathlib import Path
 from typing import (
-    Any, Callable, cast, Dict, List, Mapping, Optional, Sequence,
-    Type, Union
+    Any,
+    Callable,
+    cast,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    Union,
 )
 
 import numpy as np
@@ -10,20 +18,21 @@ from torch.utils.data import Dataset
 
 from bim_gw.datasets.domain import DomainItems
 from bim_gw.datasets.domain_loaders import (
-    DomainLoader, DomainLoaderType,
-    PreSavedLatentLoader
+    DomainLoader,
+    DomainLoaderType,
+    PreSavedLatentLoader,
 )
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
 from bim_gw.datasets.simple_shapes.domain_loaders import (
-    AttributesLoader, TextLoader, VisionLoader
+    AttributesLoader,
+    TextLoader,
+    VisionLoader,
 )
 from bim_gw.datasets.simple_shapes.types import (
-    SelectedDomainType, ShapesAvailableDomains
+    SelectedDomainType,
+    ShapesAvailableDomains,
 )
-from bim_gw.utils.types import (
-    AvailableDomains, SequenceLike,
-    SplitLiteral
-)
+from bim_gw.utils.types import AvailableDomains, SequenceLike, SplitLiteral
 
 AVAILABLE_DOMAINS: Dict[ShapesAvailableDomains, Type[DomainLoader]] = {
     ShapesAvailableDomains.v: VisionLoader,
@@ -34,7 +43,7 @@ AVAILABLE_DOMAINS: Dict[ShapesAvailableDomains, Type[DomainLoader]] = {
 domain_item_name_mapping: Dict[ShapesAvailableDomains, Dict[int, str]] = {
     ShapesAvailableDomains.v: {0: "z_img"},
     ShapesAvailableDomains.attr: {0: "z_cls", 1: "z_attr"},
-    ShapesAvailableDomains.t: {0: "z"}
+    ShapesAvailableDomains.t: {0: "z"},
 }
 
 
@@ -45,17 +54,20 @@ class SimpleShapesDataset(Dataset):
         split: SplitLiteral = "train",
         mapping: Optional[Sequence[int]] = None,
         domain_mapping: Optional[
-            Sequence[Sequence[ShapesAvailableDomains]]] = None,
+            Sequence[Sequence[ShapesAvailableDomains]]
+        ] = None,
         selected_indices: Optional[SequenceLike] = None,
         selected_domains: Optional[Sequence[ShapesAvailableDomains]] = None,
         pre_saved_latent_path: Optional[
-            Dict[ShapesAvailableDomains, str]] = None,
+            Dict[ShapesAvailableDomains, str]
+        ] = None,
         transform: Optional[
-            Mapping[ShapesAvailableDomains, Optional[
-                Callable[[Any], Any]]]] = None,
+            Mapping[ShapesAvailableDomains, Optional[Callable[[Any], Any]]]
+        ] = None,
         output_transform: Optional[
-            Callable[[SelectedDomainType], SelectedDomainType]] = None,
-        domain_loader_params: Optional[Dict[str, Any]] = None
+            Callable[[SelectedDomainType], SelectedDomainType]
+        ] = None,
+        domain_loader_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Args:
@@ -70,10 +82,14 @@ class SimpleShapesDataset(Dataset):
             AVAILABLE_DOMAINS.keys()
         )
         self.root_path = Path(path)
-        self.transforms: Optional[Mapping[
-            ShapesAvailableDomains, Optional[Callable[[Any], Any]]]] = {
-            domain: (transform[domain] if (
-                    transform is not None and domain in transform) else None)
+        self.transforms: Optional[
+            Mapping[ShapesAvailableDomains, Optional[Callable[[Any], Any]]]
+        ] = {
+            domain: (
+                transform[domain]
+                if (transform is not None and domain in transform)
+                else None
+            )
             for domain in AVAILABLE_DOMAINS.keys()
         }
         self.output_transform = output_transform
@@ -89,13 +105,15 @@ class SimpleShapesDataset(Dataset):
             self.labels = self.labels[selected_indices]
             self.ids = self.ids[selected_indices]
 
-        self.selected_indices = (selected_indices
-                                 if selected_indices is not None
-                                 else np.arange(len(self.labels)))
+        self.selected_indices = (
+            selected_indices
+            if selected_indices is not None
+            else np.arange(len(self.labels))
+        )
 
         self.mapping: np.ndarray = np.array(mapping or self.ids)
         self.available_domains_mapping = domain_mapping or (
-                [list(self.selected_domains)] * self.mapping.shape[0]
+            [list(self.selected_domains)] * self.mapping.shape[0]
         )
 
         if domain_loader_params is None:
@@ -107,27 +125,27 @@ class SimpleShapesDataset(Dataset):
         self._domain_loader_params = domain_loader_params
         self.domain_loaders: Dict[ShapesAvailableDomains, DomainLoaderType] = {
             domain: AVAILABLE_DOMAINS[domain](
-                self.root_path, self.split, self.ids, self.labels,
+                self.root_path,
+                self.split,
+                self.ids,
+                self.labels,
                 self.transforms,  # type: ignore
-                **self._domain_loader_params[domain]
+                **self._domain_loader_params[domain],
             )
             for domain in self.selected_domains
         }
 
         self.pre_saved_latent_path = pre_saved_latent_path
         self.pre_saved_data: Dict[
-            ShapesAvailableDomains, List[np.ndarray]] = {}
+            ShapesAvailableDomains, List[np.ndarray]
+        ] = {}
         if pre_saved_latent_path is not None:
             self.use_pre_saved_latents(pre_saved_latent_path)
 
     def subset(self, idx: Sequence[int]) -> "SimpleShapesDataset":
         mapping = [self.mapping[k] for k in idx]
-        domain_mapping = [
-            self.available_domains_mapping[k] for k in idx
-        ]
-        selected_idx = [
-            k for k in idx if k in self.selected_indices
-        ]
+        domain_mapping = [self.available_domains_mapping[k] for k in idx]
+        selected_idx = [k for k in idx if k in self.selected_indices]
 
         return SimpleShapesDataset(
             self.root_path,
@@ -139,23 +157,24 @@ class SimpleShapesDataset(Dataset):
             self.pre_saved_latent_path,
             self.transforms,
             self.output_transform,
-            self._domain_loader_params
+            self._domain_loader_params,
         )
 
     def use_pre_saved_latents(
-        self,
-        pre_saved_latent_path: Dict[ShapesAvailableDomains, str]
+        self, pre_saved_latent_path: Dict[ShapesAvailableDomains, str]
     ) -> None:
         for domain_key in self.selected_domains:
             if domain_key in pre_saved_latent_path.keys():
                 self.pre_saved_data[domain_key] = load_pre_saved_latent(
-                    self.root_path, self.split,
+                    self.root_path,
+                    self.split,
                     cast(Dict[AvailableDomains, str], pre_saved_latent_path),
-                    domain_key, self.ids
+                    domain_key,
+                    self.ids,
                 )
                 self.domain_loaders[domain_key] = PreSavedLatentLoader(
                     self.pre_saved_data[domain_key],
-                    domain_item_name_mapping[domain_key]
+                    domain_item_name_mapping[domain_key],
                 )
 
     def __len__(self) -> int:

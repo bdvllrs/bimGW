@@ -5,12 +5,7 @@ from torch import nn
 def get_n_layers(n_layers, hidden_size):
     layers = []
     for k in range(n_layers):
-        layers.extend(
-            [
-                nn.Linear(hidden_size, hidden_size),
-                nn.ReLU()
-            ]
-        )
+        layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
     return layers
 
 
@@ -18,7 +13,10 @@ class DomainDecoder(torch.nn.Module):
     def __init__(
         self,
         domain_specs,
-        in_dim, hidden_size, n_layers, n_layers_head,
+        in_dim,
+        hidden_size,
+        n_layers,
+        n_layers_head,
     ):
         super(DomainDecoder, self).__init__()
         self.in_dim = in_dim
@@ -32,8 +30,7 @@ class DomainDecoder(torch.nn.Module):
 
         if activation_fn is None:
             activation_fn = {
-                key: activation_fn
-                for key in self.item_keys_order
+                key: activation_fn for key in self.item_keys_order
             }
 
         if len(out_dims) != len(activation_fn):
@@ -48,7 +45,7 @@ class DomainDecoder(torch.nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden_size),
             nn.ReLU(),
-            *get_n_layers(n_layers, self.hidden_size)
+            *get_n_layers(n_layers, self.hidden_size),
         )
 
         self.encoder_head = nn.ModuleDict(
@@ -75,10 +72,7 @@ class DomainDecoder(torch.nn.Module):
 
 
 class DomainEncoder(nn.Module):
-    def __init__(
-        self, domain_specs,
-        hidden_size, out_dim, n_layers
-    ):
+    def __init__(self, domain_specs, hidden_size, out_dim, n_layers):
         super(DomainEncoder, self).__init__()
         self.in_dims = domain_specs.output_dims
         self.out_dim = out_dim
@@ -91,7 +85,7 @@ class DomainEncoder(nn.Module):
             nn.Linear(sum(self.in_dims.values()), self.hidden_size),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_size),
-            nn.Linear(self.hidden_size, self.out_dim)
+            nn.Linear(self.hidden_size, self.out_dim),
         )
 
     def forward(self, x):

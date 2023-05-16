@@ -29,5 +29,5 @@ loss_functions = {
     "cosine": lambda x, y: -F.cosine_similarity(x, y),
     "mse": F.mse_loss,
     "cross_entropy": cross_entropy,
-    "nll": nll_loss
+    "nll": nll_loss,
 }

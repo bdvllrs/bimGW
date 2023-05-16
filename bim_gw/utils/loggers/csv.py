@@ -11,9 +11,14 @@ from bim_gw.utils.loggers.utils import ImageType, text_from_table, to_pil_image
 
 class CSVLogger(CSVLoggerBase):
     def __init__(
-        self, *params, save_images=True, save_last_images=True,
-        image_location="images", text_location="texts",
-        source_location="sources", **kwargs
+        self,
+        *params,
+        save_images=True,
+        save_last_images=True,
+        image_location="images",
+        text_location="texts",
+        source_location="sources",
+        **kwargs,
     ):
         super(CSVLogger, self).__init__(*params, **kwargs)
         self._image_location = image_location
@@ -52,14 +57,15 @@ class CSVLogger(CSVLoggerBase):
                 self._image_last_step[log_name] += 1
             path = os.path.join(
                 self.log_dir,
-                f"{self._image_location}/{log_name}/{log_name}_step={step}.png"
+                f"{self._image_location}/{log_name}/"
+                f"{log_name}_step={step}.png",
             )
             os.makedirs(os.path.dirname(path), exist_ok=True)
             image = to_pil_image(image)
             self._images.append((path, image))
             path = os.path.join(
                 self.log_dir,
-                f"{self._image_location}/{log_name}/{log_name}_step=last.png"
+                f"{self._image_location}/{log_name}/{log_name}_step=last.png",
             )
             self._images.append((path, image))
 
@@ -84,8 +90,11 @@ class CSVLogger(CSVLoggerBase):
 
     @rank_zero_only
     def log_table(
-        self, log_name: str, columns: List[str], data: List[List[str]],
-        step: Optional[int] = None
+        self,
+        log_name: str,
+        columns: List[str],
+        data: List[List[str]],
+        step: Optional[int] = None,
     ):
         self.log_text(log_name, text_from_table(columns, data), step)
 
@@ -104,17 +113,15 @@ class CSVLogger(CSVLoggerBase):
 
 def get_csv_logger(name, version, log_args, model, conf, tags, source_files):
     args = OmegaConf.to_container(log_args.args, resolve=True)
-    args['name'] = name
-    args['version'] = version
-    args['save_images'] = log_args.save_images
-    args['save_last_images'] = log_args.save_last_images
-    logger = CSVLogger(
-        **args
-    )
+    args["name"] = name
+    args["version"] = version
+    args["save_images"] = log_args.save_images
+    args["save_last_images"] = log_args.save_last_images
+    logger = CSVLogger(**args)
     logger.experiment.log_hparams(
         {
             "parameters": OmegaConf.to_container(conf, resolve=True),
-            "tags": tags
+            "tags": tags,
         }
     )
     # TODO: add source_files

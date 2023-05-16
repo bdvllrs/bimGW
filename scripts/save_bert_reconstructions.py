@@ -11,17 +11,18 @@ from bim_gw.modules.gw import split_domains_available_domains
 from bim_gw.utils import get_args
 from bim_gw.utils.scripts import get_domains
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
 
-    assert args.global_workspace.load_pre_saved_latents is not None, \
-        "Pre-saved latent path should be defined."
+    assert (
+        args.global_workspace.load_pre_saved_latents is not None
+    ), "Pre-saved latent path should be defined."
 
     args.seed = 0
     bert_latents = args.domain_loader.t.bert_latents
     args.domain_loader.t.bert_latents = None
     args.global_workspace.use_pre_saved = False
-    args.global_workspace.prop_labelled_images = 1.
+    args.global_workspace.prop_labelled_images = 1.0
     args.global_workspace.split_ood = False
     args.global_workspace.sync_uses_whole_dataset = True
 
@@ -35,7 +36,8 @@ if __name__ == '__main__':
 
     global_workspace = GlobalWorkspace.load_from_checkpoint(
         args.checkpoint,
-        domain_mods=get_domains(args, data.img_size), strict=False
+        domain_mods=get_domains(args, data.img_size),
+        strict=False,
     )
     global_workspace.eval()
 
@@ -45,15 +47,15 @@ if __name__ == '__main__':
     data_loaders = [
         ("train", data.train_dataloader(shuffle=False)),
         ("val", data.val_dataloader()[0]),  # only keep in dist dataloaders
-        ("test", data.test_dataloader()[0])
+        ("test", data.test_dataloader()[0]),
     ]
     path = Path(path)
     for name, data_loader in data_loaders:
         all_latents = []
         print(f"Fetching {name} data.")
         for idx, (batch) in tqdm(
-                enumerate(data_loader),
-                total=int(len(data_loader.dataset) / data_loader.batch_size)
+            enumerate(data_loader),
+            total=int(len(data_loader.dataset) / data_loader.batch_size),
         ):
             available_domains, domains = split_domains_available_domains(batch)
             latents = global_workspace.domains.encode(domains)
@@ -66,5 +68,5 @@ if __name__ == '__main__':
 
         np.save(
             str(path / f"{name}_predicted_{bert_latents}"),
-            np.concatenate(all_latents, axis=0)
+            np.concatenate(all_latents, axis=0),
         )

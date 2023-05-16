@@ -9,9 +9,7 @@ from bim_gw.modules.domain_modules.domain_module import DomainSpecs
 
 
 class DomainInterface(nn.Module):
-    def __init__(
-        self, domain_mods: Dict[str, DomainModule]
-    ):
+    def __init__(self, domain_mods: Dict[str, DomainModule]):
         super(DomainInterface, self).__init__()
 
         self._domain_modules = nn.ModuleDict(domain_mods)
@@ -34,9 +32,7 @@ class DomainInterface(nn.Module):
         for domain_name, x in domains.items():
             out[domain_name] = DomainItems(
                 x.available_masks,
-                **self._domain_modules[domain_name].encode(
-                    x.sub_parts
-                )
+                **self._domain_modules[domain_name].encode(x.sub_parts)
             )
         return out
 
@@ -50,9 +46,7 @@ class DomainInterface(nn.Module):
         for domain_name, x in domains.items():
             out[domain_name] = DomainItems(
                 x.available_masks,
-                **self._domain_modules[domain_name].decode(
-                    x.sub_parts
-                )
+                **self._domain_modules[domain_name].decode(x.sub_parts)
             )
         return out
 

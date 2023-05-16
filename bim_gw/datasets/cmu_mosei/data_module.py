@@ -9,8 +9,13 @@ from bim_gw.datasets.cmu_mosei.dataset import CMUMOSEIDataset
 
 class CMUMOSEIDataModule(LightningDataModule):
     def __init__(
-        self, root_path, batch_size, num_workers, selected_domains,
-        validate_cmu=True, seq_length=50
+        self,
+        root_path,
+        batch_size,
+        num_workers,
+        selected_domains,
+        validate_cmu=True,
+        seq_length=50,
     ):
         super(CMUMOSEIDataModule, self).__init__()
 
@@ -25,15 +30,17 @@ class CMUMOSEIDataModule(LightningDataModule):
         self.seq_length = seq_length
 
     def setup(self, stage=None):
-        folds = [mmdatasdk.cmu_mosei.standard_folds.standard_train_fold,
-                 mmdatasdk.cmu_mosei.standard_folds.standard_valid_fold,
-                 mmdatasdk.cmu_mosei.standard_folds.standard_test_fold]
+        folds = [
+            mmdatasdk.cmu_mosei.standard_folds.standard_train_fold,
+            mmdatasdk.cmu_mosei.standard_folds.standard_valid_fold,
+            mmdatasdk.cmu_mosei.standard_folds.standard_test_fold,
+        ]
 
         data_folds = self.cmu_dataset.get_tensors(
             seq_len=self.seq_length,
             non_sequences=["All Labels"],
             direction=False,
-            folds=folds
+            folds=folds,
         )
         self.train_set = CMUMOSEIDataset(
             data_folds[0], "train", self.selected_domains, None
@@ -51,7 +58,7 @@ class CMUMOSEIDataModule(LightningDataModule):
             shuffle=True,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
         )
 
     def val_dataloader(self):
@@ -59,7 +66,7 @@ class CMUMOSEIDataModule(LightningDataModule):
             self.val_set,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
         )
 
     def test_dataloader(self):
@@ -67,5 +74,5 @@ class CMUMOSEIDataModule(LightningDataModule):
             self.test_set,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
         )

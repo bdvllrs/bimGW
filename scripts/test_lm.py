@@ -14,7 +14,7 @@ if __name__ == "__main__":
     seed_everything(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    args.lm.prop_labelled_images = 1.
+    args.lm.prop_labelled_images = 1.0
 
     args.lm.split_ood = False
     args.lm.selected_domains = OmegaConf.create(["attr", "t"])
@@ -26,9 +26,10 @@ if __name__ == "__main__":
     data.setup(stage="fit")
 
     lm = ShapesLM.load_from_checkpoint(
-        args.checkpoint, strict=False,
+        args.checkpoint,
+        strict=False,
         bert_path=args.global_workspace.bert_path,
-        validation_domain_examples=data.domain_examples
+        validation_domain_examples=data.domain_examples,
     )
     lm.eval()
     lm.freeze()
@@ -57,7 +58,7 @@ if __name__ == "__main__":
         "side, slightly left and is pointing to the left top-left corner.",
         "A medium four-sided shape in medium red color.",
         "The image represents an egg shape. It is in the upper side, "
-        "slightly left."
+        "slightly left.",
     ]
 
     # sentences = [
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 
     sentences += ["" for k in range(32 - len(sentences))]
 
-    tokens = tokenizer(sentences, return_tensors='pt', padding=True).to(device)
+    tokens = tokenizer(sentences, return_tensors="pt", padding=True).to(device)
     x = transformer(**tokens)["last_hidden_state"][:, 0]
     # print(torch.cdist(x, x))
 

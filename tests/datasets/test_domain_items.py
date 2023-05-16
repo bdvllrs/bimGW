@@ -12,9 +12,8 @@ def test_collate_domain_items():
         DomainItems.singular(
             attr1=torch.randn(3),
             attr2=torch.randn(8),
-            is_available=random.randint(0, 1)
+            is_available=random.randint(0, 1),
         )
-
         for _ in range(batch_size)
     ]
 
@@ -28,12 +27,12 @@ def test_collate_domain_items():
     assert len(list(collated_items.items())) == 2
     assert "attr1" in collated_items.keys()
     assert "attr2" in collated_items.keys()
-    assert collated_items['attr1'].ndim == 2
-    assert collated_items['attr1'].size(0) == batch_size
-    assert collated_items['attr1'].size(1) == 3
-    assert collated_items['attr2'].ndim == 2
-    assert collated_items['attr2'].size(0) == batch_size
-    assert collated_items['attr2'].size(1) == 8
+    assert collated_items["attr1"].ndim == 2
+    assert collated_items["attr1"].size(0) == batch_size
+    assert collated_items["attr1"].size(1) == 3
+    assert collated_items["attr2"].ndim == 2
+    assert collated_items["attr2"].size(0) == batch_size
+    assert collated_items["attr2"].size(1) == 8
 
 
 def test_collate_fn():
@@ -44,11 +43,10 @@ def test_collate_fn():
             "d1": DomainItems.singular(
                 attr1=torch.randn(3),
                 attr2=torch.randn(8),
-                is_available=random.randint(0, 1)
+                is_available=random.randint(0, 1),
             ),
             "d2": DomainItems.singular(
-                attr3=torch.randn(5),
-                is_available=random.randint(0, 1)
+                attr3=torch.randn(5), is_available=random.randint(0, 1)
             ),
         }
         for _ in range(batch_size)

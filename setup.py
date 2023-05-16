@@ -25,9 +25,7 @@ def get_version():
     )
     if version_match:
         return version_match.group(1)
-    raise RuntimeError(
-        "Unable to find version string."
-    )
+    raise RuntimeError("Unable to find version string.")
 
 
 extras_require = {
@@ -36,11 +34,11 @@ extras_require = {
 }
 extras_require["all"] = list(set(sum(extras_require.values(), [])))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup(
-        name='bim_gw',
+        name="bim_gw",
         version=get_version(),
         install_requires=get_requirements(),
         packages=find_packages(),
-        extras_require=extras_require
+        extras_require=extras_require,
     )

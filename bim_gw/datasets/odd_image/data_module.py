@@ -8,16 +8,16 @@ from torch.utils.data.dataloader import default_collate
 
 from bim_gw.datasets.domain import domain_collate_fn
 from bim_gw.datasets.odd_image.dataset import OddImageDataset
-from bim_gw.modules.domain_modules.simple_shapes.attributes import SimpleShapesAttributes
+from bim_gw.modules.domain_modules.simple_shapes.attributes import (
+    SimpleShapesAttributes,
+)
 from bim_gw.modules.domain_modules.simple_shapes.text import SimpleShapesText
 from bim_gw.modules.domain_modules.vae import VAE
 from bim_gw.utils import registries
 from bim_gw.utils.utils import get_checkpoint_path
 
 
-def collate_fn(
-    batch: Iterable[Mapping[str, Any]]
-) -> Dict[str, Any]:
+def collate_fn(batch: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     items: Dict[str, Any] = dict()
     for item in batch:
         for domain_name, domain_item in item.items():
@@ -36,8 +36,10 @@ def collate_fn(
     for domain_name in items.keys():
         if isinstance(items[domain_name], tuple):
             out_batch[domain_name] = tuple(
-                [domain_collate_fn(items[domain_name][k])
-                 for k in range(len(items[domain_name]))]
+                [
+                    domain_collate_fn(items[domain_name][k])
+                    for k in range(len(items[domain_name]))
+                ]
             )
         else:
             out_batch[domain_name] = default_collate(items[domain_name])
@@ -47,8 +49,7 @@ def collate_fn(
 @registries.register_domain("v")
 def load_v_domain(args, im_size=None):
     return VAE.load_from_checkpoint(
-        get_checkpoint_path(args.global_workspace.vae_checkpoint),
-        strict=False
+        get_checkpoint_path(args.global_workspace.vae_checkpoint), strict=False
     )
 
 
@@ -70,8 +71,13 @@ def load_t_domain(args, img_size=None):
 
 class OddImageDataModule(LightningDataModule):
     def __init__(
-        self, root_path, pre_saved_latent_path, batch_size, num_workers,
-        selected_domains, bert_latent
+        self,
+        root_path,
+        pre_saved_latent_path,
+        batch_size,
+        num_workers,
+        selected_domains,
+        bert_latent,
     ):
         super(OddImageDataModule, self).__init__()
 
@@ -90,19 +96,25 @@ class OddImageDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         self.train_set = OddImageDataset(
-            self.root_path, "train", self.pre_saved_latent_path,
+            self.root_path,
+            "train",
+            self.pre_saved_latent_path,
             self.selected_domains,
-            self.bert_latent
+            self.bert_latent,
         )
         self.val_set = OddImageDataset(
-            self.root_path, "val", self.pre_saved_latent_path,
+            self.root_path,
+            "val",
+            self.pre_saved_latent_path,
             self.selected_domains,
-            self.bert_latent
+            self.bert_latent,
         )
         self.test_set = OddImageDataset(
-            self.root_path, "test", self.pre_saved_latent_path,
+            self.root_path,
+            "test",
+            self.pre_saved_latent_path,
             self.selected_domains,
-            self.bert_latent
+            self.bert_latent,
         )
 
     def train_dataloader(self):
@@ -112,7 +124,7 @@ class OddImageDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
         )
 
     def val_dataloader(self):
@@ -121,7 +133,7 @@ class OddImageDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
         )
 
     def test_dataloader(self):
@@ -130,7 +142,7 @@ class OddImageDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
         )
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx=None):

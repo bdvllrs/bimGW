@@ -6,8 +6,9 @@ import torchvision
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 from PIL import Image
-from pytorch_lightning.loggers import \
-    TensorBoardLogger as TensorBoardLoggerBase
+from pytorch_lightning.loggers import (
+    TensorBoardLogger as TensorBoardLoggerBase,
+)
 from pytorch_lightning.utilities import rank_zero_only
 
 from bim_gw.utils.loggers.utils import ImageType, text_from_table
@@ -57,8 +58,11 @@ class TensorBoardLogger(TensorBoardLoggerBase):
 
     @rank_zero_only
     def log_table(
-        self, log_name: str, columns: List[str], data: List[List[str]],
-        step: Optional[int] = None
+        self,
+        log_name: str,
+        columns: List[str],
+        data: List[List[str]],
+        step: Optional[int] = None,
     ):
         self.log_text(log_name, text_from_table(columns, data), step)
 
@@ -67,13 +71,11 @@ def get_tensor_board_logger(
     name, version, log_args, model, conf, tags, source_files
 ):
     args = OmegaConf.to_container(log_args.args, resolve=True)
-    args['name'] = name
-    args['version'] = version
-    args['save_images'] = log_args.save_images
-    args['save_last_images'] = log_args.save_last_images
-    logger = TensorBoardLogger(
-        **args
-    )
+    args["name"] = name
+    args["version"] = version
+    args["save_images"] = log_args.save_images
+    args["save_last_images"] = log_args.save_last_images
+    logger = TensorBoardLogger(**args)
     hparams = {"parameters": OmegaConf.to_container(conf, resolve=True)}
     if tags is not None:
         hparams["tags"] = tags

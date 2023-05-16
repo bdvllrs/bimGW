@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from omegaconf import OmegaConf
 from ruamel.yaml import YAML
 
-yaml = YAML(typ='safe')
+yaml = YAML(typ="safe")
 
 
 def _get_real_field(fields, name):
@@ -108,10 +108,7 @@ def _is_field_flag(field):
 
 
 def _is_dataclass(structure):
-    return (
-            dataclasses.is_dataclass(structure)
-            and isinstance(structure, type)
-    )
+    return dataclasses.is_dataclass(structure) and isinstance(structure, type)
 
 
 def _get_fields(structure):
@@ -188,9 +185,9 @@ def parse_argv_from_dataclass(
 
         # Last key was a flag
         if (
-                is_arg_valid_key
-                and last_field is not None
-                and _is_field_flag(last_field)
+            is_arg_valid_key
+            and last_field is not None
+            and _is_field_flag(last_field)
         ):
             dotlist.append(f"{last_key}=True")
             last_key, last_field = None, None
@@ -209,8 +206,7 @@ def parse_argv_from_dataclass(
         raise ValueError("Invalid key: " + arg)
 
     # Last key was a flag
-    if (last_field is not None
-            and _is_field_flag(last_field)):
+    if last_field is not None and _is_field_flag(last_field):
         dotlist.append(f"{last_key}=True")
     elif last_key is not None:
         raise ValueError("Invalid key: " + last_key)

@@ -42,7 +42,7 @@ class StructuredConfig:
     param11: Optional[bool] = None
     param12: NestedConfigRenamed = field(
         default_factory=NestedConfigRenamed,
-        metadata={"cli_names": ["--param12"]}
+        metadata={"cli_names": ["--param12"]},
     )
     param13: Dict[str, Any] = field(default_factory=dict)
     param14: Dict[str, str] = field(default_factory=dict)
@@ -51,56 +51,43 @@ class StructuredConfig:
 
 def test_parse_argv_from_structure():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param1=2", "param2=True"]
+        StructuredConfig, ["param1=2", "param2=True"]
     )
     assert dotlist == ["param1=2", "param2=True"]
 
 
 def test_parse_argv_from_structure_with_flag():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param2", "param1=2"]
+        StructuredConfig, ["param2", "param1=2"]
     )
     assert dotlist == ["param2=True", "param1=2"]
 
 
 def test_parse_argv_from_structure_with_flag_last():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param2"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param2"])
     assert dotlist == ["param2=True"]
 
 
 def test_parse_argv_from_structure_with_flag_last_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param1"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param1"])
 
 
 def test_parse_argv_from_structure_with_flag_optional():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param11"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param11"])
     assert dotlist == ["param11=True"]
 
 
 def test_parse_argv_from_structure_with_complex_type():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param4={param4_1: {}}"]
+        StructuredConfig, ["param4={param4_1: {}}"]
     )
     assert dotlist == ["param4={param4_1: {}}"]
 
 
 def test_parse_argv_from_structure_with_complex_type_list():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param6=[{param4_1: {}}]"]
+        StructuredConfig, ["param6=[{param4_1: {}}]"]
     )
     assert dotlist == ["param6=[{param4_1: {}}]"]
 
@@ -108,150 +95,105 @@ def test_parse_argv_from_structure_with_complex_type_list():
 def test_parse_argv_from_structure_with_complex_type_list_fail():
     with pytest.raises(ValueError):
         parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param6=[{param4_1: nok}]"]
+            StructuredConfig, ["param6=[{param4_1: nok}]"]
         )
 
 
 def test_parse_argv_from_structure_with_dot_notation():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param4.param4_1={}"]
+        StructuredConfig, ["param4.param4_1={}"]
     )
     assert dotlist == ["param4.param4_1={}"]
 
 
 def test_parse_argv_from_structure_with_dot_notation_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param4.param4_1=nok"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param4.param4_1=nok"])
 
 
 def test_parse_argv_from_structure_wrong_type():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param1='ok'"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param1='ok'"])
 
 
 def test_parse_argv_from_structure_wrong_type_complex_type():
     with pytest.raises(ValueError):
         parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param4={param4_1: 'ok'}"]
+            StructuredConfig, ["param4={param4_1: 'ok'}"]
         )
 
 
 def test_parse_argv_from_structure_with_metadata():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["--param5", "ok"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["--param5", "ok"])
     assert dotlist == ["param5=ok"]
 
 
 def test_parse_argv_from_structure_with_metadata_nested():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["--param12.--param12_1", "ok"]
+        StructuredConfig, ["--param12.--param12_1", "ok"]
     )
     assert dotlist == ["param12.param12_1=ok"]
 
 
 def test_parse_argv_from_structure_with_optional():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param8=1"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param8=1"])
     assert dotlist == ["param8=1"]
 
 
 def test_parse_argv_from_structure_with_optional_null():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param8=null"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param8=null"])
     assert dotlist == ["param8=null"]
 
 
 def test_parse_argv_from_structure_with_optional_null_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param8=nok"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param8=nok"])
 
 
 def test_parse_argv_from_structure_with_union_type_1():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param9=0.3"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param9=0.3"])
     assert dotlist == ["param9=0.3"]
 
 
 def test_parse_argv_from_structure_with_union_type_2():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param9=3"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param9=3"])
     assert dotlist == ["param9=3"]
 
 
 def test_parse_argv_from_structure_with_union_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param9=nok"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param9=nok"])
 
 
 def test_parse_argv_from_structure_with_enum():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param10=val1"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param10=val1"])
     assert dotlist == ["param10=val1"]
 
 
 def test_parse_argv_from_structure_with_enum_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param10=val4"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param10=val4"])
 
 
 def test_parse_argv_from_structure_with_dict_value_any_type():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param13.a='ok'", "param13.b=1", "param13.c.a=2"]
+        StructuredConfig, ["param13.a='ok'", "param13.b=1", "param13.c.a=2"]
     )
     assert dotlist == ["param13.a='ok'", "param13.b=1", "param13.c.a=2"]
 
 
 def test_parse_argv_from_structure_with_dict_value_str_type():
-    dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param14.a='ok'"]
-    )
+    dotlist = parse_argv_from_dataclass(StructuredConfig, ["param14.a='ok'"])
     assert dotlist == ["param14.a='ok'"]
 
 
 def test_parse_argv_from_structure_with_dict_value_str_type_fail():
     with pytest.raises(ValueError):
-        parse_argv_from_dataclass(
-            StructuredConfig,
-            ["param14.a.b='ok'"]
-        )
+        parse_argv_from_dataclass(StructuredConfig, ["param14.a.b='ok'"])
 
 
 def test_parse_argv_from_structure_with_list():
     dotlist = parse_argv_from_dataclass(
-        StructuredConfig,
-        ["param15=['v','t']"]
+        StructuredConfig, ["param15=['v','t']"]
     )
     assert dotlist == ["param15=['v','t']"]

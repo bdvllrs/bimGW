@@ -13,9 +13,7 @@ def grid_search_exclusion_from_past_search(dotlist):
         for key, value in cfg.items():
             if OmegaConf.is_dict(value):
                 result.update(
-                    walk_omegaconf(
-                        value, idx, prefix=f"{prefix}{key}."
-                    )
+                    walk_omegaconf(value, idx, prefix=f"{prefix}{key}.")
                 )
             else:
                 result[f"{prefix}{key}"] = value[idx]
@@ -53,8 +51,12 @@ def main(args, cli_args):
     if args.slurm.grid_search is not None:
         extra_args = OmegaConf.unsafe_merge(
             OmegaConf.from_dotlist(
-                [f"{arg}={OmegaConf.select(args, arg, throw_on_missing=True)}"
-                 for arg in args.slurm.grid_search]
+                [
+                    str(arg)
+                    + "="
+                    + str(OmegaConf.select(args, arg, throw_on_missing=True))
+                    for arg in args.slurm.grid_search
+                ]
             ),
             extra_args,
         )
@@ -64,14 +66,12 @@ def main(args, cli_args):
         )
 
     sbatch = SBatch(
-        args.slurm.slurm, extra_args,
+        args.slurm.slurm,
+        extra_args,
         grid_search=grid_search,
-        experiment_handler=handler
+        experiment_handler=handler,
     )
-    sbatch.run(
-        args.slurm.command,
-        schedule_all_tasks=True
-    )
+    sbatch.run(args.slurm.command, schedule_all_tasks=True)
 
 
 if __name__ == "__main__":
@@ -79,5 +79,5 @@ if __name__ == "__main__":
         get_args(
             debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
         ),
-        OmegaConf.from_cli()
+        OmegaConf.from_cli(),
     )

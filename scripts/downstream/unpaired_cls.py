@@ -19,11 +19,9 @@ if __name__ == "__main__":
     data.prepare_data()
     data.setup(stage="fit")
 
-    assert args.downstream.unpaired_cls.checkpoint is not None, "You must " \
-                                                                "provide a " \
-                                                                "checkpoint " \
-                                                                "for this " \
-                                                                "script."
+    assert args.downstream.unpaired_cls.checkpoint is not None, (
+        "You must " "provide a " "checkpoint " "for this " "script."
+    )
     checkpoint_path = get_checkpoint_path(
         args.downstream.unpaired_cls.checkpoint
     )
@@ -38,10 +36,10 @@ if __name__ == "__main__":
 
     args.losses.coefs = OmegaConf.create(
         {
-            "translation": global_workspace.hparams['loss_coef_translation'],
-            "cycles": global_workspace.hparams['loss_coef_cycles'],
-            "demi_cycles": global_workspace.hparams['loss_coef_demi_cycles'],
-            "contrastive": global_workspace.hparams['loss_coef_contrastive'],
+            "translation": global_workspace.hparams["loss_coef_translation"],
+            "cycles": global_workspace.hparams["loss_coef_cycles"],
+            "demi_cycles": global_workspace.hparams["loss_coef_demi_cycles"],
+            "contrastive": global_workspace.hparams["loss_coef_contrastive"],
         }
     )
 
@@ -50,11 +48,20 @@ if __name__ == "__main__":
     version = args.run_name
     if slurm_job_id is not None:
         tags = ["slurm"]
-    source_files = ['../**/*.py', '../README.md',
-                    '../requirements.txt', '../**/*.yaml']
+    source_files = [
+        "../**/*.py",
+        "../README.md",
+        "../requirements.txt",
+        "../**/*.yaml",
+    ]
     loggers = get_loggers(
-        "train_odd_image", version, args.loggers, global_workspace, args, tags,
-        source_files
+        "train_odd_image",
+        version,
+        args.loggers,
+        global_workspace,
+        args,
+        tags,
+        source_files,
     )
 
     trainer = Trainer(

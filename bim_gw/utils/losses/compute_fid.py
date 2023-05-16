@@ -5,8 +5,10 @@ import torch
 
 from bim_gw.utils.inception import InceptionV3
 from bim_gw.utils.losses.fid import (
-    calculate_frechet_distance, get_activations_from_generation,
-    get_activations_from_loader, output_mse
+    calculate_frechet_distance,
+    get_activations_from_generation,
+    get_activations_from_loader,
+    output_mse,
 )
 
 
@@ -24,7 +26,7 @@ def compute_dataset_statistics(
         device:
     """
     if not os.path.exists(
-            os.path.join(stats_path, f'inception_stats_{dataset_name}.npy')
+        os.path.join(stats_path, f"inception_stats_{dataset_name}.npy")
     ):
         block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[2048]
         activation_model = InceptionV3([block_idx])
@@ -35,21 +37,26 @@ def compute_dataset_statistics(
         )
 
         os.makedirs(stats_path, exist_ok=True)
-        print('Compute the FID statistics on the dataset', dataset_name)
+        print("Compute the FID statistics on the dataset", dataset_name)
 
         _, mu, sigma = get_activations_from_loader(
             loader, activation_model, device
         )
         np.save(
-            os.path.join(stats_path, f'inception_stats_{dataset_name}.npy'),
-            {'mu': mu, 'sigma': sigma}
+            os.path.join(stats_path, f"inception_stats_{dataset_name}.npy"),
+            {"mu": mu, "sigma": sigma},
         )
-    return os.path.join(stats_path, f'inception_stats_{dataset_name}.npy')
+    return os.path.join(stats_path, f"inception_stats_{dataset_name}.npy")
 
 
 def compute_FID(
-    stats_path, dataloader, model, z_size, input_size, device,
-    n_fid_samples=None
+    stats_path,
+    dataloader,
+    model,
+    z_size,
+    input_size,
+    device,
+    n_fid_samples=None,
 ):
     model.eval()
 
@@ -67,12 +74,11 @@ def compute_FID(
     # 'inception_train_statistics.npy')
 
     stat = np.load(stats_path, allow_pickle=True).item()
-    mu_dataset = stat['mu']
-    sigma_dataset = stat['sigma']
+    mu_dataset = stat["mu"]
+    sigma_dataset = stat["sigma"]
 
     _, mu_model, sigma_model = get_activations_from_generation(
-        model, inception_model, z_size, device,
-        n_fid_samples=n_fid_samples
+        model, inception_model, z_size, device, n_fid_samples=n_fid_samples
     )
 
     fid_value = calculate_frechet_distance(

@@ -12,49 +12,54 @@ from bim_gw.utils.cli import parse_args
 
 def should_keep_file(file_path: Path, args: DictConfig):
     return (
-            file_path.is_dir() and file_path.name.isdigit()
-            and (args.before is None
-                 or int(file_path.name) < args.before)
-            and (args.after is None
-                 or int(file_path.name) > args.after)
+        file_path.is_dir()
+        and file_path.name.isdigit()
+        and (args.before is None or int(file_path.name) < args.before)
+        and (args.after is None or int(file_path.name) > args.after)
     )
 
 
 @dataclass
 class CompressArgs:
     help: bool = field(
-        default=False, metadata={
+        default=False,
+        metadata={
             "cli_names": ["--help", "-h"],
-        }
+        },
     )
     before: Optional[int] = field(
-        default=None, metadata={
+        default=None,
+        metadata={
             "cli_names": ["--before"],
-        }
+        },
     )
     after: Optional[int] = field(
-        default=None, metadata={
+        default=None,
+        metadata={
             "cli_names": ["--after"],
-        }
+        },
     )
     name: Optional[str] = field(
-        default=None, metadata={
+        default=None,
+        metadata={
             "cli_names": ["-n", "--name"],
-        }
+        },
     )
     delete: bool = field(
-        default=False, metadata={
+        default=False,
+        metadata={
             "cli_names": ["-d", "--delete"],
-        }
+        },
     )
     dry_run: bool = field(
-        default=False, metadata={
+        default=False,
+        metadata={
             "cli_names": ["--dry-run"],
-        }
+        },
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args(CompressArgs)
 
     if args.help:

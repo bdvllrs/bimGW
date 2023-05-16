@@ -8,24 +8,20 @@ from pytorch_lightning import LightningDataModule
 
 from bim_gw.datasets.distribution_splits import (
     create_ood_split,
-    split_ood_sets
+    split_ood_sets,
 )
 from bim_gw.datasets.domain import collate_fn, DomainItems
 from bim_gw.datasets.simple_shapes.datasets import (
-    AVAILABLE_DOMAINS, SimpleShapesDataset
+    AVAILABLE_DOMAINS,
+    SimpleShapesDataset,
 )
 from bim_gw.datasets.simple_shapes.domain_loaders import ShapesAvailableDomains
-from bim_gw.datasets.simple_shapes.utils import (
-    get_v_preprocess
-)
-from bim_gw.datasets.utils import (
-    filter_sync_domains,
-    get_validation_examples
-)
+from bim_gw.datasets.simple_shapes.utils import get_v_preprocess
+from bim_gw.datasets.utils import filter_sync_domains, get_validation_examples
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
-    SimpleShapesText
+    SimpleShapesText,
 )
 from bim_gw.utils import registries
 from bim_gw.utils.types import DistLiteral, SplitLiteral
@@ -35,8 +31,7 @@ from bim_gw.utils.utils import get_checkpoint_path
 @registries.register_domain("v")
 def load_v_domain(args, im_size=None):
     return VAE.load_from_checkpoint(
-        get_checkpoint_path(args.global_workspace.vae_checkpoint),
-        strict=False
+        get_checkpoint_path(args.global_workspace.vae_checkpoint), strict=False
     )
 
 
@@ -61,15 +56,18 @@ class SimpleShapesDataModule(LightningDataModule):
         self,
         simple_shapes_folder: str,
         batch_size: int,
-        num_workers: int = 0, prop_labelled_images: float = 1.,
-        prop_available_images: float = 1.,
+        num_workers: int = 0,
+        prop_labelled_images: float = 1.0,
+        prop_available_images: float = 1.0,
         removed_sync_domains: Optional[
-            Sequence[Sequence[ShapesAvailableDomains]]] = None,
+            Sequence[Sequence[ShapesAvailableDomains]]
+        ] = None,
         n_validation_domain_examples: int = 32,
         split_ood: bool = True,
         selected_domains: Optional[Sequence[ShapesAvailableDomains]] = None,
         pre_saved_latent_paths: Optional[
-            Dict[ShapesAvailableDomains, str]] = None,
+            Dict[ShapesAvailableDomains, str]
+        ] = None,
         sync_uses_whole_dataset: bool = False,
         add_unimodal: bool = True,
         domain_loader_params: Optional[Dict[str, Any]] = None,
@@ -92,8 +90,14 @@ class SimpleShapesDataModule(LightningDataModule):
 
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
-        self.domain_examples: Optional[Mapping[SplitLiteral, Mapping[
-            DistLiteral, Mapping[ShapesAvailableDomains, DomainItems]]]] = None
+        self.domain_examples: Optional[
+            Mapping[
+                SplitLiteral,
+                Mapping[
+                    DistLiteral, Mapping[ShapesAvailableDomains, DomainItems]
+                ],
+            ]
+        ] = None
         self.ood_boundaries = None
         self.selected_domains = selected_domains or list(
             AVAILABLE_DOMAINS.keys()
@@ -107,9 +111,10 @@ class SimpleShapesDataModule(LightningDataModule):
             )
 
         ds = SimpleShapesDataset(
-            simple_shapes_folder, "val",
+            simple_shapes_folder,
+            "val",
             selected_domains=self.selected_domains,
-            domain_loader_params=self.domain_loader_params
+            domain_loader_params=self.domain_loader_params,
         )
         self.classes = ds.classes
         self.val_dataset_size = len(ds)
@@ -119,9 +124,11 @@ class SimpleShapesDataModule(LightningDataModule):
 
         self.train_set: Optional[SimpleShapesDataset] = None
         self.val_set: Optional[
-            Mapping[DistLiteral, SimpleShapesDataset]] = None
+            Mapping[DistLiteral, SimpleShapesDataset]
+        ] = None
         self.test_set: Optional[
-            Mapping[DistLiteral, SimpleShapesDataset]] = None
+            Mapping[DistLiteral, SimpleShapesDataset]
+        ] = None
         self.inception_stats_path_train = None
         self.inception_stats_path_val = None
         self.inception_stats_path_test = None
@@ -130,26 +137,26 @@ class SimpleShapesDataModule(LightningDataModule):
         logging.info("Setting up data module...")
         if stage in ["fit", "validate", "test"]:
             val_transforms: Mapping[
-                ShapesAvailableDomains, Callable[[Any], Any]] = {
-                ShapesAvailableDomains.v: get_v_preprocess()
-            }
+                ShapesAvailableDomains, Callable[[Any], Any]
+            ] = {ShapesAvailableDomains.v: get_v_preprocess()}
             train_transforms: Mapping[
-                ShapesAvailableDomains, Callable[[Any], Any]] = {
-                ShapesAvailableDomains.v: get_v_preprocess()
-            }
+                ShapesAvailableDomains, Callable[[Any], Any]
+            ] = {ShapesAvailableDomains.v: get_v_preprocess()}
             if self.sync_uses_whole_dataset:
                 sync_indices = np.arange(self.len_train_dataset)
             else:
                 sync_indices = np.arange(self.len_train_dataset // 2)
 
             val_set = SimpleShapesDataset(
-                self.simple_shapes_folder, "val",
+                self.simple_shapes_folder,
+                "val",
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
                 domain_loader_params=self.domain_loader_params,
             )
             test_set = SimpleShapesDataset(
-                self.simple_shapes_folder, "test",
+                self.simple_shapes_folder,
+                "test",
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
                 domain_loader_params=self.domain_loader_params,
@@ -159,7 +166,8 @@ class SimpleShapesDataModule(LightningDataModule):
 
             if stage == "fit":
                 train_set = SimpleShapesDataset(
-                    self.simple_shapes_folder, "train",
+                    self.simple_shapes_folder,
+                    "train",
                     selected_indices=sync_indices,
                     transform=train_transforms,
                     selected_domains=self.selected_domains,
@@ -174,17 +182,9 @@ class SimpleShapesDataModule(LightningDataModule):
                 )
                 self.ood_boundaries = ood_boundaries
 
-                logging.info(
-                    "Val set in dist size", len(
-                        id_ood_splits[0][0]
-                    )
-                )
+                logging.info("Val set in dist size", len(id_ood_splits[0][0]))
                 logging.info("Val set OOD size", len(id_ood_splits[0][1]))
-                logging.info(
-                    "Test set in dist size", len(
-                        id_ood_splits[1][0]
-                    )
-                )
+                logging.info("Test set in dist size", len(id_ood_splits[1][0]))
                 logging.info("Test set OOD size", len(id_ood_splits[1][1]))
 
             if stage == "fit":
@@ -203,11 +203,12 @@ class SimpleShapesDataModule(LightningDataModule):
 
                     domain_mapping = cast(
                         Optional[Sequence[Sequence[ShapesAvailableDomains]]],
-                        domain_mapping
+                        domain_mapping,
                     )
 
                     self.train_set = SimpleShapesDataset(
-                        self.simple_shapes_folder, "train",
+                        self.simple_shapes_folder,
+                        "train",
                         selected_indices=sync_indices,
                         mapping=mapping,
                         domain_mapping=domain_mapping,
@@ -223,21 +224,29 @@ class SimpleShapesDataModule(LightningDataModule):
             self.test_set = split_ood_sets(test_set, id_ood_splits)
 
             available_sets: Mapping[
-                SplitLiteral, Mapping[DistLiteral, SimpleShapesDataset]] = {
+                SplitLiteral, Mapping[DistLiteral, SimpleShapesDataset]
+            ] = {
                 "val": self.val_set,
                 "test": self.test_set,
-                **({"train": {"in_dist": self.train_set}}
-                   if stage == "fit" and self.train_set is not None else {})
+                **(
+                    {"train": {"in_dist": self.train_set}}
+                    if stage == "fit" and self.train_set is not None
+                    else {}
+                ),
             }
 
             self.domain_examples = cast(
-                Mapping[SplitLiteral, Mapping[
-                    DistLiteral, Mapping[
-                        ShapesAvailableDomains, DomainItems]]],
+                Mapping[
+                    SplitLiteral,
+                    Mapping[
+                        DistLiteral,
+                        Mapping[ShapesAvailableDomains, DomainItems],
+                    ],
+                ],
                 get_validation_examples(
                     available_sets,
                     self.n_domain_examples,
-                )
+                ),
             )
 
             # Use pre saved latents if provided.
@@ -261,7 +270,7 @@ class SimpleShapesDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
         )
 
     def get_val_test_dataloader(
@@ -269,16 +278,20 @@ class SimpleShapesDataModule(LightningDataModule):
     ) -> List[torch.utils.data.DataLoader]:
         dataloaders = [
             torch.utils.data.DataLoader(
-                dataset["in_dist"], self.batch_size,
-                num_workers=self.num_workers, pin_memory=True,
+                dataset["in_dist"],
+                self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
                 collate_fn=collate_fn,
             ),
         ]
         if dataset["ood"] is not None:
             dataloaders.append(
                 torch.utils.data.DataLoader(
-                    dataset["ood"], self.batch_size,
-                    num_workers=self.num_workers, pin_memory=True,
+                    dataset["ood"],
+                    self.batch_size,
+                    num_workers=self.num_workers,
+                    pin_memory=True,
                     collate_fn=collate_fn,
                 )
             )

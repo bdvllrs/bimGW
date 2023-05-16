@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 
 from bim_gw.utils import get_args
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = get_args(debug=int(os.getenv("DEBUG", 0)))
     shapes_path = Path(args.simple_shapes_path)
     domain_args = args.domain_loader
@@ -34,30 +34,31 @@ if __name__ == '__main__':
         np.save(
             str(
                 shapes_path / f"train_reduced_{k}_"
-                              f"{domain_args.t.bert_latents}"
-            ), bert_reduced_train
+                f"{domain_args.t.bert_latents}"
+            ),
+            bert_reduced_train,
         )
         np.save(
-            str(
-                shapes_path / f"val_reduced_{k}_{domain_args.t.bert_latents}"
-            ), bert_reduced_val
+            str(shapes_path / f"val_reduced_{k}_{domain_args.t.bert_latents}"),
+            bert_reduced_val,
         )
         np.save(
             str(
                 shapes_path / f"tes"
-                              f"t_reduced_{k}_{domain_args.t.bert_latents}"
-            ), bert_reduced_test
+                f"t_reduced_{k}_{domain_args.t.bert_latents}"
+            ),
+            bert_reduced_test,
         )
         mean = bert_reduced_train.mean(axis=0)
         std = bert_reduced_train.std(axis=0)
         np.save(
             str(
                 shapes_path / f"mean_reduced_{k}_"
-                              f"{domain_args.t.bert_latents}"
-            ), mean
+                f"{domain_args.t.bert_latents}"
+            ),
+            mean,
         )
         np.save(
-            str(
-                shapes_path / f"std_reduced_{k}_{domain_args.t.bert_latents}"
-            ), std
+            str(shapes_path / f"std_reduced_{k}_{domain_args.t.bert_latents}"),
+            std,
         )

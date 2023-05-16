@@ -4,7 +4,7 @@ import pytest
 
 from bim_gw.datasets.utils import (
     filter_sync_domains,
-    load_simple_shapes_dataset
+    load_simple_shapes_dataset,
 )
 from bim_gw.utils import get_args
 
@@ -19,15 +19,13 @@ def get_test_args():
         additional_config_files=[
             tests_folder / "configs/test_base.yaml",
             tests_folder / "configs/test_gw_with_text.yaml",
-        ]
+        ],
     )
 
 
 def get_datamodule(args):
     args.simple_shapes_path = str(dataset_dir.resolve())
-    return load_simple_shapes_dataset(
-        args, args.global_workspace
-    )
+    return load_simple_shapes_dataset(args, args.global_workspace)
 
 
 def compute_counts(domain_mapping):
@@ -103,8 +101,7 @@ def test_filter_sync_domains_nonzero_prop_labelled_images():
 
     n_train_examples = len(allowed_indices)
     n_sync_examples = int(
-        args.global_workspace.prop_labelled_images
-        * n_train_examples
+        args.global_workspace.prop_labelled_images * n_train_examples
     )
     expected_counts = {
         "v": n_train_examples,
@@ -145,8 +142,7 @@ def test_filter_sync_domains_nonzero_prop_available_images():
         args.global_workspace.prop_available_images * len(allowed_indices)
     )
     n_sync_examples = int(
-        args.global_workspace.prop_labelled_images
-        * len(allowed_indices)
+        args.global_workspace.prop_labelled_images * len(allowed_indices)
     )
     expected_counts = {
         "v": n_train_examples,

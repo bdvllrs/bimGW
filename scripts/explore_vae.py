@@ -14,11 +14,15 @@ from bim_gw.utils import get_args
 def explore_vae(args):
     seed_everything(args.seed)
 
-    device = torch.device('cuda')
+    device = torch.device("cuda")
 
-    vae = VAE.load_from_checkpoint(
-        args.global_workspace.vae_checkpoint, strict=False
-    ).to(device).eval()
+    vae = (
+        VAE.load_from_checkpoint(
+            args.global_workspace.vae_checkpoint, strict=False
+        )
+        .to(device)
+        .eval()
+    )
     vae.freeze()
 
     print("Z size", vae.z_size)
@@ -40,9 +44,13 @@ def explore_vae(args):
             # dim_i = 0
             # dim_j = 2
 
-            z = torch.randn(vae.z_size).unsqueeze(0).unsqueeze(0).expand(
-                n, n, -1
-            ).to(device)
+            z = (
+                torch.randn(vae.z_size)
+                .unsqueeze(0)
+                .unsqueeze(0)
+                .expand(n, n, -1)
+                .to(device)
+            )
             # z = torch.randn(n, n, vae.z_size).to(device)
             # z[:, :, 1] = 3
             for i in range(n):
@@ -57,7 +65,7 @@ def explore_vae(args):
             sampled_images = sampled_images - sampled_images.min()
             sampled_images = sampled_images / sampled_images.max()
             img_grid = torchvision.utils.make_grid(sampled_images, nrow=n)
-            img_grid = torchvision.transforms.ToPILImage(mode='RGB')(
+            img_grid = torchvision.transforms.ToPILImage(mode="RGB")(
                 img_grid.cpu()
             )
             ax.imshow(img_grid)

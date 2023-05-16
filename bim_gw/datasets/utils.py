@@ -1,7 +1,5 @@
 import logging
-from typing import (
-    Dict, List, Mapping, Optional, Sequence, Tuple
-)
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -29,18 +27,20 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
     if "selected_domains" in kwargs:
         del kwargs["selected_domains"]
     return SimpleShapesDataModule(
-        args.simple_shapes_path, local_args.batch_size,
+        args.simple_shapes_path,
+        local_args.batch_size,
         args.dataloader.num_workers,
-        local_args.get("prop_labelled_images", 1.),
-        local_args.get("prop_available_images", 1.),
+        local_args.get("prop_labelled_images", 1.0),
+        local_args.get("prop_available_images", 1.0),
         local_args.get("remove_sync_domains", None),
-        args.n_validation_examples, local_args.get("split_ood", False),
+        args.n_validation_examples,
+        local_args.get("split_ood", False),
         selected_domains,
         pre_saved_latent_paths,
         sync_uses_whole_dataset,
         domain_loader_params=args.domain_loader,
         len_train_dataset=args.datasets.shapes.n_train_examples,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -51,10 +51,12 @@ def load_cmu_mosei_dataset(args, local_args, **kwargs):
     # TODO: finish cmu_mosei. But how to handle sequences?
     print("Loading CMU MOSEI.")
     return CMUMOSEIDataModule(
-        args.cmu_mosei.path, local_args.batch_size,
+        args.cmu_mosei.path,
+        local_args.batch_size,
         args.dataloader.num_workers,
-        local_args.selected_domains, args.cmu_mosei.validate,
-        args.cmu_mosei.seq_length
+        local_args.selected_domains,
+        args.cmu_mosei.validate,
+        args.cmu_mosei.seq_length,
     )
 
 
@@ -84,9 +86,7 @@ def filter_sync_domains(
     logging.debug(f"Loaded {len(allowed_indices)} examples in train set.")
 
     prop_2_domains = prop_labelled_images / prop_available_images
-    original_size = int(
-        len(allowed_indices) * prop_available_images
-    )
+    original_size = int(len(allowed_indices) * prop_available_images)
 
     if prop_2_domains == 1 and prop_available_images == 1:
         return None, None
@@ -99,20 +99,19 @@ def filter_sync_domains(
     domain_mapping = []
     if prop_2_domains < 1:
         labelled_size = int(original_size * prop_2_domains)
-        n_repeats = ((len(domains) * original_size) // labelled_size +
-                     int(original_size % labelled_size > 0))
+        n_repeats = (len(domains) * original_size) // labelled_size + int(
+            original_size % labelled_size > 0
+        )
 
         domain_items = np.tile(sync_items, n_repeats)
         mapping.extend(domain_items)
-        domain_mapping.extend(
-            [domains] * len(domain_items)
-        )
+        domain_mapping.extend([domains] * len(domain_items))
 
     unsync_domain_items = permuted_indices
     if prop_available_images < 1:
-        n_unsync = int(
-            prop_available_images * len(allowed_indices)
-        ) - sync_split
+        n_unsync = (
+            int(prop_available_images * len(allowed_indices)) - sync_split
+        )
         unsync_items = rest[:n_unsync]
         unsync_domain_items = np.concatenate((unsync_items, sync_items))
     mapping.extend(unsync_domain_items)
@@ -124,7 +123,8 @@ def filter_sync_domains(
 
 
 DomainExamplesType = Mapping[
-    SplitLiteral, Mapping[DistLiteral, Mapping[AvailableDomains, DomainItems]]]
+    SplitLiteral, Mapping[DistLiteral, Mapping[AvailableDomains, DomainItems]]
+]
 
 
 def get_validation_examples(
@@ -133,21 +133,18 @@ def get_validation_examples(
 ) -> DomainExamplesType:
     reconstruction_indices = {
         split: {
-            dist: torch.randint(
-                len(dataset[dist]), size=(n_domain_examples,)
-            ),
+            dist: torch.randint(len(dataset[dist]), size=(n_domain_examples,)),
         }
         for split, dataset in datasets.items()
         for dist in dataset.keys()
         if dataset[dist] is not None
     }
 
-    domain_examples: Dict[SplitLiteral, Dict[DistLiteral, Dict[
-        AvailableDomains, DomainItems]]] = {}
+    domain_examples: Dict[
+        SplitLiteral, Dict[DistLiteral, Dict[AvailableDomains, DomainItems]]
+    ] = {}
 
-    all_sets = [
-        (split, dataset) for split, dataset in datasets.items()
-    ]
+    all_sets = [(split, dataset) for split, dataset in datasets.items()]
 
     for set_name, used_set in all_sets:
         domain_examples[set_name] = {}

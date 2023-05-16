@@ -18,13 +18,15 @@ def closest_item(ref, labels, keys):
 def far_item(ref1, ref2, labels, keys):
     dists = np.minimum(
         np.min(np.abs(labels - ref1), axis=1),
-        np.min(np.abs(labels - ref2), axis=1)
+        np.min(np.abs(labels - ref2), axis=1),
     )
     # dists += np.linalg.norm(labels[:, keys] - ref1[keys], axis=1) +
     # np.linalg.norm(labels[:, keys] - ref2[keys], axis=1)
     sorted_dists = np.argsort(-dists)
     # return sorted_dists[0]
-    return np.random.choice(sorted_dists[:sorted_dists.shape[0] // 1000], 1)[0]
+    return np.random.choice(sorted_dists[: sorted_dists.shape[0] // 1000], 1)[
+        0
+    ]
 
 
 def normalize_labels(labels):
@@ -34,15 +36,15 @@ def normalize_labels(labels):
 
 
 def get_img(path, split, idx):
-    with open(path / split / f"{idx}.png", 'rb') as f:
+    with open(path / split / f"{idx}.png", "rb") as f:
         img = Image.open(f)
-        img = img.convert('RGB')
+        img = img.convert("RGB")
     return img
 
 
 def frame_image(img, frame_width):
     img = ImageOps.crop(img, border=frame_width)
-    img_with_border = ImageOps.expand(img, border=frame_width, fill='red')
+    img_with_border = ImageOps.expand(img, border=frame_width, fill="red")
     return img_with_border
 
 
@@ -75,8 +77,12 @@ if __name__ == "__main__":
             order = np.random.permutation(3)
             idx = [i, closest_key, rd]
             dataset.append(
-                [idx[order[0]], idx[order[1]], idx[order[2]],
-                 np.where(order == 2)[0][0]]
+                [
+                    idx[order[0]],
+                    idx[order[1]],
+                    idx[order[2]],
+                    np.where(order == 2)[0][0],
+                ]
             )
             axes[i, order[0]].imshow(get_img(root_path, split, i))
             axes[i, order[1]].imshow(get_img(root_path, split, closest_key))
@@ -88,8 +94,8 @@ if __name__ == "__main__":
                 axes[i, k].set_xticks([])
                 axes[i, k].set_yticks([])
                 axes[i, k].grid(False)
-                axes[i, k].set_aspect('equal')
+                axes[i, k].set_aspect("equal")
         plt.tight_layout(pad=0)
-        plt.savefig('../data/example_odd_dataset.pdf')
+        plt.savefig("../data/example_odd_dataset.pdf")
         plt.show()
         # np.save(str(root_path / f"{split}_odd_image_labels.npy"), dataset)

@@ -30,19 +30,22 @@ class UnpairedClassifierAttributes(LightningModule):
             nn.ReLU(),
             nn.Linear(global_workspace.z_size, global_workspace.z_size // 2),
             nn.ReLU(),
-            nn.Linear(global_workspace.z_size // 2, 1)
+            nn.Linear(global_workspace.z_size // 2, 1),
         )
 
     def step(self, batch, mode="train"):
         available_domains, domains = split_domains_available_domains(batch)
         latents = self.global_workspace.domains.encode(domains)
-        state = self.global_workspace.project(latents, keep_domains=['attr'])
+        state = self.global_workspace.project(latents, keep_domains=["attr"])
         prediction = self.regressor(state)
-        loss = F.mse_loss(prediction, latents['attr'][1][:, -1].unsqueeze(-1))
-        bs = available_domains['attr'].shape[0]
+        loss = F.mse_loss(prediction, latents["attr"][1][:, -1].unsqueeze(-1))
+        bs = available_domains["attr"].shape[0]
         self.log(
-            f"{mode}/loss", loss, logger=True, on_epoch=(mode != "train"),
-            batch_size=bs
+            f"{mode}/loss",
+            loss,
+            logger=True,
+            on_epoch=(mode != "train"),
+            batch_size=bs,
         )
         return loss
 
@@ -57,6 +60,7 @@ class UnpairedClassifierAttributes(LightningModule):
     def configure_optimizers(self):
         params = [p for p in self.parameters() if p.requires_grad]
         return torch.optim.Adam(
-            params, lr=self.hparams.optimizer_lr,
-            weight_decay=self.hparams.optimizer_weight_decay
+            params,
+            lr=self.hparams.optimizer_lr,
+            weight_decay=self.hparams.optimizer_weight_decay,
         )

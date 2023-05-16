@@ -11,6 +11,7 @@ ImageType = Union[torch.Tensor, plt.Figure, Image.Image]
 def fig2img(fig):
     """Convert a Matplotlib figure to a PIL Image and return it"""
     import io
+
     buf = io.BytesIO()
     fig.savefig(buf)
     buf.seek(0)
@@ -20,7 +21,7 @@ def fig2img(fig):
 
 def to_pil_image(image: ImageType):
     if isinstance(image, torch.Tensor):
-        return torchvision.transforms.ToPILImage(mode='RGB')(image.cpu())
+        return torchvision.transforms.ToPILImage(mode="RGB")(image.cpu())
     elif isinstance(image, plt.Figure):
         return fig2img(image)
     elif isinstance(image, Image.Image):
@@ -37,8 +38,10 @@ def text_from_column_data(x):
 def text_from_table(columns, data):
     text = ""
     for k in range(len(data)):
-        text += f"{k + 1} - " + ", ".join(
-            map(text_from_column_data, zip(columns, data[k]))
-        ) + "\n"
+        text += (
+            f"{k + 1} - "
+            + ", ".join(map(text_from_column_data, zip(columns, data[k])))
+            + "\n"
+        )
     text += "---- \n"
     return text

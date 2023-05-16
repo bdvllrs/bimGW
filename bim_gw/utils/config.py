@@ -20,21 +20,25 @@ def split_resolver(key, value, item=None):
 
 def loss_coef_slug_resolver(*, _root_):
     name = ""
-    if type(_root_.losses.coefs.translation) in [int,
-                                                 float] and \
-            _root_.losses.coefs.translation > 0:
+    if (
+        type(_root_.losses.coefs.translation) in [int, float]
+        and _root_.losses.coefs.translation > 0
+    ):
         name += "+tr"
-    if type(_root_.losses.coefs.contrastive) in [int,
-                                                 float] and \
-            _root_.losses.coefs.contrastive > 0:
+    if (
+        type(_root_.losses.coefs.contrastive) in [int, float]
+        and _root_.losses.coefs.contrastive > 0
+    ):
         name += "+cont"
-    if type(_root_.losses.coefs.demi_cycles) in [int,
-                                                 float] and \
-            _root_.losses.coefs.demi_cycles > 0:
+    if (
+        type(_root_.losses.coefs.demi_cycles) in [int, float]
+        and _root_.losses.coefs.demi_cycles > 0
+    ):
         name += "+dcy"
-    if type(_root_.losses.coefs.cycles) in [int,
-                                            float] and \
-            _root_.losses.coefs.cycles > 0:
+    if (
+        type(_root_.losses.coefs.cycles) in [int, float]
+        and _root_.losses.coefs.cycles > 0
+    ):
         name += "+cy"
     return name[1:]
 
@@ -60,7 +64,7 @@ def get_args(
     cli: bool = True,
     verbose: bool = False,
     use_schema: bool = True,
-    schema_config: Any = None
+    schema_config: Any = None,
 ) -> Union[DictConfig, ListConfig]:
     load_resolvers_if_needed()
 
@@ -74,8 +78,10 @@ def get_args(
     )
 
     config_path_env = os.getenv("BIMGW_CONFIG_PATH", None)
-    config_path = PROJECT_DIR / "config" if config_path_env is None else Path(
-        config_path_env
+    config_path = (
+        PROJECT_DIR / "config"
+        if config_path_env is None
+        else Path(config_path_env)
     )
     main_args = OmegaConf.load(str((config_path / "main.yaml").resolve()))
 
@@ -139,10 +145,9 @@ def get_args(
         )
         args.losses.coefs.translation = args.losses.coefs.supervision
     if (
-            "attr" not in args.domain_loader
-            or "use_unpaired" not in args.domain_loader.attr
+        "attr" not in args.domain_loader
+        or "use_unpaired" not in args.domain_loader.attr
     ):
-
         logging.warning(
             "Missing mandatory value `domain_loader.attr.use_unpaired`. "
             "Automatically set to false."

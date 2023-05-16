@@ -31,7 +31,5 @@ def get_v_preprocess(augmentation: bool = False) -> Callable[[Any], Any]:
     )
 
     return ComposeWithExtraParameters(
-        {
-            "img": transforms.Compose(transformations)
-        }
+        {"img": transforms.Compose(transformations)}
     )

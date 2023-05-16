@@ -7,10 +7,11 @@ from bim_gw.utils.types import AvailableDomains
 
 
 def load_pre_saved_latent(
-    root_path: pathlib.Path, split: str,
+    root_path: pathlib.Path,
+    split: str,
     pre_saved_latent_path: Dict[AvailableDomains, str],
     domain_key: AvailableDomains,
-    ids: Optional[SupportsIndex] = None
+    ids: Optional[SupportsIndex] = None,
 ) -> List[np.ndarray]:
     kept_idx = ids if ids is not None else slice(None)
     latent_dir = root_path / "saved_latents" / split

@@ -29,27 +29,24 @@ def test_ood(args):
     lm.freeze()
 
     global_workspace = GlobalWorkspace.load_from_checkpoint(
-        args.checkpoint, domain_mods={
-            "v": vae,
-            "t": lm
-        }
+        args.checkpoint, domain_mods={"v": vae, "t": lm}
     )
     global_workspace.eval()
 
     print("OOD t --> v")
     possible_2_class = torch.tensor(
         [
-            [0.5, 0., 0.],
-            [0., 0.5, 0.],
-            [0., 0., 0.5],
-            [1., 1., 0.],
-            [1., 0., 1.],
-            [0., 1., 1.],
-            [0.5, 0.5, 0.],
-            [0.5, 0., 0.5],
-            [0., 0.5, 0.5],
+            [0.5, 0.0, 0.0],
+            [0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.5],
+            [1.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 1.0],
+            [0.5, 0.5, 0.0],
+            [0.5, 0.0, 0.5],
+            [0.0, 0.5, 0.5],
             [0.33, 0.33, 0.33],
-            [0., 0., 0.],
+            [0.0, 0.0, 0.0],
         ]
     )
     t_samples = lm.sample(1)
@@ -108,13 +105,10 @@ def test_ood(args):
 
 def plot_image_grid(images, title):
     img_grid = torchvision.utils.make_grid(images, normalize=True)
-    img_grid = torchvision.transforms.ToPILImage(mode='RGB')(img_grid.cpu())
+    img_grid = torchvision.transforms.ToPILImage(mode="RGB")(img_grid.cpu())
     plt.imshow(img_grid)
     plt.tick_params(
-        left=False,
-        bottom=False,
-        labelleft=False,
-        labelbottom=False
+        left=False, bottom=False, labelleft=False, labelbottom=False
     )
     plt.tight_layout(pad=0)
     plt.title(title)

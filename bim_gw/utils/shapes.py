@@ -7,8 +7,10 @@ from tqdm import tqdm
 def get_transformed_coordinates(coordinates, origin, scale, rotation):
     center = np.array([[0.5, 0.5]])
     rotation_m = np.array(
-        [[np.cos(rotation), -np.sin(rotation)],
-         [np.sin(rotation), np.cos(rotation)]]
+        [
+            [np.cos(rotation), -np.sin(rotation)],
+            [np.sin(rotation), np.cos(rotation)],
+        ]
     )
     rotated_coordinates = (coordinates - center) @ rotation_m.T
     return origin + scale * rotated_coordinates
@@ -16,16 +18,11 @@ def get_transformed_coordinates(coordinates, origin, scale, rotation):
 
 def get_diamond_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
-    coordinates = np.array(
-        [[0.5, 0],
-         [1, 0.3],
-         [0.5, 1],
-         [0, 0.3]]
-    )
+    coordinates = np.array([[0.5, 0], [1, 0.3], [0.5, 1], [0, 0.3]])
     origin = np.array([[x, y]])
     patch = patches.Polygon(
         get_transformed_coordinates(coordinates, origin, scale, rotation),
-        facecolor=color
+        facecolor=color,
     )
     return patch
 
@@ -35,14 +32,16 @@ def get_square_patch(location, scale, rotation, color):
     origin = np.array([[x, y]])
     shift = (2 - np.sqrt(2)) / 4
     coordinates = np.array(
-        [[shift, shift],
-         [1 - shift, shift],
-         [1 - shift, 1 - shift],
-         [shift, 1 - shift]]
+        [
+            [shift, shift],
+            [1 - shift, shift],
+            [1 - shift, 1 - shift],
+            [shift, 1 - shift],
+        ]
     )
     patch = patches.Polygon(
         get_transformed_coordinates(coordinates, origin, scale, rotation),
-        facecolor=color
+        facecolor=color,
     )
     return patch
 
@@ -50,14 +49,10 @@ def get_square_patch(location, scale, rotation, color):
 def get_triangle_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
     origin = np.array([[x, y]])
-    coordinates = np.array(
-        [[0.5, 1],
-         [0.2, 0],
-         [0.8, 0]]
-    )
+    coordinates = np.array([[0.5, 1], [0.2, 0], [0.8, 0]])
     patch = patches.Polygon(
         get_transformed_coordinates(coordinates, origin, scale, rotation),
-        facecolor=color
+        facecolor=color,
     )
     return patch
 
@@ -72,29 +67,40 @@ def get_egg_patch(location, scale, rotation, color):
     x, y = location[0], location[1]
     origin = np.array([[x, y]])
     coordinates = np.array(
-        [[0.5, 0],
-         [0.8, 0],
-         [0.9, 0.1],
-         [0.9, 0.3],
-         [0.9, 0.5],
-         [0.7, 1],
-         [0.5, 1],
-         [0.3, 1],
-         [0.1, 0.5],
-         [0.1, 0.3],
-         [0.1, 0.1],
-         [0.2, 0],
-         [0.5, 0]]
+        [
+            [0.5, 0],
+            [0.8, 0],
+            [0.9, 0.1],
+            [0.9, 0.3],
+            [0.9, 0.5],
+            [0.7, 1],
+            [0.5, 1],
+            [0.3, 1],
+            [0.1, 0.5],
+            [0.1, 0.3],
+            [0.1, 0.1],
+            [0.2, 0],
+            [0.5, 0],
+        ]
     )
-    codes = [mpath.Path.MOVETO, mpath.Path.CURVE4, mpath.Path.CURVE4,
-             mpath.Path.CURVE4,
-             mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
-             mpath.Path.CURVE4,
-             mpath.Path.CURVE4, mpath.Path.CURVE4, mpath.Path.CURVE4,
-             mpath.Path.CURVE4, mpath.Path.CURVE4]
+    codes = [
+        mpath.Path.MOVETO,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+        mpath.Path.CURVE4,
+    ]
     path = mpath.Path(
         get_transformed_coordinates(coordinates, origin, scale, rotation),
-        codes
+        codes,
     )
     patch = patches.PathPatch(path, facecolor=color)
     return patch
@@ -123,7 +129,7 @@ def generate_image(ax, cls, location, scale, rotation, color, imsize=32):
 def get_fig_from_specs(
     cls, locations, radii, rotations, colors, imsize=32, ncols=8
 ):
-    dpi = 100.
+    dpi = 100.0
     reminder = 1 if len(cls) % ncols else 0
     nrows = len(cls) // ncols + reminder
 
@@ -133,13 +139,14 @@ def get_fig_from_specs(
     fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
 
     gs = gridspec.GridSpec(
-        nrows, ncols,
+        nrows,
+        ncols,
         wspace=1 / 10,
         hspace=1 / 10,
         left=0,
         right=1,
         bottom=0,
-        top=1
+        top=1,
     )
     for i in range(nrows):
         for j in range(ncols):
@@ -148,8 +155,13 @@ def get_fig_from_specs(
                 break
             ax = plt.subplot(gs[i, j])
             generate_image(
-                ax, cls[k], locations[k], radii[k],
-                rotations[k], colors[k], imsize
+                ax,
+                cls[k],
+                locations[k],
+                radii[k],
+                rotations[k],
+                colors[k],
+                imsize,
             )
             ax.set_facecolor("black")
     return fig
@@ -157,15 +169,15 @@ def get_fig_from_specs(
 
 def get_image_specs_from_latents(cls, latents):
     output = dict()
-    output['cls'] = cls
-    output['locations'] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
-    output['radii'] = latents[:, 2]
+    output["cls"] = cls
+    output["locations"] = np.stack((latents[:, 0], latents[:, 1]), axis=1)
+    output["radii"] = latents[:, 2]
     rotation_x = latents[:, 3] * 2 - 1
     rotation_y = latents[:, 4] * 2 - 1
-    output['rotations'] = np.arctan2(rotation_y, rotation_x)
-    output['colors'] = np.stack(
-        (latents[:, 5], latents[:, 6], latents[:, 7]), axis=1
-    ) * 255
+    output["rotations"] = np.arctan2(rotation_y, rotation_x)
+    output["colors"] = (
+        np.stack((latents[:, 5], latents[:, 6], latents[:, 7]), axis=1) * 255
+    )
     return output
 
 
@@ -191,8 +203,10 @@ def generate_color(n_samples, min_lightness=0, max_lightness=256):
 
     assert 0 <= max_lightness <= 256
     hls = np.random.randint(
-        [0, min_lightness, 0], [181, max_lightness, 256],
-        size=(1, n_samples, 3), dtype=np.uint8
+        [0, min_lightness, 0],
+        [181, max_lightness, 256],
+        size=(1, n_samples, 3),
+        dtype=np.uint8,
     )
     rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
     return rgb.astype(int), hls[0].astype(int)
@@ -219,8 +233,8 @@ def generate_unpaired_attr(n_samples):
 
 
 def generate_transformations(labels, target_labels):
-    n_samples = len(labels['classes'])
-    assert len(target_labels['classes']) == n_samples
+    n_samples = len(labels["classes"])
+    assert len(target_labels["classes"]) == n_samples
     transformation_complexity = np.random.rand(n_samples)
     transformations = np.zeros((n_samples, 12))
     for k in range(n_samples):
@@ -235,34 +249,49 @@ def generate_transformations(labels, target_labels):
             if transfo == 0:  # class
                 transformations[k, 0] = target_labels["classes"][k]
             elif transfo == 1:  # scale
-                transformations[k, 1] = (target_labels["sizes"][k]
-                                         - labels["sizes"][k])
+                transformations[k, 1] = (
+                    target_labels["sizes"][k] - labels["sizes"][k]
+                )
             elif transfo == 2:  # location
-                transformations[k, 2] = (target_labels["locations"][k, 0]
-                                         - labels["locations"][k, 0])
-                transformations[k, 3] = (target_labels["locations"][k, 1]
-                                         - labels["locations"][k, 1])
+                transformations[k, 2] = (
+                    target_labels["locations"][k, 0]
+                    - labels["locations"][k, 0]
+                )
+                transformations[k, 3] = (
+                    target_labels["locations"][k, 1]
+                    - labels["locations"][k, 1]
+                )
             elif transfo == 3:  # rotation
-                transformations[k, 4] = (target_labels["rotations"][k]
-                                         - labels["rotations"][k])
+                transformations[k, 4] = (
+                    target_labels["rotations"][k] - labels["rotations"][k]
+                )
             elif transfo == 4:  # color
-                transformations[k, 5] = (target_labels["colors"][k, 0]
-                                         - labels["colors"][k, 0])
-                transformations[k, 6] = (target_labels["colors"][k, 1]
-                                         - labels["colors"][k, 1])
-                transformations[k, 7] = (target_labels["colors"][k, 2]
-                                         - labels["colors"][k, 2])
-                transformations[k, 8] = (target_labels["colors_hls"][k, 0]
-                                         - labels["colors_hls"][k, 0])
-                transformations[k, 9] = (target_labels["colors_hls"][k, 1]
-                                         - labels["colors_hls"][k, 1])
-                transformations[k, 10] = (target_labels["colors_hls"][k, 2]
-                                          - labels["colors_hls"][k, 2])
+                transformations[k, 5] = (
+                    target_labels["colors"][k, 0] - labels["colors"][k, 0]
+                )
+                transformations[k, 6] = (
+                    target_labels["colors"][k, 1] - labels["colors"][k, 1]
+                )
+                transformations[k, 7] = (
+                    target_labels["colors"][k, 2] - labels["colors"][k, 2]
+                )
+                transformations[k, 8] = (
+                    target_labels["colors_hls"][k, 0]
+                    - labels["colors_hls"][k, 0]
+                )
+                transformations[k, 9] = (
+                    target_labels["colors_hls"][k, 1]
+                    - labels["colors_hls"][k, 1]
+                )
+                transformations[k, 10] = (
+                    target_labels["colors_hls"][k, 2]
+                    - labels["colors_hls"][k, 2]
+                )
             else:
                 transformations[k, 11] = 0
     return (
         transformed_labels(labels, transformations),
-        labels_from_transfo(transformations)
+        labels_from_transfo(transformations),
     )
 
 
@@ -274,7 +303,7 @@ def transformed_labels(labels, transfo):
         rotations=labels["rotations"] + transfo[:, 4],
         colors=labels["colors"] + transfo[:, 5:8],
         colors_hls=labels["colors_hls"] + transfo[:, 8:11],
-        unpaired=labels["unpaired"] + transfo[:, 11]
+        unpaired=labels["unpaired"] + transfo[:, 11],
     )
 
 
@@ -286,13 +315,18 @@ def labels_from_transfo(transfo):
         rotations=transfo[:, 4],
         colors=transfo[:, 5:8],
         colors_hls=transfo[:, 8:11],
-        unpaired=transfo[:, 11]
+        unpaired=transfo[:, 11],
     )
 
 
 def generate_dataset(
-    n_samples, min_scale, max_scale, min_lightness, max_lightness, imsize,
-    classes=None
+    n_samples,
+    min_scale,
+    max_scale,
+    min_lightness,
+    max_lightness,
+    imsize,
+    classes=None,
 ):
     if classes is None:
         classes = generate_class(n_samples)
@@ -304,9 +338,13 @@ def generate_dataset(
     )
     unpaired = generate_unpaired_attr(n_samples)
     return dict(
-        classes=classes, locations=locations, sizes=sizes, rotations=rotation,
+        classes=classes,
+        locations=locations,
+        sizes=sizes,
+        rotations=rotation,
         colors=colors_rgb,
-        colors_hls=colors_hls, unpaired=unpaired
+        colors_hls=colors_hls,
+        unpaired=unpaired,
     )
 
 
@@ -317,7 +355,7 @@ def save_dataset(path_root, dataset, imsize):
     rotations, colors = dataset["rotations"], dataset["colors"]
     enumerator = tqdm(
         enumerate(zip(classes, locations, radii, rotations, colors)),
-        total=len(classes)
+        total=len(classes),
     )
     for k, (cls, location, scale, rotation, color) in enumerator:
         path_file = path_root / f"{k}.png"
@@ -360,7 +398,7 @@ def load_labels(path_root):
         "rotations": labels[:, 4],
         "colors": labels[:, 5:8],
         "colors_hls": labels[:, 8:11],
-        "unpaired": labels[:, 11]
+        "unpaired": labels[:, 11],
     }
     dataset_transfo = {
         "classes": labels[:, 11],
@@ -369,7 +407,7 @@ def load_labels(path_root):
         "rotations": labels[:, 15],
         "colors": labels[:, 16:19],
         "colors_hls": labels[:, 19:22],
-        "unpaired": labels[:, 22]
+        "unpaired": labels[:, 22],
     }
     return dataset, dataset_transfo
 
@@ -392,14 +430,21 @@ def save_labels(path_root, dataset, dataset_transfo):
     # TODO: add transformation to unpaired examples
     labels = np.concatenate(
         [
-            classes.reshape((-1, 1)), locations, sizes.reshape((-1, 1)),
-            rotations.reshape((-1, 1)), colors, colors_hls,
+            classes.reshape((-1, 1)),
+            locations,
+            sizes.reshape((-1, 1)),
+            rotations.reshape((-1, 1)),
+            colors,
+            colors_hls,
             unpaired_attr.reshape((-1, 1)),
-            classes_transfo.reshape((-1, 1)), locations_transfo,
+            classes_transfo.reshape((-1, 1)),
+            locations_transfo,
             sizes_transfo.reshape((-1, 1)),
-            rotations_transfo.reshape((-1, 1)), colors_transfo,
+            rotations_transfo.reshape((-1, 1)),
+            colors_transfo,
             colors_hls_transfo,
-            unpaired_attr_transfo.reshape((-1, 1))
-        ], axis=1
+            unpaired_attr_transfo.reshape((-1, 1)),
+        ],
+        axis=1,
     ).astype(np.float32)
     np.save(path_root, labels)

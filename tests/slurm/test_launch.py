@@ -23,7 +23,7 @@ def mock_for_tests(*, p_open=None, subprocess=None):
         p_open_instance = mock.MagicMock()
         p_open_instance.communicate.return_value = (
             b"Mocked communication output",
-            b"Mocked communication error"
+            b"Mocked communication error",
         )
         p_open.return_value = p_open_instance
 
@@ -79,7 +79,7 @@ def test_launch_grid_search(p_open_mock, subprocess_mock, capsys):
             "slurm.run_work_directory='tests/slurm'",
             "slurm.script='train'",
             f"slurm.command='{slurm_command}'",
-            "slurm.grid_search=['seed']"
+            "slurm.grid_search=['seed']",
         ]
     )
     launch(args, cli_args)
@@ -98,6 +98,6 @@ def test_grid_search_exclusion_from_past_search():
         ["seed=[0.]", "losses.coefs.contrastive=[0.1,0.2]"]
     )
     assert result == [
-        {"seed": 0., "losses.coefs.contrastive": 0.1},
-        {"seed": 0., "losses.coefs.contrastive": 0.2},
+        {"seed": 0.0, "losses.coefs.contrastive": 0.1},
+        {"seed": 0.0, "losses.coefs.contrastive": 0.2},
     ]
