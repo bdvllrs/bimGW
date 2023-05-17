@@ -1,4 +1,5 @@
 from typing import Any, Mapping
+
 import numpy as np
 import pandas as pd
 
@@ -18,12 +19,12 @@ def get_fmt(name: str) -> Mapping[str, Any]:
         return {"linestyle": "-", "color": "#e1a4e6"}
     if name == "cont":
         return {"linestyle": "--", "color": "#043505"}
-    if name == "baseline:identity":
-        return {"linestyle": "-", "color": "#326fa8"}
-    if name == "baseline:random":
-        return {"linestyle": "-", "color": "#1dd141"}
-    if name == "baseline:none":
-        return {"linestyle": "-", "color": "#b80920"}
+    if "baseline:identity" in name:
+        return {"linestyle": "-", "color": "#000"}
+    if "baseline:random" in name:
+        return {"linestyle": "--", "color": "#000"}
+    if "baseline:none" in name:
+        return {"linestyle": "-.", "color": "#000"}
     return {"linestyle": "-"}
 
 

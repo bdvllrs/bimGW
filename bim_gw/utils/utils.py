@@ -3,7 +3,17 @@ import os
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Union,
+    cast,
+)
 
 import pandas as pd
 import torch
@@ -138,7 +148,9 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
     if args.load_from == LoadFromData.csv:
         if args.csv_path is None:
             raise ValueError("csv_path must be set when load_from is csv")
-        return update_df_for_legacy_code(pd.read_csv(Path(args.csv_path)))
+        return update_df_for_legacy_code(
+            cast(pd.DataFrame, pd.read_csv(Path(args.csv_path)))
+        )
     elif args.load_from == LoadFromData.wandb:
         import wandb
 
@@ -154,7 +166,8 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
             ),
         )
         columns: Dict[str, List[Any]] = defaultdict(list)
-        for run in runs:
+        tracked_columns: Set[str] = set()
+        for n_run, run in enumerate(runs):
             vals = run.summary._json_dict  # noqa
             vals.update(
                 {k: v for k, v in run.config.items() if not k.startswith("_")}
@@ -162,19 +175,31 @@ def get_runs_dataframe(args: DataSelectorAxesConfig) -> pd.DataFrame:
             vals["Name"] = run.name
             vals["ID"] = run.id
 
+            seen_columns = set(tracked_columns)
             for k, v in vals.items():
                 if isinstance(v, dict) and "min" in v:
                     k += "." + "min"
                     v = v["min"]
+                if k not in tracked_columns:
+                    tracked_columns.add(k)
+                    # Previous runs didn't have this, so add a None entry
+                    columns[k] = [None] * n_run
+
+                seen_columns.discard(k)
+
                 columns[k].append(v)
+
+            for missing_k in seen_columns:
+                columns[missing_k].append(None)
         for k in list(columns.keys()):
             if len(columns[k]) != len(columns["Name"]):
-                logging.info(
-                    f"Deleted key '{k}' because it has a different "
-                    f"length {len(columns[k])} than the number of runs"
-                    f" {len(columns['Name'])}"
-                )
-                del columns[k]
+                assert False, "Should never happen"
+                # logging.info(
+                #     f"Deleted key '{k}' because it has a different "
+                #     f"length {len(columns[k])} than the number of runs"
+                #     f" {len(columns['Name'])}"
+                # )
+                # del columns[k]
         return update_df_for_legacy_code(pd.DataFrame(columns))
     raise ValueError(f"Unknown load_from: {args.load_from}")
 

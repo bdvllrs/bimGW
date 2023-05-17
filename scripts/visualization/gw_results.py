@@ -27,9 +27,9 @@ y_axis_labels = {
     "cycles": "Cycle losses",
     "demi_cycles": "Demi-cycle losses",
     "mix_loss": "Averaged losses",
-    "ooo_acc_v": "Visual Accuracy",
-    "ooo_acc_t": "Language Accuracy",
-    "ooo_acc_attr": "Proto-language Accuracy",
+    "ooo_acc_v": "Visual training\nVisual testing",
+    "ooo_acc_t": "Visual training\nLanguage testing",
+    "ooo_acc_attr": "visual training\nProto-language testing",
 }
 
 slug_to_label = {
@@ -46,6 +46,9 @@ slug_to_label = {
     "baseline:identity": "Baseline: no encoder",
     "baseline:none": "Baseline",
     "baseline:random": "Random performance",
+    "tr+cont+dcy+cy+baseline:identity": "No encoder + TO classifier",
+    "tr+cont+dcy+cy+baseline:none": "Task Optimizer (TO) encoder + classifier",
+    "tr+cont+dcy+cy+baseline:random": "Random encoder + TO classifier",
 }
 
 
@@ -172,20 +175,29 @@ def prepare_df(df, vis_args):
         **get_agg_args_from_dict(vis_args.loss_definitions),
     )
     df["num_examples"] = df["prop_label"] * vis_args.total_num_examples
-    df.fillna(0.0, inplace=True)
+    # df.fillna(0.0, inplace=True)
     min_idx_translation = df.groupby(["prop_label", "slug"])
     min_idx_translation = min_idx_translation[vis_args.argmin_over].idxmin()
     df = df.loc[min_idx_translation]
     return df
 
 
-def plot_ax(args, loss, ax, curve_name, grp, labeled_curves, slug_label):
+def plot_ax(
+    args,
+    loss,
+    ax,
+    curve_name,
+    grp,
+    labeled_curves,
+    slug_label,
+    yerr=None,
+):
     if len(grp) > 1:
         ax = grp.plot(
             "num_examples",
-            loss + "_mean",
+            loss,
             ax=ax,
-            yerr=loss + "_std",
+            yerr=yerr,
             label=(
                 slug_label
                 if slug_label not in labeled_curves
@@ -197,7 +209,7 @@ def plot_ax(args, loss, ax, curve_name, grp, labeled_curves, slug_label):
         )
     elif len(grp) == 1:
         ax.axhline(
-            y=grp[loss + "_mean"].iloc[0],
+            y=grp[loss].iloc[0],
             label=(
                 slug_label
                 if slug_label not in labeled_curves
@@ -262,6 +274,9 @@ if __name__ == "__main__":
 
         n_cols = len(figure.cols)
         n_rows = len(loss_evaluations)
+        if figure.transpose_fig:
+            n_cols, n_rows = n_rows, n_cols
+
         now = datetime.now().strftime("%d-%m-%YT%H_%M_%S")
 
         fig, axes = plt.subplots(
@@ -275,8 +290,11 @@ if __name__ == "__main__":
         ):
             for n, row in enumerate(dataframes):
                 df = row["data"]
-                k = m * n_rows + n
-                ax = _get_ax(axes, m, n, n_rows, n_cols)
+                n_col, n_row = m, n
+                if figure.transpose_fig:
+                    n_col, n_row = n, m
+                k = n_col * n_rows + n_row
+                ax = _get_ax(axes, n_col, n_row, n_rows, n_cols)
                 selected_curves = loss_args.curves
                 for curve_name in selected_curves:
                     grp = df[df["slug"] == curve_name]
@@ -286,28 +304,38 @@ if __name__ == "__main__":
 
                     ax = plot_ax(
                         args,
-                        evaluated_loss,
+                        evaluated_loss + "_mean",
                         ax,
                         curve_name,
                         grp,
                         labeled_curves,
                         slug_label,
+                        yerr=evaluated_loss + "_std",
                     )
 
                     labeled_curves.append(slug_label)
 
                     ax.set_xlabel(
-                        "Number of bimodal examples ($N$)",
+                        "Number of bimodal examples ($N$)"
+                        if k == 0
+                        else "$N$",
                         fontsize=args.visualization.font_size,
                     )
-                    if n == 0:
+
+                    if n_row == 0:
+                        label = y_axis_labels[evaluated_loss]
+                        if figure.transpose_fig:
+                            label = row["row"].label
                         ax.set_ylabel(
-                            y_axis_labels[evaluated_loss],
+                            label,
                             fontsize=args.visualization.font_size,
                         )
-                    if m == 0:
+                    if n_col == 0:
+                        label = row["row"].label
+                        if figure.transpose_fig:
+                            label = y_axis_labels[evaluated_loss]
                         ax.set_title(
-                            row["row"].label,
+                            label,
                             fontsize=args.visualization.font_size_title,
                             color=args.visualization.fg_color,
                         )
@@ -368,6 +396,7 @@ if __name__ == "__main__":
         plt.subplots_adjust(
             bottom=figure.bottom_adjust,
             hspace=figure.hspace_adjust,
+            wspace=figure.wspace_adjust,
             top=figure.top_adjust,
             left=figure.left_adjust,
             right=figure.right_adjust,
@@ -389,6 +418,7 @@ if __name__ == "__main__":
             for curve in loss_args.curves:
                 if curve not in selected_curves:
                     selected_curves.append(curve)
+        labeled_curves = []
         for m, coef in enumerate(coefs):
             for n, row in enumerate(dataframes):
                 df = row["data"]
@@ -399,17 +429,16 @@ if __name__ == "__main__":
                     slug_label = slug
                     if slug in slug_to_label:
                         slug_label = slug_to_label[slug]
-                    if len(grp) > 1:
-                        ax = grp.plot(
-                            "num_examples",
-                            coef + "_coef",
-                            ax=ax,
-                            label=(slug_label if k == 0 else "_nolegend_"),
-                            legend=False,
-                            **get_fmt(slug),
-                            linewidth=args.visualization.line_width,
-                        )
-
+                    ax = plot_ax(
+                        args,
+                        coef + "_coef",
+                        ax,
+                        slug,
+                        grp,
+                        labeled_curves,
+                        slug_label,
+                    )
+                    labeled_curves.append(slug_label)
                     ax.set_xlabel(
                         "Number of bimodal examples ($N$)",
                         fontsize=args.visualization.font_size,

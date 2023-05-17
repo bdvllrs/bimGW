@@ -159,7 +159,6 @@ class DataSelectorAxesConfig:
 
 @dataclass
 class FigureLossConfig:
-    coef_curve: str = MISSING
     curves: List[str] = MISSING
 
 
@@ -167,11 +166,14 @@ class FigureLossConfig:
 class AxesGWResultConfig:
     title: str = MISSING
 
-    top_adjust: float = MISSING
-    bottom_adjust: float = MISSING
-    left_adjust: float = MISSING
-    right_adjust: float = MISSING
-    hspace_adjust: float = MISSING
+    transpose_fig: bool = MISSING
+
+    top_adjust: Optional[float] = MISSING
+    bottom_adjust: Optional[float] = MISSING
+    left_adjust: Optional[float] = MISSING
+    right_adjust: Optional[float] = MISSING
+    hspace_adjust: Optional[float] = MISSING
+    wspace_adjust: Optional[float] = MISSING
 
     legend_order: List[str] = field(default_factory=list)
     selected_losses: Dict[str, FigureLossConfig] = field(default_factory=dict)
