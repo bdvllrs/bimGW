@@ -128,7 +128,7 @@ def test_filter_sync_domains_nonzero_prop_available_images_fail():
 
 def test_filter_sync_domains_nonzero_prop_available_images():
     args = get_test_args()
-    args.global_workspace.prop_available_images = 0.4
+    args.global_workspace.prop_available_images = 0.5
     args.global_workspace.prop_labelled_images = 0.1
     allowed_indices = list(range(args.datasets.shapes.n_train_examples))
     mapping, domain_mapping = filter_sync_domains(
