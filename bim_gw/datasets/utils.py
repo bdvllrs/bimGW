@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
@@ -99,9 +100,8 @@ def filter_sync_domains(
     domain_mapping = []
     if prop_2_domains < 1:
         labelled_size = int(original_size * prop_2_domains)
-        n_repeats = (len(domains) * original_size) // labelled_size + int(
-            original_size % labelled_size > 0
-        )
+        n_repeats = ceil((len(domains) * len(allowed_indices))
+                              / labelled_size)
 
         domain_items = np.tile(sync_items, n_repeats)
         mapping.extend(domain_items)
@@ -114,9 +114,7 @@ def filter_sync_domains(
         )
         unsync_items = rest[:n_unsync]
         unsync_domain_items = np.concatenate((unsync_items, sync_items))
-        n_repeats = len(allowed_indices) // len(unsync_domain_items) + int(
-            len(allowed_indices) % len(unsync_domain_items) > 0
-        )
+        n_repeats = ceil(len(allowed_indices) / len(unsync_domain_items))
         unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
     mapping.extend(unsync_domain_items)
     domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))

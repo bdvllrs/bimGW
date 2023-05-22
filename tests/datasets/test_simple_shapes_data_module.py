@@ -1,3 +1,4 @@
+import math
 from pathlib import Path
 
 import pytest
@@ -128,7 +129,7 @@ def test_filter_sync_domains_nonzero_prop_available_images_fail():
 
 def test_filter_sync_domains_nonzero_prop_available_images():
     args = get_test_args()
-    args.global_workspace.prop_available_images = 0.5
+    args.global_workspace.prop_available_images = 0.4
     args.global_workspace.prop_labelled_images = 0.1
     allowed_indices = list(range(args.datasets.shapes.n_train_examples))
     mapping, domain_mapping = filter_sync_domains(
@@ -138,18 +139,22 @@ def test_filter_sync_domains_nonzero_prop_available_images():
         args.global_workspace.prop_available_images,
     )
 
-    n_train_examples = len(allowed_indices)
     n_sync_examples = int(
         args.global_workspace.prop_labelled_images * len(allowed_indices)
     )
+    n_available_examples = int(
+        args.global_workspace.prop_available_images * len(allowed_indices)
+    )
+    repeat = math.ceil(len(allowed_indices) / n_available_examples)
+    n_train_examples = n_available_examples * repeat
     expected_counts = {
         "v": n_train_examples,
         "t": n_train_examples,
-        "tv": 2 * n_train_examples,
+        "tv": 2 * len(allowed_indices),
     }
     expected_unique = {
-        "v": n_train_examples,
-        "t": n_train_examples,
+        "v": n_available_examples,
+        "t": n_available_examples,
         "tv": n_sync_examples,
     }
     check_domain_mapping(domain_mapping, expected_counts)
