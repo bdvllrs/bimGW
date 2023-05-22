@@ -160,20 +160,21 @@ class DataSelectorAxesConfig:
 @dataclass
 class FigureLossConfig:
     curves: List[str] = MISSING
+    label: str = MISSING
 
 
 @dataclass
 class AxesGWResultConfig:
     title: str = MISSING
 
-    transpose_fig: bool = MISSING
+    top_adjust: Optional[float] = None
+    bottom_adjust: Optional[float] = None
+    left_adjust: Optional[float] = None
+    right_adjust: Optional[float] = None
+    hspace_adjust: Optional[float] = None
+    wspace_adjust: Optional[float] = None
 
-    top_adjust: Optional[float] = MISSING
-    bottom_adjust: Optional[float] = MISSING
-    left_adjust: Optional[float] = MISSING
-    right_adjust: Optional[float] = MISSING
-    hspace_adjust: Optional[float] = MISSING
-    wspace_adjust: Optional[float] = MISSING
+    transpose_fig: bool = False
 
     legend_order: List[str] = field(default_factory=list)
     selected_losses: Dict[str, FigureLossConfig] = field(default_factory=dict)
@@ -199,6 +200,7 @@ class VisualizationConfig:
     total_num_examples: int = MISSING
 
     argmin_over: str = MISSING
+    x_axis: str = MISSING
 
     additional_slug_conds: List[AdditionalSlugCond] = field(
         default_factory=list

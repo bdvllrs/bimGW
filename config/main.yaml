@@ -132,6 +132,8 @@ visualization:
 
   argmin_over: "mix_loss"  # which loss definition to use for parameter selection
 
+  x_axis: prop_labelled  # prop_labelled (N) or prop_available (N+M)
+
   # By default, slug is computed by looking at the loss coefficients.
   # If a coefficient is > 0, then "+loss_name" is added to slug.
   # For example, the slug for translation > 0 and demi-cycles > 0 is "tr+dcy"
@@ -155,14 +157,24 @@ visualization:
     num_columns: 2
   figures:
     - title: "Global results"
-      # should be *in this order* separated by a "+": tr, cont, dcy, then cy.
-      # To not include one loss component, just remove it from the list.
-      # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_losses:
         translation:
-          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+          label: Translation losses
+          # should be *in this order* separated by a "+": tr, cont, dcy, then cy.
+          # To not include one loss component, just remove it from the list.
+          # For example: "tr+cont" is valid, "cont+tr" is not.
+          curves: 
+            - "tr"
+            - "tr+cy"
+            - "tr+cont"
+            - "tr+cont+dcy+cy"
         contrastive:
-          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+          label: Contrastive losses
+          curves:
+            - "tr"
+            - "tr+cy"
+            - "tr+cont"
+            - "tr+cont+dcy+cy"
 
       transpose_fig: false  # if true, will transpose columns and rows
 
@@ -179,12 +191,11 @@ visualization:
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
           # For example, load jobs with a certain slurm job name and have a finished state:
-          # wandb_filter: {
-          #   "$and": [
-          #     { "config.parameters/slurm/slurm/-J": "slurm_job_name" },
-          #     'State': "finished"
-          #   ]
-          # }
+          # wandb_filter: 
+          #   "$and": 
+          #      - "config.parameters/slurm/slurm/-J": "slurm_job_name"
+          #      - 'State': "finished"
+          # 
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
         - label: "Text -- Vision"
           load_from: wandb  # similar to attributes
@@ -203,26 +214,34 @@ visualization:
       # For example: "tr+cont" is valid, "cont+tr" is not.
       selected_losses:
         cycles:
-          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+          label: Cycle losses
+          curves:
+            - "tr"
+            - "tr+cy"
+            - "tr+cont"
+            - "tr+cont+dcy+cy"
         demi_cycles:
-          curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
+          label: Demi-cycle losses
+          curves:
+            - "tr"
+            - "tr+cy"
+            - "tr+cont"
+            - "tr+cont+dcy+cy"
+
+      transpose_fig: false
 
       bottom_adjust: 0.2
       top_adjust: 0.9
+      left_adjust: null
+      right_adjust: null
       hspace_adjust: 0.3
+      wspace_adjust: null
 
       cols:
         - label: "Proto-language -- Vision"
           load_from: wandb  # among wandb or csv
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
-          # For example, load jobs with a certain slurm job name and have a finished state:
-          # wandb_filter: {
-          #   "$and": [
-          #     { "config.parameters/slurm/slurm/-J": "slurm_job_name" },
-          #     'State': "finished"
-          #   ]
-          # }
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
         - label: "Text -- Vision"
           load_from: wandb  # similar to attributes

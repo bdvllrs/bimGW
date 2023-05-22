@@ -21,17 +21,6 @@ from bim_gw.utils.visualization import (
     set_new_cols,
 )
 
-y_axis_labels = {
-    "translation": "Translation losses",
-    "contrastive": "Contrastive losses",
-    "cycles": "Cycle losses",
-    "demi_cycles": "Demi-cycle losses",
-    "mix_loss": "Averaged losses",
-    "ooo_acc_v": "Visual training\nVisual testing",
-    "ooo_acc_t": "Visual training\nLanguage testing",
-    "ooo_acc_attr": "visual training\nProto-language testing",
-}
-
 slug_to_label = {
     "tr": "translation",
     "dcy": "demi-cycles",
@@ -43,12 +32,12 @@ slug_to_label = {
     "tr+cont": "trans. + cont.",
     "cont": "contrastive",
     "tr+cont+dcy+cy": "all sup. + all cycles",
-    "baseline:identity": "Baseline: no encoder",
-    "baseline:none": "Baseline",
-    "baseline:random": "Random performance",
-    "tr+cont+dcy+cy+baseline:identity": "No encoder + TO classifier",
+    "baseline:identity": "no encoder + TO classifier",
+    "baseline:none": "Task Optimizer (TO) encoder + classifier",
+    "baseline:random": "random encoder + TO classifier",
+    "tr+cont+dcy+cy+baseline:identity": "no encoder + TO classifier",
     "tr+cont+dcy+cy+baseline:none": "Task Optimizer (TO) encoder + classifier",
-    "tr+cont+dcy+cy+baseline:random": "Random encoder + TO classifier",
+    "tr+cont+dcy+cy+baseline:random": "random encoder + TO classifier",
 }
 
 
@@ -141,6 +130,7 @@ def prepare_df(df, vis_args):
 
     group_by_params = [
         "parameters/global_workspace/prop_labelled_images",
+        "parameters/global_workspace/prop_available_images",
         "parameters/losses/coefs/contrastive",
         "parameters/losses/coefs/cycles",
         "parameters/losses/coefs/demi_cycles",
@@ -168,15 +158,20 @@ def prepare_df(df, vis_args):
         ),
         slug=pd.NamedAgg(column="slug", aggfunc="first"),
         Name=pd.NamedAgg(column="Name", aggfunc="first"),
-        prop_label=pd.NamedAgg(
+        prop_labelled=pd.NamedAgg(
             column="parameters/global_workspace/prop_labelled_images",
+            aggfunc="first",
+        ),
+        prop_available=pd.NamedAgg(
+            column="parameters/global_workspace/prop_available_images",
             aggfunc="first",
         ),
         **get_agg_args_from_dict(vis_args.loss_definitions),
     )
-    df["num_examples"] = df["prop_label"] * vis_args.total_num_examples
-    # df.fillna(0.0, inplace=True)
-    min_idx_translation = df.groupby(["prop_label", "slug"])
+    df["num_examples"] = df[vis_args.x_axis] * vis_args.total_num_examples
+    min_idx_translation = df.groupby(
+        ["prop_labelled", "prop_available", "slug"]
+    )
     min_idx_translation = min_idx_translation[vis_args.argmin_over].idxmin()
     df = df.loc[min_idx_translation]
     return df
@@ -323,7 +318,7 @@ if __name__ == "__main__":
                     )
 
                     if n_row == 0:
-                        label = y_axis_labels[evaluated_loss]
+                        label = loss_args.label
                         if figure.transpose_fig:
                             label = row["row"].label
                         ax.set_ylabel(
@@ -333,7 +328,7 @@ if __name__ == "__main__":
                     if n_col == 0:
                         label = row["row"].label
                         if figure.transpose_fig:
-                            label = y_axis_labels[evaluated_loss]
+                            label = loss_args.label
                         ax.set_title(
                             label,
                             fontsize=args.visualization.font_size_title,
@@ -373,7 +368,7 @@ if __name__ == "__main__":
                             xytext=(x_end, annotation.y),
                             arrowprops=dict(arrowstyle="<->"),
                         )
-                # ax.set_yscale("log")
+                ax.set_yscale("log")
                 ax.set_xscale("log")
                 # ax.ticklabel_format(useOffset=False, style='plain')
                 ax_handles, ax_labels = ax.get_legend_handles_labels()
