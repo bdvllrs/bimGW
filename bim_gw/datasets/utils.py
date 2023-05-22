@@ -116,7 +116,7 @@ def filter_sync_domains(
         unsync_domain_items = np.concatenate((unsync_items, sync_items))
         n_repeats = len(allowed_indices) // len(unsync_domain_items) + int(
             len(allowed_indices) % len(unsync_domain_items) > 0
-            )
+        )
         unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
     mapping.extend(unsync_domain_items)
     domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
