@@ -100,8 +100,8 @@ def filter_sync_domains(
     domain_mapping = []
     if prop_2_domains < 1:
         labelled_size = int(original_size * prop_2_domains)
-        n_repeats = ceil((len(domains) * len(allowed_indices))
-                              / labelled_size)
+        n_repeats = ceil((len(domains) * len(allowed_indices)) /
+                         labelled_size)
 
         domain_items = np.tile(sync_items, n_repeats)
         mapping.extend(domain_items)
