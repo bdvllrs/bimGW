@@ -138,9 +138,7 @@ def test_filter_sync_domains_nonzero_prop_available_images():
         args.global_workspace.prop_available_images,
     )
 
-    n_train_examples = int(
-        args.global_workspace.prop_available_images * len(allowed_indices)
-    )
+    n_train_examples = len(allowed_indices)
     n_sync_examples = int(
         args.global_workspace.prop_labelled_images * len(allowed_indices)
     )
