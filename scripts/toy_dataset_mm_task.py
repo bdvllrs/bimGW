@@ -49,17 +49,17 @@ def frame_image(img, frame_width):
 
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(os.getenv("DEBUG", False)))
     root_path = Path(args.simple_shapes_path)
     split = "train"
     possible_keys = [[0], [1, 2], [3], [4], [5, 6, 7]]
     all_labels = np.load(str(root_path / f"{split}_labels.npy"))[:, :8]
     all_labels = normalize_labels(all_labels)
 
-    for split in ["train"]:
+    for split in ["train", "val", "test"]:
         dataset = []
         if split == "train":
-            n_examples = 8
+            n_examples = 500_000
             labels = all_labels[:500_000]
         elif split == "val":
             n_examples = 1000
@@ -68,7 +68,7 @@ if __name__ == "__main__":
             n_examples = 1000
             labels = all_labels[750_000:]
 
-        fig, axes = plt.subplots(n_examples, 3, figsize=(3, n_examples))
+        # fig, axes = plt.subplots(n_examples, 3, figsize=(3, n_examples))
         for i in tqdm(range(n_examples), total=n_examples):
             ref = labels[i]
             key = random.choice(possible_keys)
@@ -84,18 +84,18 @@ if __name__ == "__main__":
                     np.where(order == 2)[0][0],
                 ]
             )
-            axes[i, order[0]].imshow(get_img(root_path, split, i))
-            axes[i, order[1]].imshow(get_img(root_path, split, closest_key))
-            axes[i, order[2]].imshow(
-                frame_image(get_img(root_path, split, rd), 2)
-            )
-            print(key)
-            for k in range(3):
-                axes[i, k].set_xticks([])
-                axes[i, k].set_yticks([])
-                axes[i, k].grid(False)
-                axes[i, k].set_aspect("equal")
-        plt.tight_layout(pad=0)
-        plt.savefig("../data/example_odd_dataset.pdf")
-        plt.show()
-        # np.save(str(root_path / f"{split}_odd_image_labels.npy"), dataset)
+            # axes[i, order[0]].imshow(get_img(root_path, split, i))
+            # axes[i, order[1]].imshow(get_img(root_path, split, closest_key))
+            # axes[i, order[2]].imshow(
+            #     frame_image(get_img(root_path, split, rd), 2)
+            # )
+            # print(key)
+            # for k in range(3):
+            #     axes[i, k].set_xticks([])
+            #     axes[i, k].set_yticks([])
+            #     axes[i, k].grid(False)
+            #     axes[i, k].set_aspect("equal")
+        # plt.tight_layout(pad=0)
+        # plt.savefig("../data/example_odd_dataset.pdf")
+        # plt.show()
+        np.save(str(root_path / f"{split}_odd_image_labels.npy"), dataset)
