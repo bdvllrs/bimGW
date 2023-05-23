@@ -49,7 +49,10 @@ def collate_fn(batch: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
 @registries.register_domain("v")
 def load_v_domain(args, im_size=None):
     return VAE.load_from_checkpoint(
-        get_checkpoint_path(args.global_workspace.vae_checkpoint), strict=False
+        get_checkpoint_path(
+            args.global_workspace.vae_checkpoint  # type:ignore
+        ),
+        strict=False,
     )
 
 
@@ -61,7 +64,9 @@ def load_attr_domain(args, img_size):
 @registries.register_domain("t")
 def load_t_domain(args, img_size=None):
     return SimpleShapesText.load_from_checkpoint(
-        get_checkpoint_path(args.global_workspace.lm_checkpoint),
+        get_checkpoint_path(
+            args.global_workspace.lm_checkpoint  # type: ignore
+        ),
         bert_path=args.global_workspace.bert_path,
         z_size=args.lm.z_size,
         hidden_size=args.lm.hidden_size,
@@ -119,7 +124,7 @@ class OddImageDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.train_set,
+            self.train_set,  # type: ignore
             shuffle=True,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -129,7 +134,7 @@ class OddImageDataModule(LightningDataModule):
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.val_set,
+            self.val_set,  # type: ignore
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
@@ -138,7 +143,7 @@ class OddImageDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.test_set,
+            self.test_set,  # type: ignore
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
