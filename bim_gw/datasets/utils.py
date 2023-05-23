@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from bim_gw.datasets.domain import collate_fn, DomainItems
+from bim_gw.datasets.domain import DomainItems, collate_fn
 from bim_gw.utils import registries
 from bim_gw.utils.types import AvailableDomains, DistLiteral, SplitLiteral
 
@@ -100,9 +100,7 @@ def filter_sync_domains(
     domain_mapping = []
     if prop_2_domains < 1:
         labelled_size = int(original_size * prop_2_domains)
-        n_repeats = ceil(
-            (len(domains) * len(allowed_indices)) / labelled_size
-        )
+        n_repeats = ceil((len(domains) * len(allowed_indices)) / labelled_size)
         domain_items = np.tile(sync_items, n_repeats)
         mapping.extend(domain_items)
         domain_mapping.extend([domains] * len(domain_items))
