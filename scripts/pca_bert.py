@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 from bim_gw.utils import get_args
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
     shapes_path = Path(args.simple_shapes_path)
     domain_args = args.domain_loader
 

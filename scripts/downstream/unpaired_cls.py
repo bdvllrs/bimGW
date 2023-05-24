@@ -11,7 +11,7 @@ from bim_gw.utils.scripts import get_domains
 from bim_gw.utils.utils import get_checkpoint_path
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
 
     args.global_workspace.selected_domains = OmegaConf.create(["attr"])
 

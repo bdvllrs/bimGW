@@ -5,13 +5,19 @@
             "type": "python",
             "request": "launch",
             "name": "Train GW",
-            "program": "${workspaceFolder}/scripts/train.py"
+            "program": "${workspaceFolder}/scripts/train.py",
+            "env": {
+                "DEBUG": "1"
+            }
         },
         {
             "type": "python",
             "request": "launch",
             "name": "Train Odd One Out Task",
-            "program": "${workspaceFolder}/scripts/train_odd_image.py"
+            "program": "${workspaceFolder}/scripts/train_odd_image.py",
+            "env": {
+                "DEBUG": "1"
+            }
         },
         {
             "type": "python",

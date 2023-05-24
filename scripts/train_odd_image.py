@@ -88,7 +88,7 @@ class ExtractKeyInForward(nn.Module):
 
 
 if __name__ == "__main__":
-    args = get_args(debug=bool(os.getenv("DEBUG", False)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", False))))
 
     data = OddImageDataModule(
         args.simple_shapes_path,

@@ -85,7 +85,9 @@ if __name__ == "__main__":
         )
         exit(0)
 
-    conf = get_args(debug=int(os.getenv("DEBUG", 0)), cli=False, verbose=False)
+    conf = get_args(
+        debug=bool(int(os.getenv("DEBUG", 0))), cli=False, verbose=False
+    )
     OmegaConf.resolve(conf)
 
     if "run_work_directory" not in conf.slurm:

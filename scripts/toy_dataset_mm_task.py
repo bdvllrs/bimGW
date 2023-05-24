@@ -3,7 +3,6 @@ import random
 from pathlib import Path
 
 import numpy as np
-from matplotlib import pyplot as plt
 from PIL import Image, ImageOps
 from tqdm import tqdm
 
@@ -49,7 +48,7 @@ def frame_image(img, frame_width):
 
 
 if __name__ == "__main__":
-    args = get_args(debug=bool(os.getenv("DEBUG", False)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", False))))
     root_path = Path(args.simple_shapes_path)
     split = "train"
     possible_keys = [[0], [1, 2], [3], [4], [5, 6, 7]]

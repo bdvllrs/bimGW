@@ -122,4 +122,4 @@ def render_semantic(t_domain, title):
 
 
 if __name__ == "__main__":
-    test_ood(get_args(debug=int(os.getenv("DEBUG", 0))))
+    test_ood(get_args(debug=bool(int(os.getenv("DEBUG", 0)))))

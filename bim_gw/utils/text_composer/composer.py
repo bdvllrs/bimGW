@@ -120,7 +120,7 @@ variants = {
 composer = Composer(script_structures, writers, variants, modifiers)
 
 if __name__ == "__main__":
-    args = get_args(debug=bool(os.getenv("DEBUG", False)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", False))))
     all_choices = inspect_all_choices(composer)
     dataset_location = Path(args.simple_shapes_path)
     for split in ["train", "val", "test"]:

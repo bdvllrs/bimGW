@@ -184,7 +184,7 @@ def main(args):
 
 
 def other():
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
     seed = args.seed
     np.random.seed(seed)
 
@@ -204,4 +204,4 @@ def other():
 
 
 if __name__ == "__main__":
-    main(get_args(debug=int(os.getenv("DEBUG", 0))))
+    main(get_args(debug=bool(int(os.getenv("DEBUG", 0)))))

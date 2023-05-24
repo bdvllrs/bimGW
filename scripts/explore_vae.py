@@ -85,4 +85,4 @@ def explore_vae(args):
 
 
 if __name__ == "__main__":
-    explore_vae(get_args(debug=int(os.getenv("DEBUG", 0))))
+    explore_vae(get_args(debug=bool(int(os.getenv("DEBUG", 0)))))

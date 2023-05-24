@@ -10,7 +10,7 @@ from bim_gw.modules import ShapesLM
 from bim_gw.utils import get_args
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
     seed_everything(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -228,7 +228,7 @@ def get_additional_slug_cond(
 
 
 if __name__ == "__main__":
-    args = get_args(debug=bool(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(bool(int(os.getenv("DEBUG", 0)))))
 
     vis_args = args.visualization
     for figure in vis_args.figures:

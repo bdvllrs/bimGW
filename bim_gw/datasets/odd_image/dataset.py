@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import torch
@@ -9,6 +10,12 @@ from bim_gw.datasets.simple_shapes.domain_loaders import (
     AttributesLoader,
     TextLoader,
 )
+from bim_gw.datasets.simple_shapes.types import ShapesAvailableDomains
+
+OOODataType = Dict[
+    str,
+    Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
+]
 
 
 class OddImageDataset:
@@ -43,7 +50,10 @@ class OddImageDataset:
                 # other models, we use the 500 000 unseen elements
                 # from the train set
                 load_pre_saved_latent(
-                    self.root_path, "train", pre_saved_latent_path, "v"
+                    self.root_path,
+                    "train",
+                    pre_saved_latent_path,
+                    ShapesAvailableDomains.v,
                 ),
                 {0: "z_img"},
             ),
@@ -64,12 +74,12 @@ class OddImageDataset:
             name: domain_loaders[name]() for name in selected_domains
         }
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.labels.shape[0]
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> OOODataType:
         label = self.labels[item]
-        data = {
+        data: OOODataType = {
             name: (
                 self.domain_loaders[name].get_item(
                     label[0] + self.shift_ref_item

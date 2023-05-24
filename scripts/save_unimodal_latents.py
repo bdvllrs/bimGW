@@ -12,7 +12,7 @@ from bim_gw.utils.errors import ConfigError
 from bim_gw.utils.scripts import get_domains
 
 if __name__ == "__main__":
-    args = get_args(debug=int(os.getenv("DEBUG", 0)))
+    args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
 
     if args.global_workspace.load_pre_saved_latents is None:
         raise ConfigError(

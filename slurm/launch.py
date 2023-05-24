@@ -77,7 +77,7 @@ def main(args, cli_args):
 if __name__ == "__main__":
     main(
         get_args(
-            debug=int(os.getenv("DEBUG", 0)), cli=False, use_schema=False
+            debug=bool(int(os.getenv("DEBUG", 0))), cli=False, use_schema=False
         ),
         OmegaConf.from_cli(),
     )
