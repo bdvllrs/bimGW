@@ -1,3 +1,7 @@
+# 0.2.1
+
+Update editor config to have eol.
+
 # 0.2.0
 
 * The release version is added under the `_code_version` configuration value
