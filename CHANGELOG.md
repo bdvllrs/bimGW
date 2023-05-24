@@ -1,4 +1,4 @@
-# 0.1.1
+# 0.2.0
 
 * The release version is added under the `_code_version` configuration value
   when loading the config with `get_args`.
