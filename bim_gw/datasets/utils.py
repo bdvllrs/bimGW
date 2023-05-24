@@ -89,31 +89,24 @@ def filter_sync_domains(
     prop_2_domains = prop_labelled_images / prop_available_images
     original_size = int(len(allowed_indices) * prop_available_images)
 
-    if prop_2_domains == 1 and prop_available_images == 1:
-        return None, None
-
     sync_split = int(prop_2_domains * original_size)
     sync_items = permuted_indices[:sync_split]
     rest = permuted_indices[sync_split:]
 
     mapping: List[int] = []
     domain_mapping = []
-    if prop_2_domains < 1:
-        labelled_size = int(original_size * prop_2_domains)
-        n_repeats = ceil((len(domains) * len(allowed_indices)) / labelled_size)
-        domain_items = np.tile(sync_items, n_repeats)
-        mapping.extend(domain_items)
-        domain_mapping.extend([domains] * len(domain_items))
+    labelled_size = int(original_size * prop_2_domains)
+    n_repeats = ceil((len(domains) * len(allowed_indices)) / labelled_size)
+    domain_items = np.tile(sync_items, n_repeats)
+    mapping.extend(domain_items)
+    domain_mapping.extend([domains] * len(domain_items))
 
     unsync_domain_items = permuted_indices
-    if prop_available_images < 1:
-        n_unsync = (
-            int(prop_available_images * len(allowed_indices)) - sync_split
-        )
-        unsync_items = rest[:n_unsync]
-        unsync_domain_items = np.concatenate((unsync_items, sync_items))
-        n_repeats = ceil(len(allowed_indices) / len(unsync_domain_items))
-        unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
+    n_unsync = int(prop_available_images * len(allowed_indices)) - sync_split
+    unsync_items = rest[:n_unsync]
+    unsync_domain_items = np.concatenate((unsync_items, sync_items))
+    n_repeats = ceil(len(allowed_indices) / len(unsync_domain_items))
+    unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
     mapping.extend(unsync_domain_items)
     domain_mapping.extend([[domains[0]]] * len(unsync_domain_items))
     mapping.extend(unsync_domain_items)
