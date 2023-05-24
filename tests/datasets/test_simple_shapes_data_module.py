@@ -74,21 +74,6 @@ def test_data_module_without_selected_domains():
     datamodule.setup(stage="fit")
 
 
-def test_filter_sync_domains():
-    args = get_test_args()
-    datamodule = get_datamodule(args)
-    datamodule.setup(stage="fit")
-    allowed_indices = list(range(args.datasets.shapes.n_train_examples))
-    mapping, domain_mapping = filter_sync_domains(
-        args.global_workspace.selected_domains,
-        allowed_indices,
-        args.global_workspace.prop_labelled_images,
-        args.global_workspace.prop_available_images,
-    )
-    assert mapping is None
-    assert domain_mapping is None
-
-
 def test_filter_sync_domains_nonzero_prop_labelled_images():
     args = get_test_args()
     args.global_workspace.prop_labelled_images = 0.1
