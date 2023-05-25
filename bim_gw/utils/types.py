@@ -304,6 +304,7 @@ class LossesConfig:
 @dataclass
 class EncoderOddImageConfig:
     selected_id: Optional[str] = MISSING
+    use_dist: bool = MISSING
     path: Optional[str] = MISSING
     load_from: Optional[LoadFromData] = MISSING
     wandb_entity_project: Optional[str] = MISSING

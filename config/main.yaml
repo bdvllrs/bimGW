@@ -363,6 +363,7 @@ losses:
 odd_image:
   batch_size: 512
   encoder:
+    use_dist: false  # whether to classify using pairwise distances. 
     selected_id: null
     path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
     # If "identity", will not use the encoder.

@@ -274,6 +274,13 @@ if __name__ == "__main__":
 
         now = datetime.now().strftime("%d-%m-%YT%H_%M_%S")
 
+        x_label_short = (
+            "$N$" if vis_args.x_axis == "prop_labelled" else "$N+M$"
+        )
+        has_bimodal = " bimodal" if vis_args.x_axis == "prop_labelled" else ""
+
+        x_label_long = f"Number of{has_bimodal} examples ({x_label_short})"
+
         fig, axes = plt.subplots(
             n_rows, n_cols, figsize=(4.5 * n_cols, 4 * n_rows)
         )
@@ -311,9 +318,7 @@ if __name__ == "__main__":
                     labeled_curves.append(slug_label)
 
                     ax.set_xlabel(
-                        "Number of bimodal examples ($N$)"
-                        if k == 0
-                        else "$N$",
+                        x_label_long if k == 0 else x_label_short,
                         fontsize=args.visualization.font_size,
                     )
 

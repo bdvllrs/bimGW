@@ -6,7 +6,7 @@ from torch import nn
 
 from bim_gw.datasets.odd_image.data_module import OddImageDataModule
 from bim_gw.modules.gw import GlobalWorkspace
-from bim_gw.modules.odd_classifier import OddClassifier
+from bim_gw.modules.odd_classifier import OddClassifier, OddClassifierDist
 from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils import get_args
 from bim_gw.utils.scripts import get_domain, get_domains, get_trainer
@@ -172,6 +172,14 @@ if __name__ == "__main__":
                 logger.args.version = args.logger_resume_id
                 logger.args.id = args.logger_resume_id
                 logger.args.resume = True
+    elif args.odd_image.encoder.use_dist == "dist":
+        model = OddClassifierDist(
+            get_domains(args, 32),
+            encoders,
+            args.global_workspace.z_size,
+            args.odd_image.optimizer.lr,
+            args.odd_image.optimizer.weight_decay,
+        )
     else:
         model = OddClassifier(
             get_domains(args, 32),
