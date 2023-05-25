@@ -20,7 +20,7 @@ def inspect_writers(composer):
     return choices
 
 
-def inspect_all_choices(composer: Composer):
+def inspect_all_choices(composer: Composer) -> Dict[str, Any]:
     num_structures = 0
     choices = dict()
     for structure in composer.script_structures:

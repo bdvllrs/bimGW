@@ -1,16 +1,18 @@
 import logging
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, cast
 
 import numpy as np
 import torch
+import torch.utils
+import torch.utils.data
 from pytorch_lightning import LightningDataModule
 
 from bim_gw.datasets.distribution_splits import (
     create_ood_split,
     split_ood_sets,
 )
-from bim_gw.datasets.domain import collate_fn, DomainItems
+from bim_gw.datasets.domain import DomainItems, collate_fn
 from bim_gw.datasets.simple_shapes.datasets import (
     AVAILABLE_DOMAINS,
     SimpleShapesDataset,

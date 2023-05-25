@@ -22,6 +22,15 @@
         {
             "type": "python",
             "request": "launch",
+            "name": "Eval Language Grammar",
+            "program": "${workspaceFolder}/scripts/eval_language_grammar.py",
+            "env": {
+                "DEBUG": "1"
+            }
+        },
+        {
+            "type": "python",
+            "request": "launch",
             "name": "Visualize Main Results",
             "program": "${workspaceFolder}/scripts/visualization/gw_results.py"
         },
