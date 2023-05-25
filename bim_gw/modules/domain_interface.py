@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Iterator, Mapping, Tuple
+from typing import Any, Dict, Iterator, Tuple
 
 from torch import nn
 
@@ -9,7 +9,7 @@ from bim_gw.modules.domain_modules.domain_module import DomainSpecs
 
 
 class DomainInterface(nn.Module):
-    def __init__(self, domain_mods: Mapping[str, DomainModule]):
+    def __init__(self, domain_mods: Dict[str, DomainModule]):
         super(DomainInterface, self).__init__()
 
         self._domain_modules = nn.ModuleDict(
@@ -25,8 +25,8 @@ class DomainInterface(nn.Module):
             yield key, mod.domain_specs
 
     def encode(
-        self, domains: Mapping[str, DomainItems]
-    ) -> Mapping[str, DomainItems]:
+        self, domains: Dict[str, DomainItems]
+    ) -> Dict[str, DomainItems]:
         """
         Encodes unimodal inputs to their unimodal latent version
         """
@@ -39,8 +39,8 @@ class DomainInterface(nn.Module):
         return out
 
     def decode(
-        self, domains: Mapping[str, DomainItems]
-    ) -> Mapping[str, DomainItems]:
+        self, domains: Dict[str, DomainItems]
+    ) -> Dict[str, DomainItems]:
         """
         Encodes unimodal inputs to their unimodal latent version
         """
@@ -53,8 +53,8 @@ class DomainInterface(nn.Module):
         return out
 
     def adapt(
-        self, latents: Mapping[str, Mapping[str, Any]]
-    ) -> Mapping[str, Mapping[str, Any]]:
+        self, latents: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Dict[str, Any]]:
         return {
             domain: self._domain_modules[domain].adapt(latent)
             for domain, latent in latents.items()
