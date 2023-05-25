@@ -12,7 +12,7 @@ class DomainInterface(nn.Module):
     def __init__(self, domain_mods: Mapping[str, DomainModule]):
         super(DomainInterface, self).__init__()
 
-        self._domain_modules: Mapping[str, DomainModule] = nn.ModuleDict(
+        self._domain_modules = nn.ModuleDict(
             domain_mods  # consider it a mapping for the editor # type: ignore
         )
         for param in self._domain_modules.parameters():
