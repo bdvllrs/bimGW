@@ -172,7 +172,7 @@ if __name__ == "__main__":
                 logger.args.version = args.logger_resume_id
                 logger.args.id = args.logger_resume_id
                 logger.args.resume = True
-    elif args.odd_image.encoder.use_dist == "dist":
+    elif args.odd_image.encoder.use_dist:
         model = OddClassifierDist(
             get_domains(args, 32),
             encoders,

@@ -200,7 +200,6 @@ class VisualizationConfig:
     total_num_examples: int = MISSING
 
     argmin_over: str = MISSING
-    x_axis: str = MISSING
 
     additional_slug_conds: List[AdditionalSlugCond] = field(
         default_factory=list
