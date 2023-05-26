@@ -210,6 +210,7 @@ odd_image:
   batch_size: 512
   encoder:
     selected_id: null
+    use_dist: false
     path: null  # path to checkpoint. If null, will train a new encoder. If "random" will use a random encoder.
 
     load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
