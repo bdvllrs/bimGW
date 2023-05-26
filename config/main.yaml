@@ -153,6 +153,7 @@ visualization:
 
   saved_figure_path: "../../data/plots"  # where to save figures
   total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
+  x_axis: prop_labelled
   legend:
     num_columns: 2
   figures:
