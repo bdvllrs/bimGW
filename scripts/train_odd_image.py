@@ -177,8 +177,6 @@ if __name__ == "__main__":
             get_domains(args, 32),
             encoders,
             args.global_workspace.z_size,
-            args.odd_image.optimizer.lr,
-            args.odd_image.optimizer.weight_decay,
         )
     else:
         model = OddClassifier(
@@ -197,4 +195,9 @@ if __name__ == "__main__":
         early_stopping_patience=args.global_workspace.early_stopping_patience,
     )
 
-    trainer.fit(model, data)
+    best_checkpoint = None
+    if not args.odd_image.encoder.use_dist:
+        trainer.fit(model, data)
+        best_checkpoint = "best"
+    trainer.validate(model, data, best_checkpoint)
+    trainer.test(model, data, best_checkpoint)

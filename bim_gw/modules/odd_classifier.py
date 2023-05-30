@@ -100,8 +100,6 @@ class OddClassifierDist(OddClassifier):
         unimodal_encoders,
         encoders,
         z_size,
-        optimizer_lr=1e-3,
-        optimizer_weight_decay=1e-5,
     ):
         super(OddClassifier, self).__init__()
         self.save_hyperparameters(ignore=["encoder"])
@@ -133,3 +131,6 @@ class OddClassifierDist(OddClassifier):
                 F.mse_loss(latents[0], latents[1]),
             ]
         ).type_as(latents[0])
+
+    def configure_optimizers(self):
+        return None
