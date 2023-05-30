@@ -60,7 +60,7 @@ class OddClassifier(LightningModule):
         }
 
         predictions = {
-            name: self.classifier(latents[name])
+            name: self.classify(latents[name])
             for name in self.unimodal_encoders.keys()
         }
         losses = {
