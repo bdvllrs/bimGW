@@ -200,4 +200,3 @@ if __name__ == "__main__":
         trainer.fit(model, data)
         best_checkpoint = "best"
     trainer.validate(model, data, best_checkpoint)
-    trainer.test(model, data, best_checkpoint)

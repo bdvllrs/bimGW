@@ -124,12 +124,19 @@ class OddClassifierDist(OddClassifier):
         )
 
     def classify(self, latents):
-        return -torch.Tensor(
+        return torch.stack(
             [
-                F.mse_loss(latents[1], latents[2]),
-                F.mse_loss(latents[0], latents[2]),
-                F.mse_loss(latents[0], latents[1]),
-            ]
+                F.mse_loss(latents[1], latents[2], reduction="none").mean(
+                    dim=1
+                ),
+                F.mse_loss(latents[0], latents[2], reduction="none").mean(
+                    dim=1
+                ),
+                F.mse_loss(latents[0], latents[1], reduction="none").mean(
+                    dim=1
+                ),
+            ],
+            dim=1,
         ).type_as(latents[0])
 
     def configure_optimizers(self):
