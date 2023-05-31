@@ -124,7 +124,7 @@ class OddClassifierDist(OddClassifier):
         )
 
     def classify(self, latents):
-        return torch.stack(
+        return -torch.stack(
             [
                 F.mse_loss(latents[1], latents[2], reduction="none").mean(
                     dim=1
