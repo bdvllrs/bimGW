@@ -36,26 +36,32 @@ class OddClassifier(LightningModule):
             }
         )
 
+        self.cross_modal_val_acc = torchmetrics.Accuracy()
+        self.cross_modal_train_acc = torchmetrics.Accuracy()
+
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size * 3, 16), nn.ReLU(), nn.Linear(16, 3)
         )
 
     def classify(self, latents):
-        return self.classifier(torch.cat(latents, dim=1))
+        return self.classifier(latents.reshape(latents.size(0), -1))
 
     def step(self, batch, mode="train"):
         latents = {
-            name: [
-                self.encoders[name](
-                    self.unimodal_encoders[name](batch[name][0].sub_parts)
-                ),
-                self.encoders[name](
-                    self.unimodal_encoders[name](batch[name][1].sub_parts)
-                ),
-                self.encoders[name](
-                    self.unimodal_encoders[name](batch[name][2].sub_parts)
-                ),
-            ]
+            name: torch.stack(
+                [
+                    self.encoders[name](
+                        self.unimodal_encoders[name](batch[name][0].sub_parts)
+                    ),
+                    self.encoders[name](
+                        self.unimodal_encoders[name](batch[name][1].sub_parts)
+                    ),
+                    self.encoders[name](
+                        self.unimodal_encoders[name](batch[name][2].sub_parts)
+                    ),
+                ],
+                dim=1,
+            )
             for name in self.unimodal_encoders.keys()
         }
 
@@ -63,10 +69,12 @@ class OddClassifier(LightningModule):
             name: self.classify(latents[name])
             for name in self.unimodal_encoders.keys()
         }
+
         losses = {
             name: F.cross_entropy(predictions[name], batch["label"])
             for name in self.unimodal_encoders.keys()
         }
+
         for name in losses.keys():
             self.log(f"{mode}_{name}_loss", losses[name])
             acc_fn = (
@@ -74,7 +82,34 @@ class OddClassifier(LightningModule):
             )
             res = acc_fn(predictions[name].softmax(-1), batch["label"])
             self.log(f"{mode}_{name}_acc", res, on_epoch=(mode == "val"))
+
         self.log(f"{mode}_loss", losses["v"])
+
+        domain_original = "v"
+        domain_target = [
+            key for key in latents.keys() if key != domain_original
+        ][0]
+        cross_modal_latent = latents[domain_original].clone()
+        arange = torch.arange(cross_modal_latent.size(0))
+        swap_item_indices = torch.randint(3, (cross_modal_latent.size(0),))
+        cross_modal_latent[arange, swap_item_indices] = latents[domain_target][
+            arange, swap_item_indices
+        ]
+
+        cross_modal_predictions = self.classify(cross_modal_latent)
+        cross_modal_loss = F.cross_entropy(
+            cross_modal_predictions, batch["label"]
+        )
+
+        self.log(f"{mode}_cross_modal_loss", cross_modal_loss)
+        acc_fn = (
+            self.cross_modal_train_acc
+            if mode == "train"
+            else self.cross_modal_val_acc
+        )
+        res = acc_fn(cross_modal_predictions.softmax(-1), batch["label"])
+        self.log(f"{mode}_cross_modal_acc", res, on_epoch=(mode == "val"))
+
         return losses["v"]
 
     def training_step(self, batch, batch_idx):
