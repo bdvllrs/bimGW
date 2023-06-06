@@ -22,10 +22,14 @@ def _isinstance(obj, type_):
     try:
         subtypes = type_.__args__
         for subtype in subtypes:
+            if subtype is float:
+                subtype = (float, int)
             if isinstance(obj, subtype):
                 return True
         return False
     except AttributeError:
+        if type_ is float:
+            type_ = (float, int)
         return isinstance(obj, type_)
 
 
