@@ -98,6 +98,16 @@ def get_trainer(
                 monitor=monitor_loss,
             )
         )
+    else:
+        save_dir = Path(args.checkpoints_dir) / "test/checkpoints"
+        callbacks.append(
+            ModelCheckpoint(
+                dirpath=save_dir,
+                save_top_k=1,
+                mode="min",
+                monitor=monitor_loss,
+            )
+        )
 
     _trainer_args = {
         "default_root_dir": args.checkpoints_dir,
