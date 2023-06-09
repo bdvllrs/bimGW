@@ -6,8 +6,11 @@
             "request": "launch",
             "name": "Train GW",
             "program": "${workspaceFolder}/scripts/train.py",
+            "justMyCode": false,
             "env": {
-                "DEBUG": "1"
+                "DEBUG": "1",
+                "CUDA_VISIBLE_DEVICES": "1",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID"
             }
         },
         {
@@ -15,8 +18,12 @@
             "request": "launch",
             "name": "Train Odd One Out Task",
             "program": "${workspaceFolder}/scripts/train_odd_image.py",
+            "justMyCode": false,
             "env": {
-                "DEBUG": "1"
+                "DEBUG": "1",
+                "CUDA_VISIBLE_DEVICES": "1",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID"
+
             }
         },
         {
@@ -24,6 +31,7 @@
             "request": "launch",
             "name": "Eval Language Grammar",
             "program": "${workspaceFolder}/scripts/eval_language_grammar.py",
+            "justMyCode": false,
             "env": {
                 "DEBUG": "1"
             }
@@ -32,12 +40,14 @@
             "type": "python",
             "request": "launch",
             "name": "Visualize Main Results",
+            "justMyCode": false,
             "program": "${workspaceFolder}/scripts/visualization/gw_results.py"
         },
         {
             "type": "python",
             "request": "launch",
             "name": "Visualize Downstream OOO",
+            "justMyCode": false,
             "program": "${workspaceFolder}/scripts/visualization/downstream_ooo.py"
         }    
     ]
