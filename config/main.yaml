@@ -63,7 +63,7 @@ slurm: # slurm parameters if started on slurm with the slurm/launch.py command
 dataloader:
   num_workers: 0
 
-run_name: "${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
+run_name: "v${_code_version}_${slurm.slurm.-J}_slug=${coef_slug:}_N=${global_workspace.prop_labelled_images}"  # name of the run used in the loggers.
 # ${cloef_slug:} is replaced by the coef_slug value depending on coefficient values.
 loggers: [ ]
 #  - logger: WandbLogger
@@ -381,6 +381,16 @@ odd_image:
     wandb_filter: null
     csv_path: null
     selected_id_key: "Name"  # from which column the id is taken in the loaded run.
+
+  checkpoint: # params for loading pretrained classifier
+    selected_id: null
+    load_from: null  # similar to the visualization. Can be null, "wandb" or "csv".
+    # If "wandb", will override odd_image.encoder.selected_id from a run selected from wandb.
+    # If "csv", will override from a run from the csv file given in odd_image.encoder.csv_path.
+    # If null, will not overwrite odd_image.encoder.selected_id.
+    wandb_entity_project: null
+    wandb_filter: null
+    csv_path: null
 
   # If load from is not null, which items to select from the loaded runs?
   select_row_from_index: null  # If this is not null, will select the corresponding item.
