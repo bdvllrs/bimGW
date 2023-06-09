@@ -1,3 +1,5 @@
+import pathlib
+from collections.abc import Container
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
@@ -68,6 +70,26 @@ class AvailableLoggers(Enum):
 class LoadFromData(Enum):
     wandb = "wandb"
     csv = "csv"
+
+
+class LoadFromPath(Enum):
+    remote = "remote"
+    local = "local"
+
+
+@dataclass
+class ComplexPathInfo(Container):
+    load_from: LoadFromPath = MISSING
+
+    remote_server: Optional[str] = None
+    remote_user: Optional[str] = None
+    remote_password: Optional[str] = None
+    remote_checkpoint_path: Optional[str] = None
+
+    local_path: Optional[str] = None
+
+
+PathType = Union[str, pathlib.Path, ComplexPathInfo]
 
 
 @dataclass
@@ -312,6 +334,15 @@ class EncoderOddImageConfig:
 
 
 @dataclass
+class CheckpointOddImageConfig:
+    load_from: Optional[LoadFromData] = MISSING
+    wandb_entity_project: Optional[str] = MISSING
+    wandb_filter: Optional[WandbFilterT] = MISSING
+    csv_path: Optional[str] = MISSING
+    selected_id: Optional[str] = MISSING
+
+
+@dataclass
 class OddImageConfig:
     batch_size: int = MISSING
     select_row_from_index: Optional[int] = MISSING
@@ -319,6 +350,7 @@ class OddImageConfig:
     encoder: EncoderOddImageConfig = field(
         default_factory=EncoderOddImageConfig
     )
+    checkpoint: Optional[CheckpointOddImageConfig] = None
     optimizer: OptimConfig = field(default_factory=OptimConfig)
 
 
@@ -350,6 +382,33 @@ class ShapesConfig:
 @dataclass
 class DatasetsConfig:
     shapes: ShapesConfig = field(default_factory=ShapesConfig)
+
+
+@dataclass
+class LossDefinitionsGWResultsConfig:
+    translation: List[str] = MISSING
+    contrastive: List[str] = MISSING
+
+
+@dataclass
+class MixLossCoefficientsGWResultConfig:
+    translation: float = MISSING
+    contrastive: float = MISSING
+
+
+@dataclass
+class GWResultVisualizationConfig:
+    saved_figure_path: str = MISSING
+    total_num_examples: int = MISSING
+
+    loss_definitions: LossDefinitionsGWResultsConfig = field(
+        default_factory=LossDefinitionsGWResultsConfig
+    )
+    axes: AxesGWResultConfig = field(default_factory=AxesGWResultConfig)
+    mix_loss_coefficients: MixLossCoefficientsGWResultConfig = field(
+        default_factory=MixLossCoefficientsGWResultConfig
+    )
+    legend: LegendGWResultConfig = field(default_factory=LegendGWResultConfig)
 
 
 @dataclass
