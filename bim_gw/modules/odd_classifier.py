@@ -15,7 +15,7 @@ class OddClassifier(LightningModule):
         optimizer_weight_decay=1e-5,
     ):
         super(OddClassifier, self).__init__()
-        self.save_hyperparameters(ignore=["encoder"])
+        self.save_hyperparameters(ignore=["unimodal_encoders", "encoder"])
         self.unimodal_encoders = nn.ModuleDict(unimodal_encoders)
         self.encoders = nn.ModuleDict(encoders)
         self.z_size = z_size
@@ -82,33 +82,33 @@ class OddClassifier(LightningModule):
             )
             res = acc_fn(predictions[name].softmax(-1), batch["label"])
             self.log(f"{mode}_{name}_acc", res, on_epoch=(mode == "val"))
-
         self.log(f"{mode}_loss", losses["v"])
 
-        domain_original = "v"
-        domain_target = [
-            key for key in latents.keys() if key != domain_original
-        ][0]
-        cross_modal_latent = latents[domain_original].clone()
-        arange = torch.arange(cross_modal_latent.size(0))
-        swap_item_indices = torch.randint(3, (cross_modal_latent.size(0),))
-        cross_modal_latent[arange, swap_item_indices] = latents[domain_target][
-            arange, swap_item_indices
-        ]
+        if len(latents) > 1:
+            domain_original = "v"
+            domain_target = [
+                key for key in latents.keys() if key != domain_original
+            ][0]
+            cross_modal_latent = latents[domain_original].clone()
+            arange = torch.arange(cross_modal_latent.size(0))
+            swap_item_indices = torch.randint(3, (cross_modal_latent.size(0),))
+            cross_modal_latent[arange, swap_item_indices] = latents[
+                domain_target
+            ][arange, swap_item_indices]
 
-        cross_modal_predictions = self.classify(cross_modal_latent)
-        cross_modal_loss = F.cross_entropy(
-            cross_modal_predictions, batch["label"]
-        )
+            cross_modal_predictions = self.classify(cross_modal_latent)
+            cross_modal_loss = F.cross_entropy(
+                cross_modal_predictions, batch["label"]
+            )
 
-        self.log(f"{mode}_cross_modal_loss", cross_modal_loss)
-        acc_fn = (
-            self.cross_modal_train_acc
-            if mode == "train"
-            else self.cross_modal_val_acc
-        )
-        res = acc_fn(cross_modal_predictions.softmax(-1), batch["label"])
-        self.log(f"{mode}_cross_modal_acc", res, on_epoch=(mode == "val"))
+            self.log(f"{mode}_cross_modal_loss", cross_modal_loss)
+            acc_fn = (
+                self.cross_modal_train_acc
+                if mode == "train"
+                else self.cross_modal_val_acc
+            )
+            res = acc_fn(cross_modal_predictions.softmax(-1), batch["label"])
+            self.log(f"{mode}_cross_modal_acc", res, on_epoch=(mode == "val"))
 
         return losses["v"]
 

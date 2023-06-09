@@ -55,6 +55,11 @@ def update_args_from_selected_run(
         item = df.iloc[select_row_from_index].to_dict()
     elif select_row_from_current_coefficients:
         df = filter_coefs(df, args)
+        if len(df) == 0:
+            raise ValueError(
+                "No row found. Filter your model with the "
+                "'odd_image/encoder/filter' parameter."
+            )
         item = df.iloc[0].to_dict()
     else:
         raise ValueError(
@@ -99,7 +104,10 @@ if __name__ == "__main__":
         args.domain_loader.t.bert_latents,
     )
 
-    if args.odd_image.encoder.load_from is not None:
+    if (
+        args.odd_image.encoder.load_from is not None
+        and args.odd_image.encoder.path not in [None, "random", "identity"]
+    ):
         df = get_runs_dataframe(args.odd_image.encoder)
         item = update_args_from_selected_run(
             df,
@@ -145,6 +153,7 @@ if __name__ == "__main__":
         path = args.odd_image.encoder.path
         if not os.path.isfile(path) and os.path.isdir(path):
             path = find_best_epoch(path)
+        print("Encoders")
         global_workspace = GlobalWorkspace.load_from_checkpoint(
             path, domain_mods=get_domains(args, args.img_size), strict=False
         )
@@ -160,12 +169,24 @@ if __name__ == "__main__":
         [name for name in load_domains]
     )
 
-    if args.resume_from_checkpoint is not None:
-        path = get_checkpoint_path(args.resume_from_checkpoint)
+    if args.checkpoint is not None:
+        if args.odd_image.checkpoint is not None:
+            df = get_runs_dataframe(args.odd_image.checkpoint)
+            item = update_args_from_selected_run(
+                df,
+                args,
+                args.odd_image.select_row_from_index,
+                args.odd_image.select_row_from_current_coefficients,
+            )
+            args.odd_image.checkpoint.selected_id = item["selected_id"]
+        path = get_checkpoint_path(args.checkpoint)
+        print("OddClassifier")
+        assert path is not None
         model = OddClassifier.load_from_checkpoint(
             path,
             unimodal_encoders=get_domains(args, args.img_size),
             encoders=encoders,
+            strict=False,
         )
         if args.logger_resume_id is not None:
             for logger in args.loggers:
