@@ -5,6 +5,7 @@ checkpoints/
 logs/
 test/checkpoint/
 data/
+scripts/wandb/*
 
 .idea
 
