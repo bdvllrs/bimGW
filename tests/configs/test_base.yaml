@@ -222,6 +222,13 @@ odd_image:
     csv_path: null
     selected_id_key: "Name"  # from which column the id is taken in the loaded run.
 
+  checkpoint: 
+    selected_id: null
+    load_from: null
+    wandb_entity_project: null
+    wandb_filter: null
+    csv_path: null
+
   select_row_from_index: null  # If this is not null, will select the corresponding item.
   select_row_from_current_coefficients: false  # if select_row_from_index is null and this is true, will select the run which uses the same loss coefficients as currently set.
 
