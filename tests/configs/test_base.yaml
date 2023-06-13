@@ -75,6 +75,10 @@ visualization:
 
   legend:
     num_columns: 2
+
+  wspace: null
+  hspace: 0.0625
+
   figures:
     - title: "Global results"
       selected_losses:
@@ -83,10 +87,6 @@ visualization:
         contrastive:
           curves: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
       legend_order: [ "tr", "tr+cy", "tr+cont", "tr+cont+dcy+cy" ]
-
-      bottom_adjust: 0.2
-      top_adjust: 0.9
-      hspace_adjust: 0.3
 
       cols:
         - label: "Proto-language -- Vision"

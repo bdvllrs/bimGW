@@ -189,13 +189,6 @@ class FigureLossConfig:
 class AxesGWResultConfig:
     title: str = MISSING
 
-    top_adjust: Optional[float] = None
-    bottom_adjust: Optional[float] = None
-    left_adjust: Optional[float] = None
-    right_adjust: Optional[float] = None
-    hspace_adjust: Optional[float] = None
-    wspace_adjust: Optional[float] = None
-
     transpose_fig: bool = False
 
     legend_order: List[str] = field(default_factory=list)
@@ -221,6 +214,9 @@ class VisualizationConfig:
     total_num_examples: int = MISSING
     argmin_over: str = MISSING
     x_axis: str = MISSING
+
+    hspace: Optional[float] = MISSING
+    wspace: Optional[float] = MISSING
 
     additional_slug_conds: List[AdditionalSlugCond] = field(
         default_factory=list

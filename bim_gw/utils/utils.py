@@ -134,6 +134,8 @@ def update_df_for_legacy_code(df: pd.DataFrame) -> pd.DataFrame:
         df["parameters/losses/coefs/translation"] = df.apply(
             replace_legacy_supervision_to_translation, axis=1
         )
+    if "parameters/global_workspace/prop_available_images" not in df.columns:
+        df["parameters/global_workspace/prop_available_images"] = 1.0
 
     for column in df.columns:
         if "parameters/global_workspace/selected_domains" in column:

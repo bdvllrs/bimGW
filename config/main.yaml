@@ -155,6 +155,10 @@ visualization:
   total_num_examples: 500_000  # used for the x-axis to go from proportions to absolute number of matched examples
   legend:
     num_columns: 2
+
+  wspace: null  # horizontal spacing between axes
+  hspace: 0.0625  # vertical spacing between axes
+
   figures:
     - title: "Global results"
       selected_losses:
@@ -178,15 +182,8 @@ visualization:
 
       transpose_fig: false  # if true, will transpose columns and rows
 
-      bottom_adjust: 0.2  # adjust figure positioning
-      top_adjust: 0.9
-      right_adjust: null
-      left_adjust: null
-      wspace_adjust: null
-      hspace_adjust: 0.3
-
       cols:
-        - label: "Proto-language -- Vision"
+        - label: "Vision — Proto-language"
           load_from: wandb  # among wandb or csv
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
@@ -197,7 +194,7 @@ visualization:
           #      - 'State': "finished"
           # 
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
-        - label: "Text -- Vision"
+        - label: "Vision — Natural Language"
           load_from: wandb  # similar to attributes
           wandb_entity_project: null
           wandb_filter: null
@@ -230,20 +227,13 @@ visualization:
 
       transpose_fig: false
 
-      bottom_adjust: 0.2
-      top_adjust: 0.9
-      left_adjust: null
-      right_adjust: null
-      hspace_adjust: 0.3
-      wspace_adjust: null
-
       cols:
-        - label: "Proto-language -- Vision"
+        - label: "Vision — Proto-language"
           load_from: wandb  # among wandb or csv
           wandb_entity_project: null  # If load_from is wandb, entity/project-name
           wandb_filter: null  # If load_from is wandb, filter with MongoDB syntax (see https://docs.wandb.ai/guides/track/public-api-guide#filter-runs)
           csv_path: null  # If load_from is csv, path to csv file containing the run to display
-        - label: "Text -- Vision"
+        - label: "Vision — Natural Language"
           load_from: wandb  # similar to attributes
           wandb_entity_project: null
           wandb_filter: null
