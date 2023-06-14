@@ -47,7 +47,9 @@ if __name__ == "__main__":
         )
         has_bimodal = " bimodal" if vis_args.x_axis == "prop_labelled" else ""
 
-        x_label_long = f"Number of{has_bimodal} examples ({x_label_short})"
+        x_label_long = (
+            f"Number of{has_bimodal} examples {x_label_short} (N=5000)"
+        )
 
         fig, axes = plt.subplots(
             n_rows,
@@ -149,9 +151,11 @@ if __name__ == "__main__":
                 ax_handles, ax_labels = ax.get_legend_handles_labels()
                 handles.extend(ax_handles)
                 labels.extend(ax_labels)
-        order = [
-            labels.index(slug_to_label.get(x, x)) for x in figure.legend_order
-        ]
+        order = []
+        for x in figure.legend_order:
+            label = slug_to_label.get(x, x)
+            if label in labels:
+                order.append(labels.index(label))
         fig.legend(
             [handles[idx] for idx in order],
             [labels[idx] for idx in order],
