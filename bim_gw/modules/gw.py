@@ -256,7 +256,7 @@ class GlobalWorkspace(LightningModule):
             return indiv_losses
         return {"contrastive": torch.tensor(0.0).to(self.device)}
 
-    def loss(self, predictions, targets, prefix=""):
+    def loss(self, predictions, targets, mode, prefix=""):
         losses = []
         logged_metrics = {}
         for domain_name in predictions.keys():
@@ -276,7 +276,7 @@ class GlobalWorkspace(LightningModule):
             losses.append(domain_total)
             logged_metrics[f"{prefix}/domain_{domain_name}"] = domain_total
             domain_metrics = self.domains[loss_domain].metrics(
-                prediction, target
+                f"{mode}/{prefix}", prediction, target
             )
             for metric, value in domain_metrics.items():
                 logged_metrics[
@@ -376,16 +376,21 @@ class GlobalWorkspace(LightningModule):
         demi_cycle_losses = self.loss(
             latent_demi_cycle_predictions,
             latent_demi_cycle_target,
+            mode,
             prefix="demi_cycles",
         )
         cycle_losses = self.loss(
-            latent_cycle_predictions, latent_cycle_target, prefix="cycles"
+            latent_cycle_predictions,
+            latent_cycle_target,
+            mode,
+            prefix="cycles",
         )
         contrastive_losses = self.contrastive_loss(states)
 
         translation_losses = self.loss(
             latent_translation_predictions,
             latent_translation_target,
+            mode,
             prefix="translation",
         )
         translation_losses_2 = {}
@@ -393,6 +398,7 @@ class GlobalWorkspace(LightningModule):
             translation_losses_2 = self.loss(
                 latent_translation_predictions_2,
                 latent_translation_target_2,
+                mode,
                 prefix="translation-non-op",
             )
 

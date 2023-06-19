@@ -176,6 +176,7 @@ class SimpleShapesText(DomainModule):
                 for name in self.composer_inspection.keys()
             }
         )
+        self.grammar_metrics = {}
 
         self.domain_examples: Optional[DictBuffer] = None
 
@@ -274,6 +275,38 @@ class SimpleShapesText(DomainModule):
         )
         return None, labels, choices  # TODO: add BERT vectors
 
+    def metrics(self, mode, predictions, targets):
+        if "train" in mode:
+            return {}
+
+        if mode not in self.grammar_metrics.keys():
+            self.grammar_metrics[mode] = {
+                name: torchmetrics.Accuracy().to(predictions["z"].device)
+                for name in self.grammar_classifiers.keys()
+            }
+        grammar_acc = self.grammar_metrics[mode]
+
+        z = predictions["z"]
+        target_z = targets["z"]
+
+        metrics = {}
+
+        for grammar_name, classifier in self.grammar_classifiers.items():
+            grammar_prediction = classifier(z.detach())
+            grammar_target = classifier(target_z.detach()).argmax(-1)
+            loss_grammar = F.cross_entropy(grammar_prediction, grammar_target)
+            acc = grammar_acc[grammar_name](
+                grammar_prediction.softmax(-1), grammar_target
+            )
+
+            metrics.update(
+                {
+                    f"grammar_{grammar_name}_ce": loss_grammar,
+                    f"grammar_{grammar_name}_acc": acc,
+                }
+            )
+        return metrics
+
     def log_domain_from_latent(
         self, logger, z, name, max_examples=None, step=None
     ):
@@ -281,12 +314,10 @@ class SimpleShapesText(DomainModule):
         self.attribute_domain.log_domain(
             logger, predictions, name, max_examples, step=step
         )
+        sentences, choices = self.get_sentence_predictions(z["z"], predictions)
+        text = [[sentence] for sentence in sentences]
 
         if logger is not None and hasattr(logger, "log_table"):
-            sentences, choices = self.get_sentence_predictions(
-                z["z"], predictions
-            )
-            text = [[sentence] for sentence in sentences]
             logger.log_table(
                 name + "_s", columns=["Text"], data=text, step=step
             )

@@ -63,7 +63,7 @@ class DomainModule(LightningModule):
             losses[k] = loss_val
         return loss, losses
 
-    def metrics(self, predictions, targets):
+    def metrics(self, mode, predictions, targets):
         return {}
 
 
@@ -110,5 +110,5 @@ class PassThroughWM(DomainModule):
             logger, x, title, max_examples, step=step
         )
 
-    def metrics(self, predictions, targets):
-        return self.workspace_module.metrics(predictions, targets)
+    def metrics(self, mode, predictions, targets):
+        return self.workspace_module.metrics(mode, predictions, targets)
