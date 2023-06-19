@@ -258,26 +258,33 @@ class GlobalWorkspace(LightningModule):
 
     def loss(self, predictions, targets, prefix=""):
         losses = []
-        indiv_losses = {}
+        logged_metrics = {}
         for domain_name in predictions.keys():
             loss_domain = domain_name
             if "-" in domain_name:
                 loss_domain = domain_name.split("-")[0]
             prediction, target = predictions[domain_name], targets[domain_name]
-            (domain_total, domain_indiv_losses) = self.domains[
+            (domain_total, domain_logged_metrics) = self.domains[
                 loss_domain
             ].loss(prediction, target)
-            indiv_losses.update(
+            logged_metrics.update(
                 {
                     f"{prefix}/domain_{domain_name}_{k}": v
-                    for k, v in domain_indiv_losses.items()
+                    for k, v in domain_logged_metrics.items()
                 }
             )
             losses.append(domain_total)
-            indiv_losses[f"{prefix}/domain_{domain_name}"] = domain_total
+            logged_metrics[f"{prefix}/domain_{domain_name}"] = domain_total
+            domain_metrics = self.domains[loss_domain].metrics(
+                prediction, target
+            )
+            for metric, value in domain_metrics.items():
+                logged_metrics[
+                    f"{prefix}/domain_{domain_name}_{metric}"
+                ] = value
         if len(losses):
-            indiv_losses[prefix] = torch.stack(losses, dim=0).mean()
-            return indiv_losses
+            logged_metrics[prefix] = torch.stack(losses, dim=0).mean()
+            return logged_metrics
         return {prefix: torch.tensor(0.0).to(self.device)}
 
     def step(

@@ -50,7 +50,7 @@ class DomainModule(LightningModule):
         )
 
     def compute_acc(self, acc_metric, predictions, targets):
-        pass
+        raise NotImplementedError
 
     def loss(self, predictions, targets):
         loss = 0.0
@@ -62,6 +62,9 @@ class DomainModule(LightningModule):
             # use k instead of key to keep the same logging keys
             losses[k] = loss_val
         return loss, losses
+
+    def metrics(self, predictions, targets):
+        return {}
 
 
 class PassThroughWM(DomainModule):
@@ -106,3 +109,6 @@ class PassThroughWM(DomainModule):
         return self.workspace_module.log_domain(
             logger, x, title, max_examples, step=step
         )
+
+    def metrics(self, predictions, targets):
+        return self.workspace_module.metrics(predictions, targets)
