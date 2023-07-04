@@ -70,12 +70,12 @@ possessing different attributes:
 
 The model contains uni-modal modules which are pretrained:
 
-- A VAE for the visual domain,
-- BERT for the language model.
+- a VAE for the visual domain: available in `checkpoints/vae_v.ckpt`,
+- the language model: available in `checkpoints/vae_t.ckpt`.
 
 ![Diagram of the model](images/model.png)
 
-To pretrain each modality, use the corresponding training script:
+To retrain each modality, use the corresponding training script:
 
 - `train_vae.py` for the VAE,
 - `train_lm.py` for the language model.

@@ -1,7 +1,9 @@
 # Created by .ignore support plugin (hsz.mobi)
-config/
+config/*
 !config/main.yaml
-checkpoints/
+checkpoints/**/*
+!checkpoints/vae_v.ckpt
+!checkpoints/vae_t.ckpt
 logs/
 test/checkpoint/
 data/
