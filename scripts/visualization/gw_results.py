@@ -146,7 +146,7 @@ if __name__ == "__main__":
                             xytext=(x_end, annotation.y),
                             arrowprops=dict(arrowstyle="<->"),
                         )
-                ax.set_yscale("log")
+                # ax.set_yscale("log")
                 ax.set_xscale("log")
                 ax_handles, ax_labels = ax.get_legend_handles_labels()
                 handles.extend(ax_handles)

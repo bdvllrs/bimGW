@@ -38,6 +38,7 @@ class OddClassifier(LightningModule):
 
         self.cross_modal_val_acc = torchmetrics.Accuracy()
         self.cross_modal_train_acc = torchmetrics.Accuracy()
+        self.cross_modal_val_prop = torchmetrics.Accuracy()
 
         self.classifier = nn.Sequential(
             nn.Linear(self.z_size * 3, 16), nn.ReLU(), nn.Linear(16, 3)
@@ -91,7 +92,9 @@ class OddClassifier(LightningModule):
             ][0]
             cross_modal_latent = latents[domain_original].clone()
             arange = torch.arange(cross_modal_latent.size(0))
-            swap_item_indices = torch.randint(3, (cross_modal_latent.size(0),))
+            swap_item_indices = torch.randint(
+                3, (cross_modal_latent.size(0),)
+            ).to(cross_modal_latent.device)
             cross_modal_latent[arange, swap_item_indices] = latents[
                 domain_target
             ][arange, swap_item_indices]
@@ -107,8 +110,17 @@ class OddClassifier(LightningModule):
                 if mode == "train"
                 else self.cross_modal_val_acc
             )
-            res = acc_fn(cross_modal_predictions.softmax(-1), batch["label"])
+            cross_modal_prediction_probs = cross_modal_predictions.softmax(-1)
+            res = acc_fn(cross_modal_prediction_probs, batch["label"])
             self.log(f"{mode}_cross_modal_acc", res, on_epoch=(mode == "val"))
+            # Proportion of the v element being predicted.
+            self.log(
+                f"{mode}_cross_modal_v_prop",
+                self.cross_modal_val_prop(
+                    cross_modal_prediction_probs, swap_item_indices
+                ),
+                on_epoch=(mode == "val"),
+            )
 
         return losses["v"]
 
@@ -158,18 +170,22 @@ class OddClassifierDist(OddClassifier):
             }
         )
 
+        self.cross_modal_val_acc = torchmetrics.Accuracy()
+        self.cross_modal_train_acc = torchmetrics.Accuracy()
+        self.cross_modal_val_prop = torchmetrics.Accuracy()
+
     def classify(self, latents):
         return -torch.stack(
             [
-                F.mse_loss(latents[1], latents[2], reduction="none").mean(
-                    dim=1
-                ),
-                F.mse_loss(latents[0], latents[2], reduction="none").mean(
-                    dim=1
-                ),
-                F.mse_loss(latents[0], latents[1], reduction="none").mean(
-                    dim=1
-                ),
+                F.mse_loss(
+                    latents[:, 1], latents[:, 2], reduction="none"
+                ).mean(dim=1),
+                F.mse_loss(
+                    latents[:, 0], latents[:, 2], reduction="none"
+                ).mean(dim=1),
+                F.mse_loss(
+                    latents[:, 0], latents[:, 1], reduction="none"
+                ).mean(dim=1),
             ],
             dim=1,
         ).type_as(latents[0])

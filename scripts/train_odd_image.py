@@ -217,7 +217,7 @@ if __name__ == "__main__":
     )
 
     best_checkpoint = None
-    if not args.odd_image.encoder.use_dist:
-        trainer.fit(model, data)
-        best_checkpoint = "best"
+    # if not args.odd_image.encoder.use_dist:
+    #     trainer.fit(model, data)
+    #     best_checkpoint = "best"
     trainer.validate(model, data, best_checkpoint)
