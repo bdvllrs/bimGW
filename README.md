@@ -48,8 +48,10 @@ python train.py "max_epochs=2" "global_workspace.batch_size=512"
 ```
 
 # Dataset
+## Simple Shapes
+Download link: [https://zenodo.org/record/8112838](https://zenodo.org/record/8112838).
 
-The main dataset of the project is the custom "shapes" dataset. One can be
+This is the main dataset of the project. It can be
 generated using the `create_shape_dataset.py`
 script.
 
