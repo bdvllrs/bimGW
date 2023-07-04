@@ -176,7 +176,7 @@ class SimpleShapesText(DomainModule):
                 for name in self.composer_inspection.keys()
             }
         )
-        self.grammar_metrics = {}
+        self.grammar_metrics: Dict[str, torchmetrics.Accuracy] = {}
 
         self.domain_examples: Optional[DictBuffer] = None
 
