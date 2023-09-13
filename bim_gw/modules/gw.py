@@ -563,6 +563,7 @@ class GlobalWorkspace(LightningModule):
                     self.log_domains(logger, dist_examples, f"{mode}/{dist}")
 
     def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        self.domains.eval()
         self.epoch_end("train")
 
     def validation_epoch_end(self, outputs) -> None:
