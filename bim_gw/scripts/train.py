@@ -54,9 +54,9 @@ def train_gw(args, mode="train"):
     )
 
     best_checkpoint = None
-    # if mode == "train":
-    #     trainer.fit(global_workspace, data)
-    #     best_checkpoint = "best" if not args.fast_dev_run else None
+    if mode == "train":
+        trainer.fit(global_workspace, data)
+        best_checkpoint = "best" if not args.fast_dev_run else None
 
     loggers_save_images(trainer.loggers, True)
     if mode in ["train", "eval"]:
