@@ -124,28 +124,19 @@ def get_validation_examples(
     datasets: Mapping[SplitLiteral, Mapping[DistLiteral, Dataset]],
     n_domain_examples: int,
 ) -> DomainExamplesType:
-    reconstruction_indices = {
-        split: {
-            dist: torch.randint(len(dataset[dist]), size=(n_domain_examples,)),
-        }
-        for split, dataset in datasets.items()
-        for dist in dataset.keys()
-        if dataset[dist] is not None
-    }
-
     domain_examples: Dict[
         SplitLiteral, Dict[DistLiteral, Dict[AvailableDomains, DomainItems]]
     ] = {}
 
-    all_sets = [(split, dataset) for split, dataset in datasets.items()]
-
-    for set_name, used_set in all_sets:
-        domain_examples[set_name] = {}
-        for used_dist in reconstruction_indices[set_name].keys():
-            dist_indices = reconstruction_indices[set_name][used_dist]
-            examples = collate_fn(
-                [used_set[used_dist][i] for i in dist_indices]
+    for split, dataset in datasets.items():
+        domain_examples[split] = {}
+        for dist in dataset.keys():
+            if dataset[dist] is None:
+                continue
+            dist_indices = torch.randint(
+                len(dataset[dist]), size=(n_domain_examples,)
             )
-            domain_examples[set_name][used_dist] = examples
+            examples = collate_fn([dataset[dist][i] for i in dist_indices])
+            domain_examples[split][dist] = examples
 
     return domain_examples
