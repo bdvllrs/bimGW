@@ -20,7 +20,7 @@ def split_in_out_dist(dataset, ood_attrs):
     in_dist_items = []
     out_dist_items = []
 
-    for i, label in zip(dataset.ids, dataset.y_axis_labels):
+    for i, label in zip(dataset.ids, dataset.labels):
         cls = int(label[0])
         x, y = label[1], label[2]
         size = label[3]
