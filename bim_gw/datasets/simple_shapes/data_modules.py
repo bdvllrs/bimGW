@@ -72,6 +72,7 @@ class SimpleShapesDataModule(LightningDataModule):
         add_unimodal: bool = True,
         domain_loader_params: Optional[Dict[str, Any]] = None,
         len_train_dataset: int = 1_000_000,
+        ood_seed: int = 0,
         ood_hole_attrs: int = 6,
     ):
         super().__init__()
@@ -89,6 +90,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.len_train_dataset: int = len_train_dataset
         self.n_domain_examples = batch_size
         self.ood_hole_attrs = ood_hole_attrs
+        self.ood_seed = ood_seed
 
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
@@ -181,7 +183,7 @@ class SimpleShapesDataModule(LightningDataModule):
             id_ood_splits = None
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
-                    ood_split_datasets, self.ood_hole_attrs, seed=0
+                    ood_split_datasets, self.ood_hole_attrs, seed=self.ood_seed
                 )
                 self.ood_boundaries = ood_boundaries
 

@@ -300,6 +300,7 @@ global_workspace:
 
   split_ood: false  # whether to remove a out-of-distribution split in the training set.
   ood_hole_attrs: 6
+  ood_seed: 0
   bert_path: "bert-base-uncased"
 
   z_size: 12  # size of the GW latent space
