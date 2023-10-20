@@ -1,6 +1,8 @@
 import matplotlib.path as mpath
 import numpy as np
-from matplotlib import gridspec, patches as patches, pyplot as plt
+from matplotlib import gridspec
+from matplotlib import patches as patches
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 

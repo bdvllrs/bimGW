@@ -172,10 +172,10 @@ X = TypeVar("X", bound=SubsetableDataset)
 
 def split_ood_sets(dataset: X, id_ood_split=None) -> Mapping[DistLiteral, X]:
     return {
-        "in_dist": dataset.subset(id_ood_split[1][0])
+        "in_dist": dataset.subset(id_ood_split[0])
         if id_ood_split is not None
         else dataset,
-        "ood": dataset.subset(id_ood_split[1][1])
+        "ood": dataset.subset(id_ood_split[1])
         if id_ood_split is not None
         else None,
     }

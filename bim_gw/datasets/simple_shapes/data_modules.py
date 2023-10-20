@@ -8,11 +8,9 @@ import torch.utils
 import torch.utils.data
 from pytorch_lightning import LightningDataModule
 
-from bim_gw.datasets.distribution_splits import (
-    create_ood_split,
-    split_ood_sets,
-)
+from bim_gw.datasets.distribution_splits import split_ood_sets
 from bim_gw.datasets.domain import DomainItems, collate_fn
+from bim_gw.datasets.ood_splits import create_ood_split
 from bim_gw.datasets.simple_shapes.datasets import (
     AVAILABLE_DOMAINS,
     SimpleShapesDataset,
@@ -180,7 +178,7 @@ class SimpleShapesDataModule(LightningDataModule):
             id_ood_splits = None
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
-                    ood_split_datasets
+                    ood_split_datasets, 6, seed=0
                 )
                 self.ood_boundaries = ood_boundaries
 
@@ -222,8 +220,8 @@ class SimpleShapesDataModule(LightningDataModule):
                 else:
                     self.train_set = train_set
 
-            self.val_set = split_ood_sets(val_set, id_ood_splits)
-            self.test_set = split_ood_sets(test_set, id_ood_splits)
+            self.val_set = split_ood_sets(val_set, id_ood_splits[0])
+            self.test_set = split_ood_sets(test_set, id_ood_splits[1])
 
             available_sets: Mapping[
                 SplitLiteral, Mapping[DistLiteral, SimpleShapesDataset]

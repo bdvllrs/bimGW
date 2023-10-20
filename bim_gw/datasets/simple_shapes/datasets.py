@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    cast,
     Dict,
     List,
     Mapping,
@@ -11,6 +10,7 @@ from typing import (
     Sequence,
     Type,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -101,9 +101,9 @@ class SimpleShapesDataset(Dataset):
             str(self.root_path / f"{split}_labels.npy")
         )
         self.ids: np.ndarray = np.arange(len(self.labels))
-        if selected_indices is not None:
-            self.labels = self.labels[selected_indices]
-            self.ids = self.ids[selected_indices]
+        # if selected_indices is not None:
+        #     self.labels = self.labels[selected_indices]
+        #     self.ids = self.ids[selected_indices]
 
         self.selected_indices = (
             selected_indices
@@ -143,8 +143,14 @@ class SimpleShapesDataset(Dataset):
             self.use_pre_saved_latents(pre_saved_latent_path)
 
     def subset(self, idx: Sequence[int]) -> "SimpleShapesDataset":
-        mapping = [self.mapping[k] for k in idx]
-        domain_mapping = [self.available_domains_mapping[k] for k in idx]
+        mapping = []
+        domain_mapping = []
+        for k in range(len(self.mapping)):
+            if self.mapping[k] in idx:
+                mapping.append(self.mapping[k])
+                domain_mapping.append(self.available_domains_mapping[k])
+        # mapping = [self.mapping[k] for k in idx]
+        # domain_mapping = [self.available_domains_mapping[k] for k in idx]
         selected_idx = [k for k in idx if k in self.selected_indices]
 
         return SimpleShapesDataset(

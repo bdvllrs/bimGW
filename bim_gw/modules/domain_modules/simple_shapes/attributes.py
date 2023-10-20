@@ -119,14 +119,19 @@ class SimpleShapesAttributes(DomainModule):
             name + "_vis",
             step,
         )
+        rotation_x = latents[:, 3] * 2 - 1
+        rotation_y = latents[:, 4] * 2 - 1
+        rotations = np.arctan2(rotation_y, rotation_x) * 180 / np.pi
 
         # text
-        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b"]
+        labels = ["c", "x", "y", "s", "rotx", "roty", "r", "g", "b", "rot"]
         # if self.use_unpaired:
         #     labels.append("u")
         text = []
         for k in range(len(classes)):
-            text.append([classes[k].item()] + latents[k].tolist())
+            text.append(
+                [classes[k].item()] + latents[k].tolist() + [rotations[k]]
+            )
         if logger is not None and hasattr(logger, "log_table"):
             logger.log_table(
                 name + "_text", columns=labels, data=text, step=step
