@@ -39,6 +39,20 @@ def main(args):
     min_lightness = args.datasets.shapes.min_lightness
     max_lightness = args.datasets.shapes.max_lightness
 
+    min_hue = args.datasets.shapes.min_hue
+    max_hue = args.datasets.shapes.max_hue
+
+    possible_categories = args.datasets.shapes.possible_categories
+
+    min_rotation = args.datasets.shapes.min_rotation
+    max_rotation = args.datasets.shapes.max_rotation
+
+    min_x = args.datasets.shapes.min_x
+    max_x = args.datasets.shapes.max_x
+
+    min_y = args.datasets.shapes.min_y
+    max_y = args.datasets.shapes.max_y
+
     np.random.seed(seed)
 
     train_labels = generate_dataset(
@@ -47,6 +61,15 @@ def main(args):
         max_scale,
         min_lightness,
         max_lightness,
+        possible_categories,
+        min_hue,
+        max_hue,
+        min_rotation,
+        max_rotation,
+        min_x,
+        max_x,
+        min_y,
+        max_y,
         image_size,
     )
     train_transfo_labels, train_transfo = generate_transformations(
@@ -57,6 +80,15 @@ def main(args):
             max_scale,
             min_lightness,
             max_lightness,
+            possible_categories,
+            min_hue,
+            max_hue,
+            min_rotation,
+            max_rotation,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
             image_size,
         ),
     )
@@ -66,6 +98,15 @@ def main(args):
         max_scale,
         min_lightness,
         max_lightness,
+        possible_categories,
+        min_hue,
+        max_hue,
+        min_rotation,
+        max_rotation,
+        min_x,
+        max_x,
+        min_y,
+        max_y,
         image_size,
     )
     val_transfo_labels, val_transfo = generate_transformations(
@@ -76,6 +117,15 @@ def main(args):
             max_scale,
             min_lightness,
             max_lightness,
+            possible_categories,
+            min_hue,
+            max_hue,
+            min_rotation,
+            max_rotation,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
             image_size,
         ),
     )
@@ -85,6 +135,15 @@ def main(args):
         max_scale,
         min_lightness,
         max_lightness,
+        possible_categories,
+        min_hue,
+        max_hue,
+        min_rotation,
+        max_rotation,
+        min_x,
+        max_x,
+        min_y,
+        max_y,
         image_size,
     )
     test_transfo_labels, test_transfo = generate_transformations(
@@ -95,6 +154,15 @@ def main(args):
             max_scale,
             min_lightness,
             max_lightness,
+            possible_categories,
+            min_hue,
+            max_hue,
+            min_rotation,
+            max_rotation,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
             image_size,
         ),
     )

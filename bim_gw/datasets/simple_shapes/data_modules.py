@@ -72,6 +72,7 @@ class SimpleShapesDataModule(LightningDataModule):
         add_unimodal: bool = True,
         domain_loader_params: Optional[Dict[str, Any]] = None,
         len_train_dataset: int = 1_000_000,
+        ood_hole_attrs: int = 6,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -87,6 +88,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_channels: int = 3
         self.len_train_dataset: int = len_train_dataset
         self.n_domain_examples = batch_size
+        self.ood_hole_attrs = ood_hole_attrs
 
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
@@ -142,10 +144,11 @@ class SimpleShapesDataModule(LightningDataModule):
             train_transforms: Mapping[
                 ShapesAvailableDomains, Callable[[Any], Any]
             ] = {ShapesAvailableDomains.v: get_v_preprocess()}
-            if self.sync_uses_whole_dataset:
-                sync_indices = np.arange(self.len_train_dataset)
-            else:
-                sync_indices = np.arange(self.len_train_dataset // 2)
+            sync_indices = np.arange(self.len_train_dataset)
+            # if self.sync_uses_whole_dataset:
+            #     sync_indices = np.arange(self.len_train_dataset)
+            # else:
+            #     sync_indices = np.arange(self.len_train_dataset // 2)
 
             val_set = SimpleShapesDataset(
                 self.simple_shapes_folder,
@@ -178,7 +181,7 @@ class SimpleShapesDataModule(LightningDataModule):
             id_ood_splits = None
             if self.split_ood:
                 id_ood_splits, ood_boundaries = create_ood_split(
-                    ood_split_datasets, 6, seed=0
+                    ood_split_datasets, self.ood_hole_attrs, seed=0
                 )
                 self.ood_boundaries = ood_boundaries
 
@@ -192,6 +195,11 @@ class SimpleShapesDataModule(LightningDataModule):
                     target_indices = np.unique(id_ood_splits[2][0])
                 else:
                     target_indices = train_set.ids
+
+                if not self.sync_uses_whole_dataset:
+                    target_indices = target_indices[
+                        : self.len_train_dataset // 2
+                    ]
 
                 if self.add_unimodal:
                     mapping, domain_mapping = filter_sync_domains(

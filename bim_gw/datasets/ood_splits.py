@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from math import pi
-from random import randint, random, sample
+from random import randint, sample
+from random import seed as set_seed
 from typing import Any, List, Sequence, Tuple
 
 
@@ -160,7 +161,7 @@ def attr_boundaries(
 def ood_split(
     imsize: int, min_size: int, max_size: int, n_boundaries: int, seed: int
 ) -> List[BoundaryInfo]:
-    random.seed(seed)
+    set_seed(seed)
 
     boundaries = attr_boundaries(imsize, min_size, max_size)
     return sample(boundaries, n_boundaries)

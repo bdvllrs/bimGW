@@ -34,12 +34,12 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 datasets:
   shapes:
     n_train_examples: 1_000_000
-    n_val_examples: 50_000
-    n_test_examples: 50_000
+    n_val_examples: 100_000
+    n_test_examples: 100_000
     min_scale: 7
     max_scale: 14
     min_lightness: 46
-    max_lightness: 256
+    max_lightness: 255
 
 slurm_id: "${oc.env:SLURM_JOB_ID,null}"  # id of the job
 slurm: # slurm parameters if started on slurm with the slurm/launch.py command
@@ -299,6 +299,7 @@ global_workspace:
   load_pre_saved_latents: null
 
   split_ood: false  # whether to remove a out-of-distribution split in the training set.
+  ood_hole_attrs: 6
   bert_path: "bert-base-uncased"
 
   z_size: 12  # size of the GW latent space

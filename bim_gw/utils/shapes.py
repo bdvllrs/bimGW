@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 import matplotlib.path as mpath
 import numpy as np
 from matplotlib import gridspec
@@ -196,38 +198,78 @@ def log_shape_fig(logger, classes, latents, name, step=None):
 
 
 def generate_scale(n_samples, min_val, max_val):
-    assert max_val > min_val
+    assert max_val > min_val, f"{min_val}, {max_val}"
     return np.random.randint(min_val, max_val + 1, n_samples)
 
 
-def generate_color(n_samples, min_lightness=0, max_lightness=256):
+def generate_color(n_samples, min_lightness, max_lightness, min_hue, max_hue):
     import cv2
 
-    assert 0 <= max_lightness <= 256
+    assert (
+        0 <= min_lightness < max_lightness <= 255
+    ), f"{min_lightness}, {max_lightness}"
+    assert 0 <= min_hue < max_hue <= 180, f"{min_hue}, {max_hue}"
+
     hls = np.random.randint(
-        [0, min_lightness, 0],
-        [181, max_lightness, 256],
+        [min_hue, min_lightness, 0],
+        [max_hue + 1, max_lightness + 1, 256],
         size=(1, n_samples, 3),
         dtype=np.uint8,
     )
-    rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
+    if n_samples > 0:
+        rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
+    else:
+        rgb = np.zeros_like(hls)[0]
     return rgb.astype(int), hls[0].astype(int)
 
 
-def generate_rotation(n_samples):
-    rotations = np.random.rand(n_samples) * 2 * np.pi
+def generate_rotation(n_samples, min_rotation, max_rotation):
+    assert (
+        0 <= min_rotation < max_rotation <= 360
+    ), f"{min_rotation}, {max_rotation}"
+
+    min_rotation = min_rotation / 180 * np.pi
+    max_rotation = max_rotation / 180 * np.pi
+    rotations = (
+        np.random.rand(n_samples) * (max_rotation - min_rotation)
+        + min_rotation
+    )
     return rotations
 
 
-def generate_location(n_samples, max_scale, imsize):
-    assert max_scale <= imsize
+def generate_location(
+    n_samples,
+    max_scale,
+    min_x,
+    max_x,
+    min_y,
+    max_y,
+    imsize,
+):
+    assert 0 < max_scale <= imsize, f"{max_scale}, {imsize}"
     margin = max_scale / 2
-    locations = np.random.randint(margin, imsize - margin, (n_samples, 2))
-    return locations
+    if min_x is None:
+        min_x = margin
+    if max_x is None:
+        max_x = imsize - margin
+    if min_y is None:
+        min_y = margin
+    if max_y is None:
+        max_y = imsize - margin
+
+    assert margin <= min_x < max_x <= imsize - margin
+    assert margin <= min_y < max_y <= imsize - margin
+    x = np.random.randint(min_x, max_x, (n_samples, 1))
+    y = np.random.randint(min_y, max_y, (n_samples, 1))
+    return np.concatenate((x, y), axis=1)
 
 
-def generate_class(n_samples):
-    return np.random.randint(3, size=n_samples)
+def generate_class(
+    n_samples,
+    possible_categories: Optional[List[int]],
+):
+    categories = possible_categories or np.arange(3)
+    return np.random.choice(categories, size=n_samples)
 
 
 def generate_unpaired_attr(n_samples):
@@ -327,16 +369,27 @@ def generate_dataset(
     max_scale,
     min_lightness,
     max_lightness,
+    possible_categories: Optional[List[int]],
+    min_hue: int,
+    max_hue: int,
+    min_rotation: float,
+    max_rotation: float,
+    min_x: Optional[int],
+    max_x: Optional[int],
+    min_y: Optional[int],
+    max_y: Optional[int],
     imsize,
     classes=None,
 ):
     if classes is None:
-        classes = generate_class(n_samples)
+        classes = generate_class(n_samples, possible_categories)
     sizes = generate_scale(n_samples, min_scale, max_scale)
-    locations = generate_location(n_samples, max_scale, imsize)
-    rotation = generate_rotation(n_samples)
+    locations = generate_location(
+        n_samples, max_scale, min_x, max_x, min_y, max_y, imsize
+    )
+    rotation = generate_rotation(n_samples, min_rotation, max_rotation)
     colors_rgb, colors_hls = generate_color(
-        n_samples, min_lightness, max_lightness
+        n_samples, min_lightness, max_lightness, min_hue, max_hue
     )
     unpaired = generate_unpaired_attr(n_samples)
     return dict(
@@ -350,13 +403,37 @@ def generate_dataset(
     )
 
 
-def save_dataset(path_root, dataset, imsize):
+def merge_labels(label_dict1, label_dict2):
+    return dict(
+        classes=np.concatenate(
+            [label_dict1["classes"], label_dict2["classes"]]
+        ),
+        locations=np.concatenate(
+            [label_dict1["locations"], label_dict2["locations"]]
+        ),
+        sizes=np.concatenate([label_dict1["sizes"], label_dict2["sizes"]]),
+        rotations=np.concatenate(
+            [label_dict1["rotations"], label_dict2["rotations"]]
+        ),
+        colors=np.concatenate([label_dict1["colors"], label_dict2["colors"]]),
+        colors_hls=np.concatenate(
+            [label_dict1["colors_hls"], label_dict2["colors_hls"]]
+        ),
+        unpaired=np.concatenate(
+            [label_dict1["unpaired"], label_dict2["unpaired"]]
+        ),
+    )
+
+
+def save_dataset(path_root, dataset, imsize, start_idx=0):
     dpi = 1
     classes, locations = dataset["classes"], dataset["locations"]
     radii = dataset["sizes"]
     rotations, colors = dataset["rotations"], dataset["colors"]
     enumerator = tqdm(
-        enumerate(zip(classes, locations, radii, rotations, colors)),
+        enumerate(
+            zip(classes, locations, radii, rotations, colors), start_idx
+        ),
         total=len(classes),
     )
     for k, (cls, location, scale, rotation, color) in enumerator:
@@ -403,13 +480,13 @@ def load_labels(path_root):
         "unpaired": labels[:, 11],
     }
     dataset_transfo = {
-        "classes": labels[:, 11],
-        "locations": labels[:, 12:14],
-        "sizes": labels[:, 14],
-        "rotations": labels[:, 15],
-        "colors": labels[:, 16:19],
-        "colors_hls": labels[:, 19:22],
-        "unpaired": labels[:, 22],
+        "classes": labels[:, 0],
+        "locations": labels[:, 1:3],
+        "sizes": labels[:, 3],
+        "rotations": labels[:, 4],
+        "colors": labels[:, 5:8],
+        "colors_hls": labels[:, 8:11],
+        "unpaired": labels[:, 11],
     }
     return dataset, dataset_transfo
 

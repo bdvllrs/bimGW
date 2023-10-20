@@ -288,6 +288,7 @@ class GlobalWorkspaceConfig:
     vae_checkpoint: Optional[str] = MISSING
     lm_checkpoint: Optional[str] = MISSING
     early_stopping_patience: int = MISSING
+    ood_hole_attrs: int = MISSING
 
     hidden_size: HiddenSizeGlobalWorkspaceConfig = field(
         default_factory=HiddenSizeGlobalWorkspaceConfig
@@ -373,6 +374,15 @@ class ShapesConfig:
     max_scale: int = MISSING
     min_lightness: int = MISSING
     max_lightness: int = MISSING
+    min_hue: int = 0
+    max_hue: int = 180
+    possible_categories: Optional[List[int]] = None
+    min_rotation: float = 0
+    max_rotation: float = 360
+    min_x: Optional[int] = None
+    max_x: Optional[int] = None
+    min_y: Optional[int] = None
+    max_y: Optional[int] = None
 
 
 @dataclass

@@ -41,6 +41,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         sync_uses_whole_dataset,
         domain_loader_params=args.domain_loader,
         len_train_dataset=args.datasets.shapes.n_train_examples,
+        ood_hole_attrs=args.global_workspace.ood_hole_attrs,
         **kwargs,
     )
 
