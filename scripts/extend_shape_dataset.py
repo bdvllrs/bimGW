@@ -1,12 +1,18 @@
 import os
 
+import matplotlib
+
 from bim_gw.scripts.extend_shapes_dataset import extend_shapes_dataset
 from bim_gw.utils import get_args
+
+matplotlib.use("Agg")
 
 if __name__ == "__main__":
     args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
     extend_shapes_dataset(
-        args,
+        args.simple_shapes_path,
+        args.seed,
+        args.img_size,
         args.datasets.shapes.n_train_examples,
         args.datasets.shapes.n_val_examples,
         args.datasets.shapes.n_test_examples,

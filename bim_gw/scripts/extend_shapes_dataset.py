@@ -13,7 +13,9 @@ from bim_gw.utils.shapes import (
 
 
 def extend_shapes_dataset(
-    args,
+    simple_shapes_path,
+    seed,
+    image_size,
     n_train,
     n_val,
     n_test,
@@ -31,10 +33,7 @@ def extend_shapes_dataset(
     min_hue,
     max_hue,
 ):
-    seed = args.seed
-    image_size = args.img_size
-
-    dataset_location = Path(args.simple_shapes_path)
+    dataset_location = Path(simple_shapes_path)
 
     assert dataset_location.is_dir()
 

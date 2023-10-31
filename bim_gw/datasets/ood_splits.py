@@ -203,13 +203,72 @@ def filter_dataset(
     return in_dist_idx, ood_idx
 
 
-def create_ood_split(datasets, n_boundaries: int = 2, seed: int = 0):
-    boundary_infos = ood_split(32, 7, 14, n_boundaries, seed)
+def create_ood_split(datasets, boundary_infos):
     out_datasets = []
     for dataset in datasets:
         in_dist, out_dist = filter_dataset(dataset, boundary_infos)
         out_datasets.append((in_dist, out_dist))
-    ood_boundaries = {
-        b.kind.value: b.boundary.description() for b in boundary_infos
+    return out_datasets
+
+
+def get_generation_boundary(boundary_infos):
+    generation_vals = {
+        "min_x": None,
+        "max_x": None,
+        "min_y": None,
+        "max_y": None,
+        "min_rotation": 0,
+        "max_rotation": 360,
+        "min_hue": 0,
+        "max_hue": 180,
+        "possible_categories": None,
+        "min_scale": 7,
+        "max_scale": 14,
     }
-    return out_datasets, ood_boundaries
+    for boundary_info in boundary_infos:
+        if boundary_info.kind == BoundaryKind.x:
+            generation_vals["min_x"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary - 1
+            ]
+            generation_vals["max_x"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary
+            ]
+        elif boundary_info.kind == BoundaryKind.y:
+            generation_vals["min_y"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary - 1
+            ]
+            generation_vals["max_y"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary
+            ]
+        elif boundary_info.kind == BoundaryKind.shape:
+            generation_vals["possible_categories"] = [
+                boundary_info.boundary.boundary
+            ]
+        elif boundary_info.kind == BoundaryKind.size:
+            generation_vals["min_scale"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary - 1
+            ]
+            generation_vals["max_scale"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary
+            ]
+        elif boundary_info.kind == BoundaryKind.rotation:
+            generation_vals["min_rotation"] = (
+                boundary_info.boundary.bins[
+                    boundary_info.boundary.boundary - 1
+                ]
+                * 180
+                / pi
+            )
+            generation_vals["max_rotation"] = (
+                boundary_info.boundary.bins[boundary_info.boundary.boundary]
+                * 180
+                / pi
+            )
+        elif boundary_info.kind == BoundaryKind.color:
+            generation_vals["min_hue"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary - 1
+            ]
+            generation_vals["max_hue"] = boundary_info.boundary.bins[
+                boundary_info.boundary.boundary
+            ]
+    return generation_vals

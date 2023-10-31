@@ -10,7 +10,11 @@ from pytorch_lightning import LightningDataModule
 
 from bim_gw.datasets.distribution_splits import split_ood_sets
 from bim_gw.datasets.domain import DomainItems, collate_fn
-from bim_gw.datasets.ood_splits import create_ood_split
+from bim_gw.datasets.ood_splits import (
+    create_ood_split,
+    get_generation_boundary,
+    ood_split,
+)
 from bim_gw.datasets.simple_shapes.datasets import (
     AVAILABLE_DOMAINS,
     SimpleShapesDataset,
@@ -23,6 +27,7 @@ from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
     SimpleShapesText,
 )
+from bim_gw.scripts.extend_shapes_dataset import extend_shapes_dataset
 from bim_gw.utils import registries
 from bim_gw.utils.types import DistLiteral, SplitLiteral
 from bim_gw.utils.utils import get_checkpoint_path
@@ -88,6 +93,8 @@ class SimpleShapesDataModule(LightningDataModule):
         self.sync_uses_whole_dataset = sync_uses_whole_dataset
         self.num_channels: int = 3
         self.len_train_dataset: int = len_train_dataset
+        self.len_val_dataset = 50_000
+        self.len_val_dataset = 50_000
         self.n_domain_examples = batch_size
         self.ood_hole_attrs = ood_hole_attrs
         self.ood_seed = ood_seed
@@ -152,6 +159,35 @@ class SimpleShapesDataModule(LightningDataModule):
             # else:
             #     sync_indices = np.arange(self.len_train_dataset // 2)
 
+            if self.split_ood:
+                boundary_infos = ood_split(
+                    32, 7, 14, self.ood_hole_attrs, self.ood_seed
+                )
+                ood_boundaries = {
+                    b.kind.value: b.boundary.description()
+                    for b in boundary_infos
+                }
+                extend_dataset_params = get_generation_boundary(boundary_infos)
+                size_val_set = np.load(
+                    self.simple_shapes_folder / "val_labels.npy"
+                ).shape[0]
+                size_test_set = np.load(
+                    self.simple_shapes_folder / "test_labels.npy"
+                ).shape[0]
+                print("Making new OOD examples...")
+                extend_shapes_dataset(
+                    self.simple_shapes_folder,
+                    0,
+                    32,
+                    self.len_train_dataset,
+                    size_val_set + 1000,
+                    size_test_set + 1000,
+                    min_lightness=46,
+                    max_lightness=255,
+                    **extend_dataset_params,
+                )
+                print("Done.")
+
             val_set = SimpleShapesDataset(
                 self.simple_shapes_folder,
                 "val",
@@ -182,8 +218,8 @@ class SimpleShapesDataModule(LightningDataModule):
 
             id_ood_splits = None
             if self.split_ood:
-                id_ood_splits, ood_boundaries = create_ood_split(
-                    ood_split_datasets, self.ood_hole_attrs, seed=self.ood_seed
+                id_ood_splits = create_ood_split(
+                    ood_split_datasets, boundary_infos
                 )
                 self.ood_boundaries = ood_boundaries
 
@@ -230,8 +266,12 @@ class SimpleShapesDataModule(LightningDataModule):
                 else:
                     self.train_set = train_set
 
-            self.val_set = split_ood_sets(val_set, id_ood_splits[0])
-            self.test_set = split_ood_sets(test_set, id_ood_splits[1])
+            self.val_set = split_ood_sets(
+                val_set, id_ood_splits[0], self.len_val_dataset, 1000
+            )
+            self.test_set = split_ood_sets(
+                test_set, id_ood_splits[1], self.len_test_dataset, 1000
+            )
 
             available_sets: Mapping[
                 SplitLiteral, Mapping[DistLiteral, SimpleShapesDataset]
