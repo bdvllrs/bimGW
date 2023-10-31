@@ -94,7 +94,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.num_channels: int = 3
         self.len_train_dataset: int = len_train_dataset
         self.len_val_dataset = 50_000
-        self.len_val_dataset = 50_000
+        self.len_test_dataset = 50_000
         self.n_domain_examples = batch_size
         self.ood_hole_attrs = ood_hole_attrs
         self.ood_seed = ood_seed
