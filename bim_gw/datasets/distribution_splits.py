@@ -1,5 +1,5 @@
 import random
-from typing import Mapping, Optional, TypeVar
+from typing import List, Mapping, Optional, Tuple, TypeVar
 
 import numpy as np
 
@@ -172,7 +172,7 @@ X = TypeVar("X", bound=SubsetableDataset)
 
 def split_ood_sets(
     dataset: X,
-    id_ood_split: Optional[tuple[list[int]]] = None,
+    id_ood_split: Optional[Tuple[List[int]]] = None,
     max_size_in_dist: Optional[int] = None,
     max_size_ood: Optional[int] = None,
 ) -> Mapping[DistLiteral, X]:
