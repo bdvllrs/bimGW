@@ -227,7 +227,9 @@ def extend_shapes_dataset(
     )
     print("Saving test set...")
     (dataset_location / "test").mkdir(exist_ok=True)
-    save_dataset(dataset_location / "test", new_test_labels, image_size)
+    save_dataset(
+        dataset_location / "test", new_test_labels, image_size, len_test
+    )
     (dataset_location / "transformed" / "test").mkdir(exist_ok=True)
     save_dataset(
         dataset_location / "transformed" / "test",
