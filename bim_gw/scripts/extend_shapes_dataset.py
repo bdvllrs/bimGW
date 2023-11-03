@@ -95,7 +95,7 @@ def add_presaved_latents():
                 x = np.expand_dims(x, axis=1)
                 p = path / name
                 p /= args.global_workspace.load_pre_saved_latents[domain_name]
-                p = p.with_stem(p.stem + f"_part_{k}")
+                p = p.parent / (p.stem + f"_part_{k}" + p.suffix)
                 paths.append(p.name)
                 np.save(str(p), x)
             save_path = path / name
