@@ -27,7 +27,10 @@ from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
     SimpleShapesText,
 )
-from bim_gw.scripts.extend_shapes_dataset import extend_shapes_dataset
+from bim_gw.scripts.extend_shapes_dataset import (
+    add_presaved_latents,
+    extend_shapes_dataset,
+)
 from bim_gw.utils import registries
 from bim_gw.utils.types import DistLiteral, SplitLiteral
 from bim_gw.utils.utils import get_checkpoint_path
@@ -180,12 +183,14 @@ class SimpleShapesDataModule(LightningDataModule):
                     0,
                     32,
                     self.len_train_dataset,
-                    size_val_set + 1000,
-                    size_test_set + 1000,
+                    size_val_set + 10,
+                    size_test_set + 10,
                     min_lightness=46,
                     max_lightness=255,
                     **extend_dataset_params,
                 )
+                print("Save presaved latent vectors.")
+                add_presaved_latents()
                 print("Done.")
 
             val_set = SimpleShapesDataset(
@@ -216,7 +221,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 )
                 ood_split_datasets.append(train_set)
 
-            id_ood_splits = None
+            id_ood_splits = [None, None]
             if self.split_ood:
                 id_ood_splits = create_ood_split(
                     ood_split_datasets, boundary_infos
@@ -229,7 +234,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 logging.info("Test set OOD size", len(id_ood_splits[1][1]))
 
             if stage == "fit":
-                if id_ood_splits is not None:
+                if self.split_ood:
                     target_indices = np.unique(id_ood_splits[2][0])
                 else:
                     target_indices = train_set.ids
