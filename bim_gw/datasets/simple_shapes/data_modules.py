@@ -148,9 +148,14 @@ class SimpleShapesDataModule(LightningDataModule):
         self.inception_stats_path_train = None
         self.inception_stats_path_val = None
         self.inception_stats_path_test = None
+        self.is_setup = False
 
     def setup(self, stage: Optional[str] = None) -> None:
         logging.info("Setting up data module...")
+        if self.is_setup:
+            return
+        self.is_setup = True
+
         if stage in ["fit", "validate", "test"]:
             val_transforms: Mapping[
                 ShapesAvailableDomains, Callable[[Any], Any]
