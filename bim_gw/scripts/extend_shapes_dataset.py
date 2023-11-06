@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,24 @@ domain_item_name_mapping = {
     "attr": ["z_cls", "z_attr"],
     "t": ["z"],
 }
+
+
+def lock_or_wait(path: Path):
+    lock_file = path / "lock"
+    if not lock_file.exists():
+        with open(lock_file, "w") as f:
+            f.write("lock")
+        return
+    while lock_file.exists():
+        time.sleep(10)
+    lock_or_wait(path)
+
+
+def unlock(path: Path):
+    lock_file = path / "lock"
+    if not lock_file.exists():
+        raise RuntimeError("Trying to unlock a non-locked path.")
+    os.remove(lock_file)
 
 
 def add_presaved_latents():

@@ -30,6 +30,8 @@ from bim_gw.modules.domain_modules.simple_shapes import (
 from bim_gw.scripts.extend_shapes_dataset import (
     add_presaved_latents,
     extend_shapes_dataset,
+    lock_or_wait,
+    unlock,
 )
 from bim_gw.utils import registries
 from bim_gw.utils.types import DistLiteral, SplitLiteral
@@ -178,6 +180,8 @@ class SimpleShapesDataModule(LightningDataModule):
                     self.simple_shapes_folder / "test_labels.npy"
                 ).shape[0]
                 print("Making new OOD examples...")
+                lock_path = Path(self.simple_shapes_folder)
+                lock_or_wait(lock_path)
                 extend_shapes_dataset(
                     self.simple_shapes_folder,
                     0,
@@ -191,6 +195,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 )
                 print("Save presaved latent vectors.")
                 add_presaved_latents()
+                unlock(lock_path)
                 print("Done.")
 
             val_set = SimpleShapesDataset(
