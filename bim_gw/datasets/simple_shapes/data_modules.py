@@ -84,6 +84,7 @@ class SimpleShapesDataModule(LightningDataModule):
         len_train_dataset: int = 1_000_000,
         ood_seed: int = 0,
         ood_hole_attrs: int = 6,
+        ood_idx_domain: int = 0,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -118,6 +119,9 @@ class SimpleShapesDataModule(LightningDataModule):
         self.selected_domains = selected_domains or list(
             AVAILABLE_DOMAINS.keys()
         )
+
+        assert 0 <= ood_idx_domain < len(self.selected_domains)
+        self.ood_idx_domain = ood_idx_domain
 
         self.prop_labelled_images = prop_labelled_images
         self.prop_available_images = prop_available_images
@@ -245,9 +249,17 @@ class SimpleShapesDataModule(LightningDataModule):
 
             if stage == "fit":
                 if self.split_ood:
+                    assert id_ood_splits is not None
                     target_indices = np.unique(id_ood_splits[2][0])
+                    filter_ood_indices = [
+                        [] for k in range(len(self.selected_domains))
+                    ]
+                    filter_ood_indices[self.ood_idx_domain] = np.unique(
+                        id_ood_splits[2][1]
+                    ).tolist()
                 else:
                     target_indices = train_set.ids
+                    filter_ood_indices = None
 
                 if not self.sync_uses_whole_dataset:
                     target_indices = target_indices[
@@ -260,6 +272,7 @@ class SimpleShapesDataModule(LightningDataModule):
                         target_indices,
                         self.prop_labelled_images,
                         self.prop_available_images,
+                        filter_ood_indices,
                     )
 
                     domain_mapping = cast(

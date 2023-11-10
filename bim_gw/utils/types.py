@@ -290,6 +290,7 @@ class GlobalWorkspaceConfig:
     early_stopping_patience: int = MISSING
     ood_hole_attrs: int = MISSING
     ood_seed: int = MISSING
+    ood_idx_domain: int = MISSING
 
     hidden_size: HiddenSizeGlobalWorkspaceConfig = field(
         default_factory=HiddenSizeGlobalWorkspaceConfig

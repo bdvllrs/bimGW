@@ -43,6 +43,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         len_train_dataset=args.datasets.shapes.n_train_examples,
         ood_hole_attrs=args.global_workspace.ood_hole_attrs,
         ood_seed=args.global_workspace.ood_seed,
+        ood_idx_domain=args.global_workspace.ood_idx_domain,
         **kwargs,
     )
 
@@ -83,6 +84,7 @@ def filter_sync_domains(
     allowed_indices: List[int],
     prop_labelled_images: float,
     prop_available_images: float,
+    ood_indices: Optional[List[List[int]]] = None,
 ) -> Tuple[Optional[List[int]], Optional[DomainMappingType]]:
     # permute for number of couples of domains
     permuted_indices = np.random.permutation(allowed_indices)
@@ -103,14 +105,23 @@ def filter_sync_domains(
     mapping.extend(domain_items)
     domain_mapping.extend([domains] * len(domain_items))
 
-    unsync_domain_items = permuted_indices
-    n_unsync = int(prop_available_images * len(allowed_indices)) - sync_split
-    unsync_items = rest[:n_unsync]
-    unsync_domain_items = np.concatenate((unsync_items, sync_items))
-    n_repeats = ceil(len(allowed_indices) / len(unsync_domain_items))
-    unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
-
     for k in range(len(domains)):
+        unsync_domain_items = permuted_indices
+        domain_rest = rest[:]
+        if ood_indices is not None:
+            ood_added_idx = np.array(ood_indices[k])
+            unsync_domain_items = np.concatenate(
+                [unsync_domain_items, ood_added_idx]
+            )
+            domain_rest = np.concatenate([domain_rest, ood_added_idx])
+        n_unsync = (
+            int(prop_available_images * len(unsync_domain_items)) - sync_split
+        )
+        unsync_items = domain_rest[:n_unsync]
+        unsync_domain_items = np.concatenate((unsync_items, sync_items))
+        n_repeats = ceil(len(allowed_indices) / len(unsync_domain_items))
+        unsync_domain_items = np.tile(unsync_domain_items, n_repeats)
+
         mapping.extend(unsync_domain_items)
         domain_mapping.extend([[domains[k]]] * len(unsync_domain_items))
 

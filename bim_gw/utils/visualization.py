@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Mapping, Tuple, cast
+from typing import Any, Callable, Dict, Mapping, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ from bim_gw.utils.utils import (
 )
 
 
-def get_fmt(name: str) -> Mapping[str, Any]:
+def get_fmt(name: str) -> Dict[str, Any]:
     if name == "tr":
         return {"linestyle": "-", "color": "#17b3f2"}
     if name == "tr+cy":
@@ -294,6 +294,59 @@ def plot_ax(
         )
     else:
         logging.warning(f"No data for {curve_name}")
+    return ax
+
+
+def plot_ax_bars(
+    args,
+    k,
+    loss,
+    yerr,
+    ax,
+    curve_name,
+    grp,
+    labeled_curves,
+    slug_label,
+):
+    fmt = get_fmt(curve_name)
+    if "marker" in fmt:
+        del fmt["marker"]
+    if "linestyle" in fmt:
+        del fmt["linestyle"]
+    ax.bar(
+        k * 3,
+        grp[loss].iloc[0],
+        yerr=grp[yerr].iloc[0],
+        width=1,
+        label=(
+            slug_label if slug_label not in labeled_curves else "_nolegend_"
+        ),
+        edgecolor="black",
+        linewidth=2,
+        **fmt,
+    )
+    fmt["hatch"] = "//"
+    ax.bar(
+        k * 3 + 1,
+        grp["ood_" + loss].iloc[0],
+        width=1,
+        label=(
+            slug_label if slug_label not in labeled_curves else "_nolegend_"
+        ),
+        edgecolor="black",
+        linewidth=2,
+        **fmt,
+    )
+    # ax = grp.plot.bar(
+    #     "num_examples",
+    #     loss,
+    #     rot=0,
+    #     ax=ax,
+    #     label=,
+    #     legend=False,
+    #     stacked=False,
+    #     **fmt,
+    # )
     return ax
 
 
