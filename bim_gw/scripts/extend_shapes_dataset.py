@@ -51,6 +51,7 @@ def add_presaved_latents():
     args.global_workspace.prop_labelled_images = 1.0
     args.global_workspace.split_ood = False
     args.global_workspace.sync_uses_whole_dataset = True
+    args.global_workspace.ood_idx_domain = 0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.global_workspace.selected_domains = OmegaConf.create(
