@@ -85,6 +85,7 @@ class SimpleShapesDataModule(LightningDataModule):
         ood_seed: int = 0,
         ood_hole_attrs: int = 6,
         ood_idx_domain: int = 0,
+        ood_create_new_examples: bool = False,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -104,6 +105,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.n_domain_examples = batch_size
         self.ood_hole_attrs = ood_hole_attrs
         self.ood_seed = ood_seed
+        self.ood_create_new_examples = ood_create_new_examples
 
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
@@ -188,24 +190,25 @@ class SimpleShapesDataModule(LightningDataModule):
                 size_test_set = np.load(
                     self.simple_shapes_folder / "test_labels.npy"
                 ).shape[0]
-                print("Making new OOD examples...")
-                lock_path = Path(self.simple_shapes_folder)
-                lock_or_wait(lock_path)
-                extend_shapes_dataset(
-                    self.simple_shapes_folder,
-                    0,
-                    32,
-                    self.len_train_dataset,
-                    size_val_set + 10,
-                    size_test_set + 10,
-                    min_lightness=46,
-                    max_lightness=255,
-                    **extend_dataset_params,
-                )
-                print("Save presaved latent vectors.")
-                add_presaved_latents()
-                unlock(lock_path)
-                print("Done.")
+                if self.ood_create_new_examples:
+                    print("Making new OOD examples...")
+                    lock_path = Path(self.simple_shapes_folder)
+                    lock_or_wait(lock_path)
+                    extend_shapes_dataset(
+                        self.simple_shapes_folder,
+                        0,
+                        32,
+                        self.len_train_dataset,
+                        size_val_set + 10,
+                        size_test_set + 10,
+                        min_lightness=46,
+                        max_lightness=255,
+                        **extend_dataset_params,
+                    )
+                    print("Save presaved latent vectors.")
+                    add_presaved_latents()
+                    unlock(lock_path)
+                    print("Done.")
 
             val_set = SimpleShapesDataset(
                 self.simple_shapes_folder,

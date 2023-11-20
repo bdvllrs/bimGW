@@ -299,8 +299,10 @@ global_workspace:
   load_pre_saved_latents: null
 
   split_ood: false  # whether to remove a out-of-distribution split in the training set.
-  ood_hole_attrs: 6
+  ood_hole_attrs: 6  # number of attrs that are selected to make the ood hole. The bigger this value is, the smaller the hole is.
   ood_seed: 0
+  ood_idx_domain: 0  # in which domain are the ood split
+  ood_create_new_examples: false  # will create new ood examples for validation / test
   bert_path: "bert-base-uncased"
 
   z_size: 12  # size of the GW latent space

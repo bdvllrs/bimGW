@@ -44,6 +44,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         ood_hole_attrs=args.global_workspace.ood_hole_attrs,
         ood_seed=args.global_workspace.ood_seed,
         ood_idx_domain=args.global_workspace.ood_idx_domain,
+        ood_create_new_examples=args.global_workspace.ood_create_new_examples,
         **kwargs,
     )
 
@@ -109,7 +110,7 @@ def filter_sync_domains(
         unsync_domain_items = permuted_indices
         domain_rest = rest[:]
         if ood_indices is not None:
-            ood_added_idx = np.array(ood_indices[k])
+            ood_added_idx = np.array(ood_indices[k], dtype=np.int64)
             unsync_domain_items = np.concatenate(
                 [unsync_domain_items, ood_added_idx]
             )
