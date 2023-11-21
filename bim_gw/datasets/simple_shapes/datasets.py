@@ -103,6 +103,7 @@ class SimpleShapesDataset(Dataset):
         self.labels: np.ndarray = np.load(
             str(self.root_path / f"{split}_labels.npy")
         )
+        self.in_dist_labels = self.labels[:]
         self.ood_idx = {}
         if self.ood_path is not None:
             self.ood_labels: np.ndarray = np.load(
@@ -117,7 +118,6 @@ class SimpleShapesDataset(Dataset):
                     )
                 )
             }
-            self.in_dist_labels = self.labels[:]
             self.labels = np.concatenate(
                 [self.labels, self.ood_labels], axis=0
             )
