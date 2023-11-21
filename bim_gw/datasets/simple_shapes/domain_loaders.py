@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 
 from bim_gw.datasets.domain import DomainItems, TransformType
-from bim_gw.datasets.domain_loaders import DomainLoader
+from bim_gw.datasets.domain_loaders import DomainLoader, transform
 from bim_gw.datasets.simple_shapes.types import ShapesAvailableDomains
 from bim_gw.utils.text_composer.composer import composer
 from bim_gw.utils.text_composer.utils import get_categories
@@ -40,6 +40,16 @@ class VisionLoader(DomainLoader):
             self.null_image = Image.fromarray(img)
 
         return DomainItems.singular(img=self.null_image, is_available=False)
+
+    def get_items(
+        self, item: Optional[int], path: Optional[pathlib.Path] = None
+    ) -> DomainItems:
+        selected_item = (
+            self.get_item(item, path)
+            if item is not None
+            else self.get_null_item()
+        )
+        return transform(selected_item, self.transforms)
 
     def get_item(
         self, item: int, path: Optional[pathlib.Path] = None

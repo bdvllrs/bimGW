@@ -1,4 +1,7 @@
+import hashlib
+import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, cast
 
@@ -27,15 +30,21 @@ from bim_gw.modules.domain_modules.simple_shapes import (
     SimpleShapesAttributes,
     SimpleShapesText,
 )
-from bim_gw.scripts.extend_shapes_dataset import (
-    add_presaved_latents,
-    extend_shapes_dataset,
-    lock_or_wait,
-    unlock,
-)
+from bim_gw.scripts.create_simple_shapes_dataset import create_dataset
+from bim_gw.scripts.extend_shapes_dataset import add_presaved_latents
 from bim_gw.utils import registries
 from bim_gw.utils.types import DistLiteral, SplitLiteral
 from bim_gw.utils.utils import get_checkpoint_path
+
+
+def dict_hash(dictionary: Dict[str, Any]) -> str:
+    """MD5 hash of a dictionary."""
+    dhash = hashlib.md5()
+    # We need to sort arguments so {'a': 1, 'b': 2} is
+    # the same as {'b': 2, 'a': 1}
+    encoded = json.dumps(dictionary, sort_keys=True).encode()
+    dhash.update(encoded)
+    return dhash.hexdigest()
 
 
 @registries.register_domain("v")
@@ -175,6 +184,7 @@ class SimpleShapesDataModule(LightningDataModule):
             # else:
             #     sync_indices = np.arange(self.len_train_dataset // 2)
 
+            ood_folder = None
             if self.split_ood:
                 boundary_infos = ood_split(
                     32, 7, 14, self.ood_hole_attrs, self.ood_seed
@@ -184,30 +194,26 @@ class SimpleShapesDataModule(LightningDataModule):
                     for b in boundary_infos
                 }
                 extend_dataset_params = get_generation_boundary(boundary_infos)
-                size_val_set = np.load(
-                    self.simple_shapes_folder / "val_labels.npy"
-                ).shape[0]
-                size_test_set = np.load(
-                    self.simple_shapes_folder / "test_labels.npy"
-                ).shape[0]
-                if self.ood_create_new_examples:
+                job_id = os.getenv("SLURM_JOB_ID", "0")
+                location_hash = f"{job_id}-{dict_hash(extend_dataset_params)}"
+                ood_folder = self.simple_shapes_folder / "ood"
+                ood_folder.mkdir(exist_ok=True)
+                ood_folder = ood_folder / str(location_hash)
+                if self.ood_create_new_examples and not ood_folder.exists():
+                    ood_folder.mkdir()
                     print("Making new OOD examples...")
-                    lock_path = Path(self.simple_shapes_folder)
-                    lock_or_wait(lock_path)
-                    extend_shapes_dataset(
-                        self.simple_shapes_folder,
-                        0,
-                        32,
-                        self.len_train_dataset,
-                        size_val_set + 10,
-                        size_test_set + 10,
+                    create_dataset(
+                        ood_folder,
+                        seed=0,
+                        image_size=32,
+                        n_train=1,
+                        n_val=1000,
+                        n_test=1000,
                         min_lightness=46,
                         max_lightness=255,
                         **extend_dataset_params,
                     )
-                    print("Save presaved latent vectors.")
-                    add_presaved_latents()
-                    unlock(lock_path)
+                    add_presaved_latents(ood_folder)
                     print("Done.")
 
             val_set = SimpleShapesDataset(
@@ -216,6 +222,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
                 domain_loader_params=self.domain_loader_params,
+                ood_path=ood_folder,
             )
             test_set = SimpleShapesDataset(
                 self.simple_shapes_folder,
@@ -223,6 +230,7 @@ class SimpleShapesDataModule(LightningDataModule):
                 transform=val_transforms,
                 selected_domains=self.selected_domains,
                 domain_loader_params=self.domain_loader_params,
+                ood_path=ood_folder,
             )
 
             ood_split_datasets = [val_set, test_set]

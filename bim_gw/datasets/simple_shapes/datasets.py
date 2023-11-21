@@ -68,6 +68,7 @@ class SimpleShapesDataset(Dataset):
             Callable[[SelectedDomainType], SelectedDomainType]
         ] = None,
         domain_loader_params: Optional[Dict[str, Any]] = None,
+        ood_path: Optional[Union[str, pathlib.Path]] = None,
     ):
         """
         Args:
@@ -82,6 +83,8 @@ class SimpleShapesDataset(Dataset):
             AVAILABLE_DOMAINS.keys()
         )
         self.root_path = Path(path)
+        self.ood_path = Path(ood_path) if ood_path is not None else None
+
         self.transforms: Optional[
             Mapping[ShapesAvailableDomains, Optional[Callable[[Any], Any]]]
         ] = {
@@ -100,6 +103,24 @@ class SimpleShapesDataset(Dataset):
         self.labels: np.ndarray = np.load(
             str(self.root_path / f"{split}_labels.npy")
         )
+        self.ood_idx = {}
+        if self.ood_path is not None:
+            self.ood_labels: np.ndarray = np.load(
+                str(self.ood_path / f"{split}_labels.npy")
+            )
+            self.ood_idx = {
+                k: i
+                for i, k in enumerate(
+                    range(
+                        self.labels.shape[0],
+                        self.labels.shape[0] + self.ood_labels.shape[0],
+                    )
+                )
+            }
+            self.in_dist_labels = self.labels[:]
+            self.labels = np.concatenate(
+                [self.labels, self.ood_labels], axis=0
+            )
         self.ids: np.ndarray = np.arange(len(self.labels))
         # if selected_indices is not None:
         #     self.labels = self.labels[selected_indices]
@@ -164,6 +185,7 @@ class SimpleShapesDataset(Dataset):
             self.transforms,
             self.output_transform,
             self._domain_loader_params,
+            self.ood_path,
         )
 
     def use_pre_saved_latents(
@@ -176,12 +198,34 @@ class SimpleShapesDataset(Dataset):
                     self.split,
                     cast(Dict[AvailableDomains, str], pre_saved_latent_path),
                     domain_key,
-                    self.ids,
+                    self.ids[: self.in_dist_labels.shape[0]],
                 )
                 self.domain_loaders[domain_key] = PreSavedLatentLoader(
                     self.pre_saved_data[domain_key],
                     domain_item_name_mapping[domain_key],
                 )
+
+        if self.ood_path is not None:
+            for domain_key in self.selected_domains:
+                if domain_key in pre_saved_latent_path.keys():
+                    data = load_pre_saved_latent(
+                        self.ood_path,
+                        self.split,
+                        cast(
+                            Dict[AvailableDomains, str], pre_saved_latent_path
+                        ),
+                        domain_key,
+                        self.ids[self.in_dist_labels.shape[0] :],
+                    )
+                    for k in range(len(data)):
+                        self.pre_saved_data[domain_key][k] = np.concatenate(
+                            [self.pre_saved_data[domain_key][k], data[k]],
+                            axis=0,
+                        )
+                    self.domain_loaders[domain_key] = PreSavedLatentLoader(
+                        self.pre_saved_data[domain_key],
+                        domain_item_name_mapping[domain_key],
+                    )
 
     def __len__(self) -> int:
         return self.mapping.shape[0]
@@ -195,7 +239,15 @@ class SimpleShapesDataset(Dataset):
 
         for domain_key, domain_loader in self.domain_loaders.items():
             if domain_key in mapping:
-                domain_items = domain_loader.get_items(idx)
+                if (
+                    domain_loader.modality == ShapesAvailableDomains.v
+                    and idx in self.ood_idx.keys()
+                ):
+                    domain_items = domain_loader.get_items(
+                        self.ood_idx[idx], self.ood_path
+                    )
+                else:
+                    domain_items = domain_loader.get_items(idx)
             else:
                 domain_items = domain_loader.get_items(None)
             n_domains += domain_items.available_masks.item()

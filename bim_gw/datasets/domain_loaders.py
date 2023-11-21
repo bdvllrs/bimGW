@@ -54,6 +54,8 @@ class DomainLoader:
 
 
 class PreSavedLatentLoader:
+    modality = "pre_saved"
+
     def __init__(
         self, data: List[np.ndarray], domain_item_mapping: Dict[int, str]
     ):

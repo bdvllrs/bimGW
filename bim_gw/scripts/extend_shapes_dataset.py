@@ -31,7 +31,7 @@ def lock_or_wait(path: Path):
     lock_file = path / "lock"
     if not lock_file.exists():
         with open(lock_file, "w") as f:
-            f.write("lock")
+            f.write("")
         return
     while lock_file.exists():
         time.sleep(10)
@@ -45,7 +45,7 @@ def unlock(path: Path):
     os.remove(lock_file)
 
 
-def add_presaved_latents():
+def add_presaved_latents(root_path=None):
     args = get_args(debug=bool(int(os.getenv("DEBUG", 0))))
     args.global_workspace.use_pre_saved = False
     args.global_workspace.prop_labelled_images = 1.0
@@ -60,6 +60,9 @@ def add_presaved_latents():
             for domain in args.global_workspace.load_pre_saved_latents.keys()
         ]
     )
+
+    if root_path is not None:
+        args.simple_shapes_path = root_path
 
     root_path = Path(args.simple_shapes_path)
 
