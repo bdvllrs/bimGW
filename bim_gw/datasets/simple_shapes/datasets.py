@@ -215,7 +215,10 @@ class SimpleShapesDataset(Dataset):
                             Dict[AvailableDomains, str], pre_saved_latent_path
                         ),
                         domain_key,
-                        self.ids[self.in_dist_labels.shape[0] :],
+                        [
+                            self.ood_idx[k]
+                            for k in self.ids[self.in_dist_labels.shape[0] :]
+                        ],
                     )
                     for k in range(len(data)):
                         self.pre_saved_data[domain_key][k] = np.concatenate(
