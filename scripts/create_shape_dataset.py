@@ -10,7 +10,6 @@ from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
 from bim_gw.utils.shapes import (
     generate_dataset,
-    generate_transformations,
     generate_unpaired_attr,
     load_labels,
     save_dataset,
@@ -53,6 +52,8 @@ def main(args):
     min_y = args.datasets.shapes.min_y
     max_y = args.datasets.shapes.max_y
 
+    shapes_color_range = args.datasets.shapes.shapes_color_range
+
     np.random.seed(seed)
 
     train_labels = generate_dataset(
@@ -70,27 +71,8 @@ def main(args):
         max_x,
         min_y,
         max_y,
+        shapes_color_range,
         image_size,
-    )
-    train_transfo_labels, train_transfo = generate_transformations(
-        train_labels,
-        generate_dataset(
-            size_train_set,
-            min_scale,
-            max_scale,
-            min_lightness,
-            max_lightness,
-            possible_categories,
-            min_hue,
-            max_hue,
-            min_rotation,
-            max_rotation,
-            min_x,
-            max_x,
-            min_y,
-            max_y,
-            image_size,
-        ),
     )
     val_labels = generate_dataset(
         size_val_set,
@@ -107,27 +89,8 @@ def main(args):
         max_x,
         min_y,
         max_y,
+        shapes_color_range,
         image_size,
-    )
-    val_transfo_labels, val_transfo = generate_transformations(
-        val_labels,
-        generate_dataset(
-            size_val_set,
-            min_scale,
-            max_scale,
-            min_lightness,
-            max_lightness,
-            possible_categories,
-            min_hue,
-            max_hue,
-            min_rotation,
-            max_rotation,
-            min_x,
-            max_x,
-            min_y,
-            max_y,
-            image_size,
-        ),
     )
     test_labels = generate_dataset(
         size_test_set,
@@ -144,66 +107,25 @@ def main(args):
         max_x,
         min_y,
         max_y,
+        shapes_color_range,
         image_size,
-    )
-    test_transfo_labels, test_transfo = generate_transformations(
-        test_labels,
-        generate_dataset(
-            size_test_set,
-            min_scale,
-            max_scale,
-            min_lightness,
-            max_lightness,
-            possible_categories,
-            min_hue,
-            max_hue,
-            min_rotation,
-            max_rotation,
-            min_x,
-            max_x,
-            min_y,
-            max_y,
-            image_size,
-        ),
     )
 
     print("Save labels...")
-    save_labels(
-        dataset_location / "train_labels.npy", train_labels, train_transfo
-    )
-    save_labels(dataset_location / "val_labels.npy", val_labels, val_transfo)
-    save_labels(
-        dataset_location / "test_labels.npy", test_labels, test_transfo
-    )
+    save_labels(dataset_location / "train_labels.npy", train_labels)
+    save_labels(dataset_location / "val_labels.npy", val_labels)
+    save_labels(dataset_location / "test_labels.npy", test_labels)
 
     print("Saving training set...")
     (dataset_location / "transformed").mkdir(exist_ok=True)
     (dataset_location / "train").mkdir(exist_ok=True)
     save_dataset(dataset_location / "train", train_labels, image_size)
-    (dataset_location / "transformed" / "train").mkdir(exist_ok=True)
-    save_dataset(
-        dataset_location / "transformed" / "train",
-        train_transfo_labels,
-        image_size,
-    )
     print("Saving validation set...")
     (dataset_location / "val").mkdir(exist_ok=True)
     save_dataset(dataset_location / "val", val_labels, image_size)
-    (dataset_location / "transformed" / "val").mkdir(exist_ok=True)
-    save_dataset(
-        dataset_location / "transformed" / "val",
-        val_transfo_labels,
-        image_size,
-    )
     print("Saving test set...")
     (dataset_location / "test").mkdir(exist_ok=True)
     save_dataset(dataset_location / "test", test_labels, image_size)
-    (dataset_location / "transformed" / "test").mkdir(exist_ok=True)
-    save_dataset(
-        dataset_location / "transformed" / "test",
-        test_transfo_labels,
-        image_size,
-    )
 
     print("Saving captions...")
 

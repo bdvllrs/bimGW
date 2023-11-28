@@ -292,6 +292,7 @@ class GlobalWorkspaceConfig:
     ood_seed: int = MISSING
     ood_idx_domain: int = MISSING
     ood_create_new_examples: bool = MISSING
+    ood_folder: Optional[str] = None
 
     hidden_size: HiddenSizeGlobalWorkspaceConfig = field(
         default_factory=HiddenSizeGlobalWorkspaceConfig
@@ -386,6 +387,7 @@ class ShapesConfig:
     max_x: Optional[int] = None
     min_y: Optional[int] = None
     max_y: Optional[int] = None
+    shapes_color_range: Optional[List[List[int]]] = None
 
 
 @dataclass

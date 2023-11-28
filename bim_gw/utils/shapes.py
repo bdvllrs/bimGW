@@ -202,7 +202,13 @@ def generate_scale(n_samples, min_val, max_val):
     return np.random.randint(min_val, max_val + 1, n_samples)
 
 
-def generate_color(n_samples, min_lightness, max_lightness, min_hue, max_hue):
+def generate_color(
+    n_samples,
+    min_lightness,
+    max_lightness,
+    min_hue,
+    max_hue,
+):
     import cv2
 
     assert (
@@ -216,6 +222,51 @@ def generate_color(n_samples, min_lightness, max_lightness, min_hue, max_hue):
         size=(1, n_samples, 3),
         dtype=np.uint8,
     )
+    if n_samples > 0:
+        rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
+    else:
+        rgb = np.zeros_like(hls)[0]
+    return rgb.astype(int), hls[0].astype(int)
+
+
+def generate_color_conditioned(
+    classes,
+    n_samples,
+    min_lightness,
+    max_lightness,
+    min_hue,
+    max_hue,
+    class_color_range,
+):
+    import cv2
+
+    assert (
+        0 <= min_lightness < max_lightness <= 255
+    ), f"{min_lightness}, {max_lightness}"
+    assert 0 <= min_hue < max_hue <= 180, f"{min_hue}, {max_hue}"
+
+    hls = np.random.randint(
+        [min_hue, min_lightness, 0],
+        [max_hue + 1, max_lightness + 1, 256],
+        size=(1, n_samples, 3),
+        dtype=np.uint8,
+    )
+
+    idx_cls = [classes == 0, classes == 1, classes == 2]
+
+    for k in range(3):
+        low_hue, high_hue = class_color_range[k][0], class_color_range[k][1]
+        hls[0, idx_cls[k], 0] = np.random.randint(
+            low_hue,
+            high_hue,
+            size=(idx_cls[k].sum(),),
+        )
+    hues = hls[0, :, 0]
+    hls[0, hues < 0, 0] = 180 + hues[hues < 0]
+    hls[0, hues >= 180, 0] = hues[hues >= 180] - 180
+
+    assert np.logical_and(0 <= hls[0, :, 0], hls[0, :, 0] < 180).all()
+
     if n_samples > 0:
         rgb = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)[0]
     else:
@@ -378,6 +429,7 @@ def generate_dataset(
     max_x: Optional[int],
     min_y: Optional[int],
     max_y: Optional[int],
+    shapes_color_range: Optional[List[List[int]]],
     imsize,
     classes=None,
 ):
@@ -388,9 +440,24 @@ def generate_dataset(
         n_samples, max_scale, min_x, max_x, min_y, max_y, imsize
     )
     rotation = generate_rotation(n_samples, min_rotation, max_rotation)
-    colors_rgb, colors_hls = generate_color(
-        n_samples, min_lightness, max_lightness, min_hue, max_hue
-    )
+    if shapes_color_range is not None:
+        colors_rgb, colors_hls = generate_color_conditioned(
+            classes,
+            n_samples,
+            min_lightness,
+            max_lightness,
+            min_hue,
+            max_hue,
+            shapes_color_range,
+        )
+    else:
+        colors_rgb, colors_hls = generate_color(
+            n_samples,
+            min_lightness,
+            max_lightness,
+            min_hue,
+            max_hue,
+        )
     unpaired = generate_unpaired_attr(n_samples)
     return dict(
         classes=classes,
@@ -491,22 +558,12 @@ def load_labels(path_root):
     return dataset, dataset_transfo
 
 
-def save_labels(path_root, dataset, dataset_transfo):
+def save_labels(path_root, dataset):
     classes, locations = dataset["classes"], dataset["locations"]
     sizes = dataset["sizes"]
     rotations, colors = dataset["rotations"], dataset["colors"]
     colors_hls = dataset["colors_hls"]
     unpaired_attr = dataset["unpaired"]
-    classes_transfo = dataset_transfo["classes"]
-    locations_transfo = dataset_transfo["locations"]
-
-    sizes_transfo = dataset_transfo["sizes"]
-    rotations_transfo = dataset_transfo["rotations"]
-
-    colors_transfo = dataset_transfo["colors"]
-    colors_hls_transfo = dataset_transfo["colors_hls"]
-    unpaired_attr_transfo = dataset_transfo["unpaired"]
-    # TODO: add transformation to unpaired examples
     labels = np.concatenate(
         [
             classes.reshape((-1, 1)),
@@ -516,13 +573,6 @@ def save_labels(path_root, dataset, dataset_transfo):
             colors,
             colors_hls,
             unpaired_attr.reshape((-1, 1)),
-            classes_transfo.reshape((-1, 1)),
-            locations_transfo,
-            sizes_transfo.reshape((-1, 1)),
-            rotations_transfo.reshape((-1, 1)),
-            colors_transfo,
-            colors_hls_transfo,
-            unpaired_attr_transfo.reshape((-1, 1)),
         ],
         axis=1,
     ).astype(np.float32)

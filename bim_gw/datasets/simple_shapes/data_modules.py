@@ -95,6 +95,7 @@ class SimpleShapesDataModule(LightningDataModule):
         ood_hole_attrs: int = 6,
         ood_idx_domain: int = 0,
         ood_create_new_examples: bool = False,
+        ood_folder: Optional[str] = None,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -115,6 +116,7 @@ class SimpleShapesDataModule(LightningDataModule):
         self.ood_hole_attrs = ood_hole_attrs
         self.ood_seed = ood_seed
         self.ood_create_new_examples = ood_create_new_examples
+        self.ood_folder = ood_folder
 
         if n_validation_domain_examples is not None:
             self.n_domain_examples = n_validation_domain_examples
@@ -186,35 +188,47 @@ class SimpleShapesDataModule(LightningDataModule):
 
             ood_folder = None
             if self.split_ood:
-                boundary_infos = ood_split(
-                    32, 7, 14, self.ood_hole_attrs, self.ood_seed
-                )
-                ood_boundaries = {
-                    b.kind.value: b.boundary.description()
-                    for b in boundary_infos
-                }
-                extend_dataset_params = get_generation_boundary(boundary_infos)
-                job_id = os.getenv("SLURM_JOB_ID", "0")
-                location_hash = f"{job_id}-{dict_hash(extend_dataset_params)}"
-                ood_folder = self.simple_shapes_folder / "ood"
-                ood_folder.mkdir(exist_ok=True)
-                ood_folder = ood_folder / str(location_hash)
-                if self.ood_create_new_examples and not ood_folder.exists():
-                    ood_folder.mkdir()
-                    print("Making new OOD examples...")
-                    create_dataset(
-                        ood_folder,
-                        seed=0,
-                        image_size=32,
-                        n_train=1,
-                        n_val=1000,
-                        n_test=1000,
-                        min_lightness=46,
-                        max_lightness=255,
-                        **extend_dataset_params,
+                if self.ood_folder is not None:
+                    ood_folder = (
+                        self.simple_shapes_folder / "ood" / self.ood_folder
                     )
-                    add_presaved_latents(ood_folder)
-                    print("Done.")
+                else:
+                    boundary_infos = ood_split(
+                        32, 7, 14, self.ood_hole_attrs, self.ood_seed
+                    )
+                    ood_boundaries = {
+                        b.kind.value: b.boundary.description()
+                        for b in boundary_infos
+                    }
+                    extend_dataset_params = get_generation_boundary(
+                        boundary_infos
+                    )
+                    job_id = os.getenv("SLURM_JOB_ID", "0")
+                    location_hash = (
+                        f"{job_id}-{dict_hash(extend_dataset_params)}"
+                    )
+                    ood_folder = self.simple_shapes_folder / "ood"
+                    ood_folder.mkdir(exist_ok=True)
+                    ood_folder = ood_folder / str(location_hash)
+                    if (
+                        self.ood_create_new_examples
+                        and not ood_folder.exists()
+                    ):
+                        ood_folder.mkdir()
+                        print("Making new OOD examples...")
+                        create_dataset(
+                            ood_folder,
+                            seed=0,
+                            image_size=32,
+                            n_train=1,
+                            n_val=1000,
+                            n_test=1000,
+                            min_lightness=46,
+                            max_lightness=255,
+                            **extend_dataset_params,
+                        )
+                        add_presaved_latents(ood_folder)
+                        print("Done.")
 
             val_set = SimpleShapesDataset(
                 self.simple_shapes_folder,

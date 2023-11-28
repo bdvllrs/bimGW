@@ -45,6 +45,7 @@ def load_simple_shapes_dataset(args, local_args, **kwargs):
         ood_seed=args.global_workspace.ood_seed,
         ood_idx_domain=args.global_workspace.ood_idx_domain,
         ood_create_new_examples=args.global_workspace.ood_create_new_examples,
+        ood_folder=args.global_workspace.ood_folder,
         **kwargs,
     )
 
