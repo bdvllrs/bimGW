@@ -260,8 +260,8 @@ class SimpleShapesDataModule(LightningDataModule):
                 )
                 ood_split_datasets.append(train_set)
 
-            id_ood_splits = [None, None]
-            if self.split_ood:
+            id_ood_splits = [None, None, None]
+            if self.split_ood and self.ood_folder is None:
                 id_ood_splits = create_ood_split(
                     ood_split_datasets, boundary_infos
                 )
@@ -271,6 +271,15 @@ class SimpleShapesDataModule(LightningDataModule):
                 logging.info("Val set OOD size", len(id_ood_splits[0][1]))
                 logging.info("Test set in dist size", len(id_ood_splits[1][0]))
                 logging.info("Test set OOD size", len(id_ood_splits[1][1]))
+            elif self.split_ood:
+                for k, dataset in enumerate(ood_split_datasets):
+                    id_ood_splits[k] = (
+                        np.arange(len(dataset.in_dist_labels)),
+                        np.arange(
+                            len(dataset.in_dist_labels),
+                            len(dataset.labels),
+                        ),
+                    )
 
             if stage == "fit":
                 if self.split_ood:
