@@ -33,7 +33,7 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 
 datasets:
   shapes:
-    n_train_examples: 500000
+    n_train_examples: 1000000
     n_val_examples: 1000
     n_test_examples: 1000
     min_scale: 7
