@@ -45,8 +45,8 @@ if __name__ == "__main__":
         domain.eval()
 
     data_loaders = {
-        # "val": data.val_dataloader()[0],  # only keep in dist dataloaders
-        # "test": data.test_dataloader()[0],
+        "val": data.val_dataloader()[0],  # only keep in dist dataloaders
+        "test": data.test_dataloader()[0],
         "train": data.train_dataloader(shuffle=False),
     }
 
