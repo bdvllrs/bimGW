@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional, Union
 
-import wandb
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers.wandb import WandbLogger as WandbLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
@@ -37,8 +36,8 @@ class WandbLogger(WandbLoggerBase):
             )
 
     def set_summary(self, name, mode="min"):
-        wandb.define_metric(name, summary=mode)
-        # pass
+        # wandb.define_metric(name, summary=mode)
+        pass
 
     def save_images(self, mode=True):
         self.do_save_images = mode

@@ -46,6 +46,13 @@
         {
             "type": "python",
             "request": "launch",
+            "name": "Visualize OOD Results",
+            "justMyCode": false,
+            "program": "${workspaceFolder}/scripts/visualization/ood_results.py"
+        },
+        {
+            "type": "python",
+            "request": "launch",
             "name": "Visualize Downstream OOO",
             "justMyCode": false,
             "program": "${workspaceFolder}/scripts/visualization/downstream_ooo.py"

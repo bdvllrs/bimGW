@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     root_path = Path(args.simple_shapes_path)
 
-    data = load_dataset(args, args.global_workspace)
+    data = load_dataset(args, args.global_workspace, add_unimodal=False)
     data.prepare_data()
     data.setup(stage="fit")
 
@@ -45,8 +45,8 @@ if __name__ == "__main__":
         domain.eval()
 
     data_loaders = {
-        "val": data.val_dataloader()[0],  # only keep in dist dataloaders
-        "test": data.test_dataloader()[0],
+        # "val": data.val_dataloader()[0],  # only keep in dist dataloaders
+        # "test": data.test_dataloader()[0],
         "train": data.train_dataloader(shuffle=False),
     }
 
