@@ -2,17 +2,8 @@ import pathlib
 from collections.abc import Container
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Protocol,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import (Any, Dict, List, Literal, Optional, Protocol, Sequence,
+                    TypeVar, Union)
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -110,6 +101,7 @@ class LRGWOptimConfig:
 class GWOptimConfig:
     weight_decay: float = MISSING
     lr: LRGWOptimConfig = field(default_factory=LRGWOptimConfig)
+    unsupervised_losses_after_n_epochs: int = 0
 
 
 @dataclass

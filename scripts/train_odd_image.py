@@ -10,11 +10,8 @@ from bim_gw.modules.odd_classifier import OddClassifier, OddClassifierDist
 from bim_gw.modules.workspace_encoders import DomainEncoder
 from bim_gw.utils import get_args
 from bim_gw.utils.scripts import get_domain, get_domains, get_trainer
-from bim_gw.utils.utils import (
-    find_best_epoch,
-    get_checkpoint_path,
-    get_runs_dataframe,
-)
+from bim_gw.utils.utils import (find_best_epoch, get_checkpoint_path,
+                                get_runs_dataframe)
 
 yaml = YAML(typ="safe")
 
@@ -155,7 +152,10 @@ if __name__ == "__main__":
             path = find_best_epoch(path)
         print("Encoders")
         global_workspace = GlobalWorkspace.load_from_checkpoint(
-            path, domain_mods=get_domains(args, args.img_size), strict=False
+            path,
+            domain_mods=get_domains(args, args.img_size),
+            strict=False,
+            optim_unsupervised_losses_after=args.global_workspace.optim.unsupervised_losses_after_n_epochs,
         )
         load_domains = global_workspace.domains.names
         global_workspace.freeze()

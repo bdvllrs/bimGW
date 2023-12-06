@@ -33,7 +33,7 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 
 datasets:
   shapes:
-    n_train_examples: 500_000
+    n_train_examples: 1_000_000
     n_val_examples: 1_000
     n_test_examples: 1_000
     min_scale: 7
@@ -41,15 +41,13 @@ datasets:
     min_lightness: 46
     max_lightness: 255
     shapes_color_range:
-        # - [-12, 64]
-        # - [52, 128]
-        # - [116, 191]
-        # - [65, 191]
-        # - [129, 231]
-        # - [192, 295]      
-        - [78, 154]
-        - [142, 218]
-        - [26, 102]
+        - [-12, 64]
+        - [52, 128]
+        - [116, 191]
+        # OOD
+        # - [78, 154]
+        # - [142, 218]
+        # - [26, 102]
 
 
 
@@ -343,6 +341,7 @@ global_workspace:
       supervised_multiplier: 1.
       unsupervised_multiplier: 1.
     weight_decay: 5e-5
+    unsupervised_losses_after_n_epochs: 0  # Start optimizing with unsupervised losses after a n epochs.
 
   scheduler:
     # "fixed"/"adaptive".

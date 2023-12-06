@@ -67,8 +67,6 @@ class VAE(DomainModule):
             torch.randn(n_validation_examples, self.z_size),
         )
 
-        self.validation_reconstruction_images = None
-
         if self.vae_type == VAEType.sigma:
             self.log_sigma = nn.Parameter(
                 torch.tensor(0.0), requires_grad=True
@@ -242,7 +240,6 @@ class VAE(DomainModule):
     def setup(self, stage: Optional[str] = None) -> None:
         if (
             not hasattr(self.trainer, "datamodule")
-            or self.domain_examples is not None
             or self.trainer.datamodule is None  # type: ignore
             or not hasattr(
                 self.trainer.datamodule,  # type: ignore

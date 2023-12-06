@@ -6,18 +6,14 @@ import torch
 import torch.nn.functional as F
 import torchmetrics
 from pytorch_lightning import LightningModule
-from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from torch import nn
 
 from bim_gw.datasets.domain import DomainItems
 from bim_gw.modules.domain_buffer import DictBuffer
 from bim_gw.modules.domain_interface import DomainInterface
 from bim_gw.modules.domain_modules import DomainModule
-from bim_gw.utils.types import (
-    SchedulerConfig,
-    SchedulerInterval,
-    SchedulerMode,
-)
+from bim_gw.utils.types import (SchedulerConfig, SchedulerInterval,
+                                SchedulerMode)
 from bim_gw.utils.utils import log_if_save_last_images, log_if_save_last_tables
 
 
@@ -54,6 +50,7 @@ class GlobalWorkspace(LightningModule):
         loss_coef_contrastive: float = 0.0,
         optim_lr: float = 3e-4,
         optim_weight_decay: float = 1e-5,
+        optim_unsupervised_losses_after: int = 0,
         scheduler_mode: SchedulerMode = SchedulerMode.fixed,
         scheduler_interval: SchedulerInterval = SchedulerInterval.epoch,
         scheduler_step=20,
@@ -85,6 +82,7 @@ class GlobalWorkspace(LightningModule):
         self.n_layers_decoder_head = n_layers_decoder_head
         self.monitor_grad_norms = monitor_grad_norms
         self.save_only_last_images = save_only_last_images
+        self.optim_unsupervised_losses_after = optim_unsupervised_losses_after
 
         self.domains = DomainInterface(domain_mods)
 
@@ -402,24 +400,46 @@ class GlobalWorkspace(LightningModule):
                 prefix="translation-non-op",
             )
 
-        losses = {
-            **demi_cycle_losses,
-            **cycle_losses,
+        supervised_losses = {
             **translation_losses,
             **contrastive_losses,
             **translation_losses_2,
         }
-        loss_names = ["demi_cycles", "cycles", "translation", "contrastive"]
-        losses["total"] = torch.stack(
+        unsupervised_losses = {**demi_cycle_losses, **cycle_losses}
+        losses = {**supervised_losses, **unsupervised_losses}
+
+        supervised_loss_names = ["translation", "contrastive"]
+        unsupervised_loss_names = ["demi_cycles", "cycles"]
+
+        losses["supervised"] = torch.stack(
             [
                 self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
-                for loss_name in loss_names
+                for loss_name in supervised_loss_names
             ],
             dim=0,
         ).sum()
-        losses["total_no_coefs"] = torch.stack(
-            [losses[loss_name] for loss_name in loss_names], dim=0
+        losses["unsupervised"] = torch.stack(
+            [
+                self.hparams[f"loss_coef_{loss_name}"] * losses[loss_name]
+                for loss_name in unsupervised_loss_names
+            ],
+            dim=0,
         ).sum()
+        losses["supervised_no_coefs"] = torch.stack(
+            [losses[loss_name] for loss_name in supervised_loss_names], dim=0
+        ).sum()
+        losses["unsupervised_no_coefs"] = torch.stack(
+            [losses[loss_name] for loss_name in unsupervised_loss_names], dim=0
+        ).sum()
+
+        if self.current_epoch <= self.optim_unsupervised_losses_after:
+            losses["total"] = losses["supervised"]
+            losses["total_no_coefs"] = losses["supervised_no_coefs"]
+        else:
+            losses["total"] = losses["unsupervised"] + losses["supervised"]
+            losses["total_no_coefs"] = (
+                losses["unsupervised_no_coefs"] + losses["supervised_no_coefs"]
+            )
 
         batch_size = latents[list(latents.keys())[0]].available_masks.size(0)
         for name, loss in losses.items():
@@ -562,7 +582,7 @@ class GlobalWorkspace(LightningModule):
                 for dist, dist_examples in domain_examples.items():
                     self.log_domains(logger, dist_examples, f"{mode}/{dist}")
 
-    def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+    def training_epoch_end(self, outputs) -> None:
         self.domains.eval()
         self.epoch_end("train")
 

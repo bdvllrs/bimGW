@@ -37,6 +37,7 @@ if __name__ == "__main__":
     global_workspace = GlobalWorkspace.load_from_checkpoint(
         args.checkpoint,
         domain_mods=get_domains(args, data.img_size),
+        optim_unsupervised_losses_after=args.global_workspace.optim.unsupervised_losses_after_n_epochs,
         strict=False,
     )
     global_workspace.eval()

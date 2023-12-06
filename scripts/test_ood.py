@@ -29,7 +29,9 @@ def test_ood(args):
     lm.freeze()
 
     global_workspace = GlobalWorkspace.load_from_checkpoint(
-        args.checkpoint, domain_mods={"v": vae, "t": lm}
+        args.checkpoint,
+        domain_mods={"v": vae, "t": lm},
+        optim_superviunsed_losses_after=args.global_workspace.optim.unsupervised_losses_after_n_epochs,
     )
     global_workspace.eval()
 

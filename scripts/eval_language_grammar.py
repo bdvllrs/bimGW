@@ -39,6 +39,7 @@ if __name__ == "__main__":
         args.losses.coefs.contrastive,
         args.global_workspace.optim.lr,
         args.global_workspace.optim.weight_decay,
+        args.global_workspace.optim.unsupervised_losses_after_n_epochs,
         args.global_workspace.scheduler.mode,
         args.global_workspace.scheduler.interval,
         args.global_workspace.scheduler.step,

@@ -29,6 +29,7 @@ if __name__ == "__main__":
     global_workspace = GlobalWorkspace.load_from_checkpoint(
         checkpoint_path,
         domain_mods=domain_mods,
+        optim_unsupervised_losses_after=args.global_workspace.optim.unsupervised_losses_after_n_epochs,
         domain_examples=data.domain_examples,
         strict=False,
     )

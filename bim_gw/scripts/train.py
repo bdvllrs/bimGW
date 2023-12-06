@@ -17,6 +17,7 @@ def train_gw(args, mode="train"):
         checkpoint_path = get_checkpoint_path(args.checkpoint)
         global_workspace = GlobalWorkspace.load_from_checkpoint(
             checkpoint_path,
+            optim_unsupervised_losses_after=args.global_workspace.optim.unsupervised_losses_after_n_epochs,
             domain_mods=get_domains(args, data.img_size),
         )
     else:
@@ -33,6 +34,7 @@ def train_gw(args, mode="train"):
             args.losses.coefs.contrastive,
             args.global_workspace.optim.lr,
             args.global_workspace.optim.weight_decay,
+            args.global_workspace.optim.unsupervised_losses_after_n_epochs,
             args.global_workspace.scheduler.mode,
             args.global_workspace.scheduler.interval,
             args.global_workspace.scheduler.step,
@@ -126,7 +128,7 @@ def train_vae(args):
         args,
         args.vae,
         selected_domains=["v"],
-        compute_inception_statistics=True,
+        # compute_inception_statistics=True,
     )
 
     if "checkpoint" in args and args.checkpoint is not None:
