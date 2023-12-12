@@ -34,8 +34,8 @@ checkpoint: null  # path to the GW model for evaluation or path to folder contai
 datasets:
   shapes:
     n_train_examples: 1_000_000
-    n_val_examples: 1_000
-    n_test_examples: 1_000
+    n_val_examples: 10_000
+    n_test_examples: 10_000
     min_scale: 7
     max_scale: 14
     min_lightness: 46
@@ -43,11 +43,19 @@ datasets:
     shapes_color_range:
         - [-12, 64]
         - [52, 128]
-        - [116, 191]
-        # OOD
+        - [116, 192]
+        #
+        # - [65, 167]
+        # - [129, 231]
+        # - [13, 115]
+        # # OOD
         # - [78, 154]
         # - [142, 218]
         # - [26, 102]
+        #
+        # - [98, 139]
+        # - [157, 203]
+        # - [41, 87]
 
 
 

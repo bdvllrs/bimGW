@@ -8,13 +8,8 @@ from tqdm import tqdm
 
 from bim_gw.datasets import load_dataset
 from bim_gw.utils import get_args
-from bim_gw.utils.shapes import (
-    generate_dataset,
-    generate_unpaired_attr,
-    load_labels,
-    save_dataset,
-    save_labels,
-)
+from bim_gw.utils.shapes import (generate_dataset, generate_unpaired_attr,
+                                 load_labels, save_dataset, save_labels)
 from bim_gw.utils.text_composer.bert import save_bert_latents
 from bim_gw.utils.text_composer.composer import composer
 
