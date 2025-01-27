@@ -1,37 +1,20 @@
 import pathlib
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Type,
-    Union,
-    cast,
-)
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Type, Union, cast)
 
 import numpy as np
 from torch.utils.data import Dataset
 
 from bim_gw.datasets.domain import DomainItems
-from bim_gw.datasets.domain_loaders import (
-    DomainLoader,
-    DomainLoaderType,
-    PreSavedLatentLoader,
-)
+from bim_gw.datasets.domain_loaders import (DomainLoader, DomainLoaderType,
+                                            PreSavedLatentLoader)
 from bim_gw.datasets.pre_saved_latents import load_pre_saved_latent
-from bim_gw.datasets.simple_shapes.domain_loaders import (
-    AttributesLoader,
-    TextLoader,
-    VisionLoader,
-)
-from bim_gw.datasets.simple_shapes.types import (
-    SelectedDomainType,
-    ShapesAvailableDomains,
-)
+from bim_gw.datasets.simple_shapes.domain_loaders import (AttributesLoader,
+                                                          TextLoader,
+                                                          VisionLoader)
+from bim_gw.datasets.simple_shapes.types import (SelectedDomainType,
+                                                 ShapesAvailableDomains)
 from bim_gw.utils.types import AvailableDomains, SequenceLike, SplitLiteral
 
 AVAILABLE_DOMAINS: Dict[ShapesAvailableDomains, Type[DomainLoader]] = {
@@ -103,6 +86,8 @@ class SimpleShapesDataset(Dataset):
         self.labels: np.ndarray = np.load(
             str(self.root_path / f"{split}_labels.npy")
         )
+        if split in ["val", "test"]:
+            self.labels = self.labels[:50000]
         self.in_dist_labels = self.labels[:]
         self.ood_idx = {}
         if self.ood_path is not None:

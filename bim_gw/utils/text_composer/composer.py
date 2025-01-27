@@ -7,7 +7,6 @@ from tqdm import tqdm
 
 from bim_gw.utils import get_args
 from bim_gw.utils.text_composer.utils import inspect_all_choices
-
 # from bim_gw.utils.text_composer.modifiers import MixModifier, DeleteModifier
 from bim_gw.utils.text_composer.writers import writers
 

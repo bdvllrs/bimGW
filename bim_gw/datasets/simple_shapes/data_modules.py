@@ -13,23 +13,16 @@ from pytorch_lightning import LightningDataModule
 
 from bim_gw.datasets.distribution_splits import split_ood_sets
 from bim_gw.datasets.domain import DomainItems, collate_fn
-from bim_gw.datasets.ood_splits import (
-    create_ood_split,
-    get_generation_boundary,
-    ood_split,
-)
-from bim_gw.datasets.simple_shapes.datasets import (
-    AVAILABLE_DOMAINS,
-    SimpleShapesDataset,
-)
+from bim_gw.datasets.ood_splits import (create_ood_split,
+                                        get_generation_boundary, ood_split)
+from bim_gw.datasets.simple_shapes.datasets import (AVAILABLE_DOMAINS,
+                                                    SimpleShapesDataset)
 from bim_gw.datasets.simple_shapes.domain_loaders import ShapesAvailableDomains
 from bim_gw.datasets.simple_shapes.utils import get_v_preprocess
 from bim_gw.datasets.utils import filter_sync_domains, get_validation_examples
 from bim_gw.modules.domain_modules import VAE
 from bim_gw.modules.domain_modules.simple_shapes import (
-    SimpleShapesAttributes,
-    SimpleShapesText,
-)
+    SimpleShapesAttributes, SimpleShapesText)
 from bim_gw.scripts.create_simple_shapes_dataset import create_dataset
 from bim_gw.scripts.extend_shapes_dataset import add_presaved_latents
 from bim_gw.utils import registries

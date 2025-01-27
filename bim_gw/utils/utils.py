@@ -3,17 +3,8 @@ import os
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Union,
-    cast,
-)
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Set, Union,
+                    cast)
 
 import pandas as pd
 import torch
@@ -22,11 +13,8 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from bim_gw.utils.errors import ConfigError
-from bim_gw.utils.types import (
-    DataSelectorAxesConfig,
-    LoadFromData,
-    WandbFilterT,
-)
+from bim_gw.utils.types import (DataSelectorAxesConfig, LoadFromData,
+                                WandbFilterT)
 
 
 def log_image(logger, sample_imgs, name, step=None, **kwargs):
@@ -303,7 +291,7 @@ def find_remote_last_epoch(remote_path, ssh):
     return remote_path
 
 
-def get_checkpoint_path(path):
+def get_checkpoint_path(path) -> Union[str, Path]:
     if path is not None and type(path) is str and os.path.isdir(path):
         return find_best_epoch(path)
 

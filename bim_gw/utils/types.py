@@ -355,10 +355,16 @@ class UnpairedCLSDownstreamConfig:
 
 
 @dataclass
+class ClipClsConfig:
+    checkpoints: List[Any] = field(default_factory=list)
+
+
+@dataclass
 class DownstreamConfig:
     unpaired_cls: UnpairedCLSDownstreamConfig = field(
         default_factory=UnpairedCLSDownstreamConfig
     )
+    clip_cls: ClipClsConfig = field(default_factory=ClipClsConfig)
 
 
 @dataclass

@@ -5,9 +5,7 @@ from torch import nn
 def get_n_layers(n_layers, hidden_size):
     layers = []
     for k in range(n_layers):
-        layers.extend(
-            [nn.Linear(hidden_size, hidden_size), nn.ReLU(), nn.Dropout(0.3)]
-        )
+        layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
     return layers
 
 
@@ -47,7 +45,6 @@ class DomainDecoder(torch.nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
             *get_n_layers(n_layers, self.hidden_size),
         )
 
@@ -87,7 +84,6 @@ class DomainEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(sum(self.in_dims.values()), self.hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
             *get_n_layers(n_layers, self.hidden_size),
             nn.Linear(self.hidden_size, self.out_dim),
         )

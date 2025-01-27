@@ -423,4 +423,7 @@ downstream:
       lr: 1e-3
       weight_decay: 1e-5
 
+  clip_cls:
+    checkpoints: []
+
 _code_version: master

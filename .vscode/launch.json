@@ -29,6 +29,32 @@
         {
             "type": "python",
             "request": "launch",
+            "name": "Downstream CLIP CLS",
+            "program": "${workspaceFolder}/scripts/downstream/clip_cls.py",
+            "justMyCode": false,
+            "env": {
+                "DEBUG": "1",
+                "CUDA_VISIBLE_DEVICES": "1",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID"
+
+            }
+        },
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Downstream Probe CLS",
+            "program": "${workspaceFolder}/scripts/downstream/probe_cls.py",
+            "justMyCode": false,
+            "env": {
+                "DEBUG": "1",
+                "CUDA_VISIBLE_DEVICES": "1",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID"
+
+            }
+        },
+        {
+            "type": "python",
+            "request": "launch",
             "name": "Eval Language Grammar",
             "program": "${workspaceFolder}/scripts/eval_language_grammar.py",
             "justMyCode": false,
